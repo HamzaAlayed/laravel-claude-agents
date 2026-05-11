@@ -1,0 +1,94 @@
+# Project Conventions for Claude Code
+
+This file is read by every agent in every session. Keep it terse, current, and accurate. Stale guidance here costs more than no guidance.
+
+---
+
+## Mission
+
+<!-- One sentence. What does this product do, for whom, and why does it exist? -->
+TODO
+
+## Tech stack
+
+<!-- Be specific. Versions matter. -->
+
+- **Language(s):** TODO
+- **Frontend:** TODO (framework, state mgmt, styling)
+- **Backend:** TODO (framework, ORM, auth)
+- **Database:** TODO (primary + analytics)
+- **Mobile:** TODO (iOS / Android / RN / Expo)
+- **Infra:** TODO (cloud, runtime, IaC)
+- **CI/CD:** TODO
+
+## Repository layout
+
+<!-- A 5–10 line tree, only the directories agents need to know about. -->
+```
+TODO
+```
+
+## Conventions
+
+### Code
+
+- Style guide: TODO (and link to the actual config files)
+- Naming: TODO
+- Errors: TODO (how errors are typed, raised, logged)
+- Logging: TODO (logger, structured fields, levels)
+- Tests: TODO (where they live, how to run them)
+
+### Git
+
+- Branch naming: TODO
+- Commit format: TODO (conventional commits? trailers?)
+- PR rules: TODO (size, description, linked issue)
+
+### Architecture
+
+- ADRs live in `docs/adr/` — read them before proposing structural changes
+- Current high-level diagram: `docs/architecture/overview.md`
+
+## What's in scope
+
+<!-- The areas agents are expected to touch. -->
+TODO
+
+## What's out of scope
+
+<!-- Agents should not modify these without explicit permission. -->
+TODO
+
+## Hard constraints
+
+<!-- Things that must never happen. Be specific. -->
+
+- Never commit secrets — they belong in the secrets manager (TODO: which one)
+- Never run destructive SQL against `prod-*` databases
+- Never bump major versions of TODO without an ADR
+- TODO
+
+## Definition of done
+
+A change is done when:
+
+1. Lint, typecheck, and tests pass locally
+2. Affected docs are updated
+3. The PR description names the user-visible change and links the story
+4. TODO
+
+## Human checkpoints
+
+These decisions always require a human:
+
+- Architecture changes with multi-year cost or vendor-lock-in implications
+- Schema changes affecting regulated data (PII, PHI, PCI)
+- Changes to authn, authz, billing, or audit logging
+- App-store submissions and push-notification campaigns
+- Public-facing brand or legal language
+- Active security incidents and decisions to accept residual risk
+
+## Glossary
+
+<!-- Domain terms that aren't obvious from code. -->
+TODO
