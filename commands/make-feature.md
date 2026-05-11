@@ -1,0 +1,61 @@
+---
+description: Scaffold a full Laravel feature end-to-end — migration, model, factory, Form Request, Resource, controller/action, route, Policy, and feature test — by delegating to the right specialists.
+argument-hint: <feature-name> [--inertia|--livewire|--api|--blade]
+allowed-tools: Read, Bash, Grep, Glob
+---
+
+# Make feature — `{{args}}`
+
+Scaffold the feature described by `{{args}}` end-to-end, using the right specialist for each layer. Default to the frontend paradigm already used in the project unless explicitly overridden.
+
+## Plan
+
+1. **Detect the frontend paradigm.**
+   - `inertiajs/inertia-laravel` in `composer.json` → Inertia
+   - `livewire/livewire` → Livewire
+   - Neither → Blade (or `--api` for headless)
+   Override via the flag if present in `{{args}}`.
+
+2. **Brief `business-analyst`** *only if* the feature ask is vague. Otherwise skip — this is a scaffold, not discovery.
+
+3. **Delegate in this order, sequentially:**
+
+   ### a. `database-developer`
+   - Design and write the migration (reversible, indexed, constraints explicit)
+   - Update or create the Eloquent model (with `$fillable`, `$casts`, relations, scopes)
+   - Update or create the factory
+
+   ### b. `backend-developer`
+   - Form Request (`Store<Feature>Request`, `Update<Feature>Request`) with validation rules
+   - API Resource (`<Feature>Resource`, `<Feature>Collection` if list endpoint)
+   - Policy with `viewAny`, `view`, `create`, `update`, `delete`
+   - Controller (resourceful) or Action classes per the project's pattern
+   - Route registration in `routes/web.php`, `routes/api.php`, or both
+   - Wire the Policy in `AuthServiceProvider` if the project doesn't auto-discover
+
+   ### c. `frontend-developer` (skipped for `--api`)
+   - **Inertia:** page components in `resources/js/Pages/<Feature>/{Index,Show,Create,Edit}.{vue,jsx,tsx}` with `useForm`, server-driven validation errors, and shared layout
+   - **Livewire:** components under `app/Livewire/<Feature>/` with computed properties, `#[Rule]` attributes, loading/error states
+   - **Blade:** views under `resources/views/<feature>/` using existing component library
+
+   ### d. `qa-engineer`
+   - Feature test covering happy path, validation failure, authorization denial, and DB state
+   - Factory state used; `RefreshDatabase` per the project pattern
+   - Livewire/Inertia assertion helpers as appropriate
+
+4. **Brief `tech-lead`** for review when the four phases are done.
+
+## Guardrails
+
+- Match the project's conventions, do not import new patterns
+- If the project doesn't have `app/Actions/` and uses controllers-with-methods, follow that — don't impose Actions
+- If the project uses `app/Services/`, follow that too
+- Don't introduce new packages without checking `CLAUDE.md` for any constraint
+
+## Output
+
+After all phases complete, summarise:
+- Files created and their paths
+- Routes added (`php artisan route:list` excerpt)
+- Tests passing (`php artisan test --filter=<Feature>` output)
+- Any human checkpoints surfaced

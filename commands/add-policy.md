@@ -1,0 +1,45 @@
+---
+description: Add (or audit) a Policy for an Eloquent model — generate the Policy class, wire it, and patch all controllers/Livewire components/routes to use it.
+argument-hint: <ModelName>
+allowed-tools: Read, Bash, Grep, Glob
+---
+
+# Add Policy — `{{args}}`
+
+Add or audit the authorization Policy for the `{{args}}` Eloquent model, and ensure every code path that touches the model uses it.
+
+## What you do
+
+1. **Locate the model.** `app/Models/{{args}}.php` (or wherever the project keeps models per its convention). If it doesn't exist, stop and ask.
+
+2. **Find all touch points.** Grep for:
+   - `{{args}}::` (static calls — `find`, `findOrFail`, `where`, `create`)
+   - `{{args}}\b` in controllers, Livewire components, Filament resources, jobs, and API Resources
+   - Routes that bind `{{args}}` via route model binding (look for `{{args}}` lowercased in `routes/`)
+
+3. **Delegate to `backend-developer`** to:
+   - Generate `app/Policies/{{args}}Policy.php` via `php artisan make:policy {{args}}Policy --model={{args}}` if not already present
+   - Implement `viewAny`, `view`, `create`, `update`, `delete`, `restore`, `forceDelete` with real rules (not stubs)
+   - Register the Policy in `App\Providers\AuthServiceProvider::$policies` (or rely on auto-discovery if the project uses it)
+   - Patch every touch point to invoke the Policy:
+     - In controllers: `$this->authorize('view', $model)` or `Gate::authorize('view', $model)`
+     - In Form Requests: implement `authorize()` to delegate to the Policy
+     - In Livewire components: `$this->authorize('view', $this->model)` in mount/render
+     - In Filament resources: implement the `can*` methods or rely on Filament's auto-detection
+     - In API Resources: don't authorize in the Resource — that's the controller's job
+
+4. **Delegate to `qa-engineer`** to write:
+   - One "allowed" test and one "denied" test for each Policy method
+   - Use `actingAs($user)` and `actingAs($otherUser)` to cover both sides
+
+5. **Delegate to `security-engineer`** for a final review confirming:
+   - No protected routes remain without an authorization check
+   - The Policy rules match the business rules in `docs/requirements/`
+   - Mass-assignment safety is intact on the model
+
+## Output
+
+- Path to the new Policy
+- List of files patched
+- Test results for the new Policy tests
+- Any routes/components that the audit could not auto-patch and need human attention

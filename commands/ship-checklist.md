@@ -1,0 +1,111 @@
+---
+description: Run the pre-release ship checklist for a Laravel app — quality gates, migrations, queues, env, security, docs — and produce a go/no-go report.
+argument-hint: [version-tag]
+allowed-tools: Read, Bash, Grep, Glob
+---
+
+# Ship checklist — `{{args}}`
+
+Run the pre-release checklist for the upcoming release `{{args}}` (or "next" if unspecified) and produce a ship / hold verdict.
+
+## Checks (run in order; collect results without stopping on a single failure)
+
+### 1. Code quality
+```
+./vendor/bin/pint --test
+./vendor/bin/phpstan analyse --no-progress
+php artisan test --parallel
+```
+Record: pass/fail, count of issues, time taken.
+
+### 2. Migration safety
+- `php artisan migrate:status` — list pending migrations
+- For each pending migration: does it have a working `down()`? Is it lock-free on large tables? Backfill plan documented?
+- Hand any migration without these to `database-developer`.
+
+### 3. Queue / scheduler topology
+- `config/queue.php`, `config/horizon.php` — supervisors match expected workload?
+- `app/Console/Kernel.php` (or `bootstrap/app.php` for L11+) — any new scheduled tasks? Are they `withoutOverlapping()` and `onOneServer()` where they need to be?
+- Are any new jobs missing `$tries`, `$backoff`, or `$timeout`?
+
+### 4. Configuration & secrets
+- `.env.example` updated for every new `env()` key referenced in `config/*.php`?
+- Any new `env()` calls outside `config/*.php`? (Run `grep -rn "env(" app/ routes/ resources/`.) Block on findings — these break under `config:cache`.
+- `APP_DEBUG=false` in production env?
+- `php artisan config:cache route:cache view:cache event:cache` runs clean against the production config?
+
+### 5. Security smoke
+- `composer audit`
+- `npm audit` (production deps only)
+- New routes have middleware (`auth`, `throttle`, Policy `authorize()` calls)?
+- Any new `{!! !!}` in Blade? Justified?
+- Any new file uploads validated by MIME *and* size *and* extension?
+
+### 6. Frontend
+- `npm run build` succeeds
+- Bundle size delta vs previous release?
+- Any Vite warnings about Tailwind purge or missing imports?
+
+### 7. Docs
+- `CHANGELOG.md` updated?
+- Any public API change without a Scribe/OpenAPI update?
+- Any new env var without a README mention?
+
+### 8. Rollback plan
+- If this release fails in prod, what's the rollback path?
+- Are migrations reversible? Any data-loss in rollback?
+- Is the deployment platform (Forge/Vapor/Envoyer/Kamal/Kubernetes) configured for atomic rollback?
+
+## Output
+
+Produce `docs/qa/release-{{args}}.md` with:
+
+```
+# Release {{args}} — ship checklist
+
+**Verdict:** SHIP / HOLD / CONDITIONAL
+
+## Quality gates
+- Pint: <status>
+- PHPStan/Larastan: <status>
+- Tests: <status> (<n> passed, <m> failed)
+
+## Migrations
+<table of pending migrations with risk assessment>
+
+## Queues & scheduler
+<findings>
+
+## Configuration
+<findings>
+
+## Security
+<findings; severe items linked to security-engineer review>
+
+## Frontend
+<findings>
+
+## Docs
+<findings>
+
+## Rollback plan
+<plan>
+
+## Open items requiring human decision
+- ...
+```
+
+## When to call HOLD
+
+- Any **Blocking** finding from `security-engineer`
+- Any migration without a rollback path
+- Any failing test that's not explicitly documented as a known issue with workaround
+- `composer audit` flags a high-severity unresolved vulnerability
+- `APP_DEBUG=true` slips into the production env file
+- Any new `env()` outside `config/*.php`
+
+## When to call CONDITIONAL
+
+- Tests pass but coverage on changed code is below the project's agreed threshold
+- Bundle size grew significantly without an explained reason
+- Docs drift detected but not yet addressed
