@@ -262,30 +262,30 @@ Always require human decision before proceeding:
 
 ```bash
 # Quality
-vendor/bin/pint --dirty --format agent      # format dirty files only
+./vendor/bin/sail vendor/bin/pint --dirty --format agent      # format dirty files only
 vendor/bin/phpstan analyse                  # static analysis
-php artisan test --compact                  # full suite
-php artisan test --compact --filter=<Name>  # filtered
+./vendor/bin/sail artisan test --compact                  # full suite
+./vendor/bin/sail artisan test --compact --filter=<Name>  # filtered
 
 # Generate
-php artisan make:test --pest <Name>         # Pest feature test
-php artisan make:test --pest --unit <Name>  # Pest unit test
-php artisan make:controller <Name> --help   # discover make: options
-php artisan wayfinder:generate              # regenerate TS routes / actions
+./vendor/bin/sail artisan make:test --pest <Name>         # Pest feature test
+./vendor/bin/sail artisan make:test --pest --unit <Name>  # Pest unit test
+./vendor/bin/sail artisan make:controller <Name> --help   # discover make: options
+./vendor/bin/sail artisan wayfinder:generate              # regenerate TS routes / actions
 
 # Inspect
-php artisan route:list                      # all routes
-php artisan route:list --except-vendor      # project routes only
-php artisan db:show                         # database overview
-php artisan db:table <name>                 # column info
-php artisan about                           # framework / config / cache state
-php artisan config:show <key>               # config value (dot notation)
+./vendor/bin/sail artisan route:list                      # all routes
+./vendor/bin/sail artisan route:list --except-vendor      # project routes only
+./vendor/bin/sail artisan db:show                         # database overview
+./vendor/bin/sail artisan db:table <name>                 # column info
+./vendor/bin/sail artisan about                           # framework / config / cache state
+./vendor/bin/sail artisan config:show <key>               # config value (dot notation)
 
 # Local
-php artisan serve & npm run dev             # dev server + Vite
-php artisan pail                            # tail logs (live)
-php artisan queue:listen                    # process queue
-php artisan tinker                          # PHP in app context (sparingly)
+./vendor/bin/sail artisan serve & npm run dev             # dev server + Vite
+./vendor/bin/sail artisan pail                            # tail logs (live)
+./vendor/bin/sail artisan queue:listen                    # process queue
+./vendor/bin/sail artisan tinker                          # PHP in app context (sparingly)
 
 # MCP (Boost)
 # Prefer Boost tools over shell. Use the MCP, not manual cat / grep / curl:
