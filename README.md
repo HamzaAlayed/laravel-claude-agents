@@ -67,7 +67,7 @@ scripts/
 If you're coming from the generic 15-agent version, here's what changed:
 
 1. **Every agent is rewritten with Laravel-specific guidance.** Concrete patterns to follow, concrete antipatterns to refuse. No more "use the framework's conventions" hand-waving.
-2. **New `package-developer` agent.** Composer.json hygiene, service providers, Test bench, semver, Packagist release flow. Real gap for anyone shipping packages.
+2. **New `package-developer` agent.** Composer.json hygiene, service providers, Testbench, semver, Packagist release flow. Real gap for anyone shipping packages.
 3. **Five slash commands** in `commands/` for the most common Laravel workflows. They delegate to the right specialists rather than doing work themselves.
 4. **Two new guardrail scripts** alongside the existing SQL guard. Production artisan commands and env files are now actively protected.
 5. **`CLAUDE.md.template` rewritten for Laravel.** Captures stack (PHP/Laravel/frontend paradigm/queue/runtime/auth/search/hosting), conventions, hard constraints, and useful commands.
@@ -77,7 +77,7 @@ If you're coming from the generic 15-agent version, here's what changed:
 
 ## Slash commands
 
-Each is a thin orchestrator that hand works to the right specialist agent.
+Each is a thin orchestrator that hands work to the right specialist agent.
 
 | Command                                   | What it does                                                                                                                                   |
 |-------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
@@ -99,14 +99,29 @@ Wire these as Claude Code `PreToolUse` hooks for `Bash` and `Write|Edit`. They e
 | `block-prod-artisan.sh`         | `migrate:fresh`, `db:wipe`, `migrate:reset`, `tinker`, `queue:flush`, etc., against `--env=production` or `.env.production` |
 | `protect-env-files.sh`          | Writes to `.env`, `.env.production`, `.env.prod`, `.env.live`, `.env.staging`, `.env.local`, and credential-looking paths   |
 
-Example hook config (`.claude/settings.json`):
+Example hook config (`.claude/settings.json`) — this is the shape `install.sh` auto-merges:
 ```json
 {
   "hooks": {
     "PreToolUse": [
-      { "matcher": "Bash", "command": "./scripts/block-prod-destructive-sql.sh" },
-      { "matcher": "Bash", "command": "./scripts/block-prod-artisan.sh" },
-      { "matcher": "Write|Edit", "command": "./scripts/protect-env-files.sh" }
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "./scripts/block-prod-destructive-sql.sh" }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "./scripts/block-prod-artisan.sh" }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          { "type": "command", "command": "./scripts/protect-env-files.sh" }
+        ]
+      }
     ]
   }
 }
@@ -134,15 +149,24 @@ curl -fsSL https://raw.githubusercontent.com/HamzaAlayed/laravel-claude-agents/m
 
 ### Local
 
+Clone once, then run the installer from your Laravel project root (the installer's target is the current directory by default):
+
 ```bash
 git clone https://github.com/HamzaAlayed/laravel-claude-agents.git /tmp/lca
-cd /tmp/lca && ./install.sh
+cd /path/to/your/laravel/project
+/tmp/lca/install.sh
+```
+
+Or pass the target explicitly from anywhere:
+
+```bash
+/tmp/lca/install.sh /path/to/your/laravel/project
 ```
 
 ### Flags
 
 - `-g`, `--global` — install to `~/.claude/` instead of `./.claude/`
-- `--interactive` — prompt before overwriting files (default is zero-prompt with `.bak` backups)
+- `--interactive` — prompt before overwriting files (default is zero-prompt — see backup behavior below)
 - `--no-hooks` — skip auto-wiring `.claude/settings.json`
 - `--no-claudemd` — skip copying `CLAUDE.md.template`
 - positional path — install to a project other than the current directory
@@ -153,9 +177,9 @@ cd /tmp/lca && ./install.sh
 2. Copies agents to `<target>/.claude/agents/`.
 3. Copies slash commands to `<target>/.claude/commands/`.
 4. Copies guardrail scripts to `<target>/scripts/` and `chmod +x` them.
-5. Drops `CLAUDE.md` from the template if one doesn't exist yet.
-6. Idempotently merges the three guardrail `PreToolUse` hooks into `<target>/.claude/settings.json`.
-7. Makes timestamped `.bak` copies before overwriting anything (interactive mode only).
+5. Drops `CLAUDE.md` from the template if one doesn't exist yet (never overwrites an existing one).
+6. Idempotently merges the three guardrail `PreToolUse` hooks into `<target>/.claude/settings.json` (the file is only rewritten when something actually changes).
+7. Backup behavior: byte-identical files are skipped without backup. When a copied file differs from the destination, a timestamped `.bak` copy is created before overwriting. If `settings.json` exists but contains invalid JSON, the original is preserved as a timestamped `.bak` before the new file is written.
 
 ---
 

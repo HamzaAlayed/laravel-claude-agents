@@ -37,7 +37,9 @@ if [ -z "$SCRIPT_DIR" ] || [ ! -d "$SCRIPT_DIR/agents" ] || [ ! -d "$SCRIPT_DIR/
   trap 'rm -rf "$TMPDIR"' EXIT
   echo "→ fetching laravel-claude-agents ($REPO_BRANCH) ..."
   git clone --quiet --depth=1 --branch "$REPO_BRANCH" "$REPO_URL" "$TMPDIR/repo" >/dev/null
-  exec bash "$TMPDIR/repo/install.sh" "$@"
+  # Don't `exec` — we'd lose the EXIT trap and leak the temp dir on every remote install.
+  bash "$TMPDIR/repo/install.sh" "$@"
+  exit $?
 fi
 
 GLOBAL=0
@@ -170,18 +172,21 @@ install_claudemd() {
   echo "  CLAUDE.md: created from template -> $dest"
 }
 
+HOOKS_WIRED=0
+
 wire_hooks() {
   [ "$SKIP_HOOKS" -eq 1 ] && return 0
   [ "$GLOBAL" -eq 1 ] && return 0
   if ! command -v python3 >/dev/null 2>&1; then
     echo "  hooks: python3 not found — skipping auto-wire (configure manually per README)"
+    SKIP_HOOKS=1
     return 0
   fi
 
   local settings="$DEST_ROOT/settings.json"
   mkdir -p "$DEST_ROOT"
 
-  python3 - "$settings" <<'PY'
+  if python3 - "$settings" <<'PY'
 import json, os, sys
 
 path = sys.argv[1]
@@ -193,51 +198,64 @@ if os.path.exists(path):
         if not isinstance(data, dict):
             data = {}
     except json.JSONDecodeError:
-        backup = path + ".bak"
+        backup = path + ".bak." + __import__("time").strftime("%Y%m%d%H%M%S")
         os.replace(path, backup)
         print(f"  hooks: existing settings.json was invalid JSON — backed up to {backup}")
         data = {}
 
-hooks = data.setdefault("hooks", {})
-pre = hooks.setdefault("PreToolUse", [])
+hooks = data.get("hooks")
+if not isinstance(hooks, dict):
+    hooks = {}
+    data["hooks"] = hooks
+
+pre = hooks.get("PreToolUse")
 if not isinstance(pre, list):
     pre = []
     hooks["PreToolUse"] = pre
 
+# Claude Code's actual hook shape is nested: each matcher entry contains a
+# `hooks` array of {type, command} objects.
 desired = [
-    {"matcher": "Bash",       "command": "./scripts/block-prod-destructive-sql.sh"},
-    {"matcher": "Bash",       "command": "./scripts/block-prod-artisan.sh"},
-    {"matcher": "Write|Edit", "command": "./scripts/protect-env-files.sh"},
+    ("Bash",       "./scripts/block-prod-destructive-sql.sh"),
+    ("Bash",       "./scripts/block-prod-artisan.sh"),
+    ("Write|Edit", "./scripts/protect-env-files.sh"),
 ]
 
-def already_present(entry, hook):
-    if not isinstance(entry, dict):
+def has_command(entry, matcher, command):
+    if not isinstance(entry, dict) or entry.get("matcher") != matcher:
         return False
-    if entry.get("matcher") != hook["matcher"]:
-        return False
-    cmd = entry.get("command", "")
-    if cmd == hook["command"]:
-        return True
-    inner = entry.get("hooks", [])
+    # Nested shape (the real Claude Code format)
+    inner = entry.get("hooks")
     if isinstance(inner, list):
         for h in inner:
-            if isinstance(h, dict) and h.get("command") == hook["command"]:
+            if isinstance(h, dict) and h.get("command") == command:
                 return True
+    # Tolerate legacy flat shape from older installs
+    if entry.get("command") == command:
+        return True
     return False
 
 added = 0
-for hook in desired:
-    if any(already_present(e, hook) for e in pre):
+for matcher, command in desired:
+    if any(has_command(e, matcher, command) for e in pre):
         continue
-    pre.append(hook)
+    pre.append({
+        "matcher": matcher,
+        "hooks": [{"type": "command", "command": command}],
+    })
     added += 1
 
-with open(path, "w") as f:
-    json.dump(data, f, indent=2)
-    f.write("\n")
+# Idempotent rerun: only rewrite the file when we actually changed something.
+if added > 0:
+    with open(path, "w") as f:
+        json.dump(data, f, indent=2)
+        f.write("\n")
 
 print(f"  hooks: {added} added, {len(desired) - added} already present -> {path}")
 PY
+  then
+    HOOKS_WIRED=1
+  fi
 }
 
 echo "installing into: $DEST_ROOT"
@@ -266,8 +284,10 @@ if [ "$GLOBAL" -eq 0 ]; then
   if [ "$SKIP_CLAUDEMD" -eq 0 ]; then
     echo "  2) review $TARGET/CLAUDE.md and fill in the project-specific TODOs"
   fi
-  if [ "$SKIP_HOOKS" -eq 0 ]; then
+  if [ "$HOOKS_WIRED" -eq 1 ]; then
     echo "  3) hooks are already wired in $DEST_ROOT/settings.json — verify with: cat $DEST_ROOT/settings.json"
+  elif [ "$SKIP_HOOKS" -eq 1 ]; then
+    echo "  3) hooks were NOT auto-wired — configure them manually per the README"
   fi
 else
   echo "  2) agents and commands are now available globally in every project"
