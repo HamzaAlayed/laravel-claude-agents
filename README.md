@@ -2,7 +2,7 @@
 
 A production-grade, drop-in team of Claude Code subagents purpose-built for **Laravel** projects. Covers the full lifecycle — discovery, prioritization, architecture, design, frontend (Blade / Livewire / Inertia / Filament), backend (Eloquent / Form Requests / Policies / API Resources), database, mobile, QA (Pest / PHPUnit / Dusk), DevOps (Forge / Vapor / Envoyer / Kamal), security, technical writing, tech leadership, scrum, package development, and end-to-end delivery coordination.
 
-Every agent now knows what "good" looks like in a Laravel codebase. Reviewers refuse anti-patterns (`env()` outside config, N+1, mass-assignment gaps, missing Policies, `migrate:fresh` anywhere near production). Builders default to idiomatic Laravel.
+Every agent now knows what "good" looks like in a Laravel codebase. Reviewers refuse antipatterns (`env()` outside config, N+1, mass-assignment gaps, missing Policies, `migrate:fresh` anywhere near production). Builders default to idiomatic Laravel.
 
 ---
 
@@ -47,16 +47,16 @@ scripts/
 
 **Model selection is opinionated, not uniform.**
 - **Opus** for `solution-architect` and `tech-lead` — these reason deeply about long-lived consequences and review work end-to-end.
-- **Haiku** for `scrum-master` — aggregation and status work. Faster + cheaper without quality loss.
+- **Haiku** for `scrum-master` — aggregation and status work. Faster and cheaper without quality loss.
 - **Sonnet** for everyone else — the right default for builders and reviewers.
 
-**Reviewers cannot edit code.** `tech-lead` and `security-engineer` have `disallowedTools: Edit, Write`. They produce findings; builders apply changes. This keeps review trustworthy and prevents reviewer drift.
+**Reviewers cannot edit code.** `tech-lead` and `security-engineer` have `disallowedTools: Edit, Write`. They produce findings; builders apply changes. This keeps the review trustworthy and prevents reviewer drift.
 
 **Builders run in isolated worktrees.** `backend-developer`, `frontend-developer`, `database-developer`, `mobile-developer`, and `package-developer` use `isolation: worktree` so parallel changes don't collide.
 
 **Project memory where it earns its keep.** Architects, leads, security, the data layer, and orchestration roles persist context (ADRs, conventions, the threat model, schema decisions) across sessions.
 
-**Laravel-aware, not Laravel-flavored.** Every applicable agent references concrete Laravel primitives — Form Requests, API Resources, Policies, Eloquent relationships, Pint, Larastan, Pest, Horizon, Octane, Sanctum, Filament — and names the anti-patterns they refuse to ship.
+**Laravel-aware, not Laravel-flavored.** Every applicable agent references concrete Laravel primitives — Form Requests, API Resources, Policies, Eloquent relationships, Pint, Larastan, Pest, Horizon, Octane, Sanctum, Filament — and names the antipatterns they refuse to ship.
 
 **One frontend agent, paradigm-aware.** Rather than splitting Blade/Livewire/Inertia/Filament into separate agents, `frontend-developer` detects the project's paradigm from composer.json + the codebase and behaves accordingly. Filament is treated as a first-class paradigm, not a Blade add-on.
 
@@ -66,7 +66,7 @@ scripts/
 
 If you're coming from the generic 15-agent version, here's what changed:
 
-1. **Every agent rewritten with Laravel-specific guidance.** Concrete patterns to follow, concrete anti-patterns to refuse. No more "use the framework's conventions" hand-waving.
+1. **Every agent is rewritten with Laravel-specific guidance.** Concrete patterns to follow, concrete antipatterns to refuse. No more "use the framework's conventions" hand-waving.
 2. **New `package-developer` agent.** Composer.json hygiene, service providers, Testbench, semver, Packagist release flow. Real gap for anyone shipping packages.
 3. **Five slash commands** in `commands/` for the most common Laravel workflows. They delegate to the right specialists rather than doing work themselves.
 4. **Two new guardrail scripts** alongside the existing SQL guard. Production artisan commands and env files are now actively protected.
@@ -79,13 +79,13 @@ If you're coming from the generic 15-agent version, here's what changed:
 
 Each is a thin orchestrator that hands work to the right specialist agent.
 
-| Command | What it does |
-|---|---|
-| `/audit-n-plus-one <route or component>` | Profiles the request, finds eager-load gaps, hands a fix-list to `backend-developer`. |
-| `/make-feature <name>` | Routes through `database-developer` → `backend-developer` → `frontend-developer` → `qa-engineer` → `tech-lead`. Detects the frontend paradigm. |
-| `/add-policy <Model>` | Creates/audits the Policy, patches controllers + Livewire + Filament + Form Requests, adds allowed/denied tests. |
-| `/refactor-to-action <Controller@method>` | Extracts the method into an Action class with a single `handle()` and a test. |
-| `/ship-checklist` | Produces `docs/qa/release-<version>.md` with verdict: SHIP / HOLD / CONDITIONAL. |
+| Command                                   | What it does                                                                                                                                   |
+|-------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------|
+| `/audit-n-plus-one <route or component>`  | Profiles the request, finds eager-load gaps, hands a fix-list to `backend-developer`.                                                          |
+| `/make-feature <name>`                    | Routes through `database-developer` → `backend-developer` → `frontend-developer` → `qa-engineer` → `tech-lead`. Detects the frontend paradigm. |
+| `/add-policy <Model>`                     | Creates/audits the Policy, patches controllers + Livewire + Filament + Form Requests, adds allowed/denied tests.                               |
+| `/refactor-to-action <Controller@method>` | Extracts the method into an Action class with a single `handle()` and a test.                                                                  |
+| `/ship-checklist`                         | Produces `docs/qa/release-<version>.md` with verdict: SHIP / HOLD / CONDITIONAL.                                                               |
 
 ---
 
@@ -93,20 +93,35 @@ Each is a thin orchestrator that hands work to the right specialist agent.
 
 Wire these as Claude Code `PreToolUse` hooks for `Bash` and `Write|Edit`. They exit `2` to block and print a clear reason.
 
-| Script | Blocks |
-|---|---|
-| `block-prod-destructive-sql.sh` | `DROP`, `TRUNCATE`, unscoped `DELETE` / `UPDATE` |
-| `block-prod-artisan.sh` | `migrate:fresh`, `db:wipe`, `migrate:reset`, `tinker`, `queue:flush`, etc., against `--env=production` or `.env.production` |
-| `protect-env-files.sh` | Writes to `.env`, `.env.production`, `.env.prod`, `.env.live`, `.env.staging`, `.env.local`, and credential-looking paths |
+| Script                          | Blocks                                                                                                                      |
+|---------------------------------|-----------------------------------------------------------------------------------------------------------------------------|
+| `block-prod-destructive-sql.sh` | `DROP`, `TRUNCATE`, unscoped `DELETE` / `UPDATE`                                                                            |
+| `block-prod-artisan.sh`         | `migrate:fresh`, `db:wipe`, `migrate:reset`, `tinker`, `queue:flush`, etc., against `--env=production` or `.env.production` |
+| `protect-env-files.sh`          | Writes to `.env`, `.env.production`, `.env.prod`, `.env.live`, `.env.staging`, `.env.local`, and credential-looking paths   |
 
-Example hook config (`.claude/settings.json`):
+Example hook config (`.claude/settings.json`) — this is the shape `install.sh` auto-merges:
 ```json
 {
   "hooks": {
     "PreToolUse": [
-      { "matcher": "Bash", "command": "./scripts/block-prod-destructive-sql.sh" },
-      { "matcher": "Bash", "command": "./scripts/block-prod-artisan.sh" },
-      { "matcher": "Write|Edit", "command": "./scripts/protect-env-files.sh" }
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "./scripts/block-prod-destructive-sql.sh" }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "./scripts/block-prod-artisan.sh" }
+        ]
+      },
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          { "type": "command", "command": "./scripts/protect-env-files.sh" }
+        ]
+      }
     ]
   }
 }
@@ -116,31 +131,61 @@ Example hook config (`.claude/settings.json`):
 
 ## Install
 
+### One-click (recommended)
+
 From the root of your Laravel project:
 
 ```bash
-git clone https://github.com/HamzaAlayed/laravel-claude-agents.git /tmp/lca
-cd /tmp/lca && ./install.sh
+curl -fsSL https://raw.githubusercontent.com/HamzaAlayed/laravel-claude-agents/main/install.sh | bash
 ```
 
-Flags:
+That's it. The installer self-clones to a temp dir, copies everything into place, drops a `CLAUDE.md`, wires up the guardrail hooks in `.claude/settings.json`, and cleans up after itself.
+
+Global install (available in every project):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/HamzaAlayed/laravel-claude-agents/main/install.sh | bash -s -- -g
+```
+
+### Local
+
+Clone once, then run the installer from your Laravel project root (the installer's target is the current directory by default):
+
+```bash
+git clone https://github.com/HamzaAlayed/laravel-claude-agents.git /tmp/lca
+cd /path/to/your/laravel/project
+/tmp/lca/install.sh
+```
+
+Or pass the target explicitly from anywhere:
+
+```bash
+/tmp/lca/install.sh /path/to/your/laravel/project
+```
+
+### Flags
+
 - `-g`, `--global` — install to `~/.claude/` instead of `./.claude/`
-- `--no-confirm` — overwrite without prompting (still creates `.bak` backups)
+- `--interactive` — prompt before overwriting files (default is zero-prompt — see backup behavior below)
+- `--no-hooks` — skip auto-wiring `.claude/settings.json`
+- `--no-claudemd` — skip copying `CLAUDE.md.template`
 - positional path — install to a project other than the current directory
 
-The installer will:
-1. Check that the target is a Laravel project (warns and prompts if not — useful for fresh starts).
-2. Copy agents to `<target>/.claude/agents/`.
-3. Copy slash commands to `<target>/.claude/commands/`.
-4. Copy guardrail scripts to `<target>/scripts/` and `chmod +x` them.
-5. Drop `CLAUDE.md.template` next to your `CLAUDE.md` if one doesn't exist yet.
-6. Make timestamped `.bak` copies before overwriting anything.
+### What the installer does
+
+1. Bootstraps itself by cloning the repo when run via `curl | bash`.
+2. Copies agents to `<target>/.claude/agents/`.
+3. Copies slash commands to `<target>/.claude/commands/`.
+4. Copies guardrail scripts to `<target>/scripts/` and `chmod +x` them.
+5. Drops `CLAUDE.md` from the template if one doesn't exist yet (never overwrites an existing one).
+6. Idempotently merges the three guardrail `PreToolUse` hooks into `<target>/.claude/settings.json` (the file is only rewritten when something actually changes).
+7. Backup behavior: byte-identical files are skipped without backup. When a copied file differs from the destination, a timestamped `.bak` copy is created before overwriting. If `settings.json` exists but contains invalid JSON, the original is preserved as a timestamped `.bak` before the new file is written.
 
 ---
 
 ## Usage in Claude Code
 
-These are subagents, so you invoke them via the `Agent` tool or directly by name. The `delivery-coordinator` is the main-thread orchestrator — it's the one you talk to for cross-cutting work and it delegates onward.
+These are subagents, so you invoke them via the `Agent` tool or directly by name. The `delivery-coordinator` is the main-thread orchestrator — it's the one you talk to for cross-cutting work, and it delegates onward.
 
 ```
 > Use delivery-coordinator to ship a "team invites" feature: invite email,
