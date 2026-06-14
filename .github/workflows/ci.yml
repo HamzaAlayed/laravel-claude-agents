@@ -10,7 +10,7 @@ jobs:
     name: shellcheck
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Run shellcheck on guardrail scripts and tests (strict)
         run: |
           shellcheck --version
@@ -22,7 +22,7 @@ jobs:
     name: guardrail tests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Run guardrail test harness (with jq + python3 present)
         run: ./tests/guardrails.test.sh
       - name: Run guardrail test harness (jq removed — exercises fallback)
@@ -34,7 +34,7 @@ jobs:
     name: plugin & marketplace manifests
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Validate JSON manifests parse
         run: |
           for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json hooks/hooks.json; do
@@ -51,7 +51,7 @@ jobs:
     name: agent & command frontmatter
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Every agent declares name + description
         run: |
           fail=0
