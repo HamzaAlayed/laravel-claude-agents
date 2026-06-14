@@ -34,7 +34,9 @@ run_hook_noparsers() {
   for tool in cat tr grep basename mktemp dirname; do
     local path
     path="$(command -v "$tool" 2>/dev/null || true)"
-    [ -n "$path" ] && ln -s "$path" "$sandbox/$tool" 2>/dev/null || true
+    if [ -n "$path" ]; then
+      ln -s "$path" "$sandbox/$tool" 2>/dev/null || true
+    fi
   done
   # Invoke bash by absolute path: a `PATH=… bash` prefix would resolve `bash`
   # itself against the stripped PATH and fail with 127.
