@@ -1,6 +1,8 @@
-# The 16-Agent Claude Code Team for Laravel
+# The 17-Agent Claude Code Team for Laravel
 
-A production-grade, drop-in team of Claude Code subagents purpose-built for **Laravel** projects. Covers the full lifecycle — discovery, prioritization, architecture, design, frontend (Blade / Livewire / Inertia / Filament), backend (Eloquent / Form Requests / Policies / API Resources), database, mobile, QA (Pest / PHPUnit / Dusk), DevOps (Forge / Vapor / Envoyer / Kamal), security, technical writing, tech leadership, scrum, package development, and end-to-end delivery coordination.
+A production-grade, drop-in team of Claude Code subagents purpose-built for **Laravel** projects. Covers the full lifecycle — discovery, prioritization, architecture, design, frontend (Blade / Livewire / Inertia / Filament), backend (Eloquent / Form Requests / Policies / API Resources), database, mobile, QA (Pest / PHPUnit / Dusk), DevOps (Forge / Vapor / Envoyer / Kamal), security, performance, technical writing, tech leadership, scrum, package development, and end-to-end delivery coordination.
+
+Installable as a **Claude Code plugin** (one command) or via the classic `install.sh`. Guardrail hooks are tested in CI.
 
 Every agent now knows what "good" looks like in a Laravel codebase. Reviewers refuse antipatterns (`env()` outside config, N+1, mass-assignment gaps, missing Policies, `migrate:fresh` anywhere near production). Builders default to idiomatic Laravel.
 
@@ -25,6 +27,7 @@ Every agent now knows what "good" looks like in a Laravel codebase. Reviewers re
 │   ├── security-engineer.md      # STRIDE + Laravel hardening (Sonnet, project memory, no Edit/Write)
 │   ├── technical-writer.md       # Scribe, route:list-driven docs (Sonnet)
 │   ├── tech-lead.md              # Code review w/ Laravel checklist (Opus, project memory, no Edit/Write)
+│   ├── performance-engineer.md   # Profiling, N+1, caching, Octane, CWV (Sonnet, project memory, no Edit/Write) ★ NEW
 │   ├── mobile-developer.md       # iOS/Android consuming Laravel APIs (Sonnet, worktree)
 │   └── delivery-coordinator.md   # Orchestrator main-thread agent (Sonnet, project memory)
 │
@@ -33,12 +36,20 @@ Every agent now knows what "good" looks like in a Laravel codebase. Reviewers re
     ├── make-feature.md           # End-to-end feature scaffold across DB → API → UI → QA → review
     ├── add-policy.md             # Add a Policy + patch all touch points + tests
     ├── refactor-to-action.md     # Extract a fat controller method into an Action class
-    └── ship-checklist.md         # Pre-release verification → SHIP / HOLD / CONDITIONAL verdict
+    ├── ship-checklist.md         # Pre-release verification → SHIP / HOLD / CONDITIONAL verdict
+    ├── add-test.md               # Generate a test plan + tests for a class/route/component ★ NEW
+    ├── review-pr.md              # Layered diff review → tech-lead + security + QA + perf ★ NEW
+    ├── optimize-query.md         # Diagnose a slow query/endpoint, route fixes to owners ★ NEW
+    └── upgrade-laravel.md        # Staged Laravel version-upgrade plan ★ NEW
 
 scripts/
 ├── block-prod-destructive-sql.sh # Block DROP/TRUNCATE/unscoped DELETE/UPDATE
 ├── block-prod-artisan.sh         # Block migrate:fresh, db:wipe, tinker, etc. against prod
 └── protect-env-files.sh          # Block writes to .env, .env.production, secrets paths
+
+hooks/hooks.json                  # Plugin hook manifest (wires the 3 guardrails)
+tests/guardrails.test.sh          # Zero-dependency test harness for the guardrails
+.github/workflows/ci.yml          # shellcheck + guardrail tests + manifest validation
 ```
 
 ---
@@ -86,6 +97,10 @@ Each is a thin orchestrator that hands work to the right specialist agent.
 | `/add-policy <Model>`                     | Creates/audits the Policy, patches controllers + Livewire + Filament + Form Requests, adds allowed/denied tests.                               |
 | `/refactor-to-action <Controller@method>` | Extracts the method into an Action class with a single `handle()` and a test.                                                                  |
 | `/ship-checklist`                         | Produces `docs/qa/release-<version>.md` with verdict: SHIP / HOLD / CONDITIONAL.                                                               |
+| `/add-test <Class, route, or component>`  | Builds a test plan (happy path + failure modes + allowed/denied authz), detects Pest vs PHPUnit, hands implementation to `qa-engineer`.        |
+| `/review-pr [base-branch]`                | Layered diff review — fans out to `tech-lead`, `security-engineer`, `qa-engineer`, `performance-engineer`; one verdict with Blocking/Should-fix/Nits. |
+| `/optimize-query <route, query, method>`  | Captures the query + timing, diagnoses (index/N+1/`SELECT *`/unbounded), routes index fixes to `database-developer`, shape fixes to `backend-developer`. |
+| `/upgrade-laravel <target-version>`       | Inventories breaking changes + first-party package compat, produces a staged upgrade plan with a verify checkpoint per stage.                  |
 
 ---
 
@@ -131,7 +146,24 @@ Example hook config (`.claude/settings.json`) — this is the shape `install.sh`
 
 ## Install
 
-### One-click (recommended)
+### As a Claude Code plugin (recommended)
+
+Add the marketplace once, then install the plugin:
+
+```
+/plugin marketplace add HamzaAlayed/laravel-claude-agents
+/plugin install laravel-team@laravel-claude-agents
+```
+
+That registers all 17 agents, the 9 slash commands, and the three guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
+
+```
+/plugin install laravel-team@laravel-claude-agents --scope project
+```
+
+> The plugin does **not** drop a `CLAUDE.md` into your project — copy `CLAUDE.md.template` yourself, or use the `install.sh` path below which does it for you.
+
+### One-click installer (`curl | bash`)
 
 From the root of your Laravel project:
 
@@ -207,6 +239,18 @@ A starter `CLAUDE.md` tailored for Laravel. Fill in the stack block (PHP version
 
 ---
 
+## Development
+
+The guardrail scripts are covered by a zero-dependency test harness — no `bats`, no install:
+
+```bash
+./tests/guardrails.test.sh        # 24 assertions incl. the no-jq/no-python3 fallback
+```
+
+CI (`.github/workflows/ci.yml`) runs `shellcheck`, the harness (with and without `jq`), JSON manifest validation, and agent/command frontmatter linting on every PR.
+
+Adding an agent or command? See [CONTRIBUTING.md](CONTRIBUTING.md) and the deeper [docs/authoring-agents.md](docs/authoring-agents.md). Changes are tracked in [CHANGELOG.md](CHANGELOG.md).
+
 ## License
 
-MIT. Use it, fork it, ship with it.
+[MIT](LICENSE). Use it, fork it, ship with it.

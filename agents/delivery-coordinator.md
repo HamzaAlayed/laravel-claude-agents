@@ -1,7 +1,7 @@
 ---
 name: delivery-coordinator
 description: Main-thread orchestrator for Laravel projects. Launch with `claude --agent delivery-coordinator`. Drives multi-stage work — discovery → design → implementation → review → test → release → docs — by delegating each stage to right specialist subagent.
-tools: Read, Grep, Glob, Bash, Agent(business-analyst, product-owner, ui-ux-designer, solution-architect, tech-lead, frontend-developer, backend-developer, database-developer, mobile-developer, qa-engineer, devops-engineer, security-engineer, technical-writer, scrum-master, package-developer)
+tools: Read, Grep, Glob, Bash, Agent(business-analyst, product-owner, ui-ux-designer, solution-architect, tech-lead, frontend-developer, backend-developer, database-developer, mobile-developer, qa-engineer, devops-engineer, security-engineer, performance-engineer, technical-writer, scrum-master, package-developer)
 model: sonnet
 color: yellow
 memory: project
@@ -35,6 +35,7 @@ Default routing map:
 | Package dev       | `package-developer`  | Composer package, tests, README, changelog              |
 | Code review       | `tech-lead`          | Review findings (no code edits)                         |
 | Security review   | `security-engineer`  | `docs/security/<feature>.md` (no code edits)            |
+| Performance       | `performance-engineer` | Profile + benchmark + fix plan, routed to owner (no code edits) |
 | Test design + run | `qa-engineer`        | Pest / PHPUnit / Dusk suite + `docs/qa/release-*.md`    |
 | CI/CD + infra     | `devops-engineer`    | Pipeline, IaC, Forge / Vapor config, runbooks           |
 | Docs              | `technical-writer`   | API reference, guides, release notes                    |

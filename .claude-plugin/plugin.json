@@ -1,0 +1,25 @@
+{
+  "name": "laravel-team",
+  "displayName": "Laravel Claude Code Team",
+  "description": "A 17-agent Laravel-specialized Claude Code team — discovery, architecture, design, frontend, backend, database, mobile, QA, DevOps, security, performance, docs, leadership, delivery — plus Laravel workflow commands and production guardrail hooks.",
+  "version": "1.0.0",
+  "author": {
+    "name": "Hamza Alayed",
+    "url": "https://github.com/HamzaAlayed"
+  },
+  "homepage": "https://github.com/HamzaAlayed/laravel-claude-agents",
+  "repository": "https://github.com/HamzaAlayed/laravel-claude-agents",
+  "license": "MIT",
+  "keywords": [
+    "laravel",
+    "php",
+    "subagents",
+    "code-review",
+    "eloquent",
+    "livewire",
+    "filament",
+    "guardrails",
+    "devops"
+  ],
+  "hooks": "./hooks/hooks.json"
+}

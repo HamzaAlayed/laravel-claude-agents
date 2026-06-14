@@ -9,13 +9,26 @@ set -euo pipefail
 
 INPUT="$(cat)"
 
-if ! command -v jq >/dev/null 2>&1; then
-  echo "warn: block-prod-artisan.sh needs jq; allowing without check" >&2
-  exit 0
-fi
+# Extract the Bash command from tool-input JSON. Degrades jq -> python3 -> raw
+# payload rather than failing open when no JSON parser is present.
+extract_command() {
+  if command -v jq >/dev/null 2>&1; then
+    printf '%s' "$INPUT" | jq -r '.tool_input.command // empty'
+  elif command -v python3 >/dev/null 2>&1; then
+    printf '%s' "$INPUT" | python3 -c 'import sys,json
+try:
+    print(json.load(sys.stdin).get("tool_input",{}).get("command","") or "")
+except Exception:
+    sys.exit(3)' 2>/dev/null || printf '%s' "$INPUT"
+  else
+    printf '%s' "$INPUT"
+  fi
+}
 
-COMMAND="$(printf '%s' "$INPUT" | jq -r '.tool_input.command // empty')"
+COMMAND="$(extract_command)"
 [ -z "$COMMAND" ] && exit 0
+
+COMMAND_FLAT="$(printf '%s' "$COMMAND" | tr '\n\t' '  ')"
 
 # Destructive or production-affecting artisan commands.
 # Tune for your environment — these are conservative defaults.
@@ -28,8 +41,8 @@ PROD_CONTEXT='(--env[= ]+(production|prod|live)|APP_ENV[= ]+(production|prod|liv
 # Also block if .env.production is being sourced or copied over .env in the same command
 ENV_PROD_OVERRIDE='(\.env\.production|\.env\.prod)'
 
-if echo "$COMMAND" | grep -iE "$DANGEROUS_ARTISAN" >/dev/null; then
-  if echo "$COMMAND" | grep -iE "$PROD_CONTEXT" >/dev/null; then
+if echo "$COMMAND_FLAT" | grep -iqE "$DANGEROUS_ARTISAN"; then
+  if echo "$COMMAND_FLAT" | grep -iqE "$PROD_CONTEXT"; then
     echo "blocked: destructive artisan command targeting production." >&2
     echo "command: $COMMAND" >&2
     echo "run this only from a privileged operator session with explicit human approval." >&2
@@ -37,17 +50,17 @@ if echo "$COMMAND" | grep -iE "$DANGEROUS_ARTISAN" >/dev/null; then
   fi
 fi
 
-if echo "$COMMAND" | grep -iE "$ENV_PROD_OVERRIDE" >/dev/null; then
-  if echo "$COMMAND" | grep -iE 'php[[:space:]]+artisan' >/dev/null; then
+if echo "$COMMAND_FLAT" | grep -iqE "$ENV_PROD_OVERRIDE"; then
+  if echo "$COMMAND_FLAT" | grep -iqE 'php[[:space:]]+artisan'; then
     echo "blocked: running artisan against a production env file." >&2
     echo "command: $COMMAND" >&2
     exit 2
   fi
 fi
 
-# Always block `migrate:fresh` and `db:wipe` regardless of detected env —
+# Always warn on `migrate:fresh` / `db:wipe` regardless of detected env —
 # in 99% of cases these are accidents.
-if echo "$COMMAND" | grep -iE 'php[[:space:]]+artisan[[:space:]]+(migrate:fresh|db:wipe)' >/dev/null; then
+if echo "$COMMAND_FLAT" | grep -iqE 'php[[:space:]]+artisan[[:space:]]+(migrate:fresh|db:wipe)'; then
   echo "warn: 'migrate:fresh' / 'db:wipe' detected. confirm this is the local DB before proceeding." >&2
   # Soft warn (exit 0) rather than hard block — local dev needs these freely.
   # Promote to exit 2 if your team wants the stronger guarantee.

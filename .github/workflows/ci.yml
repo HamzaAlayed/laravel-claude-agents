@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  shellcheck:
+    name: shellcheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run shellcheck on guardrail scripts and tests (strict)
+        run: |
+          shellcheck --version
+          shellcheck scripts/*.sh tests/*.sh
+      - name: Run shellcheck on installer (errors only)
+        run: shellcheck --severity=error install.sh
+
+  guardrail-tests:
+    name: guardrail tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run guardrail test harness (with jq + python3 present)
+        run: ./tests/guardrails.test.sh
+      - name: Run guardrail test harness (jq removed — exercises fallback)
+        run: |
+          sudo rm -f "$(command -v jq)" || true
+          ./tests/guardrails.test.sh
+
+  manifest-validation:
+    name: plugin & marketplace manifests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate JSON manifests parse
+        run: |
+          for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json hooks/hooks.json; do
+            echo "validating $f"
+            jq empty "$f"
+          done
+      - name: Required plugin.json fields present
+        run: |
+          jq -e '.name and .version and .description' .claude-plugin/plugin.json >/dev/null
+          jq -e '.name and .owner and (.plugins | length > 0)' .claude-plugin/marketplace.json >/dev/null
+          echo "manifest fields OK"
+
+  agent-frontmatter:
+    name: agent & command frontmatter
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Every agent declares name + description
+        run: |
+          fail=0
+          for f in agents/*.md; do
+            head -n 1 "$f" | grep -qx -- '---' || { echo "::error file=$f::missing opening frontmatter"; fail=1; }
+            grep -qE '^name:' "$f"        || { echo "::error file=$f::missing 'name:'"; fail=1; }
+            grep -qE '^description:' "$f" || { echo "::error file=$f::missing 'description:'"; fail=1; }
+          done
+          for f in commands/*.md; do
+            grep -qE '^description:' "$f" || { echo "::error file=$f::missing 'description:'"; fail=1; }
+          done
+          exit $fail

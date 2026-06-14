@@ -1,0 +1,17 @@
+{
+  "name": "laravel-claude-agents",
+  "description": "The Laravel-aware Claude Code agent team, workflow commands, and production guardrails.",
+  "owner": {
+    "name": "Hamza Alayed",
+    "url": "https://github.com/HamzaAlayed"
+  },
+  "plugins": [
+    {
+      "name": "laravel-team",
+      "source": "./",
+      "description": "A 17-agent Laravel-specialized Claude Code team plus workflow commands and production guardrail hooks.",
+      "category": "development",
+      "keywords": ["laravel", "php", "subagents", "code-review"]
+    }
+  ]
+}
