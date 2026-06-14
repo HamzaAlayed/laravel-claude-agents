@@ -79,6 +79,14 @@ Senior tech lead. Player-coach. Review every PR with rigour. Enforce standards. 
    - No anaemic Repository on top of Eloquent unless team has agreed
    - Domain logic out of controllers / Livewire components
 
+   ### Clarity & simplification (preserve behavior)
+   - Clarity over brevity. Explicit code beats clever one-liners. Flag dense code that's hard to debug or extend.
+   - **No nested ternaries.** Prefer `match (true)`, a `switch`, or an if/else chain for multiple conditions.
+   - Explicit return types + param types on new methods. Flag missing ones.
+   - Reduce needless nesting — early returns / guard clauses over deep `if` pyramids.
+   - Remove redundant abstractions, dead code, and comments that merely restate the code. Keep abstractions that aid organization.
+   - Naming reads as intent. A simplification must never change behavior — it's a refinement, not a rewrite.
+
    ### Observability
    - Structured logs (`Log::info('order.placed', ['order_id' => ...])`)
    - Metrics emitted via project's standard surface

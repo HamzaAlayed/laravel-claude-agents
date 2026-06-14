@@ -37,15 +37,30 @@ jobs:
       - uses: actions/checkout@v5
       - name: Validate JSON manifests parse
         run: |
-          for f in .claude-plugin/plugin.json .claude-plugin/marketplace.json hooks/hooks.json; do
+          for f in \
+            .claude-plugin/plugin.json .claude-plugin/marketplace.json \
+            .cursor-plugin/plugin.json .cursor-plugin/marketplace.json \
+            hooks/hooks.json; do
             echo "validating $f"
             jq empty "$f"
           done
-      - name: Required plugin.json fields present
+      - name: Required manifest fields present (Claude + Cursor)
         run: |
-          jq -e '.name and .version and .description' .claude-plugin/plugin.json >/dev/null
-          jq -e '.name and .owner and (.plugins | length > 0)' .claude-plugin/marketplace.json >/dev/null
+          for m in .claude-plugin .cursor-plugin; do
+            jq -e '.name and .version and .description' "$m/plugin.json" >/dev/null
+            jq -e '.name and .owner and (.plugins | length > 0)' "$m/marketplace.json" >/dev/null
+          done
           echo "manifest fields OK"
+      - name: Claude & Cursor manifests stay in sync
+        run: |
+          for key in '.name' '.version'; do
+            c=$(jq -r "$key" .claude-plugin/plugin.json)
+            u=$(jq -r "$key" .cursor-plugin/plugin.json)
+            [ "$c" = "$u" ] || { echo "::error::plugin.json $key differs: claude=$c cursor=$u"; exit 1; }
+          done
+          v=$(jq -r '.version' .claude-plugin/plugin.json)
+          [ "$v" = "$(tr -d '[:space:]' < VERSION)" ] || { echo "::error::VERSION ($(cat VERSION)) != plugin.json version ($v)"; exit 1; }
+          echo "versions in sync: $v"
 
   agent-frontmatter:
     name: agent & command frontmatter
@@ -61,6 +76,11 @@ jobs:
             grep -qE '^description:' "$f" || { echo "::error file=$f::missing 'description:'"; fail=1; }
           done
           for f in commands/*.md; do
+            grep -qE '^description:' "$f" || { echo "::error file=$f::missing 'description:'"; fail=1; }
+          done
+          for f in skills/*/SKILL.md; do
+            head -n 1 "$f" | grep -qx -- '---' || { echo "::error file=$f::missing opening frontmatter"; fail=1; }
+            grep -qE '^name:' "$f"        || { echo "::error file=$f::missing 'name:'"; fail=1; }
             grep -qE '^description:' "$f" || { echo "::error file=$f::missing 'description:'"; fail=1; }
           done
           exit $fail

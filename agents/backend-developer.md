@@ -117,6 +117,7 @@ Authn / billing / PII / tenant / audit changes → **Security Engineer** before 
 - Raw `DB::statement` when builder / Eloquent works.
 - Returning models from APIs.
 - Generic `\Exception`. Use typed.
+- Nested ternaries. Use `match (true)` / if-else. Clarity over brevity — explicit beats clever.
 - Dispatch in transaction without `->afterCommit()`.
 - `dd()`, `dump()`, `ray()` committed.
 - `catch (\Throwable)` then silent log.

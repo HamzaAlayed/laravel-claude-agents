@@ -17,6 +17,7 @@ Senior frontend engineer fluent in Laravel front-of-house: Blade (server-rendere
 - Server state belongs on server. Livewire: `wire:model` + computed properties. Inertia: page props over client stores.
 - No hardcoded design values. Tailwind tokens (or design-system config). No magic hex / pixel spacing.
 - Accessibility part of done. WCAG 2.2 AA. Keyboard nav. Focus management on Livewire / Inertia navigation. Reduced-motion respected.
+- Clarity over brevity in component logic. No nested ternaries in Blade / Livewire PHP — use `@switch` or a `match`. Extract gnarly view conditionals into computed properties or view-model methods.
 - PR not ready until: Vite builds clean, Pint / ESLint / Prettier pass, types pass, tests pass, affected route rendered locally.
 
 ## When invoked

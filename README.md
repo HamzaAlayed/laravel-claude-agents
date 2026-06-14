@@ -47,6 +47,11 @@ scripts/
 ├── block-prod-artisan.sh         # Block migrate:fresh, db:wipe, tinker, etc. against prod
 └── protect-env-files.sh          # Block writes to .env, .env.production, secrets paths
 
+skills/
+└── laravel-conventions/          # Idiomatic-Laravel reference skill (auto-triggers) ★ NEW
+    ├── SKILL.md
+    └── reference/antipatterns.md
+
 hooks/hooks.json                  # Plugin hook manifest (wires the 3 guardrails)
 tests/guardrails.test.sh          # Zero-dependency test harness for the guardrails
 .github/workflows/ci.yml          # shellcheck + guardrail tests + manifest validation
@@ -155,13 +160,34 @@ Add the marketplace once, then install the plugin:
 /plugin install laravel-team@laravel-claude-agents
 ```
 
-That registers all 17 agents, the 9 slash commands, and the three guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
+That registers all 17 agents, the 9 slash commands, the `laravel-conventions` skill, and the three guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
 
 ```
 /plugin install laravel-team@laravel-claude-agents --scope project
 ```
 
 > The plugin does **not** drop a `CLAUDE.md` into your project — copy `CLAUDE.md.template` yourself, or use the `install.sh` path below which does it for you.
+
+#### Cursor
+
+This pack also ships a `.cursor-plugin/` manifest. Search for it in the [Cursor plugin marketplace](https://cursor.com/docs/plugins), or add the marketplace by repo URL — the same agents, commands, skill, and hooks load in Cursor.
+
+### Pairs with the official Laravel pack
+
+This team is the full delivery lifecycle (17 agents). It's designed to sit **alongside** Laravel's official [`laravel/agent-skills`](https://github.com/laravel/agent-skills), not replace it — install both:
+
+```
+/plugin marketplace add laravel/agent-skills
+/plugin install laravel@laravel            # laravel-simplifier agent + starter-kit-upgrade skill
+/plugin install laravel-cloud@laravel      # deploy/manage on Laravel Cloud
+/plugin install laravel-nightwatch@laravel # Nightwatch config + MCP
+```
+
+How they divide the work:
+
+- **Framework upgrades** → Laravel Boost's `/upgrade-laravel-v13`, `/upgrade-livewire-v4`, etc. Our `/upgrade-laravel` defers to Boost and owns the surrounding work (PHP runtime, package compat, structural audit, verification).
+- **After-the-fact cleanup** → the official `laravel-simplifier`. Our `laravel-conventions` skill guides the choice of primitive *up front*; the agents enforce it during review.
+- **Cloud / Nightwatch** → the official skills own those; we don't duplicate them.
 
 ### One-click installer (`curl | bash`)
 

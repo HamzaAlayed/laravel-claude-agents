@@ -8,6 +8,23 @@ allowed-tools: Read, Bash, Grep, Glob
 
 Plan and stage an upgrade to Laravel `{{args}}`. Produce a staged, verifiable migration plan. You plan + inventory; `backend-developer` + `devops-engineer` implement, `tech-lead` reviews. Do not edit code.
 
+## Prefer Laravel Boost for the framework bump
+
+For major **first-party** version jumps, Laravel's official tool is [Laravel Boost](https://github.com/laravel/boost) — it ships maintained, codebase-aware upgrade slash commands. Don't hand-roll what Boost automates. Check for it first:
+
+```
+grep -q 'laravel/boost' composer.json && echo "Boost present" || echo "Boost absent"
+```
+
+- **If Boost is present** (requires `^2.0`), recommend running its upgrade command for the matching jump, then come back for the surrounding work (package compat, structural migration audit, verification):
+  - Laravel 12 → 13: `/upgrade-laravel-v13`
+  - Livewire 3 → 4: `/upgrade-livewire-v4`
+  - Inertia v2 → v3: `/upgrade-inertia-v3`
+- **If Boost is absent**, suggest installing it for the bump: `composer require laravel/boost --dev && php artisan boost:install`.
+- **If no Boost command covers this jump** (older targets, or non-framework work), use the staged plan below directly.
+
+Either way, this command owns the parts Boost doesn't: PHP-runtime readiness, first-party package compatibility, the structural 10 → 11 migration audit, and the per-stage verification checkpoints. Frame the output as "Boost handles the framework diff; here's everything around it."
+
 ## What you do
 
 1. **Detect the current version.**
