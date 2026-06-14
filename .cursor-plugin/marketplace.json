@@ -13,7 +13,7 @@
       "displayName": "Laravel Claude Code Team",
       "source": "./",
       "description": "A 17-agent Laravel-specialized team plus workflow commands, a conventions skill, and production guardrail hooks.",
-      "version": "1.1.0",
+      "version": "1.2.0",
       "author": {
         "name": "Hamza Alayed",
         "url": "https://github.com/HamzaAlayed"

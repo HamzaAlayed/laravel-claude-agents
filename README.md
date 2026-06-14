@@ -13,7 +13,7 @@ Every agent now knows what "good" looks like in a Laravel codebase. Reviewers re
 ```
 .claude/
 ├── agents/
-│   ├── business-analyst.md       # Discovery & requirements (Sonnet, project memory, read-only)
+│   ├── business-analyst.md       # Discovery & requirements (Sonnet, project memory)
 │   ├── product-owner.md          # Backlog & prioritization (Sonnet, project memory)
 │   ├── ui-ux-designer.md         # Paradigm-aware design specs (Sonnet, frontend-design skill)
 │   ├── frontend-developer.md     # Blade/Livewire/Inertia/Filament (Sonnet, worktree, frontend-design)
@@ -66,11 +66,11 @@ tests/guardrails.test.sh          # Zero-dependency test harness for the guardra
 - **Haiku** for `scrum-master` — aggregation and status work. Faster and cheaper without quality loss.
 - **Sonnet** for everyone else — the right default for builders and reviewers.
 
-**Reviewers cannot edit code.** `tech-lead` and `security-engineer` have `disallowedTools: Edit, Write`. They produce findings; builders apply changes. This keeps the review trustworthy and prevents reviewer drift.
+**Reviewers cannot edit code.** `tech-lead`, `security-engineer`, and `performance-engineer` are read-only (`disallowedTools: Edit, Write`). They return findings; the `delivery-coordinator` persists the reports and builders apply the changes. This keeps reviews trustworthy and prevents reviewer drift. (On the residual `Bash` write-vector and how to fully sandbox a reviewer, see [docs/read-only-enforcement.md](docs/read-only-enforcement.md).)
 
-**Builders run in isolated worktrees.** `backend-developer`, `frontend-developer`, `database-developer`, `mobile-developer`, and `package-developer` use `isolation: worktree` so parallel changes don't collide.
+**Writers run in isolated worktrees.** `backend-developer`, `frontend-developer`, `database-developer`, `mobile-developer`, `package-developer`, `devops-engineer`, and `ui-ux-designer` use `isolation: worktree` so parallel changes don't collide.
 
-**Project memory where it earns its keep.** Architects, leads, security, the data layer, and orchestration roles persist context (ADRs, conventions, the threat model, schema decisions) across sessions.
+**Project memory where it earns its keep.** Writing roles — the architect, data layer, product, discovery, and orchestration agents — persist context (ADRs, conventions, schema decisions, requirements) across sessions. Read-only reviewers keep memory for cross-session recall but never write it; the orchestrator persists their findings.
 
 **Laravel-aware, not Laravel-flavored.** Every applicable agent references concrete Laravel primitives — Form Requests, API Resources, Policies, Eloquent relationships, Pint, Larastan, Pest, Horizon, Octane, Sanctum, Filament — and names the antipatterns they refuse to ship.
 

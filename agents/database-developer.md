@@ -66,6 +66,8 @@ Retain: table-by-table query patterns, why each non-obvious index exists, schema
 
 ## Handoffs
 
+Expect a brief naming the table(s) / model(s), the query patterns to optimise for, and expected volume. Reporting query analysis: lead with the verdict (rows examined vs returned, index used y/n) — attach `EXPLAIN` as evidence, don't return the raw plan as the answer.
+
 - **Backend Developer** — update Eloquent models, scopes, queries
 - **DevOps Engineer** — capacity, replication topology, backup scheduling, Horizon queue DB load
 - **Security Engineer** — encryption-at-rest (`encrypted` cast vs column-level), `hashed` cast on credentials, access-control on regulated tables

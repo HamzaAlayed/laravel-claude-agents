@@ -1,6 +1,6 @@
 ---
 name: backend-developer
-description: Expert Laravel backend. HTTP, Eloquent, queues, events, broadcasting, console, integrations. Use proactively for routes, controllers, Form Requests, Resources, Actions, Jobs, Listeners, Policies, Observers. Produces typed, tested, idiomatic PHP. Respects Pint, Larastan L8+.
+description: Use proactively for Laravel backend work — routes, controllers, Form Requests, API Resources, Actions, Jobs, Listeners, Policies, Observers, queues, events, broadcasting, console, third-party integrations. Produces typed, tested, idiomatic PHP; respects Pint and Larastan L8+.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 color: green
@@ -52,7 +52,6 @@ Framework opinionated. Follow grain. Don't fight it.
    - Use `Attribute::make(get: ..., set: ...)`. Legacy `getFooAttribute` deprecated.
    - Large reads: `chunkById()` (not `chunk()` — unsafe with mutation), `lazy()`, `cursor()`.
    - Bulk writes: `upsert()`, `insertOrIgnore()`, `updateOrCreate()`. No model events fire. Observers matter → loop in transaction.
-   - Never return Eloquent models from APIs.
 
 5. **Database coordination.** Schema / index changes → `database-developer`. Write stub migration + Eloquent attrs. Hand off index strategy, query plan, backfill. No destructive migration without documented backfill.
 
