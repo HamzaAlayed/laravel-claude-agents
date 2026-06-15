@@ -40,7 +40,7 @@ ENV_FILE='(^|/|")\.env(\.(production|prod|live|staging|local))?("|$|[^.A-Za-z0-9
 if printf '%s' "$PATH_TARGET" | grep -qE "$ENV_FILE"; then
   echo "blocked: agents may not write to a protected .env file." >&2
   echo "target: $PATH_TARGET" >&2
-  echo "if you need to add a new env key, document it in .env.example and CLAUDE.md instead, and have a human update the live env file." >&2
+  echo "if you need to add a new env key, document it in .env.example and GEMINI.md instead, and have a human update the live env file." >&2
   exit 2
 fi
 

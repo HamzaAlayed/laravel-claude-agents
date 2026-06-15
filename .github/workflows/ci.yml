@@ -14,7 +14,7 @@ jobs:
       - name: Run shellcheck on guardrail scripts and tests (strict)
         run: |
           shellcheck --version
-          shellcheck scripts/*.sh tests/*.sh
+          shellcheck scripts/*.sh tests/*.sh gemini/scripts/*.sh
       - name: Run shellcheck on installer (errors only)
         run: shellcheck --severity=error install.sh
 
@@ -40,6 +40,7 @@ jobs:
           for f in \
             .claude-plugin/plugin.json .claude-plugin/marketplace.json \
             .cursor-plugin/plugin.json .cursor-plugin/marketplace.json \
+            gemini/gemini-extension.json gemini/hooks/hooks.json \
             hooks/hooks.json; do
             echo "validating $f"
             jq empty "$f"
@@ -60,6 +61,8 @@ jobs:
           done
           v=$(jq -r '.version' .claude-plugin/plugin.json)
           [ "$v" = "$(tr -d '[:space:]' < VERSION)" ] || { echo "::error::VERSION ($(cat VERSION)) != plugin.json version ($v)"; exit 1; }
+          g=$(jq -r '.version' gemini/gemini-extension.json)
+          [ "$g" = "$v" ] || { echo "::error::gemini-extension.json version ($g) != $v"; exit 1; }
           echo "versions in sync: $v"
 
   agent-frontmatter:
@@ -84,3 +87,31 @@ jobs:
             grep -qE '^description:' "$f" || { echo "::error file=$f::missing 'description:'"; fail=1; }
           done
           exit $fail
+
+  gemini-extension:
+    name: gemini extension
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Required gemini manifest fields present
+        run: jq -e '.name and .version and .description and .contextFileName' gemini/gemini-extension.json >/dev/null
+      - name: All gemini command TOML parse and define a prompt
+        run: python3 -c "import tomllib,glob; assert all('prompt' in tomllib.load(open(f,'rb')) for f in glob.glob('gemini/commands/*.toml')); print('gemini command TOML OK')"
+      - name: Gemini agent frontmatter + read-only reviewers carry no write tools
+        run: |
+          fail=0
+          for f in gemini/agents/*.md; do
+            head -n 1 "$f" | grep -qx -- '---' || { echo "::error file=$f::missing frontmatter"; fail=1; }
+            grep -qE '^name:' "$f"  || { echo "::error file=$f::missing 'name:'"; fail=1; }
+            grep -qE '^tools:' "$f" || { echo "::error file=$f::missing 'tools:'"; fail=1; }
+          done
+          for a in tech-lead security-engineer performance-engineer; do
+            if grep -qE '^  - (write_file|replace)$' "gemini/agents/$a.md"; then
+              echo "::error::$a is read-only but lists a write tool"; fail=1
+            fi
+          done
+          exit $fail
+      - name: gemini/ is in sync with the generator
+        run: |
+          python3 scripts/build-gemini-extension.py
+          git diff --exit-code -- gemini/ || { echo "::error::gemini/ is stale — run: python3 scripts/build-gemini-extension.py and commit"; exit 1; }

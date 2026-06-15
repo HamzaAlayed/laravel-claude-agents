@@ -5,6 +5,26 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-06-15
+
+Third install target: the pack now ships as a **Gemini CLI extension** alongside the Claude Code plugin and Cursor plugin — one repo, three targets.
+
+### Added
+
+- **Gemini CLI extension** under `gemini/` (`gemini extensions install ./laravel-claude-agents/gemini`): `gemini-extension.json` manifest, `GEMINI.md` context, 17 subagents, 9 TOML commands, the `laravel-conventions` skill, and the guardrail hooks wired as `BeforeTool`.
+- **`scripts/build-gemini-extension.py`** — a deterministic generator that produces the Gemini extension from the canonical Claude-format source, so the two never drift. Translates frontmatter automatically: tool-name mapping (`Bash`→`run_shell_command`, `Read`→`read_file`/`read_many_files`, `Edit`→`replace`, `Grep`→`search_file_content`, …), read-only reviewers re-expressed as a tools allowlist (Gemini has no `disallowedTools`), Markdown commands → TOML (`{{args}}` preserved verbatim — it's already Gemini's placeholder), `Agent(...)` roster dropped (delegation via `@name`), and `model`/`isolation`/`memory`/`color` dropped. Bodies are preserved byte-for-byte; Claude-isms (`CLAUDE.md`, `claude --agent`, model names, `(worktree)`) are rewritten for the Gemini target.
+- **CI `gemini extension` job**: validates the manifest, all command TOML, agent frontmatter, asserts the read-only reviewers carry no write tool, and — key — fails if `gemini/` is out of sync with the generator. Versions across VERSION + all manifests (Claude/Cursor/Gemini) are kept in sync by CI.
+
+### Changed
+
+- `protect-env-files.sh` now also reads `tool_input.absolute_path` (Gemini's `write_file`/`replace` path field) in addition to `path`/`file_path` — backward-compatible.
+- Bumped to **1.3.0**.
+
+### Notes
+
+- **The Gemini CLI format was verified against live Google docs**, including the load-bearing details: subagent `.md`+YAML frontmatter, `${extensionPath}` script references in `BeforeTool` hooks, and the `exit 2` block contract (identical to ours). What does **not** port: `isolation: worktree` (Gemini isolates context, not the git worktree), per-agent `memory`, and a fixed `Agent(...)` delegation roster.
+- **Sunset:** Google sunsets Gemini CLI for consumer (Individual/AI Pro/AI Ultra) accounts on 2026-06-18 in favor of Antigravity (Standard/Enterprise unaffected). Installed extensions auto-migrate to Antigravity plugins — Skills, Hooks, Subagents, and `GEMINI.md` carry over. This pack has no Node-only APIs, so it migrates cleanly.
+
 ## [1.2.0] - 2026-06-14
 
 A research-driven, one-by-one audit of all 17 agents for result quality and token economy. Best practices were gathered from official Claude Code / Anthropic docs, adversarially verified, and applied. Verified subagent mechanics drove a key course-correction (below).
@@ -85,6 +105,7 @@ guardrail scripts are tested in CI, and the agent/command roster has grown.
   `.env*` files in both a clean path and the raw payload, while still allowing
   `.env.example`.
 
+[1.3.0]: https://github.com/HamzaAlayed/laravel-claude-agents/releases/tag/v1.3.0
 [1.2.0]: https://github.com/HamzaAlayed/laravel-claude-agents/releases/tag/v1.2.0
 [1.1.0]: https://github.com/HamzaAlayed/laravel-claude-agents/releases/tag/v1.1.0
 [1.0.0]: https://github.com/HamzaAlayed/laravel-claude-agents/releases/tag/v1.0.0

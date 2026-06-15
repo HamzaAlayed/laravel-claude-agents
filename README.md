@@ -2,7 +2,7 @@
 
 A production-grade, drop-in team of Claude Code subagents purpose-built for **Laravel** projects. Covers the full lifecycle — discovery, prioritization, architecture, design, frontend (Blade / Livewire / Inertia / Filament), backend (Eloquent / Form Requests / Policies / API Resources), database, mobile, QA (Pest / PHPUnit / Dusk), DevOps (Forge / Vapor / Envoyer / Kamal), security, performance, technical writing, tech leadership, scrum, package development, and end-to-end delivery coordination.
 
-Installable as a **Claude Code plugin** (one command) or via the classic `install.sh`. Guardrail hooks are tested in CI.
+Installable as a **Claude Code plugin** (one command), a **Cursor plugin**, or a **Gemini CLI extension**, or via the classic `install.sh`. Guardrail hooks are tested in CI.
 
 Every agent now knows what "good" looks like in a Laravel codebase. Reviewers refuse antipatterns (`env()` outside config, N+1, mass-assignment gaps, missing Policies, `migrate:fresh` anywhere near production). Builders default to idiomatic Laravel.
 
@@ -171,6 +171,19 @@ That registers all 17 agents, the 9 slash commands, the `laravel-conventions` sk
 #### Cursor
 
 This pack also ships a `.cursor-plugin/` manifest. Search for it in the [Cursor plugin marketplace](https://cursor.com/docs/plugins), or add the marketplace by repo URL — the same agents, commands, skill, and hooks load in Cursor.
+
+#### Gemini CLI
+
+The pack also ships as a **Gemini CLI extension** under [`gemini/`](gemini/) — auto-generated from the same source by `scripts/build-gemini-extension.py`. Gemini CLI installs from a repo root or local path (there's no subdirectory flag), so install it locally:
+
+```bash
+git clone https://github.com/HamzaAlayed/laravel-claude-agents
+gemini extensions install ./laravel-claude-agents/gemini
+```
+
+It registers the 17 subagents (auto-delegated, or call `@backend-developer` etc.), the 9 slash commands, the `laravel-conventions` skill, and the guardrail hooks (wired as `BeforeTool` via `${extensionPath}`). The Claude-specific frontmatter is translated automatically: tool names mapped (`Bash`→`run_shell_command`, …), read-only reviewers expressed as a tools allowlist (Gemini has no `disallowedTools`), commands rewritten to TOML (`{{args}}` is already Gemini's token), and `model`/`isolation`/`memory` dropped (no Gemini equivalent).
+
+> **Sunset notice:** Google sunsets Gemini CLI for consumer (Individual / AI Pro / AI Ultra) accounts on **June 18, 2026** in favor of [Antigravity](https://antigravity.google); Standard/Enterprise tiers are unaffected. Installed extensions **auto-migrate to Antigravity plugins** — Agent Skills, Hooks, Subagents, and `GEMINI.md` carry over. This pack is pure bash + markdown (no Node-only APIs), so it migrates cleanly.
 
 ### Pairs with the official Laravel pack
 

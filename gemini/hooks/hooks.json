@@ -1,0 +1,19 @@
+{
+  "hooks": {
+    "BeforeTool": [
+      {
+        "matcher": "run_shell_command",
+        "hooks": [
+          { "type": "command", "name": "block-prod-destructive-sql", "command": "${extensionPath}/scripts/block-prod-destructive-sql.sh" },
+          { "type": "command", "name": "block-prod-artisan", "command": "${extensionPath}/scripts/block-prod-artisan.sh" }
+        ]
+      },
+      {
+        "matcher": "write_file|replace",
+        "hooks": [
+          { "type": "command", "name": "protect-env-files", "command": "${extensionPath}/scripts/protect-env-files.sh" }
+        ]
+      }
+    ]
+  }
+}
