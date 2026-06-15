@@ -272,6 +272,34 @@ For point work, call a specialist directly:
 
 ---
 
+## Usage in Gemini CLI
+
+After `gemini extensions install ./laravel-claude-agents/gemini`, the 17 specialists load as Gemini subagents, the 9 commands as slash commands, the `laravel-conventions` skill, and the guardrail hooks.
+
+**Invoke a specialist** — either let Gemini auto-delegate from your description, or target one explicitly with `@`:
+
+```
+> @delivery-coordinator ship a "team invites" feature: invite email,
+  accept/decline, audit log entry.
+> @backend-developer add an idempotency key to POST /api/orders.
+> @tech-lead review the diff before merge.
+```
+
+**Run a workflow command** — the slash commands are invoked by name, with arguments after:
+
+```
+> /make-feature team invites
+> /review-pr main
+> /add-policy User
+> /optimize-query "GET /orders"
+```
+
+**Skill + hooks are automatic.** The `laravel-conventions` skill surfaces when you ask the "right way" to do something in Laravel, and the `BeforeTool` hooks run on every shell / file-write — blocking `migrate:fresh` against production, destructive prod SQL, and writes to `.env*`. (Gemini prompts once at install to consent to the hooks.)
+
+> Read-only reviewers (`@tech-lead`, `@security-engineer`, `@performance-engineer`) carry a read-only tool set in Gemini too — they report findings and hand fixes to the builders / the coordinator.
+
+---
+
 ## CLAUDE.md.template
 
 A starter `CLAUDE.md` tailored for Laravel. Fill in the stack block (PHP version, Laravel version, frontend paradigm, queue driver, runtime, auth, search, mobile, hosting, CI, observability), and the rest is already there: repo layout, conventions, hard constraints, useful commands. Agents read this first when they pick up work, so the more accurate it is, the better they'll behave.
