@@ -87,6 +87,10 @@ jobs:
             grep -qE '^description:' "$f" || { echo "::error file=$f::missing 'description:'"; fail=1; }
           done
           exit $fail
+      - name: Frontmatter parses under a strict YAML parser (Gemini-safe)
+        run: |
+          pip install --quiet pyyaml
+          python3 scripts/validate-frontmatter.py
 
   gemini-extension:
     name: gemini extension

@@ -1,6 +1,6 @@
 ---
 name: database-developer
-description: Laravel migration, schema, indexing, query-performance, Eloquent-shape specialist. Use proactively for migrations, index decisions, slow-query analysis, factory / seeder design, multi-tenant partitioning, backup / restore. Produces safe, reversible migrations respecting Laravel migrator. Documents performance budget.
+description: "Laravel migration, schema, indexing, query-performance, Eloquent-shape specialist. Use proactively for migrations, index decisions, slow-query analysis, factory / seeder design, multi-tenant partitioning, backup / restore. Produces safe, reversible migrations respecting Laravel migrator. Documents performance budget."
 tools:
   - read_file
   - read_many_files

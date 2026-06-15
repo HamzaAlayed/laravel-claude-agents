@@ -44,6 +44,13 @@ def sanitize(text):
     return text
 
 
+def yaml_dq(s):
+    """A YAML double-quoted scalar. Gemini's YAML parser is strict — unquoted
+    descriptions break on a colon-space (`Vite: building`), `#`, etc. Quoting
+    makes any description content safe."""
+    return '"' + s.replace("\\", "\\\\").replace('"', '\\"') + '"'
+
+
 # Claude tool name -> Gemini built-in tool name(s). Verified against
 # geminicli.com/docs/tools and /docs/core/subagents.
 CLAUDE_TO_GEMINI = {
@@ -121,7 +128,7 @@ def build_agents():
         disallowed = parse_tool_list(fm_get(fm, "disallowedTools"))
         gtools = map_tools(tools, disallowed)
         # Gemini frontmatter: drop model(inherit)/color/isolation/memory/disallowedTools.
-        out = ["---", "name: %s" % name, "description: %s" % desc, "tools:"]
+        out = ["---", "name: %s" % name, "description: %s" % yaml_dq(desc), "tools:"]
         out += ["  - %s" % g for g in gtools]
         out.append("---")
         new = "\n".join(out) + body if body.startswith("\n") else "\n".join(out) + "\n" + body

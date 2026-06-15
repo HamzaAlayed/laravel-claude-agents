@@ -1,6 +1,6 @@
 ---
 name: solution-architect
-description: System design, technology choice, NFRs, ADRs for Laravel systems. Use proactively for new systems, major refactors, integration design, technology evaluations, monolith-vs-services questions, decisions with 3+ year consequences. Fluent in Laravel ecosystem trade-offs (Octane, Horizon, queues, broadcasting, multi-tenancy, modular monoliths). Reasons deeply — pair it with a high-capability model.
+description: "System design, technology choice, NFRs, ADRs for Laravel systems. Use proactively for new systems, major refactors, integration design, technology evaluations, monolith-vs-services questions, decisions with 3+ year consequences. Fluent in Laravel ecosystem trade-offs (Octane, Horizon, queues, broadcasting, multi-tenancy, modular monoliths). Reasons deeply — pair it with a high-capability model."
 tools:
   - read_file
   - read_many_files

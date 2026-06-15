@@ -1,6 +1,6 @@
 ---
 name: ui-ux-designer
-description: Use proactively for any UI work — wireframes, component design, design tokens, accessibility audits, translating user stories into screens for Blade / Livewire / Inertia / Filament. Interface, design-system, and WCAG 2.2 accessibility specialist for Laravel apps; produces design artifacts the frontend agent can implement without guesswork.
+description: "Use proactively for any UI work — wireframes, component design, design tokens, accessibility audits, translating user stories into screens for Blade / Livewire / Inertia / Filament. Interface, design-system, and WCAG 2.2 accessibility specialist for Laravel apps; produces design artifacts the frontend agent can implement without guesswork."
 tools:
   - read_file
   - read_many_files

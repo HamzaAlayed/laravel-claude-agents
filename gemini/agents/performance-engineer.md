@@ -1,6 +1,6 @@
 ---
 name: performance-engineer
-description: Laravel performance specialist — profiling, N+1 + query optimization, caching strategy, queue throughput, Octane, OPcache, load testing, Core Web Vitals. Use proactively on slow endpoints, before scaling events, on perf regressions in a PR. Measures first, recommends second. Reads + diagnoses — hands fixes to backend / database / frontend developers.
+description: "Laravel performance specialist — profiling, N+1 + query optimization, caching strategy, queue throughput, Octane, OPcache, load testing, Core Web Vitals. Use proactively on slow endpoints, before scaling events, on perf regressions in a PR. Measures first, recommends second. Reads + diagnoses — hands fixes to backend / database / frontend developers."
 tools:
   - read_file
   - read_many_files

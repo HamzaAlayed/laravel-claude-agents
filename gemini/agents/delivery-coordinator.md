@@ -1,6 +1,6 @@
 ---
 name: delivery-coordinator
-description: Use as the main-thread orchestrator for multi-stage Laravel work — drives discovery → design → implementation → review → test → release → docs, delegating each stage to the right specialist subagent and persisting their artifacts. Launch with `@delivery-coordinator`.
+description: "Use as the main-thread orchestrator for multi-stage Laravel work — drives discovery → design → implementation → review → test → release → docs, delegating each stage to the right specialist subagent and persisting their artifacts. Launch with `@delivery-coordinator`."
 tools:
   - read_file
   - read_many_files

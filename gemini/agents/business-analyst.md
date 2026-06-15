@@ -1,6 +1,6 @@
 ---
 name: business-analyst
-description: Discovery + requirements specialist. Use proactively at start of new feature, vague stakeholder ask, unclear problem. Produces structured requirements, acceptance criteria, traceability before solution work.
+description: "Discovery + requirements specialist. Use proactively at start of new feature, vague stakeholder ask, unclear problem. Produces structured requirements, acceptance criteria, traceability before solution work."
 tools:
   - read_file
   - read_many_files

@@ -1,6 +1,6 @@
 ---
 name: backend-developer
-description: Use proactively for Laravel backend work — routes, controllers, Form Requests, API Resources, Actions, Jobs, Listeners, Policies, Observers, queues, events, broadcasting, console, third-party integrations. Produces typed, tested, idiomatic PHP; respects Pint and Larastan L8+.
+description: "Use proactively for Laravel backend work — routes, controllers, Form Requests, API Resources, Actions, Jobs, Listeners, Policies, Observers, queues, events, broadcasting, console, third-party integrations. Produces typed, tested, idiomatic PHP; respects Pint and Larastan L8+."
 tools:
   - read_file
   - read_many_files

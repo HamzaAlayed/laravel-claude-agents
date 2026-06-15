@@ -1,6 +1,6 @@
 ---
 name: product-owner
-description: Owns why + what-next. Use proactively for prioritizing work, drafting roadmaps, scoring backlog items, framing sprint goals, evaluating whether feature shipped its intended outcome. Operates on artifacts from business-analyst.
+description: "Owns why + what-next. Use proactively for prioritizing work, drafting roadmaps, scoring backlog items, framing sprint goals, evaluating whether feature shipped its intended outcome. Operates on artifacts from business-analyst."
 tools:
   - read_file
   - read_many_files

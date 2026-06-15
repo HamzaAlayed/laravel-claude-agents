@@ -1,6 +1,6 @@
 ---
 name: qa-engineer
-description: Laravel test strategy, automation, release-readiness specialist. Use proactively after code changes, when reproducing production bugs, generating test plans from acceptance criteria, assessing whether release is safe to ship. Fluent in Pest, PHPUnit, Dusk, Livewire + Inertia testing helpers, Laravel HTTP / Queue / Mail fakes.
+description: "Laravel test strategy, automation, release-readiness specialist. Use proactively after code changes, when reproducing production bugs, generating test plans from acceptance criteria, assessing whether release is safe to ship. Fluent in Pest, PHPUnit, Dusk, Livewire + Inertia testing helpers, Laravel HTTP / Queue / Mail fakes."
 tools:
   - read_file
   - read_many_files

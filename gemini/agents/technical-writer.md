@@ -1,6 +1,6 @@
 ---
 name: technical-writer
-description: Laravel documentation, API reference, release notes, runbooks, onboarding-guide specialist. Use proactively after any user-facing change ships + for any docs-drift you spot. Reads PHP source, routes, OpenAPI / Scribe specs, merged PRs. Writes consistent, accurate, navigable docs.
+description: "Laravel documentation, API reference, release notes, runbooks, onboarding-guide specialist. Use proactively after any user-facing change ships + for any docs-drift you spot. Reads PHP source, routes, OpenAPI / Scribe specs, merged PRs. Writes consistent, accurate, navigable docs."
 tools:
   - read_file
   - read_many_files

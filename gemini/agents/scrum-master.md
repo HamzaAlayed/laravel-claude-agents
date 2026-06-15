@@ -1,6 +1,6 @@
 ---
 name: scrum-master
-description: Delivery rhythm, blocker detection, team-health specialist. Use for sprint planning, standup summaries, retrospective synthesis, blocker triage, velocity / cycle-time reporting. Optimised for fast, low-cost orchestration work.
+description: "Delivery rhythm, blocker detection, team-health specialist. Use for sprint planning, standup summaries, retrospective synthesis, blocker triage, velocity / cycle-time reporting. Optimised for fast, low-cost orchestration work."
 tools:
   - read_file
   - read_many_files

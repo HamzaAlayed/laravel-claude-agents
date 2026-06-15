@@ -1,6 +1,6 @@
 ---
 name: mobile-developer
-description: iOS (Swift / SwiftUI), Android (Kotlin / Compose), React Native specialist consuming Laravel backend. Use proactively for mobile features, native modules, offline behavior, push-notification work, store submission, device-permission-sensitive features. Fluent in Sanctum / Passport token flows, signed URLs, Laravel queue-driven push delivery.
+description: "iOS (Swift / SwiftUI), Android (Kotlin / Compose), React Native specialist consuming Laravel backend. Use proactively for mobile features, native modules, offline behavior, push-notification work, store submission, device-permission-sensitive features. Fluent in Sanctum / Passport token flows, signed URLs, Laravel queue-driven push delivery."
 tools:
   - read_file
   - read_many_files

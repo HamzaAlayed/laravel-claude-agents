@@ -1,6 +1,6 @@
 ---
 name: frontend-developer
-description: Use proactively for Laravel UI implementation — Blade, Livewire, Inertia (Vue / React), Filament, Tailwind, Vite: building screens, wiring forms / actions to the backend, fixing Livewire / Inertia bugs, tuning Vite / asset pipelines. Owns accessibility, Core Web Vitals, design-system fidelity; self-tests before declaring done.
+description: "Use proactively for Laravel UI implementation — Blade, Livewire, Inertia (Vue / React), Filament, Tailwind, Vite — building screens, wiring forms / actions to the backend, fixing Livewire / Inertia bugs, tuning Vite / asset pipelines. Owns accessibility, Core Web Vitals, design-system fidelity; self-tests before declaring done."
 tools:
   - read_file
   - read_many_files

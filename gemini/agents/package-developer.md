@@ -1,6 +1,6 @@
 ---
 name: package-developer
-description: Laravel package author specialist. Use proactively for extracting reusable code into Composer package, creating new Laravel package from scratch, maintaining existing one. Knows service provider auto-discovery, config publishing, migration distribution, Pint / Larastan / Pest setup for packages, Packagist release hygiene.
+description: "Laravel package author specialist. Use proactively for extracting reusable code into Composer package, creating new Laravel package from scratch, maintaining existing one. Knows service provider auto-discovery, config publishing, migration distribution, Pint / Larastan / Pest setup for packages, Packagist release hygiene."
 tools:
   - read_file
   - read_many_files

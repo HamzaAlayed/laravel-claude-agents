@@ -1,6 +1,6 @@
 ---
 name: security-engineer
-description: Laravel security specialist — threat modeling, vulnerability analysis, authn / authz review, secrets hygiene, compliance. Use proactively before any feature touching auth (Sanctum / Passport / Fortify), Policies / Gates, PII, billing (Cashier), or file uploads ships. On every significant PR. For incident triage. Reads + reports — does not silently modify code.
+description: "Laravel security specialist — threat modeling, vulnerability analysis, authn / authz review, secrets hygiene, compliance. Use proactively before any feature touching auth (Sanctum / Passport / Fortify), Policies / Gates, PII, billing (Cashier), or file uploads ships. On every significant PR. For incident triage. Reads + reports — does not silently modify code."
 tools:
   - read_file
   - read_many_files

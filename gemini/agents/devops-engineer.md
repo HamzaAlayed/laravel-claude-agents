@@ -1,6 +1,6 @@
 ---
 name: devops-engineer
-description: Laravel CI/CD, infrastructure, observability, release-automation specialist. Use proactively for pipeline changes, deployment automation (Forge / Vapor / Envoyer / Kamal), queue worker + scheduler topology (Horizon / Supervisor), Octane configuration, asset pipeline tuning, dashboards, cost optimization, incident runbooks.
+description: "Laravel CI/CD, infrastructure, observability, release-automation specialist. Use proactively for pipeline changes, deployment automation (Forge / Vapor / Envoyer / Kamal), queue worker + scheduler topology (Horizon / Supervisor), Octane configuration, asset pipeline tuning, dashboards, cost optimization, incident runbooks."
 tools:
   - read_file
   - read_many_files
