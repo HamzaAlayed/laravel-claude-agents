@@ -2,7 +2,7 @@
 
 A production-grade, drop-in team of Claude Code subagents purpose-built for **Laravel** projects. Covers the full lifecycle — discovery, prioritization, architecture, design, frontend (Blade / Livewire / Inertia / Filament), backend (Eloquent / Form Requests / Policies / API Resources), database, mobile, QA (Pest / PHPUnit / Dusk), DevOps (Forge / Vapor / Envoyer / Kamal), security, performance, technical writing, tech leadership, scrum, package development, and end-to-end delivery coordination.
 
-Installable as a **Claude Code plugin** (one command), a **Cursor plugin**, or a **Gemini CLI extension**, or via the classic `install.sh`. Guardrail hooks are tested in CI.
+Installable as a **Claude Code plugin** (one command), a **Cursor plugin**, a **Gemini CLI extension**, or a **Codex CLI** target, or via the classic `install.sh`. Guardrail hooks are tested in CI.
 
 Every agent now knows what "good" looks like in a Laravel codebase. Reviewers refuse antipatterns (`env()` outside config, N+1, mass-assignment gaps, missing Policies, `migrate:fresh` anywhere near production). Builders default to idiomatic Laravel.
 
@@ -185,6 +185,19 @@ It registers the 17 subagents (auto-delegated, or call `@backend-developer` etc.
 
 > **Sunset notice:** Google sunsets Gemini CLI for consumer (Individual / AI Pro / AI Ultra) accounts on **June 18, 2026** in favor of [Antigravity](https://antigravity.google); Standard/Enterprise tiers are unaffected. Installed extensions **auto-migrate to Antigravity plugins** — Agent Skills, Hooks, Subagents, and `GEMINI.md` carry over. This pack is pure bash + markdown (no Node-only APIs), so it migrates cleanly.
 
+#### Codex CLI
+
+Codex has no one-command install, so the pack ships a **Codex Core** target under [`codex/`](codex/) — `AGENTS.md` (Codex's native context file), the `laravel-conventions` skill, and the 3 guardrail hooks as `PreToolUse`. Install it into your project:
+
+```bash
+git clone https://github.com/HamzaAlayed/laravel-claude-agents
+./laravel-claude-agents/codex/install-codex.sh /path/to/your/laravel/project
+```
+
+It drops `AGENTS.md` (only if absent), `.agents/skills/laravel-conventions/`, and `.codex/hooks.json` + `.codex/hooks/*.sh` (hook paths resolve from the git root). On the next `codex` run you're asked to review and trust the hooks. The guard scripts use the same `.tool_input.command` / `exit 2` contract as Claude, with an `apply_patch`-aware `.env` guard that inspects the patch's target paths.
+
+> **Scope:** the full 17-agent team is **not** ported to Codex — its subagent model is a different `config.toml` schema. Codex Core ships the conventions skill + guardrails; use Claude Code or Gemini CLI for the full team.
+
 ### Pairs with the official Laravel pack
 
 This team is the full delivery lifecycle (17 agents). It's designed to sit **alongside** Laravel's official [`laravel/agent-skills`](https://github.com/laravel/agent-skills), not replace it — install both:
@@ -297,6 +310,18 @@ After `gemini extensions install ./laravel-claude-agents/gemini`, the 17 special
 **Skill + hooks are automatic.** The `laravel-conventions` skill surfaces when you ask the "right way" to do something in Laravel, and the `BeforeTool` hooks run on every shell / file-write — blocking `migrate:fresh` against production, destructive prod SQL, and writes to `.env*`. (Gemini prompts once at install to consent to the hooks.)
 
 > Read-only reviewers (`@tech-lead`, `@security-engineer`, `@performance-engineer`) carry a read-only tool set in Gemini too — they report findings and hand fixes to the builders / the coordinator.
+
+---
+
+## Usage in Codex CLI
+
+The **Codex Core** target shapes behavior through context, a skill, and guardrails rather than agents you invoke:
+
+- **`AGENTS.md`** loads every session as project context (Laravel stack, conventions, hard constraints, definition-of-done).
+- **`laravel-conventions`** auto-triggers when you ask the idiomatic "right way" to do something in Laravel.
+- **`PreToolUse` hooks** block destructive prod SQL / `artisan` and writes to `.env*` / secret files. Codex asks you to trust them once, then they run on every tool call; a blocked call exits with the reason. The `.env` guard is `apply_patch`-aware — it inspects the patch's target paths, so a file that merely *mentions* `.env` in its content isn't blocked.
+
+There are no Codex subagents or slash commands in this target — the full team lives on Claude Code / Gemini CLI (see the scope note in Install).
 
 ---
 

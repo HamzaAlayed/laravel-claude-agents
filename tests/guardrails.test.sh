@@ -31,7 +31,7 @@ run_hook_noparsers() {
   sandbox="$(mktemp -d)"
   # Symlink only the coreutils the scripts need — deliberately NOT jq/python3.
   local tool
-  for tool in cat tr grep basename mktemp dirname; do
+  for tool in cat tr grep sed basename mktemp dirname; do
     local path
     path="$(command -v "$tool" 2>/dev/null || true)"
     if [ -n "$path" ]; then
@@ -116,6 +116,24 @@ expect "write to app/Models/User.php allows" "$ALLOW" \
   "$(run_hook protect-env-files.sh '{"tool_input":{"file_path":"/app/app/Models/User.php"}}')"
 expect "FALLBACK (no jq/python3): .env.production still blocks" "$BLOCK" \
   "$(run_hook_noparsers protect-env-files.sh '{"tool_input":{"file_path":"/app/.env.production"}}')"
+
+echo "codex-protect-env-files.sh (Codex apply_patch-aware)"
+expect "apply_patch adding .env.production blocks" "$BLOCK" \
+  "$(run_hook codex-protect-env-files.sh '{"tool_input":{"command":"*** Begin Patch\n*** Add File: .env.production\n+SECRET=x\n*** End Patch"}}')"
+expect "apply_patch updating nested .env blocks" "$BLOCK" \
+  "$(run_hook codex-protect-env-files.sh '{"tool_input":{"command":"*** Begin Patch\n*** Update File: app/.env\n+APP_KEY=y\n*** End Patch"}}')"
+expect "apply_patch touching secrets/ blocks" "$BLOCK" \
+  "$(run_hook codex-protect-env-files.sh '{"tool_input":{"command":"*** Begin Patch\n*** Add File: config/secrets/key.pem\n+x\n*** End Patch"}}')"
+expect "Edit/Write path to .env.local blocks" "$BLOCK" \
+  "$(run_hook codex-protect-env-files.sh '{"tool_input":{"file_path":"/app/.env.local"}}')"
+expect "apply_patch editing README that MENTIONS .env in content allows" "$ALLOW" \
+  "$(run_hook codex-protect-env-files.sh '{"tool_input":{"command":"*** Begin Patch\n*** Update File: README.md\n+Copy .env.example to .env.production and fill it in.\n*** End Patch"}}')"
+expect "apply_patch adding .env.example allows" "$ALLOW" \
+  "$(run_hook codex-protect-env-files.sh '{"tool_input":{"command":"*** Begin Patch\n*** Add File: .env.example\n+APP_NAME=Laravel\n*** End Patch"}}')"
+expect "apply_patch adding app/Models/User.php allows" "$ALLOW" \
+  "$(run_hook codex-protect-env-files.sh '{"tool_input":{"command":"*** Begin Patch\n*** Add File: app/Models/User.php\n+<?php\n*** End Patch"}}')"
+expect "FALLBACK (no jq/python3): apply_patch .env.production blocks" "$BLOCK" \
+  "$(run_hook_noparsers codex-protect-env-files.sh '{"tool_input":{"command":"*** Begin Patch\n*** Add File: .env.production\n+SECRET=x\n*** End Patch"}}')"
 
 echo
 echo "----------------------------------------"

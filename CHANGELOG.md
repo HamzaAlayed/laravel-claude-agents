@@ -5,6 +5,25 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-06-16
+
+Fourth install target: a **Codex CLI** target alongside Claude Code, Cursor, and Gemini CLI.
+
+### Added
+
+- **Codex CLI "Core" target** under `codex/` (install via `codex/install-codex.sh <project>`, since Codex has no extension-install command): `AGENTS.md` (Codex's native context, from the template), the `laravel-conventions` skill (verbatim — Codex uses the same agentskills.io standard, under `.agents/skills/`), and the three guardrail hooks wired as `PreToolUse` in `.codex/hooks.json` (script paths resolved from the git root).
+- **`scripts/build-codex-extension.py`** — deterministic generator for the Codex target (idempotent; keeps `codex/` in sync with the canonical template, skill, and guard scripts).
+- **`scripts/codex-protect-env-files.sh`** — an `apply_patch`-aware `.env`/secrets guard. Codex delivers edits as a patch, so it extracts the target path from the `*** Add/Update/Delete File:` headers (never scans patch content, which would false-positive on files merely mentioning `.env`). `block-prod-*` port verbatim (same `.tool_input.command` / `exit 2` contract).
+- Guardrail test harness gains 8 Codex cases (32 total), including "patch mentions .env in content → allowed" and the no-parser fallback. CI gains a `codex target` job (hooks.json validity + generator-in-sync) and shellcheck over the Codex scripts.
+
+### Changed
+
+- Bumped to **1.4.0** (VERSION + Claude/Cursor/Gemini manifests; CI keeps them in sync).
+
+### Notes
+
+- **Scope is "Core."** The 17 subagents are not ported — Codex's subagent model is a different `config.toml [agents]` schema. Codex Core ships the conventions skill + guardrails; the full team runs on Claude Code / Gemini CLI. Format verified against the official OpenAI Codex docs (hooks.json structure, `PreToolUse` deny-via-`exit 2`, git-root path resolution, trust-on-first-run).
+
 ## [1.3.0] - 2026-06-15
 
 Third install target: the pack now ships as a **Gemini CLI extension** alongside the Claude Code plugin and Cursor plugin — one repo, three targets.
@@ -105,6 +124,7 @@ guardrail scripts are tested in CI, and the agent/command roster has grown.
   `.env*` files in both a clean path and the raw payload, while still allowing
   `.env.example`.
 
+[1.4.0]: https://github.com/HamzaAlayed/laravel-claude-agents/releases/tag/v1.4.0
 [1.3.0]: https://github.com/HamzaAlayed/laravel-claude-agents/releases/tag/v1.3.0
 [1.2.0]: https://github.com/HamzaAlayed/laravel-claude-agents/releases/tag/v1.2.0
 [1.1.0]: https://github.com/HamzaAlayed/laravel-claude-agents/releases/tag/v1.1.0

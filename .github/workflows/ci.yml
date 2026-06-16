@@ -14,7 +14,7 @@ jobs:
       - name: Run shellcheck on guardrail scripts and tests (strict)
         run: |
           shellcheck --version
-          shellcheck scripts/*.sh tests/*.sh gemini/scripts/*.sh
+          shellcheck scripts/*.sh tests/*.sh gemini/scripts/*.sh codex/install-codex.sh codex/.codex/hooks/*.sh
       - name: Run shellcheck on installer (errors only)
         run: shellcheck --severity=error install.sh
 
@@ -119,3 +119,15 @@ jobs:
         run: |
           python3 scripts/build-gemini-extension.py
           git diff --exit-code -- gemini/ || { echo "::error::gemini/ is stale — run: python3 scripts/build-gemini-extension.py and commit"; exit 1; }
+
+  codex-target:
+    name: codex target
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: codex hooks.json parses
+        run: jq empty codex/.codex/hooks.json
+      - name: codex/ is in sync with the generator
+        run: |
+          python3 scripts/build-codex-extension.py
+          git diff --exit-code -- codex/ || { echo "::error::codex/ is stale — run: python3 scripts/build-codex-extension.py and commit"; exit 1; }
