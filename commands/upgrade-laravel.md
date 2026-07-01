@@ -1,10 +1,12 @@
 ---
 description: Plan and stage a Laravel framework version upgrade — detect current, inventory breaking changes, check first-party packages, produce a staged migration plan.
 argument-hint: <target-version e.g. 11 or 12>
-allowed-tools: Read, Bash, Grep, Glob
+allowed-tools: Agent, Read, Bash, Grep, Glob
 ---
 
 # Upgrade Laravel — to `{{args}}`
+
+> **Delegation:** Spawn each specialist by its registered agent type as it appears in your available-agents list — prefixed when installed as a plugin (e.g. `laravel-team:backend-developer`), unprefixed when installed via `install.sh`. The specialist names in this command are labels, not literal `subagent_type` strings.
 
 Plan and stage an upgrade to Laravel `{{args}}`. Produce a staged, verifiable migration plan. You plan + inventory; `backend-developer` + `devops-engineer` implement, `tech-lead` reviews. Do not edit code.
 

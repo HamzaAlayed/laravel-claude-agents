@@ -1,10 +1,12 @@
 ---
 description: Optimize a slow query or endpoint — capture, EXPLAIN, diagnose, produce a fix plan, hand to database/backend developer.
 argument-hint: <route, query, or model method>
-allowed-tools: Read, Bash, Grep, Glob
+allowed-tools: Agent, Read, Bash, Grep, Glob
 ---
 
 # Optimize query — `{{args}}`
+
+> **Delegation:** Spawn each specialist by its registered agent type as it appears in your available-agents list — prefixed when installed as a plugin (e.g. `laravel-team:backend-developer`), unprefixed when installed via `install.sh`. The specialist names in this command are labels, not literal `subagent_type` strings.
 
 Diagnose why `{{args}}` (a route name/path, raw query, or `Model::method`) is slow and produce a fix plan with measured evidence. Measure first. You diagnose; builders apply.
 

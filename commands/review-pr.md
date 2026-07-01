@@ -1,10 +1,12 @@
 ---
 description: Run a layered review of the current branch diff — correctness, security, test coverage, performance — and aggregate into one verdict.
 argument-hint: [base-branch]
-allowed-tools: Read, Bash, Grep, Glob
+allowed-tools: Agent, Read, Bash, Grep, Glob
 ---
 
 # Review PR — diff against `{{args}}`
+
+> **Delegation:** Spawn each specialist by its registered agent type as it appears in your available-agents list — prefixed when installed as a plugin (e.g. `laravel-team:backend-developer`), unprefixed when installed via `install.sh`. The specialist names in this command are labels, not literal `subagent_type` strings.
 
 Layered review of the current branch against base `{{args}}` (default `main`). Fan out to specialists, aggregate, return one verdict. You orchestrate; the specialists judge.
 

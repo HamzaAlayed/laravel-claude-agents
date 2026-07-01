@@ -1,10 +1,12 @@
 ---
 description: Run the pre-release ship checklist for a Laravel app — quality gates, migrations, queues, env, security, docs — and produce a go/no-go report.
 argument-hint: [version-tag]
-allowed-tools: Read, Bash, Grep, Glob
+allowed-tools: Agent, Read, Bash, Grep, Glob
 ---
 
 # Ship checklist — `{{args}}`
+
+> **Delegation:** Spawn each specialist by its registered agent type as it appears in your available-agents list — prefixed when installed as a plugin (e.g. `laravel-team:backend-developer`), unprefixed when installed via `install.sh`. The specialist names in this command are labels, not literal `subagent_type` strings.
 
 Run the pre-release checklist for the upcoming release `{{args}}` (or "next" if unspecified) and produce a ship / hold verdict.
 
