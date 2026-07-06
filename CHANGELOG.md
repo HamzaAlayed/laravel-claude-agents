@@ -5,6 +5,12 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.1] - 2026-07-06
+
+### Fixed
+
+- **Plugin hooks failed to load** ("Duplicate hooks file detected"). Claude Code auto-loads the standard `hooks/hooks.json`, and `plugin.json` *also* referenced it via `manifest.hooks` — the duplicate registration aborted the entire hooks load, silently disabling the prod-SQL / prod-artisan / `.env` guardrails. Removed the redundant `"hooks"` key from the Claude and Cursor manifests (`manifest.hooks` is only for *additional* hook files beyond the standard path).
+
 ## [1.5.0] - 2026-07-06
 
 A 57-subagent, adversarially-verified upgrade of all 17 agents on three axes: technical accuracy, mistake-reduction guardrails, and AI cost. Every finding was fact-checked against live Laravel / Claude Code docs before being applied (351 confirmed; ~⅓ of raw findings refuted).
