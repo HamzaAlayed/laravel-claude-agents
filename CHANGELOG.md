@@ -5,6 +5,33 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.5.0] - 2026-07-06
+
+A 57-subagent, adversarially-verified upgrade of all 17 agents on three axes: technical accuracy, mistake-reduction guardrails, and AI cost. Every finding was fact-checked against live Laravel / Claude Code docs before being applied (351 confirmed; ~⅓ of raw findings refuted).
+
+### Fixed
+
+- **Real factual errors that produced wrong output:** `$this->authorize()` fatals on fresh Laravel 11+ apps (empty base `Controller`) → `Gate::authorize()`; nonexistent `actions/setup-php` → `shivammathur/setup-php`; nonexistent `dedoc/scribe` → Scramble (`dedoc/scramble`); "no Octane on Vapor" (false since 2021); abandoned Enlightn removed from security tooling; `pulse:check` misuse (long-running daemon, not a diagnostic); `updateOrCreate()` event semantics; RFC 7807 → RFC 9457.
+- **Stale version anchoring:** Livewire 4, Tailwind v4 (`@theme`, CSS-first tokens), Pest v4 browser testing (vs Dusk, detect-and-match), Laravel Cloud, Inertia `Inertia::defer()`, `#[Validate]`, Laravel 12+ online-DDL (`->instant()`). Hardcoded "Modern Laravel (11+)" sections replaced with detect-from-`composer.json` + verify-against-docs logic so guidance can't rot again.
+
+### Changed
+
+- **Model tiers re-priced by failure cost × invocation frequency:** `tech-lead` opus → sonnet (every-PR reviewer was the single largest cost line; prescriptive rubric runs fine on sonnet), `security-engineer` sonnet → opus (a missed vulnerability has no downstream gate — funded by the tech-lead downgrade, net opus spend falls), `technical-writer` sonnet → haiku (fixed-format docs from machine-readable sources, human-reviewed). The other 14 tiers were each explicitly justified and kept.
+- **Output discipline pack-wide:** every agent now returns distilled findings/summaries to the orchestrator — never raw test/log/scanner/PR dumps (the largest hidden token leak). Duplicated rules cut from the heaviest bodies; soft body-size budgets adopted.
+- **Descriptions sharpened for routing:** proactive triggers everywhere; overlap boundaries disambiguated (database-developer vs performance-engineer on slow queries, ui-ux-designer vs frontend-developer on "build the screen", scrum-master vs delivery-coordinator on orchestration).
+
+### Added
+
+- **"Anti-patterns (refuse to ship)" sections for the 9 agents missing them** — role-specific refuse-lists (QA: no weakening tests to go green; scrum-master: no invented metrics; tech-lead: no asserting checks that never ran).
+- **Verify-before-assert guardrails on reviewers:** security-engineer must trace an exploit before reporting it (no fabricated CVE/CVSS); tech-lead's bare `git diff` replaced with a state-aware base-diff procedure; solution-architect verifies version/package/pricing facts via WebFetch before writing ADRs.
+- **Failure paths and verification mechanics for `delivery-coordinator`:** a subagent's "done" is a claim — re-run the brief's success criteria (`php artisan test --filter`, `pint --test`, `route:list`) before advancing; re-brief once, then escalate.
+- **`qa-engineer` gains `isolation: worktree`** (it edits test files but ran in the main tree); `scrum-master` and `technical-writer` gain read-only Bash for the data their bodies already demanded; canonical `**Human checkpoint required:**` label standardized across all 17 (PII gap on backend-developer closed).
+- Missing `## Memory` sections for `package-developer` and `performance-engineer`; pre-merge checklists for `devops-engineer` and `mobile-developer`.
+
+### Notes
+
+- Mirrors (`gemini/`, `codex/`) regenerated from canonical sources; strict-YAML validation passes on all 34 frontmatter files; guardrail suite 32/32.
+
 ## [1.4.0] - 2026-06-16
 
 Fourth install target: a **Codex CLI** target alongside Claude Code, Cursor, and Gemini CLI.
