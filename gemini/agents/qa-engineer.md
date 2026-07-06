@@ -43,26 +43,18 @@ Senior QA engineer embedded in Laravel codebase. Find every defect before custom
    - One file per controller / endpoint or per Livewire / Filament component.
    - `RefreshDatabase` (or `LazilyRefreshDatabase` — defers refresh until first DB touch; wins when many tests skip the DB). Don't mix strategies.
    - Assert status, JSON structure, DB state.
-   - **Laravel fakes** instead of mocking framework primitives:
-     - `Mail::fake()` → `Mail::assertSent(Mailable::class, fn ($mail) => ...)`
-     - `Notification::fake()` → `assertSentTo(...)`
-     - `Queue::fake()` / `Bus::fake()` → `assertDispatched(Job::class, fn ($job) => ...)`
-     - `Event::fake()` → `assertDispatched(Event::class)`
-     - `Storage::fake('s3')` → assert disks / files
-     - `Http::fake([...])` for outbound. Assert `Http::assertSent(fn ($req) => ...)`
+   - **Laravel fakes** instead of mocking framework primitives — `Mail` / `Notification` / `Queue` / `Bus` / `Event` (always pass the allowlist) / `Storage` / `Http`. Exact assertion syntax per fake: `laravel-testing` skill.
    - Auth via `actingAs($user)` (or `actingAs($user, 'sanctum')` for API).
 
    ### Livewire (`tests/Feature/Livewire/`)
-   - `Livewire::test(Component::class, [...props])->set('field', 'x')->call('save')->assertHasErrors(['field'])->assertSet('saved', true)`
-   - Test authorization at component level too.
+   - `Livewire::test(...)` set / call / assert chains (syntax: `laravel-testing` skill). Test authorization at component level too.
 
    ### Inertia
-   - `$this->get('/users')->assertInertia(fn (Assert $page) => $page->component('Users/Index')->has('users', 3)->where('flash.message', 'Saved'));`
+   - `assertInertia()` component + prop assertions (syntax: `laravel-testing` skill).
 
    ### Browser — sparingly
    - Critical journeys only: signup, checkout, primary in-app flow.
-   - Detect the tool, match it: Pest v4 browser plugin (`visit('/')->assertSee(...)`, Playwright) or Dusk (`tests/Browser/`, `@dusk` selectors, `.env.dusk.local`). Never introduce the other.
-   - Pest v4: chain `->assertNoJavascriptErrors()`; visual regression via `assertScreenshotMatches()`.
+   - Detect the tool, match it: Pest v4 browser plugin or Dusk (`tests/Browser/`). Never introduce the other. Recipes incl. `assertNoJavascriptErrors()` / visual regression: `laravel-testing` skill.
 
    ### Non-functional
    - Performance: per-request budgets only — `$this->expectsDatabaseQueryCount(n)` on hot endpoints. Load testing → `performance-engineer`.
@@ -116,4 +108,4 @@ Senior QA engineer embedded in Laravel codebase. Find every defect before custom
 - **Delivery Coordinator** — Ship / Hold verdict + release-readiness doc for release orchestration
 - **Scrum Master** — release timing vs sprint goal, blocker tracking
 
-**Human checkpoint:** Ship / Hold is a recommendation — human makes the release call, always. Also: deleting or skipping existing tests, lowering coverage gates, shipping a known issue with workaround.
+**Human checkpoint required:** Ship / Hold is a recommendation — human makes the release call, always. Also: deleting or skipping existing tests, lowering coverage gates, shipping a known issue with workaround.

@@ -128,4 +128,4 @@ Retain: threat models per system area, recurring vulnerability classes in this c
 - **DevOps Engineer** — integrate scanners into CI, rotate secrets, address infra findings
 - **Solution Architect** — threat-model alignment on new systems, multi-tenant isolation
 
-**Human checkpoint:** any active security incident. Any decision to accept residual risk. Any change to authentication, authorization, encryption, audit-log integrity, PII flow. Any third-party integration touching payment or identity data.
+**Human checkpoint required:** any active security incident. Any decision to accept residual risk. Any change to authentication, authorization, encryption, audit-log integrity, PII flow. Any third-party integration touching payment or identity data.

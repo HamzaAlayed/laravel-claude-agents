@@ -5,6 +5,20 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.1] - 2026-07-06
+
+### Changed
+
+- **Body slimming (deferred from 1.7.0):** qa-engineer and performance-engineer no longer inline the recipe detail their skills carry — fake-assertion syntax, Livewire/Inertia test chains, browser-test recipes point at `laravel-testing`; EXPLAIN red flags, chunking, and the caching decision tree point at `eloquent-performance`. Rules, verdict logic, and anti-patterns stay inline. security-engineer's static-review checklist deliberately kept whole — it is the agent's core function at the pack's highest failure cost, not cookbook detail.
+
+### Added
+
+- **`scripts/check-hook-sync.py` + CI step** — fails when the guardrail hook list drifts between its three homes (plugin `hooks/hooks.json`, the `install.sh` merge list, the README table), or when a named script is missing/not executable. The list was hand-synced twice in one day; now CI enforces it.
+
+### Fixed
+
+- Two `**Human checkpoint:**` labels (qa-engineer, security-engineer) missed by the 1.5.0 standardization to `**Human checkpoint required:**` — the grep-able audit label now really covers all 17.
+
 ## [1.8.0] - 2026-07-06
 
 The read-only reviewer guarantee is now enforced, not just instructed.

@@ -91,6 +91,8 @@ jobs:
         run: |
           pip install --quiet pyyaml
           python3 scripts/validate-frontmatter.py
+      - name: Guardrail hook list in sync (hooks.json / install.sh / README)
+        run: python3 scripts/check-hook-sync.py
 
   gemini-extension:
     name: gemini extension
