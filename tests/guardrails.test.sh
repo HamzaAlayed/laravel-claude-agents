@@ -135,6 +135,47 @@ expect "apply_patch adding app/Models/User.php allows" "$ALLOW" \
 expect "FALLBACK (no jq/python3): apply_patch .env.production blocks" "$BLOCK" \
   "$(run_hook_noparsers codex-protect-env-files.sh '{"tool_input":{"command":"*** Begin Patch\n*** Add File: .env.production\n+SECRET=x\n*** End Patch"}}')"
 
+echo "enforce-reviewer-readonly.sh (reviewer Bash write-vector guard)"
+expect "tech-lead sed -i blocks" "$BLOCK" \
+  "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"tech-lead","tool_input":{"command":"sed -i s/foo/bar/ app/Models/User.php"}}')"
+expect "plugin-prefixed security-engineer git reset --hard blocks" "$BLOCK" \
+  "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"laravel-team:security-engineer","tool_input":{"command":"git reset --hard HEAD~1"}}')"
+expect "performance-engineer redirect to file blocks" "$BLOCK" \
+  "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"performance-engineer","tool_input":{"command":"wrk -t4 -c50 -d30s http://localhost > results.txt"}}')"
+expect "performance-engineer plain wrk allows" "$ALLOW" \
+  "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"performance-engineer","tool_input":{"command":"wrk -t4 -c50 -d30s http://localhost:8000/api/orders"}}')"
+expect "tech-lead pint --test allows" "$ALLOW" \
+  "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"tech-lead","tool_input":{"command":"./vendor/bin/pint --test"}}')"
+expect "tech-lead pint without --test blocks" "$BLOCK" \
+  "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"tech-lead","tool_input":{"command":"./vendor/bin/pint app/"}}')"
+# shellcheck disable=SC2016 # literal \$user in the JSON fixture, not an expansion
+expect "tech-lead php arrow syntax no false positive" "$ALLOW" \
+  "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"tech-lead","tool_input":{"command":"php -r \"echo \\$user->name;\""}}')"
+expect "tech-lead stderr redirect to /dev/null allows" "$ALLOW" \
+  "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"tech-lead","tool_input":{"command":"./vendor/bin/phpstan analyse 2>/dev/null"}}')"
+expect "tech-lead 2>&1 dup allows" "$ALLOW" \
+  "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"tech-lead","tool_input":{"command":"php artisan route:list 2>&1"}}')"
+expect "security-engineer composer audit allows" "$ALLOW" \
+  "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"security-engineer","tool_input":{"command":"composer audit"}}')"
+expect "security-engineer composer require blocks" "$BLOCK" \
+  "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"security-engineer","tool_input":{"command":"composer require spatie/laravel-permission"}}')"
+expect "security-engineer rm -rf blocks" "$BLOCK" \
+  "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"security-engineer","tool_input":{"command":"rm -rf storage/logs"}}')"
+expect "tech-lead git diff allows" "$ALLOW" \
+  "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"tech-lead","tool_input":{"command":"git diff origin/main...HEAD"}}')"
+expect "tech-lead artisan migrate:status allows" "$ALLOW" \
+  "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"tech-lead","tool_input":{"command":"php artisan migrate:status"}}')"
+expect "tech-lead artisan migrate blocks" "$BLOCK" \
+  "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"tech-lead","tool_input":{"command":"php artisan migrate"}}')"
+expect "backend-developer sed -i allows (not a reviewer)" "$ALLOW" \
+  "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"backend-developer","tool_input":{"command":"sed -i s/a/b/ app/Models/User.php"}}')"
+expect "main thread (no agent_type) sed -i allows" "$ALLOW" \
+  "$(run_hook enforce-reviewer-readonly.sh '{"tool_input":{"command":"sed -i s/a/b/ file.php"}}')"
+expect "FALLBACK (no jq/python3): tech-lead sed -i blocks" "$BLOCK" \
+  "$(run_hook_noparsers enforce-reviewer-readonly.sh '{"agent_type":"tech-lead","tool_input":{"command":"sed -i s/a/b/ app/file.php"}}')"
+expect "FALLBACK (no jq/python3): builder payload allows" "$ALLOW" \
+  "$(run_hook_noparsers enforce-reviewer-readonly.sh '{"agent_type":"backend-developer","tool_input":{"command":"sed -i s/a/b/ app/file.php"}}')"
+
 echo
 echo "----------------------------------------"
 printf 'total: %d passed, %d failed\n' "$PASS" "$FAIL"

@@ -32,19 +32,27 @@ the tool allowlist cannot scope:
 - `php artisan migrate` and other state-changing artisan commands
 
 Tool-level config (`tools:` / `disallowedTools:`) gates *tools*, not the *arguments*
-to `Bash`. The pack mitigates this with the explicit "never modify files via Bash"
-instruction in each reviewer body, plus the production guardrail hooks
-(`block-prod-destructive-sql.sh`, `block-prod-artisan.sh`, `protect-env-files.sh`).
+to `Bash`.
 
-> **There is no per-subagent OS-level Bash sandbox in Claude Code today.** A blanket
-> `permissions.deny` in `.claude/settings.json` is **project-wide** — it would also block
-> the *builders* (`backend-`, `database-developer`) and `devops-engineer`, which
-> legitimately run `git`, `migrate`, and file writes. So the pack does **not** ship a
-> forced deny. The control is instruction + allowlist + guardrail hooks.
+**Since 1.8.0 this gap is closed deterministically.** The `PreToolUse` hook input
+carries `agent_type` when a subagent calls, so the shipped
+`enforce-reviewer-readonly.sh` guard blocks write-shaped Bash (`sed -i` / `perl -i`,
+output redirects, `tee`, mutating `git` / `artisan` / `composer` / `npm`, `pint`
+without `--test`, `rm` / `mv` / `cp` / `chmod`) **only when the caller is
+`tech-lead`, `security-engineer`, or `performance-engineer`** — builders,
+`devops-engineer`, and the main thread are untouched. Safe forms stay allowed:
+`2>&1`, redirects to `/dev/null` / `/tmp`, `migrate:status`, `pint --test`, PHP
+`->` arrows. The reviewer-body instructions remain as the first layer;
+the hook is the enforcement behind them.
+
+> Scope note: the guard is **Claude Code only** — Gemini CLI's hook input carries no
+> agent identity, so there the control remains instruction + allowlist. Codex Core
+> ships no subagents, so the question doesn't arise.
 
 ## Opt-in: a stricter project-wide policy
 
-If your team is willing to constrain *every* agent in the project (including builders)
+The reviewer guard above covers the three read-only roles. If your team additionally
+wants to constrain *every* agent in the project (including builders)
 and prefers belt-and-suspenders, add deny rules to your project's
 `.claude/settings.json`. Tune to your workflow — these examples are deliberately
 conservative and **will** block legitimate builder commands, so adopt only with that

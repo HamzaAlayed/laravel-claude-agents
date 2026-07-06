@@ -218,6 +218,7 @@ if not isinstance(pre, list):
 desired = [
     ("Bash",       "./scripts/block-prod-destructive-sql.sh"),
     ("Bash",       "./scripts/block-prod-artisan.sh"),
+    ("Bash",       "./scripts/enforce-reviewer-readonly.sh"),
     ("Write|Edit", "./scripts/protect-env-files.sh"),
 ]
 

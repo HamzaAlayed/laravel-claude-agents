@@ -2,7 +2,7 @@
   "name": "laravel-team",
   "displayName": "Laravel Claude Code Team",
   "description": "A 17-agent Laravel-specialized team — discovery, architecture, design, frontend, backend, database, mobile, QA, DevOps, security, performance, docs, leadership, delivery — plus Laravel workflow commands, a conventions skill, and production guardrail hooks.",
-  "version": "1.7.0",
+  "version": "1.8.0",
   "author": {
     "name": "Hamza Alayed",
     "url": "https://github.com/HamzaAlayed"

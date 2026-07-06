@@ -5,6 +5,19 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.0] - 2026-07-06
+
+The read-only reviewer guarantee is now enforced, not just instructed.
+
+### Added
+
+- **`enforce-reviewer-readonly.sh`** — a fourth `PreToolUse` guardrail closing the documented Bash write-vector (docs/read-only-by-design.md). The hook input's `agent_type` field identifies the calling subagent, so the guard blocks file-mutating Bash **only** from `tech-lead`, `security-engineer`, and `performance-engineer` (plugin-prefixed names handled): `sed -i` / `perl -i`, output redirects, `tee`, mutating `git` subcommands, state-changing `artisan`, `composer`/`npm` installs, `pint` without `--test`, `rm`/`mv`/`cp`/`chmod`. Safe forms stay allowed: `2>&1`, `>/dev/null`, `/tmp` targets, `migrate:status`, `pint --test`, PHP `->` arrows. Builders, devops, and the main thread are untouched. 19 new harness cases (51 total) including both parser-less fallback directions.
+- Wired everywhere Claude Code loads hooks: plugin `hooks/hooks.json` and the `install.sh` settings merge.
+
+### Notes
+
+- **Claude Code only.** Gemini CLI's hook input carries no agent identity (control there remains instruction + allowlist); Codex Core ships no subagents. docs/read-only-by-design.md updated — the former "opt-in stricter policy" is now defense-in-depth on top of an enforced default.
+
 ## [1.7.0] - 2026-07-06
 
 Skills for every role: 7 new on-demand cookbooks join `laravel-conventions`, and every agent can now actually invoke them.
