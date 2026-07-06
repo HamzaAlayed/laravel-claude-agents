@@ -5,6 +5,18 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.9.0] - 2026-07-06
+
+The pack has a name: **Laravel Guild** — a guild of 17 master craftspeople for your Laravel codebase.
+
+### Changed
+
+- Display branding is now **Laravel Guild** across the README title and all four plugin/marketplace `displayName` fields. The repo slug, plugin `name` (`laravel-team`), and every install URL are unchanged — nothing breaks for existing installs.
+
+### Added
+
+- **skills.sh distribution channel:** the 8 skills install standalone into ~20 agent runtimes via `npx skills add HamzaAlayed/laravel-claude-agents` (verified end-to-end — the CLI resolves all 8 from `skills/`). Documented in the README install section; the skills.sh leaderboard listing builds from install telemetry.
+
 ## [1.8.2] - 2026-07-06
 
 Docs-accuracy release: the front door catches up with 1.5.0–1.8.1.

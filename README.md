@@ -1,6 +1,6 @@
-# The 17-Agent Claude Code Team for Laravel
+# Laravel Guild — the 17-Agent Claude Code Team for Laravel
 
-A production-grade, drop-in team of Claude Code subagents purpose-built for **Laravel** projects. Covers the full lifecycle — discovery, prioritization, architecture, design, frontend (Blade / Livewire / Inertia / Filament), backend (Eloquent / Form Requests / Policies / API Resources), database, mobile, QA (Pest / PHPUnit / Dusk), DevOps (Forge / Vapor / Envoyer / Kamal), security, performance, technical writing, tech leadership, scrum, package development, and end-to-end delivery coordination.
+**A guild of 17 master craftspeople for your Laravel codebase.** A production-grade, drop-in team of Claude Code subagents purpose-built for **Laravel** projects. Covers the full lifecycle — discovery, prioritization, architecture, design, frontend (Blade / Livewire / Inertia / Filament), backend (Eloquent / Form Requests / Policies / API Resources), database, mobile, QA (Pest / PHPUnit / Dusk), DevOps (Forge / Vapor / Envoyer / Kamal), security, performance, technical writing, tech leadership, scrum, package development, and end-to-end delivery coordination.
 
 Installable as a **Claude Code plugin** (one command), a **Cursor plugin**, a **Gemini CLI extension**, or a **Codex CLI** target, or via the classic `install.sh`. Guardrail hooks are tested in CI.
 
@@ -210,6 +210,16 @@ git clone https://github.com/HamzaAlayed/laravel-claude-agents
 It drops `AGENTS.md` (only if absent), `.agents/skills/laravel-conventions/`, and `.codex/hooks.json` + `.codex/hooks/*.sh` (hook paths resolve from the git root). On the next `codex` run you're asked to review and trust the hooks. The guard scripts use the same `.tool_input.command` / `exit 2` contract as Claude, with an `apply_patch`-aware `.env` guard that inspects the patch's target paths.
 
 > **Scope:** the full 17-agent team is **not** ported to Codex — its subagent model is a different `config.toml` schema. Codex Core ships the conventions skill + guardrails; use Claude Code or Gemini CLI for the full team.
+
+### Just the skills, on any agent (skills.sh)
+
+The 8 cookbooks install standalone into ~20 agent runtimes (Claude Code, Cursor, Codex, Gemini CLI, Antigravity, Copilot, …) via the [skills.sh](https://skills.sh) CLI — no plugin needed:
+
+```bash
+npx skills add HamzaAlayed/laravel-claude-agents
+```
+
+You get the skills only; the 17 agents, commands, and guardrail hooks ship through the plugin/extension installs above.
 
 ### Pairs with the official Laravel pack
 
