@@ -5,6 +5,25 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.7.0] - 2026-07-06
+
+Skills for every role: 7 new on-demand cookbooks join `laravel-conventions`, and every agent can now actually invoke them.
+
+### Fixed
+
+- **No agent could use skills at all.** Every agent has an explicit `tools:` allowlist, and none included the `Skill` tool — so even the pack's own `laravel-conventions` skill was uninvokable by the team it ships with. All 17 agents now carry `Skill`.
+
+### Added
+
+- **7 new skills**, each a deep procedural cookbook in house voice: `laravel-testing` (fakes assertion syntax, Pest v4 browser testing, factories, time control), `eloquent-performance` (EXPLAIN reading, N+1 recipes, caching decision tree), `laravel-security` (STRIDE-on-Laravel, advisory lookup, finding format), `laravel-deploy` (zero-downtime checklist, worker/scheduler topology, rollback drill), `delivery-templates` (requirements/story/RICE/sprint/retro/health-report/delivery-log shapes), `accessibility-design` (WCAG 2.2 AA thresholds, Livewire/Inertia focus management, mobile a11y), `docs-authoring` (changelog/release-notes/runbook/endpoint-reference templates).
+- **Every agent maps to at least one skill** via a terse "Skill on demand: `name` when <trigger>" body line — planning, security, devops, docs, and design roles included, not just builders.
+- README **Skills** section: the skill → agent map, the preload-vs-on-demand cost rationale, and the complementary official plugins (`laravel@laravel`, `laravel-cloud`, `laravel-nightwatch`, `document-skills@anthropic-agent-skills`).
+
+### Notes
+
+- **Deliberately no `skills:` frontmatter preloads** — per Claude Code docs the field injects full skill content into the subagent on every invocation; on-demand invocation via the `Skill` tool costs zero until a task needs the cookbook. Authoring guide updated to warn contributors.
+- Both generators copy `skills/` wholesale, so all 8 skills ship in the Gemini and Codex targets automatically.
+
 ## [1.6.0] - 2026-07-06
 
 MCP integration: the agents now know how to use the MCP servers a Laravel team actually attaches — and degrade gracefully when they're absent.

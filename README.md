@@ -289,6 +289,34 @@ Gemini CLI note: MCP grants don't port (Gemini configures MCP servers in its own
 
 ---
 
+## Skills
+
+The pack ships **8 skills** — deep procedural cookbooks the agents invoke **on demand** via the `Skill` tool (every agent carries it), so the detail is paid for only when a task needs it, not on every invocation:
+
+| Skill | Cookbook | Invoked by |
+|---|---|---|
+| `laravel-conventions` | which primitive to reach for, which antipattern to refuse | backend, frontend, database, package, tech-lead, solution-architect |
+| `laravel-testing` | fakes assertion syntax, Pest v4 browser testing, factories, time control | qa, backend, frontend, package |
+| `eloquent-performance` | EXPLAIN reading, N+1 recipes, caching decision tree, measurement discipline | performance, backend, database |
+| `laravel-security` | STRIDE-on-Laravel checklist, advisory lookup, finding format | security, tech-lead |
+| `laravel-deploy` | zero-downtime checklist, worker/scheduler topology, rollback drill | devops |
+| `delivery-templates` | requirements / story / RICE / sprint / retro / health-report / delivery-log shapes | business-analyst, product-owner, scrum-master, delivery-coordinator |
+| `accessibility-design` | WCAG 2.2 AA thresholds, Livewire/Inertia focus management, mobile a11y | ui-ux-designer, frontend, mobile |
+| `docs-authoring` | changelog / release-notes / runbook / endpoint-reference templates | technical-writer |
+
+Design note: agents deliberately do **not** use the `skills:` preload field — preloading injects the full skill into context on *every* invocation. On-demand invocation via the `Skill` tool keeps the per-call cost at zero until the task actually needs the cookbook. Installed as a plugin, skills are namespaced (`laravel-team:laravel-testing`); via `install.sh` they're bare names — agents reference them by bare name and Claude Code resolves either.
+
+Pairs well with (install alongside, no overlap):
+
+```
+/plugin install laravel@laravel                          # laravel-simplifier + starter-kit-upgrade
+/plugin install laravel-cloud@laravel                    # Laravel Cloud deploys
+/plugin install laravel-nightwatch@laravel               # Nightwatch monitoring
+/plugin install document-skills@anthropic-agent-skills   # docx/pdf/pptx/xlsx for BA/PO/writer deliverables
+```
+
+---
+
 ## Usage in Claude Code
 
 These are subagents, so you invoke them via the `Agent` tool or directly by name. The `delivery-coordinator` is the main-thread orchestrator — it's the one you talk to for cross-cutting work, and it delegates onward.

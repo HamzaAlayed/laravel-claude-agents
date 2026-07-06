@@ -1,0 +1,52 @@
+---
+name: delivery-templates
+description: "Artifact templates for the planning + coordination roles — requirements doc, user story + acceptance criteria, RICE / WSJF scoring, sprint plan, retro, team-health report, stakeholder update, delivery log. Use when producing any docs/requirements, docs/backlog, docs/roadmap, or docs/sprints artifact, so every document lands in the same shape at the expected path."
+---
+
+# Delivery Artifact Templates
+
+One shape per artifact type. Consistent paths — downstream agents and humans navigate by convention.
+
+## Requirements doc — `docs/requirements/<slug>.md`
+
+Sections, in order: **Problem** (one paragraph, evidence-anchored) · **Evidence** (tickets, quotes, telemetry, code paths — cite each) · **Stakeholders** · **In scope / Out of scope** (explicit non-goals) · **User stories + acceptance criteria** · **Risks + open questions** (each with owner + blocking status; guesses labeled `ASSUMPTION — unconfirmed`) · **Traceability** (affected models / routes / jobs). Close with the stakeholder sign-off line.
+
+## User story + acceptance criteria
+
+```
+As a <role>, I need <capability> so that <outcome>.
+
+Given <precondition>
+When  <action>
+Then  <observable result>        # one behavior per criterion, each testable
+```
+
+Untestable words banned in criteria: fast, intuitive, user-friendly, robust — replace with a measurable threshold or cut.
+
+## Scoring — one framework per backlog, declared at top
+
+RICE: `(Reach × Impact × Confidence) / Effort` — Reach in users/period, Impact 0.25–3, Confidence as %, Effort in person-weeks from tech-lead sizing.
+WSJF: `(Business Value + Time Criticality + Risk Reduction) / Job Size`, relative Fibonacci.
+Every number gets a one-sentence justification. Missing input → item marked `provisional`, routed to the owner (Effort/Job Size → tech-lead; Reach/Impact evidence → business-analyst). Never manufacture a score.
+
+Backlog row (`docs/backlog/backlog.md`): `rank | id | title | score (shown math) | owner | status | outcome metric`.
+
+## Sprint plan — `docs/sprints/<sprint-id>.md`
+
+**Goal** (one sentence) · **Capacity** (from measured historical throughput, not vibes) · **Committed stories** (id, owner, dependencies) · **Risks** · **Carry-over** from last sprint with reason.
+
+## Retro — `docs/sprints/<sprint-id>-retro.md`
+
+**Signals** (PR churn, build failures, missed estimates — measured) · **Themes** (clustered) · **Experiments** (1–3 max, each: hypothesis, owner, due date, success signal) · **Prior action items** (done / not done / dropped-with-reason). Systems, not people — no names attached to failures.
+
+## Team-health report — `docs/sprints/health-<yyyy>-W<ww>.md`
+
+Cycle time (PR open → merge, p50/p85) · throughput (merged PRs or completed stories) · blocker count + oldest-blocker age · action-item closure rate. Numbers from git history / PR timestamps / tracker exports only; missing data reported as `insufficient data — need <X>`, never estimated.
+
+## Stakeholder update
+
+Lead with outcomes, not activity: **Shipped + observed effect** · **In flight + expected date** · **Blocked + what unblocks it** · **Decisions needed from you** (each with a recommendation + deadline). One screen. Plain language — no story IDs without titles.
+
+## Delivery log — `docs/delivery/<feature>.md` (coordinator)
+
+Per stage: specialist engaged · brief given (one line) · artifact path returned · verification run + result · human checkpoints flagged/cleared. This is the paper trail — append, never rewrite history.

@@ -23,7 +23,7 @@ Product owner. Captain of the ship. Own *why* + *what next*. Output: defensible 
 
 1. **Read requirements.** Pull from `docs/requirements/`, recent `business-analyst` outputs, memory of past priorities + outcomes. Tracker MCP exposed (Linear / Jira) → live backlog state, cycle assignments, and ticket status from it; keep `docs/backlog/` reconciled. Laravel projects: check `docs/adr/` for architectural constraints affecting feasibility scores.
 
-2. **Score + rank.** For each candidate, produce scoring row:
+2. **Score + rank.** Invoke the `delivery-templates` skill for scoring rules + backlog row shape. For each candidate, produce scoring row:
    - `RICE = (Reach × Impact × Confidence) / Effort`, or
    - `WSJF = (Business Value + Time Criticality + Risk Reduction) / Job Size`
 

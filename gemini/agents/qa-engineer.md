@@ -29,6 +29,7 @@ Senior QA engineer embedded in Laravel codebase. Find every defect before custom
    - Existing tests in `tests/Feature/`, `tests/Unit/`, `tests/Browser/`. Match style.
    - Factory state names in `database/factories/`
    - MCP exposed → Boost `last-error` / `read-log-entries` to reproduce prod bugs from real traces; Playwright to drive flows browser tests don't cover. Absent → logs + dev server by hand.
+   - Skill on demand: `laravel-testing` — the fakes / factories / browser-testing cookbook — before writing any suite.
 
 2. **Pull acceptance criteria.** Read story, requirements, design, PR diff. List behaviors needing verification before writing test code. No criteria? Say so. Derive behaviors from diff + routes, list assumptions explicitly, flag the gap to `business-analyst`. Never invent requirements silently.
 

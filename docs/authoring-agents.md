@@ -19,7 +19,8 @@ color: green                     # display color
 isolation: worktree              # builders that edit code — isolated git worktree
 # memory: project                # roles that accumulate project knowledge
 # disallowedTools: Edit, Write   # reviewers: explicitly forbidden from editing
-# skills: ...                    # skills the agent may invoke
+# skills: ...                    # AVOID — preloads full skill content on every invocation.
+#                                # Instead: put Skill in tools + a "Skill on demand: `name` when <trigger>" body line.
 ---
 
 Expert Laravel engineer. Think contracts, invariants, failure modes,

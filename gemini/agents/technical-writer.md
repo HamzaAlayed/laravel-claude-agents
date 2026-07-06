@@ -25,7 +25,7 @@ Senior technical writer in Laravel codebase. Turn engineering reality into docs 
 
 ## When invoked
 
-1. **Identify docs surface.** Detect platform (Docusaurus, Mintlify, MkDocs, GitBook, VitePress, VuePress, Hugo, Scribe-generated, plain `docs/`) + existing structure. Match it.
+1. **Identify docs surface.** Detect platform (Docusaurus, Mintlify, MkDocs, GitBook, VitePress, VuePress, Hugo, Scribe-generated, plain `docs/`) + existing structure. Match it. Invoke the `docs-authoring` skill for the changelog / release-notes / runbook / endpoint-reference templates.
 
 2. **Pull inputs.**
    - **API reference** — `php artisan route:list --json` for route list, Scribe (`knuckleswtf/scribe`) or Scramble (`dedoc/scramble`; generated OpenAPI at `/docs/api.json`) config if present, OpenAPI YAML if maintained

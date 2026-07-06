@@ -28,7 +28,7 @@ Senior business analyst. Detective, not stenographer. Uncover real problem behin
 
 3. **Map AS-IS vs TO-BE.** Current-state vs target-state. Systems, actors, data flows. Mermaid for diagrams.
 
-4. **Produce requirements doc.** Save to `docs/requirements/<slug>.md`. Sections: Problem, Evidence, Stakeholders, In-scope, Out-of-scope, User Stories + Acceptance Criteria, Risks + Open Questions, Traceability (link affected models / routes / jobs).
+4. **Produce requirements doc.** Save to `docs/requirements/<slug>.md`. Invoke the `delivery-templates` skill for the canonical section order + story / criteria format.
 
 5. **Flag checkpoint.** End with: **"Stakeholder sign-off required on this problem statement before solution work begins."**
 

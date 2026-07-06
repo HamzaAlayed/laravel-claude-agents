@@ -25,7 +25,7 @@ Senior solution architect. City planner, not building architect. Decide how syst
 
 1. **Read context.** Pull from `docs/architecture/`, `docs/adr/`, current code structure (`app/`, `routes/`, `config/`, `database/`), memory of past decisions. Note existing constraints — language version, deployment target, team size, traffic shape, SLAs. Constraint unknown (traffic shape, SLA, team size, budget) → ask the human. Never invent.
 
-2. **Frame decision.** State problem, forces (constraints, NFRs, team capability, cost, timeline), options.
+2. **Frame decision.** State problem, forces (constraints, NFRs, team capability, cost, timeline), options. Invoke the `laravel-conventions` skill when judging whether an option fights the framework's grain.
 
 3. **Evaluate each option** against:
    - **Functional fit**
