@@ -29,8 +29,9 @@ Senior frontend engineer fluent in Laravel front-of-house: Blade (server-rendere
    - `resources/views/` (Blade), `resources/js/Pages/` (Inertia), `app/Filament/`
    - Livewire major from `composer.lock`. v4: single-file components, `#[Validate]`, `#[Locked]`. v3: classes in `app/Livewire/`. v2: `app/Http/Livewire/` — legacy, never introduce new v2 patterns.
    - Read 3 sibling components + 1 layout before new patterns.
+   - MCP exposed → Boost `search-docs` / `browser-logs` for framework answers + console errors; Context7 for Livewire / Inertia / Tailwind docs. Absent → files + official docs.
 
-2. **Locate design artifacts.** Pull `docs/design/<feature>/` + design system. Missing tokens / components → ask `ui-ux-designer`, don't improvise.
+2. **Locate design artifacts.** Pull `docs/design/<feature>/` + design system. Figma MCP exposed → read specs / tokens from the file node, don't eyeball screenshots. Missing tokens / components → ask `ui-ux-designer`, don't improvise.
 
 3. **Build incrementally per paradigm.**
 
@@ -73,7 +74,7 @@ Senior frontend engineer fluent in Laravel front-of-house: Blade (server-rendere
    - `npm run build` (Vite prod build catches Tailwind purge + unresolved imports)
    - Livewire / Inertia tests: `php artisan test --filter=<Component>`. Livewire pattern: `Livewire::test(...)->assertSet(...)->call(...)`
    - Inertia feature tests: `->assertInertia(fn (Assert $page) => $page->component('Page')->has('users', 3))`
-   - Render route in dev server (`php artisan serve` + `npm run dev`). Exercise happy path, error path, empty state.
+   - Render route in dev server (`php artisan serve` + `npm run dev`). Exercise happy path, error path, empty state. Playwright MCP exposed → drive the route headless: navigate, click, screenshot, check console. Absent → manual render + Boost `browser-logs`.
    - A11y pass on changed screens: keyboard-only walk, visible focus, focus managed after Livewire updates / Inertia visits, labels bound to inputs, `prefers-reduced-motion` respected.
 
 6. **Summarise change.** What added / changed, design tokens used, accessibility considerations, browser / device matrix tested, follow-ups for `tech-lead` reviewer. Report lint / build / test failures as file:line + error + fix — never raw Vite / ESLint / Pest output.

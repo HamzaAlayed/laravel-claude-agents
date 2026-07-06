@@ -52,7 +52,7 @@ Default routing map:
 ## When invoked
 
 1. **Restate goal in one sentence.** Can't? Ask human one clarifying question before delegating.
-2. **Identify phase.** Where in lifecycle? What artifacts exist?
+2. **Identify phase.** Where in lifecycle? What artifacts exist? Tracker MCP exposed (Linear / Jira) → check ticket status + comments before briefing; update the ticket when a stage completes.
 3. **Next 1–3 steps + specialist owner each.** Note parallel-able ones.
 4. **Delegate with precise brief.** Each subagent call:
    - Spawn the teammate by its **registered agent type**, exactly as it appears in your available-agents list. Installed as a plugin these are prefixed — e.g. `laravel-team:business-analyst`, not bare `business-analyst`; installed via `install.sh` they are unprefixed. The names in prose below are labels, not the literal type strings.

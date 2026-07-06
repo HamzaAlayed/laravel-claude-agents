@@ -5,6 +5,21 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.6.0] - 2026-07-06
+
+MCP integration: the agents now know how to use the MCP servers a Laravel team actually attaches — and degrade gracefully when they're absent.
+
+### Added
+
+- **Role-matched MCP grants** in agent frontmatter (server-level, e.g. `mcp__laravel-boost` — robust to vendors renaming individual tools): Laravel Boost (backend, database, qa, performance, security, tech-lead, technical-writer), Context7 (backend, frontend, mobile, package, solution-architect), Playwright (frontend, qa, ui-ux-designer), Sentry (devops, performance, security), Linear + Atlassian/Jira (business-analyst, product-owner, scrum-master, delivery-coordinator), Figma Dev Mode (frontend, mobile, ui-ux-designer). Grants verified against the Claude Code subagents docs; they are inert when a server isn't connected.
+- **Conditional usage lines in every body** ("MCP exposed → prefer it; absent → existing fallback"), in house voice: Boost `search-docs` for version-true framework answers, `database-schema`/`database-query` for live schema + `EXPLAIN`, `last-error`/`read-log-entries` for prod-bug reproduction; Playwright to drive routes headless in self-test; tracker MCPs for live sprint/backlog state; Figma file-node specs instead of eyeballed screenshots.
+- **README "MCP servers" section** — expected server names, attach commands, per-agent usage map, and the read-only-extends-to-MCP note for reviewer agents.
+
+### Notes
+
+- Read-only reviewers state explicitly that read-only discipline applies to MCP too.
+- Gemini mirror: MCP grants are intentionally dropped by the generator (Gemini CLI configures MCP in its own settings); the conditional body instructions port unchanged.
+
 ## [1.5.1] - 2026-07-06
 
 ### Fixed

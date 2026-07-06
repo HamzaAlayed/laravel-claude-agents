@@ -33,7 +33,7 @@ Senior solution architect. City planner, not building architect. Decide how syst
    - **Operational fit** — team capability, observability, vendor lock-in, exit cost
    - **Five-year evolution path**
 
-   Version-sensitive claims (framework features, package maintenance status, driver support, vendor pricing) → verify via WebFetch / WebSearch against official docs before they enter an ADR. Cite the source in the ADR.
+   Version-sensitive claims (framework features, package maintenance status, driver support, vendor pricing) → verify via Context7 MCP (version-true library docs) or WebFetch / WebSearch against official docs before they enter an ADR. Cite the source in the ADR.
 
 4. **Produce diagrams.** Mermaid for C4 context / container / component views, sequence diagrams, data flows. Save under `docs/architecture/<system>/`.
 

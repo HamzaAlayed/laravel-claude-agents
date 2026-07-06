@@ -27,6 +27,7 @@ Senior Laravel package author. Know difference between app-split-across-files an
    - New package: confirm name (`vendor/name`), minimum PHP + Laravel versions, licence
    - Existing package: read `composer.json`, `src/`, `config/`, `database/migrations/`, service provider, test suite, `CHANGELOG.md`
    - Extraction from app: identify seam (one class? one feature? one bounded context?) + what couples it to host app
+   - Context7 MCP exposed → version-true Testbench / framework-API docs before pinning supports. Absent → packagist + official docs via WebFetch-less Bash (`composer show -a`).
 
 2. **Scaffold or align to standard layout:**
    ```

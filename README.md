@@ -267,6 +267,28 @@ Or pass the target explicitly from anywhere:
 
 ---
 
+## MCP servers (optional, recommended)
+
+The agents carry **server-level MCP grants** (`mcp__laravel-boost`, `mcp__context7`, …) in their `tools:` lists, matched to each role. The grants are inert when a server isn't attached — every MCP instruction in the agent bodies is conditional ("MCP exposed → prefer it"), so nothing breaks without them. Attach what you use; the agents get sharper with each one.
+
+| Server (expected name) | Attach | Who uses it |
+|---|---|---|
+| `laravel-boost` | `composer require laravel/boost --dev && php artisan boost:install` (per Laravel project; registers the MCP server) | backend, database, qa, performance, security, tech-lead, technical-writer |
+| `context7` | `claude mcp add --transport http context7 https://mcp.context7.com/mcp` | backend, frontend, mobile, package, solution-architect |
+| `playwright` | `claude mcp add playwright -- npx -y @playwright/mcp@latest` | frontend, qa, ui-ux-designer |
+| `sentry` | `claude mcp add --transport http sentry https://mcp.sentry.dev/mcp` (OAuth on first use) | devops, performance, security |
+| `linear` | `claude mcp add --transport sse linear https://mcp.linear.app/sse` (OAuth) | business-analyst, product-owner, scrum-master, delivery-coordinator |
+| `atlassian` (Jira) | `claude mcp add --transport sse atlassian https://mcp.atlassian.com/v1/sse` (OAuth) | business-analyst, product-owner, scrum-master, delivery-coordinator |
+| `figma` | Enable the Dev Mode MCP server in the Figma desktop app, then `claude mcp add --transport sse figma http://127.0.0.1:3845/sse` | frontend, mobile, ui-ux-designer |
+
+Remote-server URLs occasionally move — if an attach command fails, check the vendor's MCP docs. **Server names must match the table** (the grants are literal strings like `mcp__laravel-boost`); if you attach a server under a different name, either re-add it with the expected name or adjust the agent frontmatter.
+
+Read-only reviewers (`tech-lead`, `security-engineer`, `performance-engineer`) state in their bodies that read-only discipline extends to MCP — they query docs, schema, logs, and traces but never mutate through a server.
+
+Gemini CLI note: MCP grants don't port (Gemini configures MCP servers in its own `settings.json`; its subagents see them per that config). The conditional body instructions still apply as written.
+
+---
+
 ## Usage in Claude Code
 
 These are subagents, so you invoke them via the `Agent` tool or directly by name. The `delivery-coordinator` is the main-thread orchestrator — it's the one you talk to for cross-cutting work, and it delegates onward.

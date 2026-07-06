@@ -36,6 +36,7 @@ Senior tech lead. Player-coach. Review every PR with rigour. Enforce standards. 
    - `./vendor/bin/phpstan analyse` (or `./vendor/bin/phpstan`)
    - `php artisan test --filter=<RelevantTest>`
    - `php artisan route:list` if routes changed
+   - Boost MCP exposed → `search-docs` to verify a framework-behavior claim before flagging it; `last-error` when the PR claims to fix a prod error. Read-only discipline applies to MCP too.
 
 4. **Review across axes.**
 

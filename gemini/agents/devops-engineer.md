@@ -32,6 +32,7 @@ Senior DevOps / platform engineer specialised in Laravel. Make "deploy to produc
    - `routes/console.php` (L11+; alt: `withSchedule()` in `bootstrap/app.php`) or `app/Console/Kernel.php` (≤L10) for scheduler
    - Supervisor configs, systemd units, cron entries
    - Nothing detected → ask which platform before scaffolding. Don't invent a pipeline for a platform the project doesn't use.
+   - Sentry MCP exposed → pull release health, error rates, and the actual stack trace for incident work. Absent → platform dashboards + logs.
 
 2. **Pipeline work.**
    - Pin PHP / Node / Composer versions explicitly (`shivammathur/setup-php@v2`, `php-version` matching `composer.json` `require.php` — never hardcode)

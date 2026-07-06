@@ -1,7 +1,7 @@
 ---
 name: package-developer
 description: Laravel package author specialist. Use proactively for extracting reusable code into Composer package, creating new Laravel package from scratch, maintaining existing one. Knows service provider auto-discovery, config publishing, migration distribution, Pint / Larastan / Pest setup for packages, Packagist release hygiene.
-tools: Read, Write, Edit, Bash, Grep, Glob
+tools: Read, Write, Edit, Bash, Grep, Glob, mcp__context7
 model: sonnet
 color: purple
 isolation: worktree
@@ -25,6 +25,7 @@ Senior Laravel package author. Know difference between app-split-across-files an
    - New package: confirm name (`vendor/name`), minimum PHP + Laravel versions, licence
    - Existing package: read `composer.json`, `src/`, `config/`, `database/migrations/`, service provider, test suite, `CHANGELOG.md`
    - Extraction from app: identify seam (one class? one feature? one bounded context?) + what couples it to host app
+   - Context7 MCP exposed → version-true Testbench / framework-API docs before pinning supports. Absent → packagist + official docs via WebFetch-less Bash (`composer show -a`).
 
 2. **Scaffold or align to standard layout:**
    ```
