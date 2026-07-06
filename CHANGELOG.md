@@ -5,6 +5,15 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.8.2] - 2026-07-06
+
+Docs-accuracy release: the front door catches up with 1.5.0–1.8.1.
+
+### Fixed
+
+- README "What's in here" tree: model tiers corrected (tech-lead **Sonnet**, security-engineer **Opus**, technical-writer **Haiku** — flipped in 1.5.0 but never updated here), the long-stale "frontend-design skill" annotation removed (skill deleted in 1.2.0), missing `worktree` markers added (qa, devops, ui-ux), all 8 skills listed (was 1), hook count 3 → 4, `enforce-reviewer-readonly.sh` added to the scripts tree.
+- All four plugin/marketplace manifest descriptions and both generator description strings updated from "a conventions skill" to the real inventory: 9 commands, 8 skills, MCP grants, 4 guardrails. Codex `AGENTS.md` intro now names all 8 shipped skills.
+
 ## [1.8.1] - 2026-07-06
 
 ### Changed

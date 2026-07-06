@@ -240,7 +240,7 @@ def build_manifest():
     manifest = '''{
   "name": "laravel-team",
   "version": "%s",
-  "description": "A 17-agent Laravel-specialized team plus workflow commands, a conventions skill, and production guardrail hooks.",
+  "description": "A 17-agent Laravel-specialized team plus 9 workflow commands, 8 on-demand skills, and production guardrail hooks.",
   "contextFileName": "GEMINI.md"
 }
 ''' % version

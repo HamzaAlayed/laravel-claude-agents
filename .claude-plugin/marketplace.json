@@ -5,21 +5,26 @@
     "url": "https://github.com/HamzaAlayed"
   },
   "metadata": {
-    "description": "The Laravel-aware Claude Code agent team, workflow commands, conventions skill, and production guardrails."
+    "description": "The Laravel-aware Claude Code agent team — 17 specialists, 9 workflow commands, 8 skills, MCP wiring, and production guardrails."
   },
   "plugins": [
     {
       "name": "laravel-team",
       "displayName": "Laravel Claude Code Team",
       "source": "./",
-      "description": "A 17-agent Laravel-specialized Claude Code team plus workflow commands, a conventions skill, and production guardrail hooks.",
-      "version": "1.8.1",
+      "description": "A 17-agent Laravel-specialized Claude Code team plus 9 workflow commands, 8 on-demand skills, role-matched MCP grants, and 4 production guardrail hooks.",
+      "version": "1.8.2",
       "author": {
         "name": "Hamza Alayed",
         "url": "https://github.com/HamzaAlayed"
       },
       "category": "development",
-      "keywords": ["laravel", "php", "subagents", "code-review"]
+      "keywords": [
+        "laravel",
+        "php",
+        "subagents",
+        "code-review"
+      ]
     }
   ]
 }

@@ -15,18 +15,18 @@ Every agent now knows what "good" looks like in a Laravel codebase. Reviewers re
 ├── agents/
 │   ├── business-analyst.md       # Discovery & requirements (Sonnet, project memory)
 │   ├── product-owner.md          # Backlog & prioritization (Sonnet, project memory)
-│   ├── ui-ux-designer.md         # Paradigm-aware design specs (Sonnet, frontend-design skill)
-│   ├── frontend-developer.md     # Blade/Livewire/Inertia/Filament (Sonnet, worktree, frontend-design)
+│   ├── ui-ux-designer.md         # Paradigm-aware design specs (Sonnet, worktree, project memory)
+│   ├── frontend-developer.md     # Blade/Livewire/Inertia/Filament (Sonnet, worktree)
 │   ├── backend-developer.md      # APIs, services, Eloquent (Sonnet, worktree)
 │   ├── database-developer.md     # Migrations, indexes, factories (Sonnet, worktree, project memory)
 │   ├── package-developer.md      # Laravel package authoring (Sonnet, worktree, project memory) ★ NEW
-│   ├── qa-engineer.md            # Pest/PHPUnit/Dusk, fakes (Sonnet)
-│   ├── devops-engineer.md        # Forge/Vapor/Octane/Horizon (Sonnet)
+│   ├── qa-engineer.md            # Pest/PHPUnit/Dusk, fakes (Sonnet, worktree)
+│   ├── devops-engineer.md        # Forge/Cloud/Octane/Horizon (Sonnet, worktree)
 │   ├── scrum-master.md           # Delivery rhythm & blockers (Haiku, project memory)
 │   ├── solution-architect.md     # System design & ADRs (Opus, project memory)
-│   ├── security-engineer.md      # STRIDE + Laravel hardening (Sonnet, project memory, no Edit/Write)
-│   ├── technical-writer.md       # Scribe, route:list-driven docs (Sonnet)
-│   ├── tech-lead.md              # Code review w/ Laravel checklist (Opus, project memory, no Edit/Write)
+│   ├── security-engineer.md      # STRIDE + Laravel hardening (Opus, project memory, no Edit/Write)
+│   ├── technical-writer.md       # Scribe, route:list-driven docs (Haiku)
+│   ├── tech-lead.md              # Code review w/ Laravel checklist (Sonnet, project memory, no Edit/Write)
 │   ├── performance-engineer.md   # Profiling, N+1, caching, Octane, CWV (Sonnet, project memory, no Edit/Write) ★ NEW
 │   ├── mobile-developer.md       # iOS/Android consuming Laravel APIs (Sonnet, worktree)
 │   └── delivery-coordinator.md   # Orchestrator main-thread agent (Sonnet, project memory)
@@ -45,14 +45,20 @@ Every agent now knows what "good" looks like in a Laravel codebase. Reviewers re
 scripts/
 ├── block-prod-destructive-sql.sh # Block DROP/TRUNCATE/unscoped DELETE/UPDATE
 ├── block-prod-artisan.sh         # Block migrate:fresh, db:wipe, tinker, etc. against prod
+├── enforce-reviewer-readonly.sh  # Block file-mutating Bash from the read-only reviewers ★ NEW
 └── protect-env-files.sh          # Block writes to .env, .env.production, secrets paths
 
-skills/
-└── laravel-conventions/          # Idiomatic-Laravel reference skill (auto-triggers) ★ NEW
-    ├── SKILL.md
-    └── reference/antipatterns.md
+skills/                           # 8 on-demand cookbooks (see the Skills section) ★ NEW
+├── laravel-conventions/          # Which primitive to reach for, which antipattern to refuse
+├── laravel-testing/              # Fakes syntax, Pest v4 browser tests, factories, time control
+├── eloquent-performance/         # EXPLAIN reading, N+1 recipes, caching decision tree
+├── laravel-security/             # STRIDE-on-Laravel checklist, advisory lookup, finding format
+├── laravel-deploy/               # Zero-downtime releases, worker topology, rollback drill
+├── delivery-templates/           # Requirements / RICE / sprint / retro / delivery-log shapes
+├── accessibility-design/         # WCAG 2.2 AA thresholds, Livewire/Inertia focus, mobile a11y
+└── docs-authoring/               # Changelog / release-notes / runbook / API-reference templates
 
-hooks/hooks.json                  # Plugin hook manifest (wires the 3 guardrails)
+hooks/hooks.json                  # Plugin hook manifest (wires the 4 guardrails)
 tests/guardrails.test.sh          # Zero-dependency test harness for the guardrails
 .github/workflows/ci.yml          # shellcheck + guardrail tests + manifest validation
 ```

@@ -31,7 +31,9 @@ AGENT_DELIVERY_OLD = (
     "Direct agent calls also OK."
 )
 AGENT_DELIVERY_NEW = (
-    "This Codex install ships the `laravel-conventions` skill and the guardrail "
+    "This Codex install ships the 8 Laravel skills (`laravel-conventions`, "
+    "`laravel-testing`, `eloquent-performance`, `laravel-security`, `laravel-deploy`, "
+    "`delivery-templates`, `accessibility-design`, `docs-authoring`) and the guardrail "
     "hooks below. The full 17-agent specialist team runs on Claude Code and Gemini CLI."
 )
 
@@ -120,7 +122,7 @@ def main():
     build_agents_md()
     build_skill()
     build_hooks()
-    print("codex target built: AGENTS.md + laravel-conventions skill + 3 PreToolUse guardrail hooks")
+    print("codex target built: AGENTS.md + 8 skills + 3 PreToolUse guardrail hooks")
 
 
 if __name__ == "__main__":

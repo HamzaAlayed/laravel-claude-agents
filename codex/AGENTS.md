@@ -62,7 +62,7 @@ Activate when working in matching domain. Don't wait until stuck.
 
 ## Agent delivery model
 
-This Codex install ships the `laravel-conventions` skill and the guardrail hooks below. The full 17-agent specialist team runs on Claude Code and Gemini CLI.
+This Codex install ships the 8 Laravel skills (`laravel-conventions`, `laravel-testing`, `eloquent-performance`, `laravel-security`, `laravel-deploy`, `delivery-templates`, `accessibility-design`, `docs-authoring`) and the guardrail hooks below. The full 17-agent specialist team runs on Claude Code and Gemini CLI.
 
 | Phase | Agent | Output |
 |---|---|---|
