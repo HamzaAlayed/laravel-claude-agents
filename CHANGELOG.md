@@ -5,6 +5,35 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.11.0] - 2026-07-08
+
+The team now learns from its users. A correction given to one agent used to die in that agent's
+transcript — builders carry no memory, and per-agent memory never crosses roles or runtimes.
+
+### Added
+
+- **`docs/team/conventions.md` — the taught-rules ledger.** User-taught rules in a
+  Rule / Why / Scope / Source shape. Chosen over widening per-agent `memory:` because the ledger
+  reaches everyone: memoryless builders, all 17 roles at once, and the Gemini/Codex mirrors
+  (agent bodies port verbatim; Claude-only memory doesn't).
+- **`/teach` command (10th):** records a rule or preference into the ledger — checks for
+  conflicts and updates in place rather than leaving two entries that disagree. With no args it
+  harvests the current session's corrections and proposes entries. Points hard project
+  constraints at `CLAUDE.md` instead of the ledger.
+- **"Taught rules win" — first principle in all 17 agents:** read the ledger when present,
+  treat entries as overrides of defaults, apply a mid-task correction immediately and flag it in
+  the report so it gets recorded.
+- **delivery-coordinator records what the human teaches:** new step 8 appends mid-delivery
+  corrections (its own or ones flagged in specialist returns) to the ledger; briefs quote the
+  taught rules that bind each stage so specialists don't burn a first attempt finding out.
+- Authoring guide: taught-rules-ledger section + checklist item; `CLAUDE.md.template` documents
+  the ledger under the agent delivery model.
+
+### Fixed
+
+- Stale inventory counts from 1.10.0: manifests and README now say 10 workflow commands and
+  5 guardrail hooks.
+
 ## [1.10.0] - 2026-07-08
 
 Field feedback release: agents on Sail projects kept reaching for host PHP, and multi-agent runs

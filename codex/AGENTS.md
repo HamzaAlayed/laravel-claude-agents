@@ -85,6 +85,10 @@ This Codex install ships the 8 Laravel skills (`laravel-conventions`, `laravel-t
 
 `tech-lead` + `security-engineer` are read-only. Produce findings, not edits.
 
+### Team conventions ledger
+
+`docs/team/conventions.md` holds rules the team taught the agents (via a mid-task correction — record it by hand in the same shape). Every agent reads it before starting and treats its entries as overrides of their defaults. Correct an agent once, record it, never repeat it — keep entries in the Rule / Why / Scope / Source shape the file documents.
+
 ## Repository layout
 
 ```

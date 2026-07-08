@@ -39,8 +39,9 @@ Every agent now knows what "good" looks like in a Laravel codebase. Reviewers re
     ├── ship-checklist.md         # Pre-release verification → SHIP / HOLD / CONDITIONAL verdict
     ├── add-test.md               # Generate a test plan + tests for a class/route/component ★ NEW
     ├── review-pr.md              # Layered diff review → tech-lead + security + QA + perf ★ NEW
-    ├── optimize-query.md         # Diagnose a slow query/endpoint, route fixes to owners ★ NEW
-    └── upgrade-laravel.md        # Staged Laravel version-upgrade plan ★ NEW
+    ├── optimize-query.md         # Diagnose a slow query/endpoint, route fixes to owners
+    ├── upgrade-laravel.md        # Staged Laravel version-upgrade plan
+    └── teach.md                  # Record a user-taught rule all agents apply from then on ★ NEW
 
 scripts/
 ├── block-prod-destructive-sql.sh # Block DROP/TRUNCATE/unscoped DELETE/UPDATE
@@ -113,6 +114,7 @@ Each is a thin orchestrator that hands work to the right specialist agent.
 | `/review-pr [base-branch]`                | Layered diff review — fans out to `tech-lead`, `security-engineer`, `qa-engineer`, `performance-engineer`; one verdict with Blocking/Should-fix/Nits. |
 | `/optimize-query <route, query, method>`  | Captures the query + timing, diagnoses (index/N+1/`SELECT *`/unbounded), routes index fixes to `database-developer`, shape fixes to `backend-developer`. |
 | `/upgrade-laravel <target-version>`       | Inventories breaking changes + first-party package compat, produces a staged upgrade plan with a verify checkpoint per stage.                  |
+| `/teach <rule>`                           | Records a rule/preference in `docs/team/conventions.md` — every agent reads it before starting and applies it as an override. No args → harvests this session's corrections. |
 
 ---
 
@@ -181,7 +183,7 @@ Add the marketplace once, then install the plugin:
 /plugin install laravel-team@laravel-claude-agents
 ```
 
-That registers all 17 agents, the 9 slash commands, the `laravel-conventions` skill, and the five guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
+That registers all 17 agents, the 10 slash commands, the `laravel-conventions` skill, and the five guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
 
 ```
 /plugin install laravel-team@laravel-claude-agents --scope project
@@ -202,7 +204,7 @@ git clone https://github.com/HamzaAlayed/laravel-claude-agents
 gemini extensions install ./laravel-claude-agents/gemini
 ```
 
-It registers the 17 subagents (auto-delegated, or call `@backend-developer` etc.), the 9 slash commands, the `laravel-conventions` skill, and the guardrail hooks (wired as `BeforeTool` via `${extensionPath}`). The Claude-specific frontmatter is translated automatically: tool names mapped (`Bash`→`run_shell_command`, …), read-only reviewers expressed as a tools allowlist (Gemini has no `disallowedTools`), commands rewritten to TOML (`{{args}}` is already Gemini's token), and `model`/`isolation`/`memory` dropped (no Gemini equivalent).
+It registers the 17 subagents (auto-delegated, or call `@backend-developer` etc.), the 10 slash commands, the `laravel-conventions` skill, and the guardrail hooks (wired as `BeforeTool` via `${extensionPath}`). The Claude-specific frontmatter is translated automatically: tool names mapped (`Bash`→`run_shell_command`, …), read-only reviewers expressed as a tools allowlist (Gemini has no `disallowedTools`), commands rewritten to TOML (`{{args}}` is already Gemini's token), and `model`/`isolation`/`memory` dropped (no Gemini equivalent).
 
 > **Sunset notice:** Google sunsets Gemini CLI for consumer (Individual / AI Pro / AI Ultra) accounts on **June 18, 2026** in favor of [Antigravity](https://antigravity.google); Standard/Enterprise tiers are unaffected. Installed extensions **auto-migrate to Antigravity plugins** — Agent Skills, Hooks, Subagents, and `GEMINI.md` carry over. This pack is pure bash + markdown (no Node-only APIs), so it migrates cleanly.
 
@@ -368,7 +370,7 @@ For point work, call a specialist directly:
 
 ## Usage in Gemini CLI
 
-After `gemini extensions install ./laravel-claude-agents/gemini`, the 17 specialists load as Gemini subagents, the 9 commands as slash commands, the `laravel-conventions` skill, and the guardrail hooks.
+After `gemini extensions install ./laravel-claude-agents/gemini`, the 17 specialists load as Gemini subagents, the 10 commands as slash commands, the `laravel-conventions` skill, and the guardrail hooks.
 
 **Invoke a specialist** — either let Gemini auto-delegate from your description, or target one explicitly with `@`:
 

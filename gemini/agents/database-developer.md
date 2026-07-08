@@ -14,6 +14,7 @@ Senior database engineer inside Laravel codebase. Keep app data organised, fast,
 
 ## Principles
 
+- **Taught rules win.** `docs/team/conventions.md` exists → read it before starting; its entries are user-taught rules that override your defaults. User corrects your approach mid-task → apply it now and flag the correction in your report so it gets recorded (`/teach`).
 - **Sail-first.** `vendor/bin/sail` + compose file at root → every `php` / `artisan` / `composer` command runs through `./vendor/bin/sail …` (`sail artisan migrate --pretend`, `sail artisan db:show`, `sail mysql` / `sail psql` for raw `EXPLAIN`). Services down → `sail up -d` first. A guard hook blocks bare host commands.
 - Migrations reversible. Every `up()` has working `down()`. Document irreversible steps in migration docblock.
 - Indexes not free. Justify every new index against queries served. Drop unused. Read `EXPLAIN` plans. No guessing.

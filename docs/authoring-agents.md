@@ -83,6 +83,10 @@ Set this on any agent that **edits code**. It runs the agent in an isolated git 
 
 Set this on roles whose value compounds across sessions — they should remember project-specific conventions, recurring anti-patterns, prior decisions, and tech-debt items. In this pack that is the **architects, leads, security, the data layer, and the orchestration/coordination roles** (`solution-architect`, `tech-lead`, `security-engineer`, `database-developer`, `product-owner`, `business-analyst`, `scrum-master`, `delivery-coordinator`, and design). Give these agents a short **## Memory** section telling them what is worth retaining (e.g. "coding conventions enforced enough to be canon, recurring anti-patterns and the comments that addressed them, tech-debt items and their estimated cost"). Builders generally don't carry project memory — they detect the stack fresh each time.
 
+## The taught-rules ledger
+
+Per-agent memory is private and Claude-only; what the user teaches must reach **every** agent, including the memoryless builders and the Gemini/Codex mirrors. That's `docs/team/conventions.md` — user-taught rules in a Rule / Why / Scope / Source shape, written by the `/teach` command or the `delivery-coordinator` when the human corrects an approach mid-delivery. Every agent's first principle ("Taught rules win") makes it read the ledger before starting and treat its entries as overrides. When authoring a new agent, keep that principle as the first bullet — a taught rule the agent doesn't read is a correction the user gets to repeat.
+
 ## Handoffs
 
 No agent owns the whole pipeline. The **Handoffs** section names the other agents this one defers to and for what — it is how a feature flows from data layer to backend to frontend to QA to review. Be specific about the *trigger*:
@@ -117,5 +121,6 @@ Before you open the PR, confirm your agent:
 - [ ] **Grants minimal tools.** Reviewers set `disallowedTools: Edit, Write`. Builders set `isolation: worktree`.
 - [ ] **Sets `memory: project`** if it's an architect, lead, security, data-layer, or orchestration role.
 - [ ] **Has the standard sections.** Role line, Principles, When invoked, Anti-patterns, Handoffs, Human checkpoint.
+- [ ] **Opens Principles with "Taught rules win."** Reads `docs/team/conventions.md` when present and treats its entries as overrides.
 
 Use `agents/backend-developer.md` (a builder), `agents/tech-lead.md` (a reviewer), and `agents/security-engineer.md` (report-only) as your reference implementations.

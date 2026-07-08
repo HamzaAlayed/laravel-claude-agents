@@ -39,6 +39,8 @@ AGENT_DELIVERY_NEW = (
 
 SANITIZE = [
     (AGENT_DELIVERY_OLD, AGENT_DELIVERY_NEW),
+    # Codex ships no slash commands — the ledger is maintained by hand there.
+    ("(via `/teach` or a mid-task correction)", "(via a mid-task correction — record it by hand in the same shape)"),
     ("scripts/block-prod-artisan.sh", ".codex/hooks/block-prod-artisan.sh"),
     ("scripts/block-prod-destructive-sql.sh", ".codex/hooks/block-prod-destructive-sql.sh"),
     ("scripts/enforce-sail.sh", ".codex/hooks/enforce-sail.sh"),
