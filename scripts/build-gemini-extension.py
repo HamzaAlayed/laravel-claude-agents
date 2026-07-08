@@ -30,6 +30,11 @@ GEM = os.path.join(ROOT, "gemini")
 # and the GEMINI.md context). Order matters: specific phrases before the generic
 # CLAUDE.md -> GEMINI.md sweep.
 SANITIZE = [
+    # AskUserQuestion is a Claude Code tool; Gemini asks in plain text.
+    ("Running main-thread → present it via AskUserQuestion; running as a subagent (where that tool is unavailable) → print the same shape as text and stop the lane until the orchestrator relays the answer.",
+     "Print the shape as text and wait for the human's answer before proceeding."),
+    ("with a recommended default (AskUserQuestion when available), never a paragraph",
+     "with a recommended default, never a paragraph"),
     ("Uses Opus for thorough analysis.", "Reasons deeply — pair it with a high-capability model."),
     ("Uses Opus for deeper reasoning.", "Reasons deeply — pair it with a high-capability model."),
     ("`claude --agent delivery-coordinator`", "`@delivery-coordinator`"),

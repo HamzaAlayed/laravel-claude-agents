@@ -5,6 +5,27 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.12.0] - 2026-07-08
+
+The working interface release: a multi-agent run used to be a silence between kickoff and
+verdict — no live progress, checkpoint asks buried in prose, every specialist reporting in its
+own shape.
+
+### Added
+
+- **Progress board:** `delivery-coordinator` (new "Working interface" section) and all 9
+  orchestrating commands print a stage board after planning and after every stage —
+  `✔ done / ▶ running / · queued / ✖ failed / ⏸ checkpoint`, owner, one-line result. The plan
+  board prints *before* any agent burns tokens, so the human approves the shape of the work first.
+- **Uniform stage return:** every specialist is briefed to reply in
+  `STATUS / DID / VERIFIED / FLAGS / NEXT` (≤10 lines). An empty `VERIFIED` is treated as a
+  claim, not a return.
+- **Checkpoint prompts as decisions:** numbered options + recommended default + stated blast
+  radius. `delivery-coordinator` gains the `AskUserQuestion` tool — verified against the Agent
+  SDK docs: grantable in `tools:`, works main-thread (`claude --agent delivery-coordinator`),
+  unavailable in subagents, so the body specifies the text fallback for subagent runs. The 9
+  commands also carry it in `allowed-tools` (main-thread by nature).
+
 ## [1.11.0] - 2026-07-08
 
 The team now learns from its users. A correction given to one agent used to die in that agent's

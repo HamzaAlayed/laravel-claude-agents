@@ -1,12 +1,14 @@
 ---
 description: Audit a route, Inertia page, or Livewire component for N+1 queries and report the fixes.
 argument-hint: <route-or-component-name>
-allowed-tools: Agent, Read, Bash, Grep, Glob
+allowed-tools: Agent, Read, Bash, Grep, Glob, AskUserQuestion
 ---
 
 # Audit N+1 — `{{args}}`
 
 > **Delegation:** Spawn each specialist by its registered agent type as it appears in your available-agents list — prefixed when installed as a plugin (e.g. `laravel-team:backend-developer`), unprefixed when installed via `install.sh`. The specialist names in this command are labels, not literal `subagent_type` strings.
+
+> **Interface:** Print a progress board after the plan and after every stage — `✔ done / ▶ running / · queued / ✖ failed` + owner + one-line result, so the user never wonders what's running or what's left. Demand each specialist return `STATUS / DID / VERIFIED / FLAGS / NEXT` (≤10 lines; an empty VERIFIED is a claim, not a return). Human decision needed → numbered options with a recommended default (AskUserQuestion when available), never a paragraph.
 
 Investigate `{{args}}` (a route name, URL path, Livewire component, or Inertia page) for N+1 query patterns and produce an actionable findings report.
 

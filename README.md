@@ -76,6 +76,8 @@ tests/guardrails.test.sh          # Zero-dependency test harness for the guardra
 
 **Reviewers cannot edit code.** `tech-lead`, `security-engineer`, and `performance-engineer` are read-only (`disallowedTools: Edit, Write`). They return findings; the `delivery-coordinator` persists the reports and builders apply the changes. This keeps reviews trustworthy and prevents reviewer drift. (On the residual `Bash` write-vector and how to fully sandbox a reviewer, see [docs/read-only-by-design.md](docs/read-only-by-design.md).)
 
+**You can see the team working.** The `delivery-coordinator` and all nine orchestrating commands print a progress board after planning and after every stage (`✔ done / ▶ running / · queued / ✖ failed / ⏸ checkpoint`), demand one stage-return shape from every specialist (`STATUS / DID / VERIFIED / FLAGS / NEXT` — evidence required, claims rejected), and present human checkpoints as numbered options with a recommended default (via `AskUserQuestion` when running main-thread). A multi-agent run reads like a dashboard, not a silence.
+
 **Writers run in isolated worktrees.** `backend-developer`, `frontend-developer`, `database-developer`, `mobile-developer`, `package-developer`, `devops-engineer`, and `ui-ux-designer` use `isolation: worktree` so parallel changes don't collide.
 
 **Project memory where it earns its keep.** Writing roles — the architect, data layer, product, discovery, and orchestration agents — persist context (ADRs, conventions, schema decisions, requirements) across sessions. Read-only reviewers keep memory for cross-session recall but never write it; the orchestrator persists their findings.

@@ -1,12 +1,14 @@
 ---
 description: Scaffold a full Laravel feature end-to-end — migration, model, factory, Form Request, Resource, controller/action, route, Policy, and feature test — by delegating to the right specialists.
 argument-hint: <feature-name> [--inertia|--livewire|--api|--blade]
-allowed-tools: Agent, Read, Bash, Grep, Glob
+allowed-tools: Agent, Read, Bash, Grep, Glob, AskUserQuestion
 ---
 
 # Make feature — `{{args}}`
 
 > **Delegation:** Spawn each specialist by its registered agent type as it appears in your available-agents list — prefixed when installed as a plugin (e.g. `laravel-team:backend-developer`), unprefixed when installed via `install.sh`. The specialist names in this command are labels, not literal `subagent_type` strings.
+
+> **Interface:** Print a progress board after the plan and after every stage — `✔ done / ▶ running / · queued / ✖ failed` + owner + one-line result, so the user never wonders what's running or what's left. Demand each specialist return `STATUS / DID / VERIFIED / FLAGS / NEXT` (≤10 lines; an empty VERIFIED is a claim, not a return). Human decision needed → numbered options with a recommended default (AskUserQuestion when available), never a paragraph.
 
 Scaffold the feature described by `{{args}}` end-to-end, using the right specialist for each layer. Default to the frontend paradigm already used in the project unless explicitly overridden.
 

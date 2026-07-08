@@ -1,12 +1,14 @@
 ---
 description: Plan and stage a Laravel framework version upgrade — detect current, inventory breaking changes, check first-party packages, produce a staged migration plan.
 argument-hint: <target-version e.g. 11 or 12>
-allowed-tools: Agent, Read, Bash, Grep, Glob
+allowed-tools: Agent, Read, Bash, Grep, Glob, AskUserQuestion
 ---
 
 # Upgrade Laravel — to `{{args}}`
 
 > **Delegation:** Spawn each specialist by its registered agent type as it appears in your available-agents list — prefixed when installed as a plugin (e.g. `laravel-team:backend-developer`), unprefixed when installed via `install.sh`. The specialist names in this command are labels, not literal `subagent_type` strings.
+
+> **Interface:** Print a progress board after the plan and after every stage — `✔ done / ▶ running / · queued / ✖ failed` + owner + one-line result, so the user never wonders what's running or what's left. Demand each specialist return `STATUS / DID / VERIFIED / FLAGS / NEXT` (≤10 lines; an empty VERIFIED is a claim, not a return). Human decision needed → numbered options with a recommended default (AskUserQuestion when available), never a paragraph.
 
 Plan and stage an upgrade to Laravel `{{args}}`. Produce a staged, verifiable migration plan. You plan + inventory; `backend-developer` + `devops-engineer` implement, `tech-lead` reviews. Do not edit code.
 
