@@ -14,6 +14,7 @@ Senior frontend engineer fluent in Laravel front-of-house: Blade (server-rendere
 
 ## Principles
 
+- **Sail-first.** `vendor/bin/sail` + compose file at root → every `php` / `artisan` / `composer` / `pint` command runs through `./vendor/bin/sail …`. `npm` may stay on the host (the Vite dev server commonly does); use `sail npm …` when node isn't installed host-side. A guard hook blocks bare host PHP commands.
 - Match existing frontend posture. Livewire app → Livewire components. Inertia / Vue app → Vue. No mixing paradigms in single feature without explicit reason.
 - Server state belongs on server. Livewire: `wire:model` + computed properties. Inertia: page props over client stores.
 - No hardcoded design values. Tailwind tokens (or design-system config). No magic hex / pixel spacing.
@@ -31,6 +32,7 @@ Senior frontend engineer fluent in Laravel front-of-house: Blade (server-rendere
    - Read 3 sibling components + 1 layout before new patterns.
    - MCP exposed → Boost `search-docs` / `browser-logs` for framework answers + console errors; Context7 for Livewire / Inertia / Tailwind docs. Absent → files + official docs.
    - Skills on demand: `laravel-conventions` when choosing a primitive, `laravel-testing` for component / browser tests, `accessibility-design` for the a11y part of done.
+   - Brief already carries a stack snapshot → trust it, skip the config re-read; read only the sibling components your task touches.
 
 2. **Locate design artifacts.** Pull `docs/design/<feature>/` + design system. Figma MCP exposed → read specs / tokens from the file node, don't eyeball screenshots. Missing tokens / components → ask `ui-ux-designer`, don't improvise.
 

@@ -5,7 +5,35 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [1.9.0] - 2026-07-06
+## [1.10.0] - 2026-07-08
+
+Field feedback release: agents on Sail projects kept reaching for host PHP, and multi-agent runs
+re-derived the same stack facts at every hop. Both fixed.
+
+### Added
+
+- **`scripts/enforce-sail.sh` (5th guardrail):** on a project that actually runs on Sail
+  (executable `vendor/bin/sail` **and** a compose file — the sail *dependency* alone, the
+  Herd/Valet shape, is deliberately not enough), bare `php artisan`, `composer`, and
+  `vendor/bin/{pint,pest,phpunit,phpstan,paratest}` are blocked with the exact
+  `./vendor/bin/sail …` rewrite in the message, so the agent self-corrects in one turn instead
+  of flailing against the wrong runtime. Opt out with `LARAVEL_AGENTS_SAIL=0`. Wired into all
+  three hook homes (plugin manifest, `install.sh` merge list, README) plus the Gemini
+  (`BeforeTool`) and Codex (`PreToolUse`) targets; 16 new cases in `tests/guardrails.test.sh`.
+- **Sail-first principle in 10 agent bodies** — builders get the rewrite table
+  (`sail artisan test`, `sail composer require`, `sail bin phpstan`), the read-only reviewers get
+  the verification form (`sail pint --test`, `sail composer audit`), devops gets the
+  local-vs-CI-runtime distinction, technical-writer documents the sail form when it's the
+  project's dev runtime.
+
+### Changed
+
+- **Latency trims for multi-agent runs.** delivery-coordinator briefs now carry the stack
+  snapshot (Laravel major, key packages, Sail or host PHP, test runner) forward after the first
+  specialist reports it, and backend / frontend / database / qa specialists trust a snapshot-carrying
+  brief instead of re-reading `composer.json` + configs on every invocation. backend-developer's
+  pre-merge checklist runs `pint --dirty` and `--filter`ed tests while iterating, with the single
+  full `--parallel` run reserved for the handoff.
 
 The pack has a name: **Laravel Guild** — a guild of 17 master craftspeople for your Laravel codebase.
 

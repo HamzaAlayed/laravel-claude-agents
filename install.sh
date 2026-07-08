@@ -219,6 +219,7 @@ desired = [
     ("Bash",       "./scripts/block-prod-destructive-sql.sh"),
     ("Bash",       "./scripts/block-prod-artisan.sh"),
     ("Bash",       "./scripts/enforce-reviewer-readonly.sh"),
+    ("Bash",       "./scripts/enforce-sail.sh"),
     ("Write|Edit", "./scripts/protect-env-files.sh"),
 ]
 

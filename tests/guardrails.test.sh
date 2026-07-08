@@ -176,6 +176,58 @@ expect "FALLBACK (no jq/python3): tech-lead sed -i blocks" "$BLOCK" \
 expect "FALLBACK (no jq/python3): builder payload allows" "$ALLOW" \
   "$(run_hook_noparsers enforce-reviewer-readonly.sh '{"agent_type":"backend-developer","tool_input":{"command":"sed -i s/a/b/ app/file.php"}}')"
 
+echo "enforce-sail.sh (host-PHP redirect on Sail projects)"
+# Fixture projects: one on Sail (binary + compose file), one with only the
+# sail dependency (the Herd/Valet shape — skeleton ships laravel/sail), one bare.
+SAILPROJ="$(mktemp -d)"
+mkdir -p "$SAILPROJ/vendor/bin"
+printf '#!/bin/sh\n' > "$SAILPROJ/vendor/bin/sail"
+chmod +x "$SAILPROJ/vendor/bin/sail"
+touch "$SAILPROJ/docker-compose.yml"
+SAILDEP="$(mktemp -d)"
+mkdir -p "$SAILDEP/vendor/bin"
+printf '#!/bin/sh\n' > "$SAILDEP/vendor/bin/sail"
+chmod +x "$SAILDEP/vendor/bin/sail"
+BAREPROJ="$(mktemp -d)"
+
+# sail_json <cwd> <command> -> hook stdin payload
+sail_json() { printf '{"cwd":"%s","tool_input":{"command":"%s"}}' "$1" "$2"; }
+
+expect "php artisan on sail project blocks" "$BLOCK" \
+  "$(run_hook enforce-sail.sh "$(sail_json "$SAILPROJ" "php artisan test")")"
+expect "php8.3 artisan on sail project blocks" "$BLOCK" \
+  "$(run_hook enforce-sail.sh "$(sail_json "$SAILPROJ" "php8.3 artisan migrate")")"
+expect "composer require on sail project blocks" "$BLOCK" \
+  "$(run_hook enforce-sail.sh "$(sail_json "$SAILPROJ" "composer require spatie/laravel-permission")")"
+expect "./vendor/bin/pint on sail project blocks" "$BLOCK" \
+  "$(run_hook enforce-sail.sh "$(sail_json "$SAILPROJ" "./vendor/bin/pint --dirty")")"
+expect "vendor/bin/phpstan on sail project blocks" "$BLOCK" \
+  "$(run_hook enforce-sail.sh "$(sail_json "$SAILPROJ" "vendor/bin/phpstan analyse")")"
+expect "chained bare artisan blocks" "$BLOCK" \
+  "$(run_hook enforce-sail.sh "$(sail_json "$SAILPROJ" "git pull && php artisan migrate")")"
+expect "./vendor/bin/sail artisan allows" "$ALLOW" \
+  "$(run_hook enforce-sail.sh "$(sail_json "$SAILPROJ" "./vendor/bin/sail artisan test --compact")")"
+expect "bare sail alias allows" "$ALLOW" \
+  "$(run_hook enforce-sail.sh "$(sail_json "$SAILPROJ" "sail pest --filter=Checkout")")"
+expect "docker compose exec allows" "$ALLOW" \
+  "$(run_hook enforce-sail.sh "$(sail_json "$SAILPROJ" "docker compose exec app php artisan about")")"
+expect "non-php command on sail project allows" "$ALLOW" \
+  "$(run_hook enforce-sail.sh "$(sail_json "$SAILPROJ" "git status")")"
+expect "php artisan on bare project allows" "$ALLOW" \
+  "$(run_hook enforce-sail.sh "$(sail_json "$BAREPROJ" "php artisan test")")"
+expect "sail dependency without compose file allows (Herd shape)" "$ALLOW" \
+  "$(run_hook enforce-sail.sh "$(sail_json "$SAILDEP" "php artisan test")")"
+expect "LARAVEL_AGENTS_SAIL=0 opt-out allows" "$ALLOW" \
+  "$(LARAVEL_AGENTS_SAIL=0 run_hook enforce-sail.sh "$(sail_json "$SAILPROJ" "php artisan test")")"
+expect "empty command allows" "$ALLOW" \
+  "$(run_hook enforce-sail.sh "$(sail_json "$SAILPROJ" "")")"
+expect "FALLBACK (no jq/python3): php artisan on sail project blocks" "$BLOCK" \
+  "$(CLAUDE_PROJECT_DIR="$SAILPROJ" run_hook_noparsers enforce-sail.sh '{"tool_input":{"command":"php artisan test"}}')"
+expect "FALLBACK (no jq/python3): sail-prefixed still allows" "$ALLOW" \
+  "$(CLAUDE_PROJECT_DIR="$SAILPROJ" run_hook_noparsers enforce-sail.sh '{"tool_input":{"command":"./vendor/bin/sail artisan test"}}')"
+
+rm -rf "$SAILPROJ" "$SAILDEP" "$BAREPROJ"
+
 echo
 echo "----------------------------------------"
 printf 'total: %d passed, %d failed\n' "$PASS" "$FAIL"

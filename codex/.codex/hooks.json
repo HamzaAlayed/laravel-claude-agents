@@ -5,7 +5,8 @@
         "matcher": "Bash",
         "hooks": [
           { "type": "command", "command": "$(git rev-parse --show-toplevel)/.codex/hooks/block-prod-destructive-sql.sh", "statusMessage": "Checking for destructive prod SQL" },
-          { "type": "command", "command": "$(git rev-parse --show-toplevel)/.codex/hooks/block-prod-artisan.sh", "statusMessage": "Checking for prod-affecting artisan" }
+          { "type": "command", "command": "$(git rev-parse --show-toplevel)/.codex/hooks/block-prod-artisan.sh", "statusMessage": "Checking for prod-affecting artisan" },
+          { "type": "command", "command": "$(git rev-parse --show-toplevel)/.codex/hooks/enforce-sail.sh", "statusMessage": "Routing PHP tooling through Sail" }
         ]
       },
       {

@@ -45,7 +45,8 @@ Every agent now knows what "good" looks like in a Laravel codebase. Reviewers re
 scripts/
 ├── block-prod-destructive-sql.sh # Block DROP/TRUNCATE/unscoped DELETE/UPDATE
 ├── block-prod-artisan.sh         # Block migrate:fresh, db:wipe, tinker, etc. against prod
-├── enforce-reviewer-readonly.sh  # Block file-mutating Bash from the read-only reviewers ★ NEW
+├── enforce-reviewer-readonly.sh  # Block file-mutating Bash from the read-only reviewers
+├── enforce-sail.sh               # Redirect bare php/composer through ./vendor/bin/sail on Sail projects ★ NEW
 └── protect-env-files.sh          # Block writes to .env, .env.production, secrets paths
 
 skills/                           # 8 on-demand cookbooks (see the Skills section) ★ NEW
@@ -58,7 +59,7 @@ skills/                           # 8 on-demand cookbooks (see the Skills sectio
 ├── accessibility-design/         # WCAG 2.2 AA thresholds, Livewire/Inertia focus, mobile a11y
 └── docs-authoring/               # Changelog / release-notes / runbook / API-reference templates
 
-hooks/hooks.json                  # Plugin hook manifest (wires the 4 guardrails)
+hooks/hooks.json                  # Plugin hook manifest (wires the 5 guardrails)
 tests/guardrails.test.sh          # Zero-dependency test harness for the guardrails
 .github/workflows/ci.yml          # shellcheck + guardrail tests + manifest validation
 ```
@@ -125,6 +126,7 @@ Wire these as Claude Code `PreToolUse` hooks for `Bash` and `Write|Edit`. They e
 | `block-prod-artisan.sh`         | `migrate:fresh`, `db:wipe`, `migrate:reset`, `tinker`, `queue:flush`, etc., against `--env=production` or `.env.production` |
 | `protect-env-files.sh`          | Writes to `.env`, `.env.production`, `.env.prod`, `.env.live`, `.env.staging`, `.env.local`, and credential-looking paths   |
 | `enforce-reviewer-readonly.sh`  | File-mutating Bash (`sed -i`, redirects, `tee`, mutating `git`/`artisan`/`composer`, `pint` without `--test`, `rm`/`mv`/`cp`) **from the read-only reviewers only** — scoped via the hook input's `agent_type`; builders and the main thread are untouched. Claude Code only. |
+| `enforce-sail.sh`               | Bare `php artisan` / `composer` / `vendor/bin/{pint,pest,phpunit,phpstan}` on a **Sail** project — the block message carries the exact `./vendor/bin/sail …` rewrite, so the agent self-corrects in one turn. Active only when both `vendor/bin/sail` and a compose file exist (the sail *dependency* alone — the Herd/Valet shape — stays untouched). Opt out with `LARAVEL_AGENTS_SAIL=0`. |
 
 Example hook config (`.claude/settings.json`) — this is the shape `install.sh` auto-merges:
 ```json
@@ -147,6 +149,12 @@ Example hook config (`.claude/settings.json`) — this is the shape `install.sh`
         "matcher": "Bash",
         "hooks": [
           { "type": "command", "command": "./scripts/enforce-reviewer-readonly.sh" }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "./scripts/enforce-sail.sh" }
         ]
       },
       {
@@ -173,7 +181,7 @@ Add the marketplace once, then install the plugin:
 /plugin install laravel-team@laravel-claude-agents
 ```
 
-That registers all 17 agents, the 9 slash commands, the `laravel-conventions` skill, and the three guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
+That registers all 17 agents, the 9 slash commands, the `laravel-conventions` skill, and the five guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
 
 ```
 /plugin install laravel-team@laravel-claude-agents --scope project
@@ -200,7 +208,7 @@ It registers the 17 subagents (auto-delegated, or call `@backend-developer` etc.
 
 #### Codex CLI
 
-Codex has no one-command install, so the pack ships a **Codex Core** target under [`codex/`](codex/) — `AGENTS.md` (Codex's native context file), the `laravel-conventions` skill, and the 3 guardrail hooks as `PreToolUse`. Install it into your project:
+Codex has no one-command install, so the pack ships a **Codex Core** target under [`codex/`](codex/) — `AGENTS.md` (Codex's native context file), the `laravel-conventions` skill, and the 4 guardrail hooks as `PreToolUse`. Install it into your project:
 
 ```bash
 git clone https://github.com/HamzaAlayed/laravel-claude-agents

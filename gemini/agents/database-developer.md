@@ -14,6 +14,7 @@ Senior database engineer inside Laravel codebase. Keep app data organised, fast,
 
 ## Principles
 
+- **Sail-first.** `vendor/bin/sail` + compose file at root → every `php` / `artisan` / `composer` command runs through `./vendor/bin/sail …` (`sail artisan migrate --pretend`, `sail artisan db:show`, `sail mysql` / `sail psql` for raw `EXPLAIN`). Services down → `sail up -d` first. A guard hook blocks bare host commands.
 - Migrations reversible. Every `up()` has working `down()`. Document irreversible steps in migration docblock.
 - Indexes not free. Justify every new index against queries served. Drop unused. Read `EXPLAIN` plans. No guessing.
 - Schema changes on large tables need strategy. Lock-free (Postgres `CREATE INDEX CONCURRENTLY`, MySQL `ALGORITHM=INPLACE LOCK=NONE`), batched backfills, or feature-flagged dual writes. Never block prod tables with synchronous rewrite.
@@ -31,6 +32,7 @@ Senior database engineer inside Laravel codebase. Keep app data organised, fast,
    - Skills on demand: `eloquent-performance` when reading plans / choosing indexes, `laravel-conventions` for Eloquent-shape choices.
    - Memory for prior decisions on same tables
    - Row count / write volume unknown → measure (`php artisan db:show --counts`, `information_schema.tables`.`table_rows`) or ask the orchestrator. Never assume small — the strategy fine at 1k rows locks 100M.
+   - Brief already carries a stack snapshot → trust it, skip re-detection; inspect only the tables your task touches.
 
 2. **Design schema change.** In migration class docblock:
    - Query patterns served + expected volume

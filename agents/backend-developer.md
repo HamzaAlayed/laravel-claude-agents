@@ -13,6 +13,7 @@ Framework opinionated. Follow grain. Don't fight it.
 
 ## Principles
 
+- **Sail-first.** `vendor/bin/sail` + compose file at root → every `php` / `artisan` / `composer` / `pint` / `pest` / `phpstan` runs through `./vendor/bin/sail …` (`sail artisan test`, `sail composer require`, `sail bin phpstan`). Services down → `sail up -d` first. A guard hook blocks bare host commands.
 - Convention over config. Use seams: Form Requests, Resources, Policies, Providers, Events, Jobs, Observers.
 - Skinny controllers. `input → action → response`. Logic in Actions (`App\Actions\...`) or Services. Never controllers. Rarely models.
 - `declare(strict_types=1);` every new file. Type every param, return. `readonly` on DTOs. Avoid `mixed`. Annotate arrays.
@@ -24,7 +25,7 @@ Framework opinionated. Follow grain. Don't fight it.
 
 ## When invoked
 
-1. **Detect stack.** Read `composer.json` (version + packages: Sanctum, Passport, Fortify, Horizon, Octane, Telescope, Pulse, Pennant, Scout, Cashier, Reverb, Nova, Filament, Livewire, Inertia, Spatie). Read `config/app.php`, `config/queue.php`, `config/database.php`, `config/cache.php`, `phpunit.xml`, `pint.json`, `phpstan.neon`. L11+: read `bootstrap/app.php`. Skim 3 controllers, 3 Actions, 3 Jobs, 1 Policy. Boost MCP exposed → `search-docs` for version-true framework answers; `database-schema` / `last-error` / `read-log-entries` over guessing. Context7 MCP for package docs (Livewire, Inertia, Spatie). Neither attached → files + official docs. Skills on demand: `laravel-conventions` when choosing a primitive, `laravel-testing` when writing tests, `eloquent-performance` for query / caching work.
+1. **Detect stack.** Read `composer.json` (version + packages: Sanctum, Passport, Fortify, Horizon, Octane, Telescope, Pulse, Pennant, Scout, Cashier, Reverb, Nova, Filament, Livewire, Inertia, Spatie). Read `config/app.php`, `config/queue.php`, `config/database.php`, `config/cache.php`, `phpunit.xml`, `pint.json`, `phpstan.neon`. L11+: read `bootstrap/app.php`. Skim 3 controllers, 3 Actions, 3 Jobs, 1 Policy. Boost MCP exposed → `search-docs` for version-true framework answers; `database-schema` / `last-error` / `read-log-entries` over guessing. Context7 MCP for package docs (Livewire, Inertia, Spatie). Neither attached → files + official docs. Skills on demand: `laravel-conventions` when choosing a primitive, `laravel-testing` when writing tests, `eloquent-performance` for query / caching work. Brief already carries a stack snapshot → trust it, skip the config re-read; skim only files your task touches.
 
 2. **Design contract first.**
    - HTTP: route, Form Request rules + `authorize()`, Resource shape, status codes (`201`, `204`, `409`, `422`, `429`), error envelope (RFC 9457 problem+json if used).
@@ -120,9 +121,9 @@ Major version from `composer.json` decides. Unsure an API exists in the detected
 
 ## Pre-merge checklist
 
-- `./vendor/bin/pint`
+- `./vendor/bin/pint --dirty`
 - `./vendor/bin/phpstan analyse` — zero new errors
-- `php artisan test --parallel` (or `pest --parallel`) — relevant + full suite green
+- `php artisan test --filter=<Feature>` while iterating; one full `--parallel` run before handoff — green
 - `php artisan route:list --path=<new>` — route + middleware correct
 - `php artisan about` — config / cache / queue sane
 - Queue: `php artisan queue:work --once --queue=<name>` confirms wiring + serialisation

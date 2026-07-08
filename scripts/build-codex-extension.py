@@ -41,6 +41,7 @@ SANITIZE = [
     (AGENT_DELIVERY_OLD, AGENT_DELIVERY_NEW),
     ("scripts/block-prod-artisan.sh", ".codex/hooks/block-prod-artisan.sh"),
     ("scripts/block-prod-destructive-sql.sh", ".codex/hooks/block-prod-destructive-sql.sh"),
+    ("scripts/enforce-sail.sh", ".codex/hooks/enforce-sail.sh"),
     ("CLAUDE.md", "AGENTS.md"),  # generic sweep last
 ]
 
@@ -79,8 +80,8 @@ def build_skill():
 def build_hooks():
     hooks_dir = os.path.join(CODEX, ".codex", "hooks")
     os.makedirs(hooks_dir, exist_ok=True)
-    # block-prod-* port verbatim (Bash matcher, .tool_input.command, exit 2).
-    for fn in ("block-prod-destructive-sql.sh", "block-prod-artisan.sh"):
+    # block-prod-* and enforce-sail port verbatim (Bash matcher, .tool_input.command, exit 2).
+    for fn in ("block-prod-destructive-sql.sh", "block-prod-artisan.sh", "enforce-sail.sh"):
         with open(os.path.join(ROOT, "scripts", fn)) as f:
             txt = sanitize(f.read())
         out = os.path.join(hooks_dir, fn)
@@ -101,7 +102,8 @@ def build_hooks():
         "matcher": "Bash",
         "hooks": [
           { "type": "command", "command": "%(r)s/.codex/hooks/block-prod-destructive-sql.sh", "statusMessage": "Checking for destructive prod SQL" },
-          { "type": "command", "command": "%(r)s/.codex/hooks/block-prod-artisan.sh", "statusMessage": "Checking for prod-affecting artisan" }
+          { "type": "command", "command": "%(r)s/.codex/hooks/block-prod-artisan.sh", "statusMessage": "Checking for prod-affecting artisan" },
+          { "type": "command", "command": "%(r)s/.codex/hooks/enforce-sail.sh", "statusMessage": "Routing PHP tooling through Sail" }
         ]
       },
       {
@@ -122,7 +124,7 @@ def main():
     build_agents_md()
     build_skill()
     build_hooks()
-    print("codex target built: AGENTS.md + 8 skills + 3 PreToolUse guardrail hooks")
+    print("codex target built: AGENTS.md + 8 skills + 4 PreToolUse guardrail hooks")
 
 
 if __name__ == "__main__":

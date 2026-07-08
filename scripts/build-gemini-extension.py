@@ -14,7 +14,7 @@ What it produces (all under gemini/):
   commands/*.toml         Claude .md slash commands -> Gemini TOML ({{args}} kept)
   skills/                 laravel-conventions copied verbatim (shared agentskills.io standard)
   hooks/hooks.json        PreToolUse -> BeforeTool wiring (${extensionPath})
-  scripts/*.sh            the three guard scripts, copied (self-contained extension)
+  scripts/*.sh            the four guard scripts, copied (self-contained extension)
 
 Deterministic: no network, no LLM. Bodies are preserved byte-for-byte.
 """
@@ -191,7 +191,7 @@ def build_scripts():
     src = os.path.join(ROOT, "scripts")
     dst = os.path.join(GEM, "scripts")
     os.makedirs(dst, exist_ok=True)
-    for fn in ("block-prod-destructive-sql.sh", "block-prod-artisan.sh", "protect-env-files.sh"):
+    for fn in ("block-prod-destructive-sql.sh", "block-prod-artisan.sh", "enforce-sail.sh", "protect-env-files.sh"):
         with open(os.path.join(src, fn)) as f:
             txt = f.read()
         out = os.path.join(dst, fn)
@@ -217,7 +217,8 @@ def build_hooks():
         "matcher": "run_shell_command",
         "hooks": [
           { "type": "command", "name": "block-prod-destructive-sql", "command": "${extensionPath}/scripts/block-prod-destructive-sql.sh" },
-          { "type": "command", "name": "block-prod-artisan", "command": "${extensionPath}/scripts/block-prod-artisan.sh" }
+          { "type": "command", "name": "block-prod-artisan", "command": "${extensionPath}/scripts/block-prod-artisan.sh" },
+          { "type": "command", "name": "enforce-sail", "command": "${extensionPath}/scripts/enforce-sail.sh" }
         ]
       },
       {
