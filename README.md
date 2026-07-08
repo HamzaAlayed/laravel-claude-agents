@@ -41,13 +41,16 @@ Every agent now knows what "good" looks like in a Laravel codebase. Reviewers re
     ├── review-pr.md              # Layered diff review → tech-lead + security + QA + perf ★ NEW
     ├── optimize-query.md         # Diagnose a slow query/endpoint, route fixes to owners
     ├── upgrade-laravel.md        # Staged Laravel version-upgrade plan
-    └── teach.md                  # Record a user-taught rule all agents apply from then on ★ NEW
+    ├── teach.md                  # Record a user-taught rule all agents apply from then on
+    └── board.md                  # Open the live agents dashboard (serves board.html) ★ NEW
 
 scripts/
 ├── block-prod-destructive-sql.sh # Block DROP/TRUNCATE/unscoped DELETE/UPDATE
 ├── block-prod-artisan.sh         # Block migrate:fresh, db:wipe, tinker, etc. against prod
 ├── enforce-reviewer-readonly.sh  # Block file-mutating Bash from the read-only reviewers
-├── enforce-sail.sh               # Redirect bare php/composer through ./vendor/bin/sail on Sail projects ★ NEW
+├── enforce-sail.sh               # Redirect bare php/composer through ./vendor/bin/sail on Sail projects
+├── emit-agent-events.sh          # Stream subagent start/finish to .claude/agents-board.jsonl ★ NEW
+├── board.html                    # Self-contained live dashboard rendering that feed ★ NEW
 └── protect-env-files.sh          # Block writes to .env, .env.production, secrets paths
 
 skills/                           # 8 on-demand cookbooks (see the Skills section) ★ NEW
@@ -60,7 +63,7 @@ skills/                           # 8 on-demand cookbooks (see the Skills sectio
 ├── accessibility-design/         # WCAG 2.2 AA thresholds, Livewire/Inertia focus, mobile a11y
 └── docs-authoring/               # Changelog / release-notes / runbook / API-reference templates
 
-hooks/hooks.json                  # Plugin hook manifest (wires the 5 guardrails)
+hooks/hooks.json                  # Plugin hook manifest (5 guardrails + the agents-board observer)
 tests/guardrails.test.sh          # Zero-dependency test harness for the guardrails
 .github/workflows/ci.yml          # shellcheck + guardrail tests + manifest validation
 ```
@@ -76,7 +79,7 @@ tests/guardrails.test.sh          # Zero-dependency test harness for the guardra
 
 **Reviewers cannot edit code.** `tech-lead`, `security-engineer`, and `performance-engineer` are read-only (`disallowedTools: Edit, Write`). They return findings; the `delivery-coordinator` persists the reports and builders apply the changes. This keeps reviews trustworthy and prevents reviewer drift. (On the residual `Bash` write-vector and how to fully sandbox a reviewer, see [docs/read-only-by-design.md](docs/read-only-by-design.md).)
 
-**You can see the team working.** The `delivery-coordinator` and all nine orchestrating commands print a progress board after planning and after every stage (`✔ done / ▶ running / · queued / ✖ failed / ⏸ checkpoint`), demand one stage-return shape from every specialist (`STATUS / DID / VERIFIED / FLAGS / NEXT` — evidence required, claims rejected), and present human checkpoints as numbered options with a recommended default (via `AskUserQuestion` when running main-thread). A multi-agent run reads like a dashboard, not a silence.
+**You can see the team working.** The `delivery-coordinator` and all nine orchestrating commands print a progress board after planning and after every stage (`✔ done / ▶ running / · queued / ✖ failed / ⏸ checkpoint`), demand one stage-return shape from every specialist (`STATUS / DID / VERIFIED / FLAGS / NEXT` — evidence required, claims rejected), and present human checkpoints as numbered options with a recommended default (via `AskUserQuestion` when running main-thread). And `/board` opens a live HTML dashboard — the `emit-agent-events` hook streams every subagent start/finish (agent, task, duration, tokens) to `.claude/agents-board.jsonl` deterministically, so the board fills up no matter which command or agent is orchestrating. A multi-agent run reads like a dashboard, not a silence.
 
 **Writers run in isolated worktrees.** `backend-developer`, `frontend-developer`, `database-developer`, `mobile-developer`, `package-developer`, `devops-engineer`, and `ui-ux-designer` use `isolation: worktree` so parallel changes don't collide.
 
@@ -117,6 +120,7 @@ Each is a thin orchestrator that hands work to the right specialist agent.
 | `/optimize-query <route, query, method>`  | Captures the query + timing, diagnoses (index/N+1/`SELECT *`/unbounded), routes index fixes to `database-developer`, shape fixes to `backend-developer`. |
 | `/upgrade-laravel <target-version>`       | Inventories breaking changes + first-party package compat, produces a staged upgrade plan with a verify checkpoint per stage.                  |
 | `/teach <rule>`                           | Records a rule/preference in `docs/team/conventions.md` — every agent reads it before starting and applies it as an override. No args → harvests this session's corrections. |
+| `/board [port]`                           | Opens the live agents dashboard — serves `.claude/board.html` over localhost; running agents pulse with a live timer, finished ones show duration + tokens. Fed by the `emit-agent-events` hook. |
 
 ---
 
@@ -131,6 +135,7 @@ Wire these as Claude Code `PreToolUse` hooks for `Bash` and `Write|Edit`. They e
 | `protect-env-files.sh`          | Writes to `.env`, `.env.production`, `.env.prod`, `.env.live`, `.env.staging`, `.env.local`, and credential-looking paths   |
 | `enforce-reviewer-readonly.sh`  | File-mutating Bash (`sed -i`, redirects, `tee`, mutating `git`/`artisan`/`composer`, `pint` without `--test`, `rm`/`mv`/`cp`) **from the read-only reviewers only** — scoped via the hook input's `agent_type`; builders and the main thread are untouched. Claude Code only. |
 | `enforce-sail.sh`               | Bare `php artisan` / `composer` / `vendor/bin/{pint,pest,phpunit,phpstan}` on a **Sail** project — the block message carries the exact `./vendor/bin/sail …` rewrite, so the agent self-corrects in one turn. Active only when both `vendor/bin/sail` and a compose file exist (the sail *dependency* alone — the Herd/Valet shape — stays untouched). Opt out with `LARAVEL_AGENTS_SAIL=0`. |
+| `emit-agent-events.sh`          | Nothing — an **observer**, not a guard: wired as `PreToolUse` **and** `PostToolUse` on the subagent tool (`Agent\|Task`), it streams every subagent start / finish (agent, task, duration, tokens) to `.claude/agents-board.jsonl` for the `/board` live dashboard. Always exits 0. Claude Code only. |
 
 Example hook config (`.claude/settings.json`) — this is the shape `install.sh` auto-merges:
 ```json
@@ -166,6 +171,20 @@ Example hook config (`.claude/settings.json`) — this is the shape `install.sh`
         "hooks": [
           { "type": "command", "command": "./scripts/protect-env-files.sh" }
         ]
+      },
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          { "type": "command", "command": "./scripts/emit-agent-events.sh" }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          { "type": "command", "command": "./scripts/emit-agent-events.sh" }
+        ]
       }
     ]
   }
@@ -185,7 +204,7 @@ Add the marketplace once, then install the plugin:
 /plugin install laravel-team@laravel-claude-agents
 ```
 
-That registers all 17 agents, the 10 slash commands, the `laravel-conventions` skill, and the five guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
+That registers all 17 agents, the 11 slash commands, the `laravel-conventions` skill, and the five guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
 
 ```
 /plugin install laravel-team@laravel-claude-agents --scope project
@@ -206,7 +225,7 @@ git clone https://github.com/HamzaAlayed/laravel-claude-agents
 gemini extensions install ./laravel-claude-agents/gemini
 ```
 
-It registers the 17 subagents (auto-delegated, or call `@backend-developer` etc.), the 10 slash commands, the `laravel-conventions` skill, and the guardrail hooks (wired as `BeforeTool` via `${extensionPath}`). The Claude-specific frontmatter is translated automatically: tool names mapped (`Bash`→`run_shell_command`, …), read-only reviewers expressed as a tools allowlist (Gemini has no `disallowedTools`), commands rewritten to TOML (`{{args}}` is already Gemini's token), and `model`/`isolation`/`memory` dropped (no Gemini equivalent).
+It registers the 17 subagents (auto-delegated, or call `@backend-developer` etc.), the 11 slash commands, the `laravel-conventions` skill, and the guardrail hooks (wired as `BeforeTool` via `${extensionPath}`). The Claude-specific frontmatter is translated automatically: tool names mapped (`Bash`→`run_shell_command`, …), read-only reviewers expressed as a tools allowlist (Gemini has no `disallowedTools`), commands rewritten to TOML (`{{args}}` is already Gemini's token), and `model`/`isolation`/`memory` dropped (no Gemini equivalent).
 
 > **Sunset notice:** Google sunsets Gemini CLI for consumer (Individual / AI Pro / AI Ultra) accounts on **June 18, 2026** in favor of [Antigravity](https://antigravity.google); Standard/Enterprise tiers are unaffected. Installed extensions **auto-migrate to Antigravity plugins** — Agent Skills, Hooks, Subagents, and `GEMINI.md` carry over. This pack is pure bash + markdown (no Node-only APIs), so it migrates cleanly.
 

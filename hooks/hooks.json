@@ -30,6 +30,26 @@
             "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/protect-env-files.sh"
           }
         ]
+      },
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/emit-agent-events.sh"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Agent|Task",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "\"${CLAUDE_PLUGIN_ROOT}\"/scripts/emit-agent-events.sh"
+          }
+        ]
       }
     ]
   }

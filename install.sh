@@ -208,19 +208,16 @@ if not isinstance(hooks, dict):
     hooks = {}
     data["hooks"] = hooks
 
-pre = hooks.get("PreToolUse")
-if not isinstance(pre, list):
-    pre = []
-    hooks["PreToolUse"] = pre
-
 # Claude Code's actual hook shape is nested: each matcher entry contains a
 # `hooks` array of {type, command} objects.
 desired = [
-    ("Bash",       "./scripts/block-prod-destructive-sql.sh"),
-    ("Bash",       "./scripts/block-prod-artisan.sh"),
-    ("Bash",       "./scripts/enforce-reviewer-readonly.sh"),
-    ("Bash",       "./scripts/enforce-sail.sh"),
-    ("Write|Edit", "./scripts/protect-env-files.sh"),
+    ("PreToolUse",  "Bash",       "./scripts/block-prod-destructive-sql.sh"),
+    ("PreToolUse",  "Bash",       "./scripts/block-prod-artisan.sh"),
+    ("PreToolUse",  "Bash",       "./scripts/enforce-reviewer-readonly.sh"),
+    ("PreToolUse",  "Bash",       "./scripts/enforce-sail.sh"),
+    ("PreToolUse",  "Write|Edit", "./scripts/protect-env-files.sh"),
+    ("PreToolUse",  "Agent|Task", "./scripts/emit-agent-events.sh"),
+    ("PostToolUse", "Agent|Task", "./scripts/emit-agent-events.sh"),
 ]
 
 def has_command(entry, matcher, command):
@@ -238,10 +235,14 @@ def has_command(entry, matcher, command):
     return False
 
 added = 0
-for matcher, command in desired:
-    if any(has_command(e, matcher, command) for e in pre):
+for event, matcher, command in desired:
+    entries = hooks.get(event)
+    if not isinstance(entries, list):
+        entries = []
+        hooks[event] = entries
+    if any(has_command(e, matcher, command) for e in entries):
         continue
-    pre.append({
+    entries.append({
         "matcher": matcher,
         "hooks": [{"type": "command", "command": command}],
     })

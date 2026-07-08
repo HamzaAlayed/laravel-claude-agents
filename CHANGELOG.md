@@ -5,6 +5,35 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.13.0] - 2026-07-08
+
+The 1.12.0 progress board, upgraded from text to glass: a live HTML dashboard you can leave
+open on a second screen while the team works.
+
+### Added
+
+- **`scripts/emit-agent-events.sh` — the agents-board observer.** Wired as `PreToolUse` +
+  `PostToolUse` on the subagent tool (matcher `Agent|Task` — verified against the hooks docs:
+  the Task tool was renamed Agent in 2.1.63, the alias still matches, and `tool_response`
+  carries `totalDurationMs` / `totalTokens` / `status`). Streams every subagent start / finish
+  to `.claude/agents-board.jsonl` — deterministic, fires regardless of what the orchestrating
+  model narrates. An observer, not a guard: always exits 0, fails open, bounds the feed at
+  ~4000 events. Claude Code only.
+- **`scripts/board.html` — self-contained live dashboard.** No CDN, no build step; polls the
+  feed every 1.5s. Running agents pulse with a live elapsed timer; finished ones show duration
+  + tokens; sessions grouped newest-first; per-agent colors matching the pack's frontmatter
+  colors; dark/light via `prefers-color-scheme`. The observer drops it next to the feed on
+  first event.
+- **`/board [port]` (11th command):** serves `.claude/` over localhost and opens the dashboard.
+  install.sh's hook merger now handles multiple hook events (was PreToolUse-only); 9 new
+  observer cases in the guardrail harness (76 total).
+
+### Changed
+
+- Gemini target deliberately skips `board.md` and the observer hook — Gemini's hook input
+  carries no subagent identity (same reasoning as `enforce-reviewer-readonly.sh`). Gemini
+  stays at 10 commands; Claude/Cursor manifests now say 11.
+
 ## [1.12.0] - 2026-07-08
 
 The working interface release: a multi-agent run used to be a silence between kickoff and

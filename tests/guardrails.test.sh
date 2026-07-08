@@ -228,6 +228,31 @@ expect "FALLBACK (no jq/python3): sail-prefixed still allows" "$ALLOW" \
 
 rm -rf "$SAILPROJ" "$SAILDEP" "$BAREPROJ"
 
+echo "emit-agent-events.sh (agents-board observer)"
+BOARDPROJ="$(mktemp -d)"
+START_JSON='{"session_id":"abc12345-zzz","hook_event_name":"PreToolUse","tool_name":"Agent","tool_input":{"subagent_type":"laravel-team:backend-developer","description":"Build invoices API"}}'
+END_JSON='{"session_id":"abc12345-zzz","hook_event_name":"PostToolUse","tool_name":"Agent","tool_input":{"subagent_type":"laravel-team:backend-developer","description":"Build invoices API"},"tool_response":{"status":"completed","totalDurationMs":42000,"totalTokens":1234}}'
+FEED="$BOARDPROJ/.claude/agents-board.jsonl"
+
+expect "subagent start exits 0" "$ALLOW" \
+  "$(CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh "$START_JSON")"
+expect "subagent end exits 0" "$ALLOW" \
+  "$(CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh "$END_JSON")"
+expect "feed carries both events" "2" "$(wc -l < "$FEED" | tr -d ' ')"
+expect "start event recorded with plugin prefix stripped" "1" \
+  "$(grep -c '"ev":"start"' "$FEED")$(grep -q '"agent":"backend-developer"' "$FEED" || echo MISSING)"
+expect "end event carries duration" "1" "$(grep -c '"ms":42000' "$FEED")"
+expect "legacy Task tool name also recorded" "$ALLOW" \
+  "$(CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh '{"hook_event_name":"PreToolUse","tool_name":"Task","tool_input":{"subagent_type":"qa-engineer","description":"Run suite"}}')"
+expect "non-subagent tool ignored (exit 0, no event)" "3" \
+  "$(CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"ls"}}' >/dev/null; wc -l < "$FEED" | tr -d ' ')"
+expect "viewer copied next to the feed" "yes" \
+  "$([ -f "$BOARDPROJ/.claude/board.html" ] && echo yes || echo no)"
+expect "FALLBACK (no jq/python3): exits 0, fails open" "$ALLOW" \
+  "$(CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook_noparsers emit-agent-events.sh "$START_JSON")"
+
+rm -rf "$BOARDPROJ"
+
 echo
 echo "----------------------------------------"
 printf 'total: %d passed, %d failed\n' "$PASS" "$FAIL"

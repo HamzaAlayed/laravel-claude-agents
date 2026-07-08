@@ -147,13 +147,19 @@ def toml_basic(s):
     return s.replace("\\", "\\\\").replace('"', '\\"')
 
 
+# Commands that depend on Claude-only plumbing and are not ported.
+# board.md reads the feed written by emit-agent-events.sh, a PreToolUse/
+# PostToolUse hook on the Agent tool — Gemini's hook input has no equivalent.
+GEMINI_SKIP_COMMANDS = {"board.md"}
+
+
 def build_commands():
     src = os.path.join(ROOT, "commands")
     dst = os.path.join(GEM, "commands")
     os.makedirs(dst, exist_ok=True)
     count = 0
     for fn in sorted(os.listdir(src)):
-        if not fn.endswith(".md"):
+        if not fn.endswith(".md") or fn in GEMINI_SKIP_COMMANDS:
             continue
         with open(os.path.join(src, fn)) as f:
             text = f.read()
