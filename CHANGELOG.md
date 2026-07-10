@@ -5,6 +5,33 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.14.0] - 2026-07-09
+
+The guild gets names. Every agent is now a character you can address directly — named after
+the Laravel-ecosystem tool closest to its craft.
+
+### Added
+
+- **Guild names for all 17 agents.** Artisan (backend), Blade (frontend), Eloquent (database),
+  Dusk (QA), Forge (DevOps), Octane (performance), Fortify (security), Telescope (tech lead),
+  Scribe (technical writer), Pulse (scrum master), Envoy (delivery coordinator), Scout
+  (business analyst), Horizon (product owner), Blueprint (solution architect), Breeze
+  (UI/UX designer), Passport (mobile), Composer (packages). Each agent body now opens with its
+  identity line (`You are **Dusk** — the Guild's QA engineer.`) and each `description` is
+  prefixed with the name, so name-addressed delegation ("have Artisan add an idempotency key")
+  routes to the right specialist.
+- **"Meet the Guild" roster in the README** — name ↔ agent ↔ namesake table, plus names in the
+  file-tree annotations.
+
+### Changed
+
+- **`/board` dashboard shows guild names.** Runs render as "Dusk · qa-engineer" (name bold,
+  slug muted), avatars use the guild name's first two letters, and agent lookups now strip a
+  plugin namespace prefix (`laravel-team:qa-engineer`) before resolving colors/names — fixing
+  fallback-gray avatars when installed as a plugin.
+- `docs/authoring-agents.md` records the convention: new agents pick an unused ecosystem name
+  and register it in the README roster and `board.html`'s `GUILD` map.
+
 ## [1.13.0] - 2026-07-08
 
 The 1.12.0 progress board, upgraded from text to glass: a live HTML dashboard you can leave

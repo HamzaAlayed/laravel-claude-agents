@@ -43,7 +43,7 @@ APIs, partial failures.
 **Human checkpoint required:** authn, authz, billing, PII, tenant isolation, money.
 ```
 
-The body opens with a one-line role statement (no heading), then the standard sections. The `description` is load-bearing: it is what the orchestrator routes on, so it must state the role *and* the conditions under which the agent should fire proactively.
+The body opens with the guild identity line (`You are **<Name>** — the Guild's <role>.`), then a one-line role statement (no heading), then the standard sections. Every agent has a guild name — the Laravel-ecosystem tool closest to its craft (see the README roster); when authoring a new agent, pick an unused ecosystem name and add it to the README table and `scripts/board.html`'s `GUILD` map. The `description` is load-bearing: it is what the orchestrator routes on, so it must state the role *and* the conditions under which the agent should fire proactively — and it opens with the same guild name (`<Name> — the Guild's <role>. …`) so name-addressed delegation ("have Artisan …") routes correctly.
 
 ## The house voice
 

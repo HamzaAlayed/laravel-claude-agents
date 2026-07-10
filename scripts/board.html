@@ -1,4 +1,4 @@
-<!doctype html>
+drtdd<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8">
@@ -57,6 +57,7 @@
   }
   .who { min-width: 0; }
   .who .agent { font-weight: 600; font-size: 14px; }
+  .who .agent .slug { color: var(--muted); font-weight: 400; font-size: 12px; }
   .who .task { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   .meta { text-align: right; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
   .meta .dur { color: var(--text); font-weight: 600; }
@@ -94,9 +95,22 @@ const COLORS = {
   "business-analyst": "#14b8a6",   "product-owner": "#f43f5e",
   "ui-ux-designer": "#d946ef"
 };
+const GUILD = {
+  "backend-developer": "Artisan",     "frontend-developer": "Blade",
+  "database-developer": "Eloquent",   "qa-engineer": "Dusk",
+  "devops-engineer": "Forge",         "tech-lead": "Telescope",
+  "security-engineer": "Fortify",     "performance-engineer": "Octane",
+  "delivery-coordinator": "Envoy",    "solution-architect": "Blueprint",
+  "technical-writer": "Scribe",       "scrum-master": "Pulse",
+  "mobile-developer": "Passport",     "package-developer": "Composer",
+  "business-analyst": "Scout",        "product-owner": "Horizon",
+  "ui-ux-designer": "Breeze"
+};
 const FALLBACK = ["#64748b", "#0891b2", "#7c3aed", "#059669", "#d97706"];
-const color = a => COLORS[a] || FALLBACK[[...a].reduce((h, c) => h + c.charCodeAt(0), 0) % FALLBACK.length];
-const initials = a => a.split("-").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+const base = a => a.split(":").pop();  // "laravel-team:qa-engineer" -> "qa-engineer"
+const color = a => COLORS[base(a)] || FALLBACK[[...a].reduce((h, c) => h + c.charCodeAt(0), 0) % FALLBACK.length];
+const initials = a => GUILD[base(a)] ? GUILD[base(a)].slice(0, 2)
+  : base(a).split("-").map(w => w[0]).join("").slice(0, 2).toUpperCase();
 const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const fmtDur = ms => ms == null ? "" : ms < 60000 ? (ms / 1000).toFixed(ms < 10000 ? 1 : 0) + "s"
   : Math.floor(ms / 60000) + "m " + Math.round(ms % 60000 / 1000) + "s";
@@ -146,7 +160,7 @@ function render(sessions) {
         : `<span class="dur">${fmtDur((now - r.start) * 1000)}</span> · working`;
       return `<div class="run ${r.done ? "" : "running"}" style="--dot:${color(r.agent)}">
         <div class="avatar">${initials(r.agent)}</div>
-        <div class="who"><div class="agent">${esc(r.agent)}</div><div class="task">${esc(r.task || "")}</div></div>
+        <div class="who"><div class="agent">${esc(GUILD[base(r.agent)] || r.agent)}${GUILD[base(r.agent)] ? ` <span class="slug">${esc(base(r.agent))}</span>` : ""}</div><div class="task">${esc(r.task || "")}</div></div>
         <div class="meta">${meta}</div></div>`;
     }).join("");
     const when = new Date(s.first * 1000).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
