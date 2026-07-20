@@ -12,7 +12,7 @@ commands/            Slash command definitions — one .md file per command, wit
 scripts/             Guardrail bash hooks (PreToolUse / etc.) — block dangerous operations
 CLAUDE.md.template   The project-rules template a consumer drops into their repo
 install.sh           One-click installer that copies the pack into a target project
-tests/               Zero-dependency test harness covering the guardrail scripts
+tests/               Guardrail test harness + eval harness (tests/eval/) + planted-flaw fixture app (tests/fixture-app/)
 ```
 
 - **agents/** — Each `.md` file is one subagent. Frontmatter declares its identity and capabilities; the body is the prompt that defines its behavior.
@@ -101,6 +101,15 @@ shellcheck install.sh             # lint the installer
 ```
 
 `tests/guardrails.test.sh` is a pure-bash harness — no `bats`, no install step — so it runs identically on your laptop and in CI. It covers every guardrail script, including the no-`jq`/no-`python3` fallback path. If you change a script's behavior, add or update its assertion. If you add a script, add tests for it. CI (`.github/workflows/ci.yml`) runs the same harness twice: once normally, once with `jq` removed.
+
+For changes to **agent bodies, commands, or model tiers**, also run the eval harness — it exercises real headless agent runs against the planted-flaw fixture app and catches quality regressions the static checks can't:
+
+```sh
+./tests/eval/run-evals.sh --list   # see the cases
+./tests/eval/run-evals.sh          # run them (real billed agent runs — minutes each)
+```
+
+See [`tests/eval/README.md`](tests/eval/README.md) for the answer key and how to add cases. Keep answer-key hints **out of** `tests/fixture-app/` — agents under evaluation can read the fixture.
 
 ## Commits and pull requests
 

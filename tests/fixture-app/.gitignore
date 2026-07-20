@@ -1,0 +1,9 @@
+/vendor
+/node_modules
+/.claude
+/scripts
+/docs
+CLAUDE.md
+composer.lock
+.env
+.phpunit.result.cache

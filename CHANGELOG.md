@@ -5,6 +5,53 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.15.0] - 2026-07-20
+
+The pack stops taking its own word for it. After five releases of scaffolding around the
+agents, this one measures the agents themselves: a real eval harness that runs them headless
+against a deliberately flawed Laravel app — plus the first speed pass on the delivery
+pipeline, informed by what the timing data feeds back.
+
+### Added
+
+- **Fixture app** (`tests/fixture-app/`) — a small Laravel 13 blog (PHP 8.3, Pest 4) with five planted flaws:
+  an N+1 in the posts index (Blade loop reading `user` + `comments` with no eager load), an
+  unguarded `update` route (no Policy, no `authorize()`), mass assignment (`$guarded = []`
+  + `$request->all()`), a fat `store()` (inline validation, slug loop, mail fan-out, stats
+  bookkeeping), and zero test coverage on the `posts.*` routes. The answer key deliberately
+  lives in `tests/eval/README.md`, **not** in the fixture — agents under evaluation can't
+  read what they're being graded on.
+- **Eval harness** (`tests/eval/run-evals.sh`) — four cases (`n-plus-one`, `policy`,
+  `action`, `tests`), each: copy the fixture to a throwaway workdir, install the pack into
+  it, run one headless `claude -p "/<command> …"`, assert against the answer key (agent
+  output *and* files on disk). Every run is timed; results, diffs, and the
+  `agents-board.jsonl` per-agent event stream land in a gitignored results dir. Manual by
+  design — every case is a real billed agent run — with a `--list` mode, per-case selection,
+  timeout, and `KEEP_WORKDIR=1` inspection. CI shellchecks it (`tests/eval/*.sh` added to
+  the strict pass).
+- **First eval findings** at `docs/evals/` — what the agents caught, what they missed, and
+  where the wall-clock went, feeding the next speed pass.
+
+### Changed
+
+- **Coordinator fast path.** A single-specialist, no-checkpoint ask that lands on
+  `delivery-coordinator` no longer pays for the pipeline: one precise brief, relay the
+  stage return, done — no board, no delivery log. The description now advertises this so
+  auto-delegation stops treating the coordinator as mandatory overhead.
+- **`/make-feature` pipeline parallelized.** Database stage still leads (everything reads
+  its schema), but backend + frontend now run **in parallel** against the migration's field
+  list + planned route names as contract (they touch disjoint paths), and tech-lead review
+  runs **in parallel with** qa-engineer's test stage (review needs the implementation diff,
+  not the tests). Worst-case five sequential stages become three.
+- **Full suite runs once.** Coordinator verification uses filtered tests + `pint --test
+  --dirty` per stage; the full suite runs a single time at final integration — the
+  per-stage full-suite rerun was the biggest wall-clock sink in a multi-stage delivery.
+
+### Fixed
+
+- Stray characters (`drtdd`) before the doctype in `scripts/board.html` rendered as
+  visible text at the top of the `/board` dashboard.
+
 ## [1.14.0] - 2026-07-09
 
 The guild gets names. Every agent is now a character you can address directly — named after

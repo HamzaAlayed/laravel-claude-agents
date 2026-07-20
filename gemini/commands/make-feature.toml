@@ -19,7 +19,7 @@ Scaffold the feature described by `{{args}}` end-to-end, using the right special
 
 2. **Brief `business-analyst`** *only if* the feature ask is vague. Otherwise skip — this is a scaffold, not discovery.
 
-3. **Delegate in this order, sequentially:**
+3. **Delegate in dependency order — not one long chain.** Stage a first (everything reads its schema). Stages b and c run **in parallel** — they touch disjoint paths (backend owns `app/` + `routes/`, frontend owns `resources/`), and the migration's field list + planned route names are contract enough for the frontend to build against. Carry the paradigm detected in step 1 and the stack snapshot in **every** brief so no specialist re-reads `composer.json`/configs.
 
    ### a. `database-developer`
    - Design and write the migration (reversible, indexed, constraints explicit)
@@ -34,17 +34,17 @@ Scaffold the feature described by `{{args}}` end-to-end, using the right special
    - Route registration in `routes/web.php`, `routes/api.php`, or both
    - Wire the Policy in `AuthServiceProvider` if the project doesn't auto-discover
 
-   ### c. `frontend-developer` (skipped for `--api`)
+   ### c. `frontend-developer` (skipped for `--api`; runs in parallel with b — brief it with the field list + route names as its contract)
    - **Inertia:** page components in `resources/js/Pages/<Feature>/{Index,Show,Create,Edit}.{vue,jsx,tsx}` with `useForm`, server-driven validation errors, and shared layout
    - **Livewire:** components under `app/Livewire/<Feature>/` with computed properties, `#[Rule]` attributes, loading/error states
    - **Blade:** views under `resources/views/<feature>/` using existing component library
 
-   ### d. `qa-engineer`
+   ### d. `qa-engineer` (starts once b + c land)
    - Feature test covering happy path, validation failure, authorization denial, and DB state
    - Factory state used; `RefreshDatabase` per the project pattern
    - Livewire/Inertia assertion helpers as appropriate
 
-4. **Brief `tech-lead`** for review when the four phases are done.
+4. **Brief `tech-lead`** for review of the implementation diff **in parallel with stage d** — review needs the b + c diff, not the tests; qa's tests are verified by running them. Run the full suite once, after both return — not after every stage.
 
 ## Guardrails
 

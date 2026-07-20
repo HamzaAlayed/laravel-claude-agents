@@ -14,7 +14,7 @@ jobs:
       - name: Run shellcheck on guardrail scripts and tests (strict)
         run: |
           shellcheck --version
-          shellcheck scripts/*.sh tests/*.sh gemini/scripts/*.sh codex/install-codex.sh codex/.codex/hooks/*.sh
+          shellcheck scripts/*.sh tests/*.sh tests/eval/*.sh gemini/scripts/*.sh codex/install-codex.sh codex/.codex/hooks/*.sh
       - name: Run shellcheck on installer (errors only)
         run: shellcheck --severity=error install.sh
 
