@@ -18,9 +18,8 @@ grep -q 'laravel/boost' composer.json && echo "Boost present" || echo "Boost abs
 ```
 
 - **If Boost is present** (requires `^2.0`), recommend running its upgrade command for the matching jump, then come back for the surrounding work (package compat, structural migration audit, verification):
-  - Laravel 12 → 13: `/upgrade-laravel-v13`
-  - Livewire 3 → 4: `/upgrade-livewire-v4`
-  - Inertia v2 → v3: `/upgrade-inertia-v3`
+  - Laravel 12 → 13: `/upgrade-laravel-v13` (doc-backed)
+  - Other jumps (Livewire, Inertia, older targets): check Boost's current command list — don't assume a command exists for the jump
 - **If Boost is absent**, suggest installing it for the bump: `composer require laravel/boost --dev && php artisan boost:install`.
 - **If no Boost command covers this jump** (older targets, or non-framework work), use the staged plan below directly.
 
@@ -39,6 +38,7 @@ Either way, this command owns the parts Boost doesn't: PHP-runtime readiness, fi
    - **Deprecated / removed helpers + methods** — search `app/`, `routes/`, `tests/`, `config/` for the removed signatures.
    - **Changed method signatures** — middleware, validation rules, casts, contracts.
    - **Config changes** — diff your `config/*.php` against the target skeleton; note new keys + changed defaults.
+   - **If targeting Laravel 13:** PHP floor is 8.3 (supports 8.3–8.5); required bumps include `laravel/framework ^13.0`, `laravel/tinker ^3.0`, **`phpunit/phpunit ^12.0` / `pestphp/pest ^4.0`** (the test framework gates the bump too), and the Laravel installer itself. Named grep targets: `VerifyCsrfToken`/`ValidateCsrfToken` → renamed `PreventRequestForgery` (deprecated aliases remain — update direct references, especially middleware exclusions in tests/routes); default cache/Redis key prefixes and the session cookie name change to hyphenated forms → pin `CACHE_PREFIX`, `REDIS_PREFIX`, `SESSION_COOKIE` or expect cold caches + logged-out sessions on deploy.
    - **If coming from Laravel 10 → 11+:** the structural migration is the big one. `bootstrap/app.php` replaces `app/Http/Kernel.php` + `app/Console/Kernel.php` (middleware, exception handling, scheduling move there). `routes/console.php` for the scheduler. New streamlined `config/` (only published files override). Inventory custom Kernel middleware, exception handler customizations, and scheduled tasks that must move.
    - **PHP version bump** — readiness of `declare(strict_types)`, enums, readonly usage.
 

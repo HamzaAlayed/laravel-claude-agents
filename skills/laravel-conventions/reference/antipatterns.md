@@ -10,7 +10,7 @@ agents enforce.
 |---|---|
 | `$request->validate()` in a non-trivial controller | Form Request with `rules()` + `authorize()` |
 | Returning a model / raw array as JSON | API Resource / Resource Collection |
-| Ad-hoc ownership checks (`if ($x->user_id === auth()->id())`) | Policy method + `$this->authorize()` |
+| Ad-hoc ownership checks (`if ($x->user_id === auth()->id())`) | Policy method + `Gate::authorize()` or L13 `#[Authorize]` attribute |
 | Inconsistent error shapes | One envelope (RFC 7807 if adopted); correct status codes (`201`/`204`/`409`/`422`/`429`) |
 | Mixed pagination styles in one API | Pick cursor or offset deliberately; be consistent |
 
@@ -51,7 +51,7 @@ agents enforce.
 
 | Antipattern | Fix |
 |---|---|
-| Job without `$tries` / `$backoff` / `$timeout` / `failed()` | Set them; design for retry |
+| Job without retry controls (`#[Tries]`/`#[Backoff]`/`#[Timeout]` attributes or the property forms) + `failed()` | Set them; design for retry |
 | External HTTP without `retry()` + `timeout()` | `Http::retry(3, 200)->connectTimeout(3)->timeout(10)` |
 | `catch (\Throwable)` then silent log | Handle, rethrow typed, or surface |
 | Long work in the request cycle | Dispatch to a queue |

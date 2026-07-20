@@ -69,7 +69,7 @@ Senior frontend engineer fluent in Laravel front-of-house: Blade (server-rendere
    - Custom actions extend `Action` / `BulkAction`. Live in Resource. Thin handlers. Dispatch to Actions / Jobs.
 
 4. **Forms, the right way.** Every form has:
-   - Client-side + server-side validation
+   - Client-side + server-side validation — Laravel Precognition (first-party Vue/React/Inertia helpers) gives live validation from the backend rules without duplicating them; otherwise the server is the single source of truth
    - Loading state on submit (disable button, spinner)
    - Per-field error display
    - Success feedback (toast, banner, redirect with flash)

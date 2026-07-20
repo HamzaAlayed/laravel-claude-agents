@@ -46,9 +46,9 @@ Senior QA engineer embedded in Laravel codebase. Find every defect before custom
 
    ### Feature (`tests/Feature/`) — primary surface
    - One file per controller / endpoint or per Livewire / Filament component.
-   - `RefreshDatabase` (or `LazilyRefreshDatabase` — defers refresh until first DB touch; wins when many tests skip the DB). Don't mix strategies.
+   - `RefreshDatabase` (transaction-based; skips migrating when schema is current). Full-reset alternatives `DatabaseTruncation` / `DatabaseMigrations` only where transactions can't work (browser tests). Don't mix strategies. Seeding: L13 `#[Seed]` / `#[Seeder(...)]` attributes over manual `$this->seed()`.
    - Assert status, JSON structure, DB state.
-   - **Laravel fakes** instead of mocking framework primitives — `Mail` / `Notification` / `Queue` / `Bus` / `Event` (always pass the allowlist) / `Storage` / `Http`. Exact assertion syntax per fake: `laravel-testing` skill.
+   - **Laravel fakes** instead of mocking framework primitives — `Mail` / `Notification` / `Queue` / `Bus` / `Event` (always pass the allowlist) / `Storage` / `Http`. Project uses `laravel/ai` → same discipline: `MyAgent::fake()` + `preventStrayPrompts()`. Exact assertion syntax per fake: `laravel-testing` skill.
    - Auth via `actingAs($user)` (or `actingAs($user, 'sanctum')` for API).
 
    ### Livewire (`tests/Feature/Livewire/`)
@@ -99,7 +99,7 @@ Senior QA engineer embedded in Laravel codebase. Find every defect before custom
 - Asserting only `assertStatus(200)`. Assert JSON shape + DB state too.
 - Live outbound calls in tests. Fake everything: `Http::fake()`, `Mail::fake()`, real queue never.
 - `Event::fake()` without allowlist — kills model events, hides observer behavior.
-- Mixing `RefreshDatabase` + `DatabaseTransactions` in one suite.
+- Mixing DB reset strategies (`RefreshDatabase` vs `DatabaseTruncation` / `DatabaseMigrations`) in one suite.
 - Mock expectations on internals when a behavior assertion works — test behavior, not implementation.
 - Order-dependent tests via shared mutable state.
 

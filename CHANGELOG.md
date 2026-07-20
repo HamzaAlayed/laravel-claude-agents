@@ -47,8 +47,34 @@ pipeline, informed by what the timing data feeds back.
   --dirty` per stage; the full suite runs a single time at final integration — the
   per-stage full-suite rerun was the biggest wall-clock sink in a multi-stage delivery.
 
+- **Laravel 13 verification sweep.** Five parallel auditors checked every Laravel-specific
+  claim in the pack (~290 claims across 8 skills, 17 agent bodies, 4 commands) against a
+  local checkout of the official `laravel/docs` 13.x branch. Doc-backed upgrades landed
+  across the board: `#[Authorize]`/`#[Middleware]`/`#[UsePolicy]` as first-class authz
+  surfaces (reviewers no longer flag attribute-based coverage as missing), queue attribute
+  forms (`#[Tries]`/`#[Backoff]`/`#[Timeout]`/`#[DebounceFor]`) + `Queue::route()` central
+  routing, JSON:API resources, the `Context` facade for trace propagation, `Concurrency::run()`
+  (with `Octane::concurrently` correctly scoped to Swoole), `Cache::memo()`/`Cache::touch()`,
+  automatic relationship autoloading as an N+1 net, `->online()` index creation, vector
+  columns + `whereVectorSimilarTo`, the first-party AI SDK (`laravel/ai`) as the
+  build-vs-buy baseline, `php artisan reload`, `schedule:interrupt`, `queue:pause`,
+  Precognition for live form validation, Sanctum expiration checks, and `APP_PREVIOUS_KEYS`
+  key rotation.
+
 ### Fixed
 
+- **Doc-verification drift (Laravel 13 sweep).** `$this->authorize()` recommended on
+  controllers without the trait → `Gate::authorize()`/`#[Authorize]`; `validateCsrfTokens`
+  → renamed `preventRequestForgery` (middleware `VerifyCsrfToken` → `PreventRequestForgery`,
+  now origin-aware via `Sec-Fetch-Site`); "APP_KEY rotation requires re-encrypting" →
+  `APP_PREVIOUS_KEYS` graceful fallback; hand-rolled `CREATE INDEX CONCURRENTLY` advice →
+  L13 `->online()` modifier; ship-checklist's chained `config:cache route:cache view:cache
+  event:cache` line (errors out — artisan takes one command) → `php artisan optimize`;
+  schedule location corrected to `routes/console.php`; Envoy/Envoyer platform detection
+  unconflated; undocumented APIs (`shouldBeStrict`, `LazilyRefreshDatabase`,
+  `DatabaseTransactions`, `factory()->raw()`, per-second limiters, Octane
+  `OperationTerminated` listeners) replaced with their doc-backed equivalents — noted as
+  undocumented rather than falsely called nonexistent where they still exist.
 - Stray characters (`drtdd`) before the doctype in `scripts/board.html` rendered as
   visible text at the top of the `/board` dashboard.
 

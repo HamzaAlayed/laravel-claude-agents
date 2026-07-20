@@ -29,14 +29,15 @@ Record: pass/fail, count of issues, time taken.
 
 ### 3. Queue / scheduler topology
 - `config/queue.php`, `config/horizon.php` — supervisors match expected workload?
-- `app/Console/Kernel.php` (or `bootstrap/app.php` for L11+) — any new scheduled tasks? Are they `withoutOverlapping()` and `onOneServer()` where they need to be?
-- Are any new jobs missing `$tries`, `$backoff`, or `$timeout`?
+- `routes/console.php` (or `withSchedule()` in `bootstrap/app.php`; `app/Console/Kernel.php` only on legacy ≤ L10 apps) — any new scheduled tasks? Are they `withoutOverlapping()` and `onOneServer()` where they need to be?
+- Are any new jobs missing `$tries`, `$backoff`, or `$timeout`? (Or their L13 attribute forms `#[Tries]`, `#[Backoff]`, `#[Timeout]`.)
+- Deploy step restarts long-running services? (`php artisan reload` on L13 — workers, Reverb, Octane in one command; older: `queue:restart` / `horizon:terminate` / `octane:reload`.)
 
 ### 4. Configuration & secrets
 - `.env.example` updated for every new `env()` key referenced in `config/*.php`?
 - Any new `env()` calls outside `config/*.php`? (Run `grep -rn "env(" app/ routes/ resources/`.) Block on findings — these break under `config:cache`.
 - `APP_DEBUG=false` in production env?
-- `php artisan config:cache route:cache view:cache event:cache` runs clean against the production config?
+- `php artisan optimize` runs clean against the production config? (One command — caches config, events, routes, and views; chaining the four `*:cache` commands in one artisan call errors out.)
 
 ### 5. Security smoke
 - `composer audit`

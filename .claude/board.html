@@ -1,0 +1,198 @@
+drtdd<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laravel Guild — Agents Board</title>
+<style>
+  :root {
+    --bg: #0b0e14; --card: #131824; --card-2: #0f141f; --text: #e6e9f0;
+    --muted: #8b93a7; --line: #232b3d; --accent: #f59e0b; --ok: #22c55e;
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --bg: #f6f7f9; --card: #ffffff; --card-2: #f0f2f6; --text: #1a2233;
+      --muted: #64708a; --line: #e3e7ef; --accent: #b45309; --ok: #15803d;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; }
+  body {
+    background: var(--bg); color: var(--text);
+    font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+    padding: 28px 20px 60px; max-width: 880px; margin: 0 auto;
+  }
+  header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 6px; }
+  h1 { font-size: 20px; letter-spacing: .2px; }
+  .live { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+  .live i { width: 8px; height: 8px; border-radius: 50%; background: var(--ok); display: inline-block; animation: pulse 1.6s ease-in-out infinite; }
+  .live.stale i { background: var(--muted); animation: none; }
+  @keyframes pulse { 0%,100% { opacity: 1; transform: scale(1);} 50% { opacity: .35; transform: scale(.8);} }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 14px 0 26px; }
+  .chip {
+    background: var(--card); border: 1px solid var(--line); border-radius: 999px;
+    padding: 4px 14px; font-size: 13px; color: var(--muted);
+  }
+  .chip b { color: var(--text); font-variant-numeric: tabular-nums; }
+  .session { margin-bottom: 26px; }
+  .session > h2 {
+    font-size: 12px; text-transform: uppercase; letter-spacing: .12em;
+    color: var(--muted); margin-bottom: 10px; font-weight: 600;
+  }
+  .runs { display: flex; flex-direction: column; gap: 8px; }
+  .run {
+    display: grid; grid-template-columns: 34px 1fr auto; align-items: center; gap: 12px;
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    padding: 10px 16px; animation: enter .25s ease;
+  }
+  .run.running { border-color: color-mix(in srgb, var(--dot) 45%, var(--line)); }
+  @keyframes enter { from { opacity: 0; transform: translateY(4px);} to { opacity: 1; transform: none;} }
+  .avatar {
+    width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
+    font-size: 12px; font-weight: 700; color: #fff;
+    background: var(--dot, #64748b); position: relative;
+  }
+  .run.running .avatar::after {
+    content: ""; position: absolute; inset: -4px; border-radius: 13px;
+    border: 2px solid var(--dot); opacity: .5; animation: pulse 1.4s ease-in-out infinite;
+  }
+  .who { min-width: 0; }
+  .who .agent { font-weight: 600; font-size: 14px; }
+  .who .agent .slug { color: var(--muted); font-weight: 400; font-size: 12px; }
+  .who .task { color: var(--muted); font-size: 13px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .meta { text-align: right; font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .meta .dur { color: var(--text); font-weight: 600; }
+  .tag {
+    display: inline-block; font-size: 11px; border: 1px solid var(--line);
+    border-radius: 6px; padding: 0 6px; margin-left: 6px; color: var(--muted);
+  }
+  .empty {
+    background: var(--card-2); border: 1px dashed var(--line); border-radius: 14px;
+    padding: 36px 24px; text-align: center; color: var(--muted);
+  }
+  .empty code { color: var(--text); background: var(--card); padding: 1px 7px; border-radius: 6px; }
+  footer { margin-top: 34px; font-size: 12px; color: var(--muted); text-align: center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Laravel Guild — Agents Board</h1>
+  <span class="live" id="live"><i></i><span id="liveText">connecting…</span></span>
+</header>
+<div class="chips" id="chips"></div>
+<main id="board"></main>
+<footer>Events stream from <code>.claude/agents-board.jsonl</code>, written by the <code>emit-agent-events</code> hook on every subagent start / finish.</footer>
+
+<script>
+"use strict";
+const COLORS = {
+  "backend-developer": "#22c55e",  "frontend-developer": "#06b6d4",
+  "database-developer": "#eab308", "qa-engineer": "#f97316",
+  "devops-engineer": "#ef4444",    "tech-lead": "#0ea5e9",
+  "security-engineer": "#dc2626",  "performance-engineer": "#ec4899",
+  "delivery-coordinator": "#f59e0b","solution-architect": "#8b5cf6",
+  "technical-writer": "#10b981",   "scrum-master": "#84cc16",
+  "mobile-developer": "#3b82f6",   "package-developer": "#a855f7",
+  "business-analyst": "#14b8a6",   "product-owner": "#f43f5e",
+  "ui-ux-designer": "#d946ef"
+};
+const GUILD = {
+  "backend-developer": "Artisan",     "frontend-developer": "Blade",
+  "database-developer": "Eloquent",   "qa-engineer": "Dusk",
+  "devops-engineer": "Forge",         "tech-lead": "Telescope",
+  "security-engineer": "Fortify",     "performance-engineer": "Octane",
+  "delivery-coordinator": "Envoy",    "solution-architect": "Blueprint",
+  "technical-writer": "Scribe",       "scrum-master": "Pulse",
+  "mobile-developer": "Passport",     "package-developer": "Composer",
+  "business-analyst": "Scout",        "product-owner": "Horizon",
+  "ui-ux-designer": "Breeze"
+};
+const FALLBACK = ["#64748b", "#0891b2", "#7c3aed", "#059669", "#d97706"];
+const base = a => a.split(":").pop();  // "laravel-team:qa-engineer" -> "qa-engineer"
+const color = a => COLORS[base(a)] || FALLBACK[[...a].reduce((h, c) => h + c.charCodeAt(0), 0) % FALLBACK.length];
+const initials = a => GUILD[base(a)] ? GUILD[base(a)].slice(0, 2)
+  : base(a).split("-").map(w => w[0]).join("").slice(0, 2).toUpperCase();
+const esc = s => s.replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmtDur = ms => ms == null ? "" : ms < 60000 ? (ms / 1000).toFixed(ms < 10000 ? 1 : 0) + "s"
+  : Math.floor(ms / 60000) + "m " + Math.round(ms % 60000 / 1000) + "s";
+const fmtTok = t => t == null ? "" : t >= 1000 ? (t / 1000).toFixed(1) + "k tok" : t + " tok";
+
+let lastText = null;
+
+function pair(events) {
+  // Order-preserving start/end pairing per session.
+  const sessions = new Map();
+  for (const e of events) {
+    if (!e || !e.agent) continue;
+    if (!sessions.has(e.sid)) sessions.set(e.sid, { sid: e.sid, runs: [], first: e.ts, last: e.ts });
+    const s = sessions.get(e.sid);
+    s.last = e.ts;
+    if (e.ev === "start") {
+      s.runs.push({ agent: e.agent, task: e.task, start: e.ts, done: false });
+    } else {
+      let r = s.runs.find(r => !r.done && r.agent === e.agent && r.task === e.task)
+           || s.runs.find(r => !r.done && r.agent === e.agent);
+      if (!r) { r = { agent: e.agent, task: e.task, start: e.ts }; s.runs.push(r); }
+      r.done = true;
+      r.ms = e.ms != null ? e.ms : (e.ts - r.start) * 1000;
+      r.tokens = e.tokens;
+      r.bg = e.status === "async_launched";
+    }
+  }
+  return [...sessions.values()].sort((a, b) => b.last - a.last);
+}
+
+function render(sessions) {
+  const board = document.getElementById("board");
+  if (!sessions.length) {
+    board.innerHTML = `<div class="empty">No agent activity yet.<br>
+      Run a workflow command (<code>/make-feature</code>, <code>/review-pr</code>, …)
+      or the <code>delivery-coordinator</code> — events appear here live.</div>`;
+    document.getElementById("chips").innerHTML = "";
+    return;
+  }
+  const now = Date.now() / 1000;
+  let running = 0, done = 0, tokens = 0;
+  const html = sessions.map((s, i) => {
+    const rows = [...s.runs].reverse().map(r => {
+      if (!r.done) running++; else { done++; tokens += r.tokens || 0; }
+      const meta = r.done
+        ? `<span class="dur">${fmtDur(r.ms)}</span>${r.tokens ? " · " + fmtTok(r.tokens) : ""}${r.bg ? '<span class="tag">background</span>' : ""}`
+        : `<span class="dur">${fmtDur((now - r.start) * 1000)}</span> · working`;
+      return `<div class="run ${r.done ? "" : "running"}" style="--dot:${color(r.agent)}">
+        <div class="avatar">${initials(r.agent)}</div>
+        <div class="who"><div class="agent">${esc(GUILD[base(r.agent)] || r.agent)}${GUILD[base(r.agent)] ? ` <span class="slug">${esc(base(r.agent))}</span>` : ""}</div><div class="task">${esc(r.task || "")}</div></div>
+        <div class="meta">${meta}</div></div>`;
+    }).join("");
+    const when = new Date(s.first * 1000).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
+    return `<section class="session"><h2>${i === 0 ? "current session" : "session"} · ${when} · ${s.sid}</h2>
+      <div class="runs">${rows}</div></section>`;
+  }).join("");
+  board.innerHTML = html;
+  document.getElementById("chips").innerHTML =
+    `<span class="chip">▶ running <b>${running}</b></span>
+     <span class="chip">✔ completed <b>${done}</b></span>
+     <span class="chip">Σ <b>${fmtTok(tokens) || "0 tok"}</b></span>`;
+}
+
+async function tick() {
+  const live = document.getElementById("live"), liveText = document.getElementById("liveText");
+  try {
+    const res = await fetch("agents-board.jsonl", { cache: "no-store" });
+    if (!res.ok) throw new Error(res.status);
+    const text = await res.text();
+    live.classList.remove("stale"); liveText.textContent = "live";
+    if (text === lastText) { render(current); return; }
+    lastText = text;
+    current = pair(text.split("\n").filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }));
+    render(current);
+  } catch {
+    live.classList.add("stale"); liveText.textContent = "waiting for events";
+    render(current);
+  }
+}
+let current = [];
+tick();
+setInterval(tick, 1500);
+</script>
+</body>
+</html>

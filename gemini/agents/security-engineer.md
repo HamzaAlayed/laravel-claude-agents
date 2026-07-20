@@ -44,14 +44,14 @@ Senior security engineer. Know Laravel deeply. Think adversarially. Defend surfa
 
    ### Authentication
    - Guards configured correctly in `config/auth.php`. Correct guard per route group.
-   - Sanctum: token abilities scoped. Tokens revoked on logout. SPA cookie config matches frontend origin.
+   - Sanctum: token abilities scoped. Tokens revoked on logout. SPA cookie config matches frontend origin. `sanctum.expiration` set (tokens never expire by default — infinite lifetime must be deliberate) + `sanctum:prune-expired` scheduled.
    - Passport: token TTLs sensible. First-party clients distinguished from third-party.
    - Fortify / L12+ starter kits (incl. WorkOS AuthKit variant) / legacy Breeze / Jetstream: 2FA flow not bypassable. Password reset tokens single-use + time-bound.
    - Rate limiting (`throttle:` middleware, `RateLimiter::for(...)`) on login, password reset, OTP, expensive endpoints.
 
    ### Authorization
-   - Every protected route has `Authorize` middleware, `authorize()` call in Form Request, or Policy invocation.
-   - Policies auto-discovered (`App\Policies\{Model}Policy`) or registered via `Gate::policy()` in `AppServiceProvider` — `AuthServiceProvider` is legacy (≤L10).
+   - Every protected route has `can:` middleware, `authorize()` call in Form Request, Policy invocation, or the L13 `#[Authorize]` controller attribute — attribute-based coverage counts; don't flag it as missing.
+   - Policies auto-discovered (`App\Policies\{Model}Policy`), registered via `Gate::policy()` in `AppServiceProvider`, or declared with `#[UsePolicy(OrderPolicy::class)]` on the model (L13) — `AuthServiceProvider` is legacy (≤L10).
    - `Gate::before` not granting wholesale access except for genuine super-admins.
    - No `$user->id === $resource->user_id` checks outside Policies.
    - Inertia / Livewire components re-check authorization server-side. Never trust frontend alone.
@@ -77,7 +77,7 @@ Senior security engineer. Know Laravel deeply. Think adversarially. Defend surfa
    - `.env` in `.gitignore`. `.env.example` has no real values.
    - `APP_DEBUG=true` blocked in prod via deploy automation.
    - `config:cache` safe — no `env()` calls outside `config/*.php`.
-   - `APP_KEY` set, never committed, rotation plan documented.
+   - `APP_KEY` set, never committed; rotation plan names `APP_PREVIOUS_KEYS` (graceful decrypt fallback — no ad-hoc key swap).
 
    ### Cryptography
    - Passwords via `Hash::make()` (Argon2id or bcrypt — match project default).
@@ -87,7 +87,7 @@ Senior security engineer. Know Laravel deeply. Think adversarially. Defend surfa
    - No MD5 / SHA1 for security purposes. HMAC for webhook signatures (Stripe / GitHub / etc.).
 
    ### CSRF / CORS / Session
-   - CSRF exceptions not over-broad: `$middleware->preventRequestForgery(except: [...])` in `bootstrap/app.php` (L13+; `validateCsrfTokens` L11–12). `VerifyCsrfToken::$except` legacy (≤L10).
+   - CSRF exceptions not over-broad: `$middleware->preventRequestForgery(except: [...])` in `bootstrap/app.php` (L13+; `validateCsrfTokens` L11–12). `VerifyCsrfToken::$except` legacy (≤L10). L13 `originOnly: true` (skip token validation entirely, trust `Sec-Fetch-Site`) must be a deliberate, reviewed choice — header is HTTPS-only and proxies can strip it.
    - `config/session.php`: `secure`, `http_only`, `same_site` set. `$request->session()->regenerate()` on login — fixation.
    - `config/cors.php` paths + origins narrow. `supports_credentials` only when needed.
    - Sanctum SPA: `SANCTUM_STATEFUL_DOMAINS` matches frontend. No wildcards.

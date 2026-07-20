@@ -23,9 +23,9 @@ Framework opinionated. Follow grain. Don't fight it.
 - Convention over config. Use seams: Form Requests, Resources, Policies, Providers, Events, Jobs, Observers.
 - Skinny controllers. `input → action → response`. Logic in Actions (`App\Actions\...`) or Services. Never controllers. Rarely models.
 - `declare(strict_types=1);` every new file. Type every param, return. `readonly` on DTOs. Avoid `mixed`. Annotate arrays.
-- Eager-load list endpoints. `Model::shouldBeStrict()` in `AppServiceProvider::boot()` (non-prod). Never loop Collection for queries.
+- Eager-load list endpoints. `Model::preventLazyLoading(! app()->isProduction())` + `preventSilentlyDiscardingAttributes()` in `AppServiceProvider::boot()` (`shouldBeStrict()` is the undocumented shorthand for both). L13 adds `Model::automaticallyEagerLoadRelationships()` as framework-level N+1 mitigation. Never loop Collection for queries.
 - External calls: handle failure. Idempotency keys for retryable POSTs.
-- Structured logs: `Log::info('event.name', [...])`. Stable dotted names. Propagate request IDs HTTP → queue.
+- Structured logs: `Log::info('event.name', [...])`. Stable dotted names. Request IDs via `Context::add('trace_id', …)` in middleware — Context flows into logs and queued jobs automatically; don't hand-roll propagation.
 - Concurrency real. Protect read-then-write: `lockForUpdate()`, `Cache::lock()`, unique constraints, `ShouldBeUnique`. Document choice.
 - Report back distilled: files changed, contract summary (routes / Resources / jobs), pint / phpstan / test pass-fail counts, each failure as `file:line` + error + fix, open handoffs, checkpoint flags. Never raw diffs, full files, or log dumps.
 
@@ -35,15 +35,15 @@ Framework opinionated. Follow grain. Don't fight it.
 
 2. **Design contract first.**
    - HTTP: route, Form Request rules + `authorize()`, Resource shape, status codes (`201`, `204`, `409`, `422`, `429`), error envelope (RFC 9457 problem+json if used).
-   - Queue: `$tries`, `$backoff` (exponential array), `$timeout`, `$maxExceptions`, `ShouldBeUnique` + `uniqueFor`, `ShouldBeEncrypted` for PII, queue name.
+   - Queue: `$tries`, `$backoff` (exponential array), `$timeout`, `$maxExceptions` — or their L13 attribute forms `#[Tries]` / `#[Backoff]` / `#[Timeout]` / `#[FailOnTimeout]`; `ShouldBeUnique` + `uniqueFor` (or `#[UniqueFor]`), L13 `#[DebounceFor(30)]` to collapse rapid re-dispatch to the latest (mutually exclusive with `ShouldBeUnique`), `ShouldBeEncrypted` for PII, queue name (check L13 `Queue::route()` central routing first).
    - Console: typed signature, scheduler in `routes/console.php` (L11+), `withoutOverlapping()`, `onOneServer()`.
    - Broadcasting: payload, channel auth, `ShouldQueue` listeners.
 
 3. **Implement.**
    - Single-action invokable controllers for non-trivial endpoints.
    - Validation in `FormRequest`. `prepareForValidation()` to normalise. `passedValidation()` for derived fields.
-   - Authz via Policy + `Gate::authorize()` (L11+ base Controller is empty — `$this->authorize()` only if `AuthorizesRequests` trait already present) or FormRequest `authorize()`. No ad-hoc ownership checks.
-   - Response via `JsonResource` / `ResourceCollection`. `whenLoaded()`, `whenNotNull()`. Never return models directly.
+   - Authz via Policy + `Gate::authorize()` (L11+ base Controller is empty — `$this->authorize()` only if `AuthorizesRequests` trait already present), FormRequest `authorize()`, or L13's colocated `#[Authorize('update', 'post')]` / `#[Middleware]` controller attributes. No ad-hoc ownership checks.
+   - Response via `JsonResource` / `ResourceCollection`. `whenLoaded()`, `whenNotNull()`. Never return models directly. Spec-compliant APIs: L13 `make:resource --json-api` for first-party JSON:API resources.
    - Cursor pagination for large / infinite-scroll lists. Offset only when counts matter, table small.
    - Multi-row writes: `DB::transaction(fn () => ..., attempts: 3)`. Inside transaction, dispatch with `->afterCommit()`.
    - HTTP: `Http::withHeaders()->retry(3, 200, throw: false)->connectTimeout(3)->timeout(10)`. Check `successful()`. Log redacted body on failure. Tests: `Http::fake()`.
@@ -57,7 +57,7 @@ Framework opinionated. Follow grain. Don't fight it.
 4. **Eloquent rules.**
    - Eager-load: `with()`, `withCount`, `withExists`, `withAggregate`. Post-hoc: `loadMissing()`.
    - Prefer `whereRelation('posts', 'published', true)` over `whereHas` for single-column constraints.
-   - Reusable filters → scopes. Multi-tenancy / soft-delete-like → global scopes in `booted()`.
+   - Reusable filters → scopes (L13: `#[Scope]` on the method is the documented default, not the `scopeXxx` prefix). Multi-tenancy / soft-delete-like → global scopes via `#[ScopedBy]` or `booted()`.
    - Casts for non-string: `AsArrayObject`, `AsCollection`, custom `Castable`, `'hashed'`, `'encrypted'`.
    - New accessors via `Attribute::make(get:, set:)`. Don't refactor existing `getFooAttribute` unless touching that model anyway.
    - Large reads: `chunkById()` (not `chunk()` — unsafe with mutation), `lazy()`, `cursor()`.
@@ -74,7 +74,7 @@ Framework opinionated. Follow grain. Don't fight it.
    - Time: `$this->travelTo()`, `$this->freezeTime()`.
    - Factories with states + sequences. Never hand-build models.
    - Pest if project uses it, PHPUnit otherwise. Match existing.
-   - `RefreshDatabase` or `DatabaseTransactions` per project. No new strategy.
+   - DB reset strategy per project (`RefreshDatabase` default; `DatabaseTruncation` where transactions can't work). No new strategy.
 
 ## Security checklist
 
@@ -85,7 +85,7 @@ Framework opinionated. Follow grain. Don't fight it.
 - No `DB::raw` with concatenated input. Use bindings.
 - `ShouldBeEncrypted` for jobs carrying PII.
 - Named `RateLimiter::for(...)` on auth, password reset, expensive endpoints.
-- CSRF for web. Sanctum / Passport scopes for APIs.
+- CSRF for web (L13: `PreventRequestForgery`, origin-aware via `Sec-Fetch-Site` with token fallback). Sanctum / Passport scopes for APIs.
 - Secrets via `config()`.
 
 Authn / billing / PII / tenant / audit changes → **Security Engineer** before merge.
@@ -102,8 +102,9 @@ Authn / billing / PII / tenant / audit changes → **Security Engineer** before 
 Major version from `composer.json` decides. Unsure an API exists in the detected major → check docs, don't guess.
 
 - `bootstrap/app.php` for middleware, exceptions, routing. Not legacy Kernel.
-- Per-second rate limiters. Dynamic limiter resolution.
+- Named rate limiters with stacked limits + dynamic resolution (`Limit::perMinute/perHour/perDay`).
 - Reverb for WebSockets / broadcasting.
+- AI features → first-party `laravel/ai` SDK (agents, structured output, embeddings), not ad-hoc HTTP clients.
 - Folio / Volt only if already used.
 - `laravel/prompts` for interactive commands.
 - Octane: no static state in singletons. No request data in container bindings. `scoped()` over `singleton()` for per-request services.

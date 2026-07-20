@@ -15,11 +15,12 @@ This skill is the *up-front* guide (what to reach for while writing). For *after
 |---|---|---|
 | Validate request input | Form Request (`StoreOrderRequest`) | inline `$request->validate()` in a non-trivial controller |
 | Return JSON | API Resource (`OrderResource`) | the Eloquent model directly |
-| Authorize an action | Policy + `$this->authorize()` | ad-hoc `if ($order->user_id === auth()->id())` |
+| Authorize an action | Policy + `Gate::authorize()` or L13 `#[Authorize('update', 'post')]` attribute | ad-hoc `if ($order->user_id === auth()->id())`; `$this->authorize()` assumes a trait L11+ controllers don't have |
+| Controller-scoped middleware (L13) | `#[Middleware('auth')]` on class or method (`only:`/`except:`) | re-declaring per-route in `routes/*` |
 | Hold domain logic | Action / Service (`App\Actions\…`) | a fat controller or a model method that mutates many rows |
 | Read config / secrets | `config('services.x.key')` | `env()` outside `config/*.php` (breaks under `config:cache`) |
 | Branch on many cases | `match (true)` / if-else chain | nested ternaries |
-| Long-running work | queued Job (`$tries`, `$backoff`, `$timeout`, `failed()`) | doing it in the request |
+| Long-running work | queued Job — retry controls via L13 `#[Tries]`/`#[Backoff]`/`#[Timeout]` attributes (property forms still work) + `failed()`; rapid re-dispatch → `#[DebounceFor]`; central routing → `Queue::route()` | doing it in the request |
 | Feature toggle | Pennant | `app()->environment()` checks |
 | Schedule a task (L11+) | `routes/console.php` | the legacy `app/Console/Kernel.php` |
 | Wire middleware / exceptions (L11+) | `bootstrap/app.php` | the legacy HTTP/Console Kernels |
@@ -28,9 +29,9 @@ This skill is the *up-front* guide (what to reach for while writing). For *after
 
 - `declare(strict_types=1);` in every new PHP file. Type every parameter and return. Avoid `mixed`.
 - **Eager-load list endpoints.** N+1 is zero-tolerance. Turn on `Model::preventLazyLoading()` in non-prod. Use `with`, `withCount`, `withExists`, `withAggregate`.
-- **Never return Eloquent models from an API.** Always an API Resource.
-- **`$fillable` set deliberately.** No bare `$guarded = []` on user input.
-- **Authorization on every state-changing endpoint** via Policy + `authorize()`.
+- **Never return Eloquent models from an API.** Always an API Resource (L13 `make:resource --json-api` when spec compliance matters).
+- **`$fillable` set deliberately** (or L13 `#[Fillable([...])]`). No bare `$guarded = []` — and no `#[Unguarded]` — on user input.
+- **Authorization on every state-changing endpoint** via Policy + `Gate::authorize()` / `#[Authorize]`; `#[UsePolicy]` on the model when auto-discovery doesn't apply.
 - **`env()` only inside `config/*.php`.** Everywhere else: `config()`.
 - **Dispatch after commit.** Inside `DB::transaction`, queue with `->afterCommit()`.
 - **No debug residue.** No `dd()`, `dump()`, `ray()` committed.

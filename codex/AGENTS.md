@@ -162,7 +162,7 @@ tests/
 - **Artisan make:** always for new files. `--no-interaction` always. `--help` to discover params.
 - **Generic class:** `php artisan make:class`.
 - **New models:** create factory + seeder too. Ask user about other options via `make:model --help`.
-- **APIs:** Eloquent API Resources + API versioning by default. Unless existing routes don't, then follow convention.
+- **APIs:** Eloquent API Resources + API versioning by default (L13 first-party JSON:API resources where spec compliance matters). Unless existing routes don't, then follow convention.
 - **URLs:** named routes via `route()`. Frontend: Wayfinder typed functions. **No hardcoded URLs anywhere.**
 - **Mass assignment:** `$fillable` set deliberately. Never `Model::create($request->all())` without Form Request filtering.
 - **Authz:** Policy + `authorize()` for every state-changing endpoint. No ad-hoc ownership checks.

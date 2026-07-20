@@ -5,7 +5,7 @@ description: "The Laravel test-authoring cookbook — fakes with exact assertion
 
 # Laravel Testing Cookbook
 
-Match the project first: Pest vs PHPUnit from `composer.json`, DB strategy from existing tests (`RefreshDatabase` vs `DatabaseTransactions` vs `LazilyRefreshDatabase` — defers refresh until first DB touch). Never introduce a second runner or strategy.
+Match the project first: Pest vs PHPUnit from `composer.json`, DB strategy from existing tests (`RefreshDatabase` — transaction-based, skips migrating when the schema is current — vs `DatabaseMigrations` / `DatabaseTruncation`, both slower full resets needed for browser tests). Seeding: prefer L13's `#[Seed]` / `#[Seeder(OrderStatusSeeder::class)]` attributes over manual `$this->seed()` boilerplate; `#[UnitTest]` on a pure-logic method skips booting the app for just that test. Never introduce a second runner or strategy.
 
 ## Fakes — assertion syntax
 
@@ -32,7 +32,7 @@ Jobs: `Bus::fake()` proves dispatch; invoking `$job->handle()` directly proves e
 - States for variants: `OrderFactory::new()->paid()->forUser($user)`. Never hand-build models in tests.
 - `Sequence` for controlled variation: `->state(new Sequence(['status' => 'active'], ['status' => 'churned']))`.
 - Relationships: `->has(Post::factory()->count(3))` / `->for($team)`. `recycle($tenant)` to share one parent across the tree — the multi-tenant test essential.
-- `Model::factory()->raw()` for validation-payload arrays.
+- `Model::factory()->make()->getAttributes()` for validation-payload arrays (doc-backed; `->raw()` exists but is undocumented).
 
 ## Browser tests
 
@@ -48,6 +48,6 @@ Pest v4: `visit('/dashboard')->assertSee(…)`, plus free checks Dusk lacks — 
 ## Coverage that must exist
 
 - Every protected endpoint: one allowed + one denied authorization test (403), and an unauthenticated test (401) for APIs.
-- Every validation rule that guards money, quantity, or state: a failing-input test asserting `assertJsonValidationErrors`.
+- Every validation rule that guards money, quantity, or state: a failing-input test asserting `assertJsonValidationErrors` (APIs) or `assertInvalid` / `assertRedirectBackWithErrors` (classic web forms).
 - Every production bug: a regression test that fails on the old code. Name it after the bug.
 - Feature tests assert three layers: status, shape (`assertJsonPath`, `assertJsonStructure`), and DB state (`assertDatabaseHas`, `assertDatabaseCount`).

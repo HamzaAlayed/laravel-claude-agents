@@ -20,8 +20,9 @@ Index handoff to `database-developer`: the EXPLAIN plan, the query pattern + fre
 
 ## N+1
 
-- Detect: `Model::shouldBeStrict()` in non-prod throws on lazy loads; Pulse Slow Queries / Telescope Queries tab show the repeat pattern; `DB::listen(fn ($q) => Log::info('sql', ['sql' => $q->sql, 'ms' => $q->time]))` around a reproduction counts them.
-- Fix at source: `with()`, `withCount`, `withExists`, `withAggregate` on the list query; `loadMissing()` post-hoc; `whereRelation()` for single-column constraints.
+- Detect: `Model::preventLazyLoading(! app()->isProduction())` (plus `preventSilentlyDiscardingAttributes()`) in `AppServiceProvider::boot` throws on lazy loads in non-prod; Pulse Slow Queries / Telescope Queries tab show the repeat pattern; `DB::listen(fn ($q) => Log::info('sql', ['sql' => $q->sql, 'ms' => $q->time]))` around a reproduction counts them.
+- Fix at source: `with()`, `withCount`, `withExists`, `withAggregate` on the list query; `loadMissing()` post-hoc; `whereRelation()` for single-column constraints; multi-column OR chains → `whereAny` / `whereAll` / `whereNone` instead of PHP filtering.
+- L13 safety net: `Model::automaticallyEagerLoadRelationships()` globally, or `$collection->withRelationshipAutoloading()` per collection — auto lazy-eager-loads for the whole collection instead of per row. A net, not a substitute for explicit `with()` on known paths.
 - **Check overfetch after the fix**: eager-loading a fat relation to render one field, on 10k rows, trades N+1 for a memory bomb. Constrain: `with('author:id,name')`. Measure both ways.
 
 ## Reading big, writing big
@@ -34,6 +35,7 @@ Index handoff to `database-developer`: the EXPLAIN plan, the query pattern + fre
 
 1. Recomputed per request, cheap to invalidate → `Cache::remember($key, $ttl, $fn)`.
 2. Stampede-prone (hot key, expensive recompute) → `Cache::flexible($key, [$fresh, $stale], $fn)` — serves stale, recomputes in background.
+   - Same key hit repeatedly within one request/job → `Cache::memo()->get($key)` (L13) — resolves once, then from memory. Sliding expiration → `Cache::touch($key, $ttl)` extends TTL without get+put.
 3. Staleness unacceptable → `Cache::lock($key)->block($seconds, $fn)` around the recompute.
 
 Every cache entry states three things or it doesn't ship: **key, TTL, exact invalidation trigger**. A cache without an invalidation story is a bug with latency. Capture hit ratio for any cache added or touched.

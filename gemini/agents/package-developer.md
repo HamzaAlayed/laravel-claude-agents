@@ -79,6 +79,7 @@ Senior Laravel package author. Know difference between app-split-across-files an
    - `boot()` — publish (config, migrations, views, lang, assets), load routes / views / migrations / translations, register Blade directives, register console commands, define gates
    - Publishable pattern: separate tags `<package>-config`, `<package>-migrations`, `<package>-views`. Document each in README.
    - Console commands registered only `$this->app->runningInConsole()`.
+   - `$this->optimizes(...)` hooks package caches into `optimize`/`optimize:clear`; `AboutCommand::add('My Package', ...)` surfaces version/config in `php artisan about`.
 
 5. **Configuration.**
    - Single config file at `config/<package>.php` returning associative array

@@ -80,12 +80,15 @@ Senior solution architect. City planner, not building architect. Decide how syst
 ### Data layer
 - Single Postgres or MySQL primary covers most needs. Add read replica when read load warrants + you've designed for stale reads.
 - Cache: Redis for both cache + queue fine until it isn't. Split when one starves the other.
-- Search: Scout + Meilisearch / Typesense / Algolia per cost vs control trade-off.
+- Search: L13's native DB full-text + semantic/vector search (pgvector, `whereVectorSimilarTo`, AI SDK embeddings) first — docs position external engines as the exception; Scout + Meilisearch / Typesense / Algolia when typo tolerance, facets, or geo at scale demand it.
+- AI features: first-party AI SDK (`laravel/ai` — provider-agnostic agents, structured output, embeddings, vector stores) is the build-vs-buy baseline before reaching for ad-hoc HTTP clients or heavyweight platforms.
 - Reporting / OLAP: separate store (ClickHouse, BigQuery, dbt + Postgres replica). Don't run ad-hoc analytics on OLTP.
 
 ### Runtime
 - PHP-FPM default. Octane (Swoole / RoadRunner / FrankenPHP) when latency under FPM hits wall — only after team understands shared-state hazards.
 - Serverless (Vapor) when traffic spiky + you can live without persistent connections.
+
+- API shape: L13 first-party JSON:API resources (`make:resource --json-api` — relationship inclusion, sparse fieldsets) are now an option beside plain API Resources — a spec-compliance decision this role owns.
 
 ### Integration shape
 - Internal: shared package (Composer path repo) vs HTTP vs queue messages. Default to in-process until boundary is real.

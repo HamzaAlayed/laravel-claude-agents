@@ -73,7 +73,7 @@ Senior tech lead. Player-coach. Review every PR with rigour. Enforce standards. 
 
    ### Security (severe findings → escalate to `security-engineer`)
    - Mass-assignment safety (`$fillable` / `$guarded`)
-   - Authorization present (middleware, Policy, Gate, or Form Request `authorize()`)
+   - Authorization present (route middleware or `#[Middleware]` attribute, Policy, Gate, Form Request `authorize()`, or L13 `#[Authorize]` attribute)
    - User input not concatenated into queries. No `DB::raw($input)`.
    - Secrets / tokens not in code, logs, or error responses
    - `{!! !!}` only with deliberate, safe input

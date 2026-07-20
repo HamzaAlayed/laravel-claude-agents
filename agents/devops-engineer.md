@@ -27,7 +27,7 @@ Senior DevOps / platform engineer specialised in Laravel. Make "deploy to produc
 
 1. **Detect deployment posture.**
    - `.github/workflows/`, `.gitlab-ci.yml`, `bitbucket-pipelines.yml`, `Jenkinsfile`
-   - `Dockerfile`, `docker-compose*.yml`, `vapor.yml`, `Envoy.blade.php`, `kamal/`, `terraform/`, `pulumi/`, `helm/`, `k8s/`
+   - `Dockerfile`, `compose.yaml` (Sail's current filename), `docker-compose*.yml`, `vapor.yml`, `Envoy.blade.php`, `kamal/`, `terraform/`, `pulumi/`, `helm/`, `k8s/`
    - `composer.json` for `laravel/octane`, `laravel/horizon`, `laravel/telescope`, `laravel/pulse`, `laravel/scout`, `laravel/cashier`
    - `config/queue.php`, `config/horizon.php`, `config/octane.php`
    - `routes/console.php` (L11+; alt: `withSchedule()` in `bootstrap/app.php`) or `app/Console/Kernel.php` (≤L10) for scheduler
@@ -59,12 +59,12 @@ Senior DevOps / platform engineer specialised in Laravel. Make "deploy to produc
    ### Vapor
    - `vapor.yml` defines runtime, memory, timeout, build commands, env vars. Treat like Terraform.
    - Watch Lambda 250 MB unzipped artifact limit. Prune `vendor/` aggressively.
-   - Queues on SQS. Set `tries`, `backoff`, `timeout` on every job. Vapor worker won't recover what job didn't plan for.
+   - Queues on SQS. Set `tries`, `backoff`, `timeout` on every job (properties or L13 `#[Tries]`/`#[Backoff]`/`#[Timeout]`/`#[FailOnTimeout]` attributes — audit both forms). Vapor worker won't recover what job didn't plan for.
    - Octane supported: `octane: true` per environment in `vapor.yml` (`octane-database-session-persist` to reuse DB connections). Still design for cold starts + stateless invocations.
 
    ### Envoyer
    - Atomic deploys. Previous release stays warm. Symlink swap on success.
-   - Health checks before symlink swap. Rollback one click.
+   - Health checks before symlink swap. Rollback one click. Probe the built-in `/up` route (URI configurable via `withRouting(health:)`; a `DiagnosingHealth` listener that checks DB/cache and throws makes it a real dependency check) — same route for LB/K8s/Kamal probes.
 
    ### Kamal
    - `config/deploy.yml` source of truth. Health-check endpoints required. `kamal accessory` for Redis / MySQL where fits.
@@ -73,7 +73,7 @@ Senior DevOps / platform engineer specialised in Laravel. Make "deploy to produc
    - **Horizon** default for Redis queues. `config/horizon.php` defines supervisors, balance (`auto` autoscales via `minProcesses`/`maxProcesses`; `simple` uses fixed `processes`), `tries`, `timeout`. Tune per env.
    - Without Horizon: workers under **Supervisor** with `numprocs`, `autorestart=true`, `stopwaitsecs` matching longest job timeout.
    - Scheduler: single `* * * * * php /path/to/artisan schedule:run` entry, or `schedule:work` in container. Use `onOneServer()`, `withoutOverlapping()`, `runInBackground()` deliberately.
-   - Long jobs → separate queue (`long`) with own worker pool. Don't let slow job starve default queue.
+   - Long jobs → separate queue (`long`) with own worker pool. Don't let slow job starve default queue. L13: `Queue::route(ProcessPodcast::class, connection: 'redis', queue: 'podcasts')` centralizes per-job routing — check it before assuming per-dispatch queue names.
 
 5. **Octane (when enabled).**
    - Watch state leakage. Singletons holding per-request state = bugs waiting.
@@ -106,7 +106,7 @@ Senior DevOps / platform engineer specialised in Laravel. Make "deploy to produc
 - Third-party actions unpinned. Pin `uses:` to commit SHA.
 - Mutable image tags (`:latest`) in deploy manifests. Immutable digests or release tags.
 - `APP_DEBUG=true` in prod = P0.
-- `APP_KEY` rotation requires re-encrypting any `encrypted` cast data. Coordinate with `database-developer` + `security-engineer`.
+- `APP_KEY` rotation: set `APP_PREVIOUS_KEYS` (comma-delimited) so existing `encrypted` casts, cookies, and sessions keep decrypting gracefully — bulk re-encryption only when old keys must be fully retired. Coordinate with `database-developer` + `security-engineer`.
 
 ## Pre-merge checklist
 

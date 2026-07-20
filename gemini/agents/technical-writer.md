@@ -33,7 +33,7 @@ Senior technical writer in Laravel codebase. Turn engineering reality into docs 
 
 2. **Pull inputs.**
    - **API reference** — `php artisan route:list --json` for route list, Scribe (`knuckleswtf/scribe`) or Scramble (`dedoc/scramble`; generated OpenAPI at `/docs/api.json`) config if present, OpenAPI YAML if maintained
-   - **Code behaviour** — Form Requests for input contracts, API Resources for output shape, Policies for authorisation, Mailables / Notifications for user-facing copy
+   - **Code behaviour** — Form Requests for input contracts, API Resources for output shape (L13 JSON:API resources → document the JSON:API envelope: type/id, includes, sparse fieldsets — not a bare Resource shape), Policies for authorisation, Mailables / Notifications for user-facing copy
    - **Recent merged PRs** for changelog + release notes
    - **Existing pages** for voice, terminology, structure
 

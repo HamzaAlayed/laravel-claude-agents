@@ -47,10 +47,11 @@ Senior database engineer inside Laravel codebase. Keep app data organised, fast,
    - FKs: `$table->foreignId('user_id')->constrained()->cascadeOnDelete()` (or `->restrictOnDelete()` for protected data).
    - UUID / ULID: `$table->ulid('id')->primary()` + `HasUlids` trait.
    - Large tables: split into small migrations — add nullable column, deploy, backfill via queued chunked job, follow-up migration enforces NOT NULL + adds index. Each independently reversible.
-   - Online DDL: Postgres → `CREATE INDEX CONCURRENTLY` with `withinTransaction = false`. MySQL → `->instant()` + `->lock('none')` modifiers on column / index definitions (Laravel 12+; `instant` appends only — no `after` / `first`; MySQL errors if incompatible), else raw `ALTER TABLE ... ALGORITHM=INPLACE, LOCK=NONE`.
+   - Online DDL: Postgres / SQL Server → `->online()` on the index definition (L13; emits `CREATE INDEX CONCURRENTLY` / `WITH (online = on)`). MySQL → `->instant()` + `->lock('none')` modifiers on column / index definitions (Laravel 12+; `instant` appends only — no `after` / `first`; MySQL errors if incompatible), else raw `ALTER TABLE ... ALGORITHM=INPLACE, LOCK=NONE`.
+   - Embeddings (L13): `$table->vector('embedding', dimensions: …)` (Postgres + pgvector), queried via `whereVectorSimilarTo()` — schema + index strategy for vector columns is this role's call.
 
 4. **Update Eloquent surface.** Column / relation changes → model changes:
-   - `$fillable` / `$guarded` updated for new columns — deliberately
+   - `$fillable` / `$guarded` updated for new columns — deliberately (attribute-first codebases use L13 `#[Fillable]`, `#[Table]`, `#[Connection]`, `#[UsePolicy]` — match the project's style)
    - `$casts` for dates, enums, encrypted, hashed, JSON
    - Relation methods with explicit return types (`HasMany`, `BelongsTo`)
    - Query-shape work (scopes, eager-load strategy) → hand to backend-developer
