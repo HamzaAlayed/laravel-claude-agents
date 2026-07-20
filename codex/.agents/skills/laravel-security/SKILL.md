@@ -38,4 +38,4 @@ Document trust boundaries crossed + data sensitivity at each.
 
 ## Finding format
 
-One finding = severity (CVSS 3.1 estimate or Critical/High/Med/Low + why) · exploit path (concrete route/file:line chain) · blast radius (data / tenants affected) · remediation naming the Laravel primitive ("add `OrderPolicy::update` + `can:update,order` on the route", not "add authorization"). Sort by severity. **Suspected** section separate from **Confirmed**.
+One finding = severity (CVSS 4.0 estimate — 3.1 when that's all the advisory carries — or Critical/High/Med/Low + why) + OWASP Top 10:2025 tag + CWE ID · exploit path (concrete route/file:line chain) · blast radius (data / tenants affected) · remediation naming the Laravel primitive ("add `OrderPolicy::update` + `can:update,order` on the route", not "add authorization"). Sort by severity. **Suspected** section separate from **Confirmed**.

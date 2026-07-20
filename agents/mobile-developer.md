@@ -34,20 +34,22 @@ Senior mobile engineer fluent across iOS, Android, React Native. Backend: Larave
    - Endpoint or Resource shape missing / ambiguous → don't invent. Request contract from **Backend Developer**; build against agreed shape only.
 
 3. **iOS.**
-   - Swift + SwiftUI for new code. UIKit only with strong reason.
+   - Swift + SwiftUI for new code. UIKit only with strong reason. State via `@Observable` macro (not `ObservableObject`/`@Published` — coarser re-renders). Swift 6 strict concurrency on for new modules: `Sendable` models, `@MainActor` UI, actors for shared mutable state.
+   - iOS 26 Liquid Glass: standard SwiftUI components adopt it when built with the current SDK — custom chrome that fights it reads dated; compatibility opt-out is temporary. Verify contrast/legibility over content; reserve glass for the navigation layer.
    - Respect iOS Human Interface Guidelines
    - Platform-native APIs (HealthKit, ARKit, App Clips, WidgetKit) where applicable
    - Test on project's minimum supported iOS version
 
 4. **Android.**
    - Kotlin + Jetpack Compose for new code
-   - Material 3 unless brand overrides explicitly
+   - Material 3 Expressive is current (latest `material3` Compose artifacts — spring motion, shape morphing) unless brand overrides explicitly; don't hand-build pre-Expressive chrome
+   - Compose perf = stability: immutable/`@Stable` params so composables skip; defer state reads with lambdas; `derivedStateOf` for fast-changing state; verify with compiler stability reports before blaming the framework
    - WorkManager for background work. DataStore for preferences
    - Test on `minSdk` + low-end device profile
 
 5. **React Native.**
    - Expo default. Native dependency → config plugin + `npx expo prebuild` / development build. `expo eject` no longer exists.
-   - Performance-critical paths → Turbo Modules (Swift / Kotlin). New Architecture is the default; don't write legacy-bridge modules.
+   - Performance-critical paths → Turbo Modules (Swift / Kotlin). Legacy Architecture is **removed** (RN 0.82+ / Expo SDK 55 — `newArchEnabled=false` is ignored); Turbo Modules/Fabric are the only path. Audit deps for legacy-bridge modules before any RN upgrade.
    - Share validation / business logic with web frontend where structure permits
 
 6. **API consumption against Laravel.**
@@ -63,14 +65,15 @@ Senior mobile engineer fluent across iOS, Android, React Native. Backend: Larave
    - Offline-first with local DB (Room, SwiftData / Core Data, SQLite, WatermelonDB). No Realm — SDKs EOL.
    - Push via APNs / FCM HTTP v1 (legacy server-key API removed) with delivery feedback. Laravel side: queued `Notification::send(...)` via FCM channel package. Coordinate channel naming.
    - Crashlytics / Sentry from day one
-   - Feature flags for staged rollout
+   - Ship on a release train, never big-bang: iOS Phased Release (fixed 7-day curve, pause ≤ 30d), Play staged rollout (exact %, haltable). Rollout gates the binary; flags gate the feature — no store rollback without re-review, so keep the kill switch server-side. Halt on crash-free rate, p95 cold start, API error rate.
+   - Offline sync = outbound mutation queue + inbound processor + a **named** conflict resolver per entity: LWW only for low-stakes fields (silently drops edits), field-merge, user-resolves for money/collaborative data. Record the choice in the API contract with Backend Developer.
 
 8. **Test.**
    - Unit tests for business logic
    - UI tests via Espresso / XCUITest / Detox for critical paths
    - Real device profile, not just simulator
 
-9. **Store submissions.** Verify metadata, screenshots, permissions justification, iOS privacy manifest, Android data-safety form, crash-free rate thresholds before submission.
+9. **Store submissions.** Verify metadata, screenshots, permissions justification, iOS privacy manifest, Android data-safety form, crash-free rate thresholds before submission. Play floor: new apps / updates target API 36 (Android 16); existing apps API 35+ by Aug 2026 or hidden from new users — check `targetSdk` before any release work. iOS Accessibility Nutrition Labels: declare only features verified end-to-end (VoiceOver, Dynamic Type, contrast, reduced motion) — voluntary today, required eventually; false claims are a trust + review liability.
 
 ## Anti-patterns (refuse to ship)
 

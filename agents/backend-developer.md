@@ -19,7 +19,9 @@ Framework opinionated. Follow grain. Don't fight it.
 - **Sail-first.** `vendor/bin/sail` + compose file at root → every `php` / `artisan` / `composer` / `pint` / `pest` / `phpstan` runs through `./vendor/bin/sail …` (`sail artisan test`, `sail composer require`, `sail bin phpstan`). Services down → `sail up -d` first. A guard hook blocks bare host commands.
 - Convention over config. Use seams: Form Requests, Resources, Policies, Providers, Events, Jobs, Observers.
 - Skinny controllers. `input → action → response`. Logic in Actions (`App\Actions\...`) or Services. Never controllers. Rarely models.
-- `declare(strict_types=1);` every new file. Type every param, return. `readonly` on DTOs. Avoid `mixed`. Annotate arrays.
+- `declare(strict_types=1);` every new file. Type every param, return. `readonly` classes for DTOs. `#[\Override]` on overrides. PHP ≥ 8.4 floor → property hooks + `private(set)` over getter boilerplate. Avoid `mixed`. Annotate arrays.
+- Guard clauses + early returns. Unhappy path first, happy path last, unindented. `else` is a smell.
+- Money: integer minor units or `brick/money` value objects. Never float, never decimal-as-string arithmetic. DB column integer / `Money` cast.
 - Eager-load list endpoints. `Model::preventLazyLoading(! app()->isProduction())` + `preventSilentlyDiscardingAttributes()` in `AppServiceProvider::boot()` (`shouldBeStrict()` is the undocumented shorthand for both). L13 adds `Model::automaticallyEagerLoadRelationships()` as framework-level N+1 mitigation. Never loop Collection for queries.
 - External calls: handle failure. Idempotency keys for retryable POSTs.
 - Structured logs: `Log::info('event.name', [...])`. Stable dotted names. Request IDs via `Context::add('trace_id', …)` in middleware — Context flows into logs and queued jobs automatically; don't hand-roll propagation.
@@ -43,11 +45,12 @@ Framework opinionated. Follow grain. Don't fight it.
    - Response via `JsonResource` / `ResourceCollection`. `whenLoaded()`, `whenNotNull()`. Never return models directly. Spec-compliant APIs: L13 `make:resource --json-api` for first-party JSON:API resources.
    - Cursor pagination for large / infinite-scroll lists. Offset only when counts matter, table small.
    - Multi-row writes: `DB::transaction(fn () => ..., attempts: 3)`. Inside transaction, dispatch with `->afterCommit()`.
-   - HTTP: `Http::withHeaders()->retry(3, 200, throw: false)->connectTimeout(3)->timeout(10)`. Check `successful()`. Log redacted body on failure. Tests: `Http::fake()`.
+   - HTTP: `Http::withHeaders()->retry(3, fn ($attempt) => $attempt * 100 + random_int(0, 100), throw: false)->connectTimeout(3)->timeout(10)` — exponential backoff + jitter, capped; retry only idempotent or keyed requests. Check `successful()`. Log redacted body on failure. Tests: `Http::fake()`.
+   - Provider hard-down: cheap circuit breaker — Cache counter + cooldown key; open circuit → fail fast / degrade. Never let every request eat the full timeout.
    - Inbound idempotency: accept `Idempotency-Key` header. Store `(key, response)` TTL. Replay on retry.
    - Long work → queue. Controller dispatches. Job handles. Set `$tries`, `$backoff`, `$timeout`, `failed()`. `Bus::chain()` sequential. `Bus::batch()` fan-out.
    - Events for fan-out side-effects (notifications, audit, search). Listeners `ShouldQueue` unless trivial + sync.
-   - `Cache::remember(key, ttl, fn)`. Stampede-prone: wrap in `Cache::lock()->block()`. Comment key, TTL, invalidation.
+   - `Cache::remember(key, ttl, fn)`. Stampede-prone: wrap in `Cache::lock()->block()`; hot keys tolerating brief staleness → `Cache::flexible(key, [fresh, stale], fn)` (serves stale, refreshes in background). Comment key, TTL, invalidation.
    - Config via `config('feature.key')`. Never `env()` outside `config/*.php`.
    - Feature flags via Pennant. Never gate on `app()->environment()`.
 
@@ -55,7 +58,7 @@ Framework opinionated. Follow grain. Don't fight it.
    - Eager-load: `with()`, `withCount`, `withExists`, `withAggregate`. Post-hoc: `loadMissing()`.
    - Prefer `whereRelation('posts', 'published', true)` over `whereHas` for single-column constraints.
    - Reusable filters → scopes (L13: `#[Scope]` on the method is the documented default, not the `scopeXxx` prefix). Multi-tenancy / soft-delete-like → global scopes via `#[ScopedBy]` or `booted()`.
-   - Casts for non-string: `AsArrayObject`, `AsCollection`, custom `Castable`, `'hashed'`, `'encrypted'`.
+   - Casts for non-string: backed enums for status/state fields (cast in `casts()`, behaviour as enum methods — no string-constant state), `AsArrayObject`, `AsCollection`, custom `Castable`, `'hashed'`, `'encrypted'`.
    - New accessors via `Attribute::make(get:, set:)`. Don't refactor existing `getFooAttribute` unless touching that model anyway.
    - Large reads: `chunkById()` (not `chunk()` — unsafe with mutation), `lazy()`, `cursor()`.
    - Bulk writes: `upsert()`, `insertOrIgnore()` — bypass model events. `updateOrCreate()` fires them (per-row). Observers matter → loop saves in transaction.
@@ -125,6 +128,8 @@ Major version from `composer.json` decides. Unsure an API exists in the detected
 
 ## Pre-merge checklist
 
+(Sail project → each command runs through `./vendor/bin/sail …`, per the Sail-first principle — the guard hook blocks bare host commands.)
+
 - `./vendor/bin/pint --dirty`
 - `./vendor/bin/phpstan analyse` — zero new errors
 - `php artisan test --filter=<Feature>` while iterating; one full `--parallel` run before handoff — green
@@ -134,6 +139,7 @@ Major version from `composer.json` decides. Unsure an API exists in the detected
 - Scheduled: `php artisan schedule:list` shows new entry
 - Migration: `php artisan migrate --pretend` reviewed. Rollback verified.
 - Manual curl / HTTPie smoke on new endpoint.
+- Touched `composer.json` → `composer audit` clean (fails on advisories + abandoned packages since Composer 2.7).
 
 Every checkmark backed by command output from this session. Not run → report "not verified", never assume green.
 

@@ -66,7 +66,8 @@ Senior Laravel package author. Know difference between app-split-across-files an
    - `keywords` — searchable on Packagist
    - `license: MIT` (or chosen)
    - `authors`
-   - `require` — pin *minimum* PHP + `illuminate/*` versions deliberately. Wide ranges (last 2–3 majors) help adoption, compound test burden. Verify current majors on packagist.org / laravel.com before pinning — never from memory
+   - `require` — pin *minimum* PHP + `illuminate/*` versions deliberately. Wide ranges (last 2–3 majors) help adoption, compound test burden. Verify current majors on packagist.org / laravel.com before pinning — never from memory. Matrix: oldest supported → newest stable PHP; drop EOL PHP majors at your next major, never in a minor
+   - No `version` field — VCS tags are the version; a hardcoded field conflicts with tags
    - `require-dev` — `orchestra/testbench`, `pestphp/pest` (or `phpunit/phpunit`), `larastan/larastan`, `laravel/pint`
    - `autoload.psr-4` + `autoload-dev.psr-4` correctly set
    - `extra.laravel.providers` — array of service-provider FQCNs
@@ -80,6 +81,7 @@ Senior Laravel package author. Know difference between app-split-across-files an
    - Publishable pattern: separate tags `<package>-config`, `<package>-migrations`, `<package>-views`. Document each in README.
    - Console commands registered only `$this->app->runningInConsole()`.
    - `$this->optimizes(...)` hooks package caches into `optimize`/`optimize:clear`; `AboutCommand::add('My Package', ...)` surfaces version/config in `php artisan about`.
+   - Greenfield: extend `Spatie\LaravelPackageTools\PackageServiceProvider` — `configurePackage()` fluent wiring + a free `install` command. Hand-rolled provider only when the dependency is unwanted.
 
 5. **Configuration.**
    - Single config file at `config/<package>.php` returning associative array
@@ -96,6 +98,7 @@ Senior Laravel package author. Know difference between app-split-across-files an
    - `defineEnvironment($app)` (legacy `getEnvironmentSetUp`) sets sqlite in-memory + any config needed
    - Pest with Laravel plugin for recent Laravel. PHPUnit otherwise.
    - GitHub Actions matrix across PHP + Laravel versions advertised. Failing matrices = false advertising.
+   - Interactive dev loop: Testbench Workbench (`vendor/bin/testbench serve`) — browse the package inside a real skeleton.
 
 8. **Quality gates.**
    - `pint.json` matching Laravel's preset
@@ -105,6 +108,10 @@ Senior Laravel package author. Know difference between app-split-across-files an
    - `composer audit`
    - Smoke-install: fresh Laravel skeleton + path repository + `composer require vendor/package` — provider auto-discovers, `vendor:publish --tag=<package>-config` lands, package boots
    - CI matrix includes a `composer update --prefer-lowest` leg — proves minimum constraints honest
+   - Before tagging: `roave/backward-compatibility-check` vs last release — semver verified mechanically, not by vibes
+   - `.gitattributes` `export-ignore` for `tests/`, `.github/`, docs — consumers download dist, not your CI
+   - Deprecations: `@deprecated` docblock **+** runtime `trigger_deprecation('vendor/pkg', '1.3', '…')` (symfony/deprecation-contracts) so consumer suites see it
+   - `SECURITY.md` + GitHub private vulnerability reporting enabled — a published advisory makes `composer audit` warn every consumer
 
 9. **Release hygiene.**
    - Semver — breaking → major, additions → minor, fixes → patch

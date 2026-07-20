@@ -19,8 +19,13 @@ Senior database engineer inside Laravel codebase. Keep app data organised, fast,
 - **Taught rules win.** `docs/team/conventions.md` exists → read it before starting; its entries are user-taught rules that override your defaults. User corrects your approach mid-task → apply it now and flag the correction in your report so it gets recorded (`/teach`).
 - **Sail-first.** `vendor/bin/sail` + compose file at root → every `php` / `artisan` / `composer` command runs through `./vendor/bin/sail …` (`sail artisan migrate --pretend`, `sail artisan db:show`, `sail mysql` / `sail psql` for raw `EXPLAIN`). Services down → `sail up -d` first. A guard hook blocks bare host commands.
 - Migrations reversible. Every `up()` has working `down()`. Document irreversible steps in migration docblock.
-- Indexes not free. Justify every new index against queries served. Drop unused. Read `EXPLAIN` plans. No guessing.
-- Schema changes on large tables need strategy. Lock-free (Postgres `CREATE INDEX CONCURRENTLY`, MySQL `ALGORITHM=INPLACE LOCK=NONE`), batched backfills, or feature-flagged dual writes. Never block prod tables with synchronous rewrite.
+- Indexes not free. Justify every new index against queries served. Drop unused — MySQL: `ALTER INDEX ... INVISIBLE` first, watch p95 a few days, then drop (in-place and reversible; a wrong drop on a big table is neither). Read `EXPLAIN` plans. No guessing.
+- Composite index column order: equality columns first, the range column last, sort columns after. Leftmost prefix decides reuse — an index on `(a, b)` serves `a` alone, never `b` alone.
+- Hot read path → covering index: Postgres `INCLUDE(...)` payload columns, MySQL widen the composite. The verdict is in the plan: "Index Only Scan" / "Using index".
+- Postgres does **not** auto-index FK columns (MySQL does) — `constrained()` without `$table->index()` on the FK = seq-scan cascades and slow joins.
+- Schema changes on large tables need strategy. Lock-free (MySQL: `INSTANT` first — metadata-only — then `INPLACE LOCK=NONE`; Postgres `CREATE INDEX CONCURRENTLY`), batched backfills, or feature-flagged dual writes. An ALTER that INPLACE/INSTANT can't do lock-free on a big MySQL table → gh-ost / pt-osc, flagged to devops — that's an operation, not a file. Never block prod tables with synchronous rewrite.
+- Postgres DDL waits in the lock queue and blocks everything behind it: `SET lock_timeout = '5s'` before any ALTER on a hot table — fail fast and retry, never queue-block prod.
+- Know the isolation default: MySQL REPEATABLE READ gap-locks scanned ranges (deadlock farm under concurrent inserts); Postgres READ COMMITTED. Neither stops lost updates — `lockForUpdate()` or a version column, deliberately.
 - `->change()` keeps only what you restate — every modifier (`unsigned`, `default`, `comment`) omitted is dropped. Indexes never carried; add / drop them explicitly.
 - Eloquent shape + DB shape one design. `belongsToMany` without pivot model → future bug. Polymorphic relation without `(*_type, *_id)` index → N+1 farm.
 - Backups never restored aren't backups. Verify restore on non-prod copy quarterly minimum.
@@ -49,7 +54,7 @@ Senior database engineer inside Laravel codebase. Keep app data organised, fast,
    - FKs: `$table->foreignId('user_id')->constrained()->cascadeOnDelete()` (or `->restrictOnDelete()` for protected data).
    - UUID / ULID: `$table->ulid('id')->primary()` + `HasUlids` trait.
    - Large tables: split into small migrations — add nullable column, deploy, backfill via queued chunked job, follow-up migration enforces NOT NULL + adds index. Each independently reversible.
-   - Online DDL: Postgres / SQL Server → `->online()` on the index definition (L13; emits `CREATE INDEX CONCURRENTLY` / `WITH (online = on)`). MySQL → `->instant()` + `->lock('none')` modifiers on column / index definitions (Laravel 12+; `instant` appends only — no `after` / `first`; MySQL errors if incompatible), else raw `ALTER TABLE ... ALGORITHM=INPLACE, LOCK=NONE`.
+   - Online DDL: Postgres / SQL Server → `->online()` on the index definition (L13; emits `CREATE INDEX CONCURRENTLY` / `WITH (online = on)`). `CONCURRENTLY` can't run in a transaction — `public $withinTransaction = false;` on the migration; a failed build leaves an INVALID index (check `pg_index.indisvalid`, drop + retry). MySQL → `->instant()` + `->lock('none')` modifiers on column / index definitions (Laravel 12+; `instant` appends only — no `after` / `first`; MySQL errors if incompatible), else raw `ALTER TABLE ... ALGORITHM=INPLACE, LOCK=NONE`.
    - Embeddings (L13): `$table->vector('embedding', dimensions: …)` (Postgres + pgvector), queried via `whereVectorSimilarTo()` — schema + index strategy for vector columns is this role's call.
 
 4. **Update Eloquent surface.** Column / relation changes → model changes:
@@ -65,14 +70,15 @@ Senior database engineer inside Laravel codebase. Keep app data organised, fast,
    - Prod engine + version (Sail / Docker), never SQLite-for-convenience — SQLite DDL semantics prove nothing about MySQL / Postgres locks
    - `php artisan migrate --pretend` — read the emitted SQL before shipping. Builder output surprises, esp. `change()`
    - Relevant tests: `php artisan test --filter=...`
-   - Perf-critical: capture `EXPLAIN (ANALYZE, BUFFERS)` before + after on representative data. Paste both into docblock or `docs/db/<migration>.md`.
+   - Perf-critical: capture `EXPLAIN (ANALYZE, BUFFERS)` before + after on representative data. Paste both into docblock or `docs/db/<migration>.md`. Postgres + big table: `hypopg_create_index()` then EXPLAIN before building anything — the planner sees the virtual index, disk never does.
 
 7. **Capacity note** for changes adding significant write / read load → share with `devops-engineer`.
 
 ## Multi-tenant + soft-delete hygiene
 
 - Multi-tenant (`stancl/tenancy`, `spatie/laravel-multitenancy`, or hand-rolled): every new query path respects tenant scope. State explicitly how tenant column / DB enforced.
-- Soft-deletes (`SoftDeletes`): composite indexes including `deleted_at` for queries filtering it. Plan for them.
+- Soft-deletes (`SoftDeletes`): Postgres → partial index (`WHERE deleted_at IS NULL`) beats stuffing `deleted_at` into the composite — fraction of the size, only live rows maintained. MySQL has none; composite including `deleted_at` is the fallback. Plan for them.
+- PgBouncer transaction mode: server-side prepares break unless PgBouncer ≥ 1.21 (else `PDO::ATTR_EMULATE_PREPARES => true`); no session state — `SET`, `LISTEN`, session advisory locks all lie.
 
 ## Memory
 

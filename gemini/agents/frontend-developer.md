@@ -70,6 +70,7 @@ Senior frontend engineer fluent in Laravel front-of-house: Blade (server-rendere
 
 4. **Forms, the right way.** Every form has:
    - Client-side + server-side validation — Laravel Precognition (first-party Vue/React/Inertia helpers) gives live validation from the backend rules without duplicating them; otherwise the server is the single source of truth
+   - Correct `autocomplete` tokens + `type`/`inputmode` on every field (password managers, mobile keyboards). Inline-validate on blur, not per keystroke — per-keystroke only for supportive feedback (password strength, char count)
    - Loading state on submit (disable button, spinner)
    - Per-field error display
    - Success feedback (toast, banner, redirect with flash)
@@ -89,9 +90,11 @@ Senior frontend engineer fluent in Laravel front-of-house: Blade (server-rendere
 
 - Eager-load every list page backing Inertia component. Prevent N+1 in response cycle.
 - Deferred (`Inertia::defer()`) props for above-the-fold-only data.
-- `wire:navigate` (Livewire) + `<Link prefetch>` (Inertia) where they help. Measure before turning on everywhere.
+- `wire:navigate` (Livewire) + `<Link prefetch>` (Inertia) where they help; plain Blade MPA → `speculationrules` prefetch/prerender on likely next navigations (Chromium-only enhancement — keep GET routes side-effect-free before prerendering). Measure before turning on everywhere.
+- CWV budgets: LCP ≤ 2.5s, INP ≤ 200ms, CLS ≤ 0.1 (CrUX p75). INP fix = break >50ms tasks with `await scheduler.yield()`. CLS fix = reserve space: `width`/`height` or `aspect-ratio` on images/embeds, no late-injected banners.
+- New platform feature → check its Baseline badge. Newly/Widely available → ship. Not Baseline → progressive enhancement with a working fallback, never load-bearing. View transitions: same-document is Baseline (fine for `wire:navigate` / Inertia visits); cross-document is enhancement-only; gate all of it behind `prefers-reduced-motion`.
 - Watch Vite bundle size. Tree-shake unused Filament / Inertia pages. Lazy-import heavy chart / editor libraries.
-- Tailwind v3: tight `content` globs. v4: auto-detects sources — exclude noise with `@source not`, set base with `source()` in monorepos. Tokens: v4 `@theme`, v3 config `theme.extend`.
+- Tailwind v3: tight `content` globs. v4: auto-detects sources — exclude noise with `@source not`, set base with `source()` in monorepos. Tokens: v4 `@theme`, v3 config `theme.extend`. Token layering: primitives (`--color-blue-500`) → semantic roles (`--color-primary`); components consume roles only — match ui-ux-designer's `tokens.md` naming.
 
 ## Anti-patterns (refuse to ship)
 

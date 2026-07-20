@@ -61,8 +61,55 @@ pipeline, informed by what the timing data feeds back.
   Precognition for live form validation, Sanctum expiration checks, and `APP_PREVIOUS_KEYS`
   key rotation.
 
+- **Field-expertise sweep — every agent leveled up to its craft's current canon.** Eight
+  parallel researchers audited all 17 agent bodies against the authoritative sources of each
+  role's *field* (verified current as of 2026) and ~90 accepted, cited practices landed:
+  - **Builders:** money as integer minor units / `brick/money`, backed-enum state, retry with
+    exponential backoff + jitter, circuit breakers, guard-clause style (backend); composite
+    index column order, covering/partial/invisible indexes, HypoPG, `lock_timeout`,
+    gh-ost/pt-osc escalation, isolation-level defaults, PgBouncer caveats (database);
+    spatie/laravel-package-tools, Workbench, `roave/backward-compatibility-check`, runtime
+    deprecations, SECURITY.md (package).
+  - **Reviewers:** Google's code-review canon — "better, not perfect" bar, one-business-day
+    SLA, stacked-PR splits, Praise findings, conventions → Pest arch tests, debt registry,
+    vertical slicing with INVEST/SPIDR (tech-lead); OWASP Top 10:2025 + CWE tagging,
+    KEV → EPSS → CVSS triage, ASVS 5.0 depth levels, four-question threat framing + abuse
+    cases, fail-closed checks, security-headers baseline, Composer supply-chain hardening,
+    OIDC in CI (security); static-analysis layer zero, RCRCRC, contract + mutation testing,
+    flaky-test quarantine, SBTM charters, named go/no-go gates (qa).
+  - **Perf/infra:** open-vs-closed load models (coordinated omission), percentile arithmetic,
+    USE/RED, Little's Law, CWV field-vs-lab discipline, PHP 8.4 JIT default change, OPcache
+    verification (performance); DORA five, deploy≠release, OIDC federation, SLSA attestation,
+    burn-rate alerting, SEV ladder + blameless postmortems, production OTel for PHP, FPM
+    container standards, policy-as-code (devops).
+  - **Frontend/UX/mobile:** CWV budgets + Baseline gating + view transitions, DTCG token
+    layering, form-UX canon (frontend); EU Accessibility Act enforcement, WCAG 3.0 status pin,
+    Nielsen's 10 as named instrument, design-system governance + component API contracts
+    (ui-ux); Material 3 Expressive, Liquid Glass/iOS 26, Swift 6 + `@Observable`, Compose
+    stability, store release trains, Play API-36 floor, named offline conflict strategies,
+    Accessibility Nutrition Labels (mobile).
+  - **Delivery:** EARS + Example Mapping + Specification by Example + event storming + impact
+    mapping (analyst); Opportunity Solution Trees, product-vs-business outcomes, North Star
+    laddering, RICE confidence tiers, Now/Next/Later roadmaps, EBM lenses, OKR discipline,
+    Shape Up awareness (product); four flow metrics with work-item aging, SLEs, Monte Carlo
+    forecasting, forecast-not-commitment wording, Corry retro anti-patterns, team-scoped
+    health checks, DORA signals (scrum); handoff-loss economics, 2–3 lane WIP cap,
+    critical-chain checkpoint batching, lane aging (coordinator).
+  - **Architecture/docs:** fitness functions, MADR 4.0 (decision drivers + confirmation), C4
+    levels 1–2 discipline, quality-attribute scenarios, transactional outbox + saga shapes,
+    PACELC, build-vs-buy scoring (architect); Diátaxis, Google style fallback, Vale + link
+    checking, OpenAPI 3.2, Keep a Changelog 2.0.0, freshness stamps, standard-readme (writer).
+
 ### Fixed
 
+- **Field-canon contradictions caught by the expertise sweep.** devops recommended mutable
+  `@v2` action tags while its own anti-pattern list demanded SHA pinning (both files now
+  SHA-pin); backend's pre-merge checklist listed bare host commands its own Sail guard hook
+  blocks; React Native's Legacy Architecture described as "non-default" when it is removed
+  (RN 0.82+/Expo SDK 55); date-based quarterly roadmap as PO default (now Now/Next/Later);
+  "sprint commitments" wording (Scrum 2020: forecast); CVSS 3.1 → 4.0; PSR-12 → PER-CS;
+  fixed-interval HTTP retry → backoff + jitter; delivery-log path mismatch between the
+  coordinator and the delivery-templates skill.
 - **Doc-verification drift (Laravel 13 sweep).** `$this->authorize()` recommended on
   controllers without the trait → `Gate::authorize()`/`#[Authorize]`; `validateCsrfTokens`
   → renamed `preventRequestForgery` (middleware `VerifyCsrfToken` → `PreventRequestForgery`,

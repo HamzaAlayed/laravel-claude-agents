@@ -47,6 +47,6 @@ Cycle time (PR open → merge, p50/p85) · throughput (merged PRs or completed s
 
 Lead with outcomes, not activity: **Shipped + observed effect** · **In flight + expected date** · **Blocked + what unblocks it** · **Decisions needed from you** (each with a recommendation + deadline). One screen. Plain language — no story IDs without titles.
 
-## Delivery log — `docs/delivery/<feature>.md` (coordinator)
+## Delivery log — `docs/delivery/<feature>/log.md` (coordinator)
 
 Per stage: specialist engaged · brief given (one line) · artifact path returned · verification run + result · human checkpoints flagged/cleared. This is the paper trail — append, never rewrite history.

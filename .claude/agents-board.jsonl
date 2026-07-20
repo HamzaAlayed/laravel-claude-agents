@@ -8,3 +8,19 @@
 {"ts":1784574118,"sid":"1a2fce59","ev":"end","agent":"general-purpose","task":"Verify builder agent bodies vs docs","ms":null,"tokens":null,"status":"async_launched"}
 {"ts":1784574130,"sid":"1a2fce59","ev":"start","agent":"general-purpose","task":"Verify remaining agent bodies vs docs","ms":null,"tokens":null,"status":null}
 {"ts":1784574130,"sid":"1a2fce59","ev":"end","agent":"general-purpose","task":"Verify remaining agent bodies vs docs","ms":null,"tokens":null,"status":"async_launched"}
+{"ts":1784575256,"sid":"1a2fce59","ev":"start","agent":"general-purpose","task":"Research PHP/backend craft sources","ms":null,"tokens":null,"status":null}
+{"ts":1784575256,"sid":"1a2fce59","ev":"end","agent":"general-purpose","task":"Research PHP/backend craft sources","ms":null,"tokens":null,"status":"async_launched"}
+{"ts":1784575265,"sid":"1a2fce59","ev":"start","agent":"general-purpose","task":"Research DB/performance craft sources","ms":null,"tokens":null,"status":null}
+{"ts":1784575265,"sid":"1a2fce59","ev":"end","agent":"general-purpose","task":"Research DB/performance craft sources","ms":null,"tokens":null,"status":"async_launched"}
+{"ts":1784575273,"sid":"1a2fce59","ev":"start","agent":"general-purpose","task":"Research QA/tech-lead craft sources","ms":null,"tokens":null,"status":null}
+{"ts":1784575273,"sid":"1a2fce59","ev":"end","agent":"general-purpose","task":"Research QA/tech-lead craft sources","ms":null,"tokens":null,"status":"async_launched"}
+{"ts":1784575283,"sid":"1a2fce59","ev":"start","agent":"general-purpose","task":"Research security craft sources","ms":null,"tokens":null,"status":null}
+{"ts":1784575283,"sid":"1a2fce59","ev":"end","agent":"general-purpose","task":"Research security craft sources","ms":null,"tokens":null,"status":"async_launched"}
+{"ts":1784575292,"sid":"1a2fce59","ev":"start","agent":"general-purpose","task":"Research DevOps craft sources","ms":null,"tokens":null,"status":null}
+{"ts":1784575292,"sid":"1a2fce59","ev":"end","agent":"general-purpose","task":"Research DevOps craft sources","ms":null,"tokens":null,"status":"async_launched"}
+{"ts":1784575303,"sid":"1a2fce59","ev":"start","agent":"general-purpose","task":"Research frontend/UX/mobile craft","ms":null,"tokens":null,"status":null}
+{"ts":1784575303,"sid":"1a2fce59","ev":"end","agent":"general-purpose","task":"Research frontend/UX/mobile craft","ms":null,"tokens":null,"status":"async_launched"}
+{"ts":1784575315,"sid":"1a2fce59","ev":"start","agent":"general-purpose","task":"Research delivery-roles craft sources","ms":null,"tokens":null,"status":null}
+{"ts":1784575315,"sid":"1a2fce59","ev":"end","agent":"general-purpose","task":"Research delivery-roles craft sources","ms":null,"tokens":null,"status":"async_launched"}
+{"ts":1784575325,"sid":"1a2fce59","ev":"start","agent":"general-purpose","task":"Research architect/writer craft sources","ms":null,"tokens":null,"status":null}
+{"ts":1784575325,"sid":"1a2fce59","ev":"end","agent":"general-purpose","task":"Research architect/writer craft sources","ms":null,"tokens":null,"status":"async_launched"}

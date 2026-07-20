@@ -37,4 +37,4 @@ Rollback = redeploy previous artifact + **decide the migration story**: migratio
 
 ## Pipeline hygiene
 
-Pin runtimes (`shivammathur/setup-php@v2`, version from `composer.json require.php`). Cache `vendor/` + npm keyed on lockfile hashes. Stage order: install → Pint → Larastan → tests → build assets → `optimize` → deploy. Secrets from the platform store, never repo or logs.
+Pin runtimes (`shivammathur/setup-php@<sha> # v2` — actions SHA-pinned, version from `composer.json require.php`). Cache `vendor/` + npm keyed on lockfile hashes. Stage order: install → Pint → Larastan → tests → build assets → `optimize` → deploy. Secrets from the platform store, never repo or logs.

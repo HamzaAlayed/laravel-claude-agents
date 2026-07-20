@@ -7,7 +7,7 @@ description: "Documentation templates + style rules — changelog (Keep a Change
 
 Source of truth is code, schemas, merged PRs — read those, not memory. Cite `path:line` / route / PR # for every non-obvious claim; can't locate it → `TODO`, never a guess.
 
-## Changelog — Keep a Changelog
+## Changelog — Keep a Changelog (2.0.0: mark breaking entries `**Breaking:**` + migration step; Security entries lead with CVE id; never auto-convert commits)
 
 `## [x.y.z] - YYYY-MM-DD`, then only the sections that apply: **Added / Changed / Deprecated / Removed / Fixed / Security**. Entries are user-consequences, not commit messages ("Uploads over 10 MB are rejected with a 422" beats "refactor upload validation"). Unreleased section at top; semver discipline: breaking → major, feature → minor, fix → patch.
 
