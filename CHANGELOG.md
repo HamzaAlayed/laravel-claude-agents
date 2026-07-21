@@ -5,6 +5,20 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.18.0] - 2026-07-21
+
+### Changed
+
+- **Human names for the Guild.** Every agent's persona is now a human first name instead of a
+  Laravel-ecosystem tool name — Artisan→Adam, Blade→Bella, Eloquent→Elena, Dusk→Dina,
+  Forge→Farid, Octane→Omar, Fortify→Felix, Telescope→Tariq, Scribe→Sofia, Pulse→Petra,
+  Envoy→Emre, Scout→Sara, Horizon→Hana, Blueprint→Bilal, Breeze→Bruno, Passport→Pablo,
+  Composer→Clara. Each new name keeps the old name's initial, so `/board` initials and
+  name-addressed habits carry over. Agent slugs (`backend-developer`, …) are unchanged —
+  no routing or install-path breakage. Updated: all 17 agent bodies + descriptions, README
+  roster (with a "Formerly" column), `scripts/board.html` `GUILD` map,
+  `docs/authoring-agents.md` naming rule, regenerated gemini/ and codex/ trees.
+
 ## [1.17.0] - 2026-07-21
 
 ### Added

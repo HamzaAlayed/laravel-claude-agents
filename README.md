@@ -13,23 +13,23 @@ Every agent now knows what "good" looks like in a Laravel codebase. Reviewers re
 ```
 .claude/
 ├── agents/
-│   ├── business-analyst.md       # "Scout" — discovery & requirements (Sonnet, project memory)
-│   ├── product-owner.md          # "Horizon" — backlog & prioritization (Sonnet, project memory)
-│   ├── ui-ux-designer.md         # "Breeze" — paradigm-aware design specs (Sonnet, worktree, project memory)
-│   ├── frontend-developer.md     # "Blade" — Blade/Livewire/Inertia/Filament (Sonnet, worktree)
-│   ├── backend-developer.md      # "Artisan" — APIs, services, Eloquent (Sonnet, worktree)
-│   ├── database-developer.md     # "Eloquent" — migrations, indexes, factories (Sonnet, worktree, project memory)
-│   ├── package-developer.md      # "Composer" — Laravel package authoring (Sonnet, worktree, project memory) ★ NEW
-│   ├── qa-engineer.md            # "Dusk" — Pest/PHPUnit/Dusk, fakes (Sonnet, worktree)
-│   ├── devops-engineer.md        # "Forge" — Forge/Cloud/Octane/Horizon (Sonnet, worktree)
-│   ├── scrum-master.md           # "Pulse" — delivery rhythm & blockers (Haiku, project memory)
-│   ├── solution-architect.md     # "Blueprint" — system design & ADRs (Opus, project memory)
-│   ├── security-engineer.md      # "Fortify" — STRIDE + Laravel hardening (Opus, project memory, no Edit/Write)
-│   ├── technical-writer.md       # "Scribe" — Scribe, route:list-driven docs (Haiku)
-│   ├── tech-lead.md              # "Telescope" — code review w/ Laravel checklist (Sonnet, project memory, no Edit/Write)
-│   ├── performance-engineer.md   # "Octane" — profiling, N+1, caching, Octane, CWV (Sonnet, project memory, no Edit/Write) ★ NEW
-│   ├── mobile-developer.md       # "Passport" — iOS/Android consuming Laravel APIs (Sonnet, worktree)
-│   └── delivery-coordinator.md   # "Envoy" — orchestrator main-thread agent (Sonnet, project memory)
+│   ├── business-analyst.md       # "Sara" — discovery & requirements (Sonnet, project memory)
+│   ├── product-owner.md          # "Hana" — backlog & prioritization (Sonnet, project memory)
+│   ├── ui-ux-designer.md         # "Bruno" — paradigm-aware design specs (Sonnet, worktree, project memory)
+│   ├── frontend-developer.md     # "Bella" — Blade/Livewire/Inertia/Filament (Sonnet, worktree)
+│   ├── backend-developer.md      # "Adam" — APIs, services, Eloquent (Sonnet, worktree)
+│   ├── database-developer.md     # "Elena" — migrations, indexes, factories (Sonnet, worktree, project memory)
+│   ├── package-developer.md      # "Clara" — Laravel package authoring (Sonnet, worktree, project memory) ★ NEW
+│   ├── qa-engineer.md            # "Dina" — Pest/PHPUnit/Dusk, fakes (Sonnet, worktree)
+│   ├── devops-engineer.md        # "Farid" — Forge/Cloud/Octane/Horizon (Sonnet, worktree)
+│   ├── scrum-master.md           # "Petra" — delivery rhythm & blockers (Haiku, project memory)
+│   ├── solution-architect.md     # "Bilal" — system design & ADRs (Opus, project memory)
+│   ├── security-engineer.md      # "Felix" — STRIDE + Laravel hardening (Opus, project memory, no Edit/Write)
+│   ├── technical-writer.md       # "Sofia" — Scribe, route:list-driven docs (Haiku)
+│   ├── tech-lead.md              # "Tariq" — code review w/ Laravel checklist (Sonnet, project memory, no Edit/Write)
+│   ├── performance-engineer.md   # "Omar" — profiling, N+1, caching, Octane, CWV (Sonnet, project memory, no Edit/Write) ★ NEW
+│   ├── mobile-developer.md       # "Pablo" — iOS/Android consuming Laravel APIs (Sonnet, worktree)
+│   └── delivery-coordinator.md   # "Emre" — orchestrator main-thread agent (Sonnet, project memory)
 │
 └── commands/
     ├── audit-n-plus-one.md       # Audit a route/component for N+1, hand fixes to backend
@@ -72,27 +72,27 @@ tests/guardrails.test.sh          # Zero-dependency test harness for the guardra
 
 ## Meet the Guild
 
-Every agent answers to a guild name — the Laravel-ecosystem tool closest to its craft. Address them either way: `@backend-developer` or "have **Artisan** add an idempotency key". The names show up on the `/board` live dashboard and in every agent's report.
+Every agent answers to a human name. Address them either way: `@backend-developer` or "have **Adam** add an idempotency key". The names show up on the `/board` live dashboard and in every agent's report. Each name keeps the initial of the Laravel-ecosystem guild name it replaced, so old habits still land.
 
-| Guild name    | Agent                  | Named after                                              |
-| ------------- | ---------------------- | -------------------------------------------------------- |
-| **Artisan**   | `backend-developer`    | `php artisan` — the master craftsman of the codebase     |
-| **Blade**     | `frontend-developer`   | Blade templates — everything the user sees               |
-| **Eloquent**  | `database-developer`   | Eloquent ORM — schema, indexes, relationships            |
-| **Dusk**      | `qa-engineer`          | Laravel Dusk — hunts defects before dark                 |
-| **Forge**     | `devops-engineer`      | Laravel Forge — servers, pipelines, deploys              |
-| **Octane**    | `performance-engineer` | Laravel Octane — obsessed with speed                     |
-| **Fortify**   | `security-engineer`    | Laravel Fortify — hardens the walls                      |
-| **Telescope** | `tech-lead`            | Laravel Telescope — inspects everything, misses nothing  |
-| **Scribe**    | `technical-writer`     | Scribe — the guild's record-keeper                       |
-| **Pulse**     | `scrum-master`         | Laravel Pulse — keeps a finger on the team's rhythm      |
-| **Envoy**     | `delivery-coordinator` | Laravel Envoy — orchestrates tasks across the fleet      |
-| **Scout**     | `business-analyst`     | Laravel Scout — sent ahead to discover the real problem  |
-| **Horizon**   | `product-owner`        | Laravel Horizon — eyes always on what's next             |
-| **Blueprint** | `solution-architect`   | Laravel Blueprint — designs the system from a spec       |
-| **Breeze**    | `ui-ux-designer`       | Laravel Breeze — interfaces that feel effortless         |
-| **Passport**  | `mobile-developer`     | Laravel Passport — credentials for clients on the move   |
-| **Composer**  | `package-developer`    | Composer — ships reusable packages to the ecosystem      |
+| Name      | Agent                  | Role                                          | Formerly  |
+| --------- | ---------------------- | --------------------------------------------- | --------- |
+| **Adam**  | `backend-developer`    | APIs, services, Eloquent, queues              | Artisan   |
+| **Bella** | `frontend-developer`   | Blade / Livewire / Inertia / Filament UI      | Blade     |
+| **Elena** | `database-developer`   | Migrations, indexes, factories                | Eloquent  |
+| **Dina**  | `qa-engineer`          | Tests, fakes, Ship / Hold verdicts            | Dusk      |
+| **Farid** | `devops-engineer`      | CI/CD, deploys, workers, observability        | Forge     |
+| **Omar**  | `performance-engineer` | Profiling, N+1, caching, Core Web Vitals      | Octane    |
+| **Felix** | `security-engineer`    | Threat modeling, authn/authz, hardening       | Fortify   |
+| **Tariq** | `tech-lead`            | Code review, standards, work breakdown        | Telescope |
+| **Sofia** | `technical-writer`     | Docs, API reference, release notes            | Scribe    |
+| **Petra** | `scrum-master`         | Delivery rhythm, blockers, ceremonies         | Pulse     |
+| **Emre**  | `delivery-coordinator` | Orchestrates multi-stage work across the team | Envoy     |
+| **Sara**  | `business-analyst`     | Discovery, requirements, acceptance criteria  | Scout     |
+| **Hana**  | `product-owner`        | Backlog, prioritization, outcomes             | Horizon   |
+| **Bilal** | `solution-architect`   | System design, ADRs, technology choices       | Blueprint |
+| **Bruno** | `ui-ux-designer`       | Wireframes, design systems, accessibility     | Breeze    |
+| **Pablo** | `mobile-developer`     | iOS / Android consuming Laravel APIs          | Passport  |
+| **Clara** | `package-developer`    | Composer package authoring & releases         | Composer  |
 
 ---
 
