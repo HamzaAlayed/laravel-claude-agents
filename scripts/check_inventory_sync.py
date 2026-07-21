@@ -37,6 +37,8 @@ def actuals() -> dict:
     hooked = set(re.findall(r'"[^"]*/([\w.-]+\.sh)"', (ROOT / "hooks/hooks.json").read_text()))
     guardrails = len(hooked - OBSERVER_HOOKS)
     codex_hooks = len(list((ROOT / "codex/.codex/hooks").glob("*.sh")))
+    m = re.search(r"^ALL_CASES=\(([^)]*)\)", (ROOT / "tests/eval/run-evals.sh").read_text(), re.M)
+    eval_cases = len(m.group(1).split()) if m else 0
     return {
         "agents": agents,
         "commands": commands,
@@ -44,6 +46,7 @@ def actuals() -> dict:
         "guardrails": guardrails,
         "gemini_commands": commands - len(GEMINI_SKIPPED_COMMANDS),
         "codex_hooks": codex_hooks,
+        "eval_cases": eval_cases,
     }
 
 
@@ -60,6 +63,9 @@ CLAIMS = [
     (".claude-plugin/marketplace.json", "specialist count", NUM + r" specialists", "agents"),
     (".claude-plugin/marketplace.json", "command count", NUM + r" workflow commands", "commands"),
     (".claude-plugin/marketplace.json", "guardrail count", NUM + r" production guardrail hooks", "guardrails"),
+    (".cursor-plugin/marketplace.json", "specialist count", NUM + r" specialists", "agents"),
+    (".cursor-plugin/marketplace.json", "command count", NUM + r" workflow commands", "commands"),
+    (".cursor-plugin/marketplace.json", "guardrail count", NUM + r" production guardrail hooks", "guardrails"),
     ("scripts/build-gemini-extension.py", "gemini command count", NUM + r" workflow commands", "gemini_commands"),
     ("scripts/build-gemini-extension.py", "agent count", NUM + r"-agent Laravel", "agents"),
     ("README.md", "install agent count", r"all " + NUM + r" agents", "agents"),
@@ -68,6 +74,7 @@ CLAIMS = [
     ("README.md", "skills count", r"\*\*" + NUM + r" skills\*\*", "skills"),
     ("README.md", "gemini command count", r"the " + NUM + r" commands as slash commands", "gemini_commands"),
     ("README.md", "codex hook count", r"the " + NUM + r" guardrail hooks as `PreToolUse`", "codex_hooks"),
+    ("README.md", "eval case count", r"the " + NUM + r" eval cases", "eval_cases"),
 ]
 
 

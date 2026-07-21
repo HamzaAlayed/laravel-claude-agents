@@ -5,6 +5,30 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.21.0] - 2026-07-21
+
+### Added
+
+- **`/team-hygiene` — the 12th command.** Sweeps the `docs/team/` ledger for the four
+  rot classes (duplicates, conflicts, facts whose **Verify** command fails, dead
+  scopes), delegates the scan to scrum-master (cheap, has Bash for Verify), and
+  proposes one keep/merge/evict table — **nothing applies without an approved row**;
+  headless runs output the table only. Evictions append a line to `decisions.md` so
+  the removal itself is remembered. Coordinator's delivery-end eviction now delegates
+  to this sweep; proposal-table template added to delivery-templates.
+- **Fifth eval case (`hygiene`).** The harness seeds a rotten ledger (UUID duplicate
+  pair, Pest-vs-PHPUnit conflict, stale `LegacyPayments` Verify) and asserts the
+  proposal table catches all three while the ledger stays untouched.
+- **README: eval scorecard + fail-closed positioning.** "Proven against a planted-flaw
+  app" section with the three-run results table, and a design-choices paragraph on why
+  the guardrails failing closed (tested parser-fallback chain, CI runs the suite with
+  and without jq) is the pack's posture — versus harnesses gating autonomous shell
+  behind fail-open hooks.
+- Inventory checker now also covers `.cursor-plugin/marketplace.json` and the README's
+  eval-case count (derived from `ALL_CASES`). Command-count claims updated everywhere
+  (12 / gemini 11); a stale "11 slash commands" claim in the README's Gemini section
+  (should have been 10) was caught and fixed in the process.
+
 ## [1.20.0] - 2026-07-21
 
 ### Added

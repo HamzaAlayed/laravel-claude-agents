@@ -5,14 +5,14 @@
     "url": "https://github.com/HamzaAlayed"
   },
   "metadata": {
-    "description": "The Laravel-aware Claude Code agent team — 17 specialists, 11 workflow commands, 8 skills, MCP wiring, and production guardrails."
+    "description": "The Laravel-aware Claude Code agent team — 17 specialists, 12 workflow commands, 8 skills, MCP wiring, and production guardrails."
   },
   "plugins": [
     {
       "name": "laravel-team",
       "displayName": "Laravel Guild",
       "source": "./",
-      "description": "A 17-agent Laravel-specialized Claude Code team plus 11 workflow commands, 8 on-demand skills, role-matched MCP grants, and 5 production guardrail hooks.",
+      "description": "A 17-agent Laravel-specialized Claude Code team plus 12 workflow commands, 8 on-demand skills, role-matched MCP grants, and 5 production guardrail hooks.",
       "version": "1.17.0",
       "author": {
         "name": "Hamza Alayed",

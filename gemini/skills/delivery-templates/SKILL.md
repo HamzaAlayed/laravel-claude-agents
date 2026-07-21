@@ -85,3 +85,15 @@ entry per rejection; ADR-worthy decisions go to `docs/adr/` instead, linked from
 ## Delivery log — `docs/delivery/<feature>/log.md` (coordinator)
 
 Per stage: specialist engaged · brief given (one line) · artifact path returned · verification run + result · human checkpoints flagged/cleared. This is the paper trail — append, never rewrite history.
+
+## Hygiene proposal — `/team-hygiene` output (scrum-master)
+
+Exceptions only, never an inventory; nothing applies without an approved row number.
+
+```markdown
+| # | Entry | File | Class | Evidence | Proposal |
+|---|-------|------|-------|----------|----------|
+| 1 | <entry title> | conventions.md | duplicate / conflict / stale-fact / dead-scope | <twin title · failing Verify output · missing path> | keep / merge into #N / evict / rewrite: <line> |
+```
+
+Evictions append `evicted: <title> — <class>, <date>` to decisions.md — the removal is remembered.

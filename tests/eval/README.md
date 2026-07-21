@@ -41,6 +41,7 @@ fixture**, so agents under evaluation can't read the answer key.
 | 3 | Mass assignment: `Post::$guarded = []` + `$request->all()` into `create()`/`update()` | `Post` model + `PostController` | `policy` / `tests` (surfaced in review output) |
 | 4 | Fat controller: `store()` does inline validation, slug generation, mail fan-out, stats bookkeeping, logging | `PostController@store` | `action` |
 | 5 | No test coverage on any `posts.*` route (only a trivial `/` smoke test) | `tests/Feature/` | `tests` |
+| 6 | Rotten team ledger: a duplicate pair (two UUID-rule entries), a conflict pair (Pest vs PHPUnit), and a stale fact whose `Verify` fails (`app/Services/LegacyPayments.php` doesn't exist) — seeded by the harness, not the fixture | `docs/team/conventions.md` (via `seed_hygiene_fixture`) | `hygiene` |
 
 ## Cases
 
@@ -50,6 +51,7 @@ fixture**, so agents under evaluation can't read the answer key.
 | `policy` | `/add-policy Post` | `PostPolicy.php` exists, controller calls `authorize`/`can`, update route covered |
 | `action` | `/refactor-to-action PostController@store` | an `app/Actions/*.php` exists, controller delegates to it, mail fan-out left the controller, tests touched |
 | `tests` | `/add-test PostController` | test files added, update route covered, authorization failure (403) probed |
+| `hygiene` | `/team-hygiene` | proposal table classifies the duplicate + conflict, names the stale `LegacyPayments` fact, and applies **nothing** (headless = no approval) |
 
 A failing check is **signal, not necessarily a harness bug** — it becomes a
 line in the findings doc. Keep checks intent-level (did the flaw get found?)

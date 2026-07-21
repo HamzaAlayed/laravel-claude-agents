@@ -39,7 +39,7 @@ CLAUDE_BIN="${CLAUDE_BIN:-claude}"
 EVAL_TIMEOUT="${EVAL_TIMEOUT:-1200}"
 KEEP_WORKDIR="${KEEP_WORKDIR:-0}"
 
-ALL_CASES=(n-plus-one policy action tests)
+ALL_CASES=(n-plus-one policy action tests hygiene)
 
 case_prompt() {
   case "$1" in
@@ -47,6 +47,7 @@ case_prompt() {
     policy)     echo "/add-policy Post" ;;
     action)     echo "/refactor-to-action PostController@store" ;;
     tests)      echo "/add-test PostController" ;;
+    hygiene)    echo "/team-hygiene" ;;
   esac
 }
 
@@ -56,7 +57,55 @@ case_desc() {
     policy)     echo "creates PostPolicy and guards the open update route" ;;
     action)     echo "extracts fat PostController@store into an Action" ;;
     tests)      echo "writes feature tests incl. update authorization" ;;
+    hygiene)    echo "flags the planted duplicate/conflict/stale entries, applies nothing headless" ;;
   esac
+}
+
+# hygiene case: plant a duplicate pair, a conflict pair, and a stale-Verify
+# fact in docs/team/. Headless runs get no approval, so the answer key
+# asserts the proposal table (and that the ledger is untouched), not edits.
+seed_hygiene_fixture() { # seed_hygiene_fixture <workdir>
+  mkdir -p "$1/docs/team"
+  cat >"$1/docs/team/conventions.md" <<'EOF'
+# Team conventions — taught rules
+
+## Use UUIDs for public identifiers
+- **Rule:** Every publicly exposed ID is a UUID, never an auto-increment integer.
+- **Why:** Enumeration resistance.
+- **Scope:** backend-developer, database-developer
+- **Source:** user, 2026-05-02
+
+## Public identifiers are UUIDs
+- **Rule:** Expose UUIDs in URLs and API payloads instead of integer primary keys.
+- **Why:** Prevents ID enumeration.
+- **Scope:** backend-developer
+- **Source:** user, 2026-06-14
+
+## Prefer Pest for new tests
+- **Rule:** All new test files use Pest syntax.
+- **Why:** Team standard since the v2 migration.
+- **Scope:** qa-engineer
+- **Source:** user, 2026-04-20
+
+## Write new tests in PHPUnit style
+- **Rule:** New tests use PHPUnit classes, not Pest closures.
+- **Why:** Consistency with the legacy suite.
+- **Scope:** qa-engineer
+- **Source:** user, 2026-03-01
+
+## Payments go through LegacyPayments service
+- **Rule:** All payment writes call app/Services/LegacyPayments.php.
+- **Why:** Single audited money path.
+- **Scope:** backend-developer (payments)
+- **Source:** user, 2026-02-10
+- **Verify:** test -f app/Services/LegacyPayments.php
+
+## Money is integer minor units
+- **Rule:** Store and compute money as integer cents.
+- **Why:** Float drift is unacceptable in invoicing.
+- **Scope:** all agents
+- **Source:** user, 2026-01-15
+EOF
 }
 
 # ---------------------------------------------------------------- check kit --
@@ -139,6 +188,15 @@ checks_tests() {
   check_log 'NOT-CHECKED' "return includes NOT-CHECKED calibration"
 }
 
+checks_hygiene() {
+  check_log 'duplicate' "classifies the UUID twin entries as duplicate"
+  check_log 'conflict' "classifies the Pest-vs-PHPUnit pair as conflict"
+  check_log 'LegacyPayments' "names the stale-Verify payments fact"
+  # Headless = no approval: the ledger must be untouched (proposal only).
+  git -C "$WORK" diff --quiet -- docs/team/conventions.md
+  record $? "diff:   applies nothing without approval"
+}
+
 # ---------------------------------------------------------------- plumbing ---
 
 run_with_timeout() { # run_with_timeout <seconds> <cmd...>
@@ -188,6 +246,8 @@ run_case() { # run_case <name> <results-dir>
     echo "   ERROR: install.sh failed — see $results/$name.install.log"
     return 1
   fi
+
+  [ "$name" = "hygiene" ] && seed_hygiene_fixture "$WORK"
 
   git -C "$WORK" init -q
   git -C "$WORK" -c user.email=eval@example.com -c user.name=eval add -A

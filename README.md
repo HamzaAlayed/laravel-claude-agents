@@ -42,6 +42,7 @@ Every agent now knows what "good" looks like in a Laravel codebase. Reviewers re
     ├── optimize-query.md         # Diagnose a slow query/endpoint, route fixes to owners
     ├── upgrade-laravel.md        # Staged Laravel version-upgrade plan
     ├── teach.md                  # Record a user-taught rule all agents apply from then on
+    ├── team-hygiene.md           # Consolidate docs/team/ — dupes, conflicts, stale facts ★ NEW
     └── board.md                  # Open the live agents dashboard (serves board.html) ★ NEW
 
 scripts/
@@ -96,6 +97,20 @@ Every agent answers to a human name. Address them either way: `@backend-develope
 
 ---
 
+## Proven against a planted-flaw app
+
+The pack is evaluated against a fixture Laravel app with documented planted flaws ([tests/eval/](tests/eval/)) — real headless `claude -p` runs scored by an answer key the agents can't read, with per-agent timing captured from the board event stream. Findings docs live in [docs/evals/](docs/evals/); soft per-case duration ceilings live in [tests/eval/baseline.json](tests/eval/baseline.json).
+
+| Run | Cases | Checks | Findings |
+| --- | ----- | ------ | -------- |
+| 1 · 2026-07-20 | 4/4 | 13/14 | every planted flaw found; mass assignment surfaced unprompted in 3 cases |
+| 2 · 2026-07-20 | 4/4 | 14/14 | `n-plus-one` 4× faster after lever tuning |
+| 3 · 2026-07-21 | 4/4 | 14/14 | first parallel run — pass/fail smoke only, timings excluded |
+
+Each run's misses become levers, ship in the next release, and get re-measured — the harness runs the 5 eval cases (the fifth, `hygiene`, ships unscored until run 4).
+
+---
+
 ## Design choices, and why
 
 **Model selection is opinionated, not uniform.**
@@ -105,13 +120,15 @@ Every agent answers to a human name. Address them either way: `@backend-develope
 
 **Reviewers cannot edit code.** `tech-lead`, `security-engineer`, and `performance-engineer` are read-only (`disallowedTools: Edit, Write`). They return findings; the `delivery-coordinator` persists the reports and builders apply the changes. This keeps reviews trustworthy and prevents reviewer drift. (On the residual `Bash` write-vector and how to fully sandbox a reviewer, see [docs/read-only-by-design.md](docs/read-only-by-design.md).)
 
+**Guardrails fail closed.** The five guardrail hooks are deny-rules with a tested parser-fallback chain (jq → python3 → conservative bare-string matching) — removing jq degrades the parsing, never the protection, and CI runs the whole suite both ways. This is the opposite posture of agent harnesses that ship autonomous shell access gated only by an optional hook that fails open on error or timeout. The one fail-open script is the board observer, deliberately: a dashboard must never block delivery.
+
 **You can see the team working.** The `delivery-coordinator` and all nine orchestrating commands print a progress board after planning and after every stage (`✔ done / ▶ running / · queued / ✖ failed / ⏸ checkpoint`), demand one stage-return shape from every specialist (`STATUS / DID / VERIFIED / NOT-CHECKED / FLAGS / NEXT` — evidence required, gaps named, claims rejected), and present human checkpoints as numbered options with a recommended default (via `AskUserQuestion` when running main-thread). And `/board` opens a live HTML dashboard — the `emit-agent-events` hook streams every subagent start/finish (agent, task, duration, tokens) to `.claude/agents-board.jsonl` deterministically, so the board fills up no matter which command or agent is orchestrating. Agents spawned from inside another agent nest under their spawner (the hook records the calling agent as `parent`), and async-launched agents get a real completion event via `SubagentStop` — background work shows its true duration instead of vanishing at launch. A multi-agent run reads like a dashboard, not a silence.
 
 **Writers run in isolated worktrees.** `backend-developer`, `frontend-developer`, `database-developer`, `mobile-developer`, `package-developer`, `devops-engineer`, and `ui-ux-designer` use `isolation: worktree` so parallel changes don't collide.
 
 **Project memory where it earns its keep.** Writing roles — the architect, data layer, product, discovery, and orchestration agents — persist context (ADRs, conventions, schema decisions, requirements) across sessions. Read-only reviewers keep memory for cross-session recall but never write it; the orchestrator persists their findings.
 
-**The team keeps a knowledge base — in your repo, not in a hidden store.** Three files under `docs/team/`, all human-readable, PR-reviewable, and deletable: `conventions.md` (rules you teach via `/teach` — every agent applies them as overrides), `stack.md` (verified project facts + where-things-live; every fact carries a **Verify** command so agents trust-but-verify instead of re-deriving configs each invocation), and `decisions.md` (approaches tried and rejected, with why — the one thing neither git nor the code can tell an agent). The coordinator harvests all three at delivery end and flags stale entries for *you* to remove — agents propose, the human approves, the repo remembers. The design rule: store what the repo can't answer (intent, taste, rejections); derive what it can (hot paths, naming, current state).
+**The team keeps a knowledge base — in your repo, not in a hidden store.** Three files under `docs/team/`, all human-readable, PR-reviewable, and deletable: `conventions.md` (rules you teach via `/teach` — every agent applies them as overrides), `stack.md` (verified project facts + where-things-live; every fact carries a **Verify** command so agents trust-but-verify instead of re-deriving configs each invocation), and `decisions.md` (approaches tried and rejected, with why — the one thing neither git nor the code can tell an agent). The coordinator harvests all three at delivery end, and `/team-hygiene` sweeps the ledger for duplicates, conflicts, facts whose Verify fails, and dead scopes — proposing a keep/merge/evict table that applies nothing without your approval. Agents propose, the human approves, the repo remembers. The design rule: store what the repo can't answer (intent, taste, rejections); derive what it can (hot paths, naming, current state).
 
 **Laravel-aware, not Laravel-flavored.** Every applicable agent references concrete Laravel primitives — Form Requests, API Resources, Policies, Eloquent relationships, Pint, Larastan, Pest, Horizon, Octane, Sanctum, Filament — and names the antipatterns they refuse to ship.
 
@@ -232,7 +249,7 @@ Add the marketplace once, then install the plugin:
 /plugin install laravel-team@laravel-claude-agents
 ```
 
-That registers all 17 agents, the 11 slash commands, the `laravel-conventions` skill, and the five guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
+That registers all 17 agents, the 12 slash commands, the `laravel-conventions` skill, and the five guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
 
 ```
 /plugin install laravel-team@laravel-claude-agents --scope project
@@ -253,7 +270,7 @@ git clone https://github.com/HamzaAlayed/laravel-claude-agents
 gemini extensions install ./laravel-claude-agents/gemini
 ```
 
-It registers the 17 subagents (auto-delegated, or call `@backend-developer` etc.), the 11 slash commands, the `laravel-conventions` skill, and the guardrail hooks (wired as `BeforeTool` via `${extensionPath}`). The Claude-specific frontmatter is translated automatically: tool names mapped (`Bash`→`run_shell_command`, …), read-only reviewers expressed as a tools allowlist (Gemini has no `disallowedTools`), commands rewritten to TOML (`{{args}}` is already Gemini's token), and `model`/`isolation`/`memory` dropped (no Gemini equivalent).
+It registers the 17 subagents (auto-delegated, or call `@backend-developer` etc.), the 11 commands as slash commands, the `laravel-conventions` skill, and the guardrail hooks (wired as `BeforeTool` via `${extensionPath}`). The Claude-specific frontmatter is translated automatically: tool names mapped (`Bash`→`run_shell_command`, …), read-only reviewers expressed as a tools allowlist (Gemini has no `disallowedTools`), commands rewritten to TOML (`{{args}}` is already Gemini's token), and `model`/`isolation`/`memory` dropped (no Gemini equivalent).
 
 > **Sunset notice:** Google sunsets Gemini CLI for consumer (Individual / AI Pro / AI Ultra) accounts on **June 18, 2026** in favor of [Antigravity](https://antigravity.google); Standard/Enterprise tiers are unaffected. Installed extensions **auto-migrate to Antigravity plugins** — Agent Skills, Hooks, Subagents, and `GEMINI.md` carry over. This pack is pure bash + markdown (no Node-only APIs), so it migrates cleanly.
 
@@ -419,7 +436,7 @@ For point work, call a specialist directly:
 
 ## Usage in Gemini CLI
 
-After `gemini extensions install ./laravel-claude-agents/gemini`, the 17 specialists load as Gemini subagents, the 10 commands as slash commands, the `laravel-conventions` skill, and the guardrail hooks.
+After `gemini extensions install ./laravel-claude-agents/gemini`, the 17 specialists load as Gemini subagents, the 11 commands as slash commands, the `laravel-conventions` skill, and the guardrail hooks.
 
 **Invoke a specialist** — either let Gemini auto-delegate from your description, or target one explicitly with `@`:
 
