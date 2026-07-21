@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # The check kit + checks_* functions are dispatched dynamically ("checks_$name"),
-# which shellcheck can't see — hence the file-wide SC2329 suppression.
-# shellcheck disable=SC2329
+# which shellcheck can't see — hence the file-wide suppression (SC2329 on >=0.10,
+# SC2317 on the older shellcheck in ubuntu-latest CI).
+# shellcheck disable=SC2317,SC2329
 #
 # Eval harness — proves the pack's agents actually find (or fix) the flaws
 # planted in tests/fixture-app, and times every run.
