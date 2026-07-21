@@ -2,7 +2,7 @@
   "name": "laravel-team",
   "displayName": "Laravel Guild",
   "description": "A 17-agent Laravel-specialized team — discovery, architecture, design, frontend, backend, database, mobile, QA, DevOps, security, performance, docs, leadership, delivery — plus 11 workflow commands, 8 on-demand skills, role-matched MCP grants, and 5 production guardrail hooks.",
-  "version": "1.16.0",
+  "version": "1.17.0",
   "author": {
     "name": "Hamza Alayed",
     "url": "https://github.com/HamzaAlayed"
