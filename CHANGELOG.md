@@ -5,6 +5,37 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.16.0] - 2026-07-21
+
+The first release driven by the eval harness's own findings: run 2 confirmed 4/4 quality
+across the rewritten 1.15.0 bodies and named three speed/correctness levers — all three land
+here.
+
+### Added
+
+- **Second eval run + findings** (`docs/evals/2026-07-20-run-2.md`). Quality held at 4/4 with
+  zero regressions after both 1.15.0 sweeps. `n-plus-one` got 4× faster (385s → 96s — the
+  doomed dynamic-verification subagent is gone); `action` produced a bigger, better diff and
+  overran the default timeout (checks still passed); qa-engineer confirmed as the token hog
+  (108k tokens writing unrequested tests).
+- **Static-mode detection.** performance-engineer, qa-engineer, and the `eloquent-performance`
+  skill now decide run-vs-static in **one `vendor/` probe**: unrunnable app → declare static
+  analysis and stop attempting execution. Run 1 lost 5+ minutes per case to retry-flailing
+  `artisan` against an app with no dependencies installed.
+- **qa-engineer scope rule.** Test the brief's scenarios; further scenarios go in `NEXT`, not
+  the diff — more tests ≠ more value when the brief already named the risks.
+
+### Fixed
+
+- **Doubled agent events on dual installs.** Installed both as a plugin and via `install.sh`,
+  the emit-agent-events hook registers under two different command strings
+  (`${CLAUDE_PLUGIN_ROOT}/scripts/…` vs `./scripts/…`), which escapes Claude Code's
+  identical-command hook dedupe — every subagent start/end wrote twice and `/board` rendered
+  duplicate lanes. The emitter now suppresses the twin (identical modulo timestamp, ≤2s
+  apart), `board.html` dedupes older feeds defensively, and a regression test guards it in
+  `tests/guardrails.test.sh`.
+- Backfilled the missing `v1.14.0` git tag (releases v1.13.0 → v1.15.0 had a tag gap).
+
 ## [1.15.0] - 2026-07-20
 
 The pack stops taking its own word for it. After five releases of scaffolding around the

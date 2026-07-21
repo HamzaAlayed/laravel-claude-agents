@@ -57,6 +57,24 @@ fi
 
 mkdir -p "$DIR" 2>/dev/null || exit 0
 
+# Dedupe: installed BOTH as a plugin (command ${CLAUDE_PLUGIN_ROOT}/scripts/…)
+# and via install.sh (command ./scripts/…), Claude Code registers two distinct
+# command strings for the same event, so this script runs twice per spawn.
+# Suppress the twin: identical to the last line modulo ts, within 2 seconds.
+LAST="$(tail -n 1 "$OUT" 2>/dev/null || true)"
+if [ -n "$LAST" ]; then
+  LAST_KEY="$(printf '%s' "$LAST" | sed 's/"ts":[0-9]*/"ts":0/')"
+  NEW_KEY="$(printf '%s' "$EVENT" | sed 's/"ts":[0-9]*/"ts":0/')"
+  if [ "$LAST_KEY" = "$NEW_KEY" ]; then
+    LAST_TS="${LAST#*\"ts\":}"; LAST_TS="${LAST_TS%%,*}"
+    NEW_TS="${EVENT#*\"ts\":}"; NEW_TS="${NEW_TS%%,*}"
+    case "$LAST_TS$NEW_TS" in
+      *[!0-9]*) : ;; # unparsable ts — append rather than drop
+      *) [ $((NEW_TS - LAST_TS)) -le 2 ] && exit 0 ;;
+    esac
+  fi
+fi
+
 # First event: drop the viewer next to the feed so /board has something to
 # serve. Plugin installs resolve via CLAUDE_PLUGIN_ROOT; install.sh layouts
 # find it next to this script.

@@ -246,6 +246,9 @@ expect "legacy Task tool name also recorded" "$ALLOW" \
   "$(CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh '{"hook_event_name":"PreToolUse","tool_name":"Task","tool_input":{"subagent_type":"qa-engineer","description":"Run suite"}}')"
 expect "non-subagent tool ignored (exit 0, no event)" "3" \
   "$(CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh '{"hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"ls"}}' >/dev/null; wc -l < "$FEED" | tr -d ' ')"
+DEDUP_JSON='{"session_id":"abc12345-zzz","hook_event_name":"PreToolUse","tool_name":"Agent","tool_input":{"subagent_type":"laravel-team:database-developer","description":"Dedup probe"}}'
+expect "dual-registration twin suppressed (plugin + settings both fire)" "4" \
+  "$(CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh "$DEDUP_JSON" >/dev/null; CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh "$DEDUP_JSON" >/dev/null; wc -l < "$FEED" | tr -d ' ')"
 expect "viewer copied next to the feed" "yes" \
   "$([ -f "$BOARDPROJ/.claude/board.html" ] && echo yes || echo no)"
 expect "FALLBACK (no jq/python3): exits 0, fails open" "$ALLOW" \

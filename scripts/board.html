@@ -183,7 +183,16 @@ async function tick() {
     live.classList.remove("stale"); liveText.textContent = "live";
     if (text === lastText) { render(current); return; }
     lastText = text;
-    current = pair(text.split("\n").filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }));
+    const events = text.split("\n").filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+    // Defense for feeds written before the emitter deduped dual-registration
+    // twins: drop an event identical (modulo ts) to one seen ≤2s earlier.
+    const seen = new Map();
+    current = pair(events.filter(e => {
+      const key = JSON.stringify([e.sid, e.ev, e.agent, e.task, e.ms, e.tokens, e.status]);
+      const last = seen.get(key);
+      seen.set(key, e.ts);
+      return !(last !== undefined && Math.abs(e.ts - last) <= 2);
+    }));
     render(current);
   } catch {
     live.classList.add("stale"); liveText.textContent = "waiting for events";

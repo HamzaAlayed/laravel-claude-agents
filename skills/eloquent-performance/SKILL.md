@@ -5,7 +5,7 @@ description: "The query-performance cookbook — reading EXPLAIN plans, diagnosi
 
 # Eloquent + Query Performance
 
-Measure first. A number without a baseline is a guess; p95/p99, not mean. Reproduce under realistic volume — a plan on 100 rows lies about 10M.
+Measure first. A number without a baseline is a guess; p95/p99, not mean. Reproduce under realistic volume — a plan on 100 rows lies about 10M. One probe decides run-vs-static: no `vendor/` (or the first bootstrap fails) → static analysis only, declared as such — never retry-flail an unrunnable app.
 
 ## Reading EXPLAIN
 
