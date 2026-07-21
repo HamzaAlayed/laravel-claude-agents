@@ -47,6 +47,41 @@ Cycle time (PR open → merge, p50/p85) · throughput (merged PRs or completed s
 
 Lead with outcomes, not activity: **Shipped + observed effect** · **In flight + expected date** · **Blocked + what unblocks it** · **Decisions needed from you** (each with a recommendation + deadline). One screen. Plain language — no story IDs without titles.
 
+## Stack snapshot — `docs/team/stack.md` (coordinator persists; every agent reads first)
+
+The orientation layer: verified project facts that kill discovery turns. **Store what the
+repo can't answer instantly; derive what it can** (hot paths → `git log`, naming → read
+siblings). Every fact carries a Verify command — a stale fact followed with perfect
+compliance is worse than nothing. Hard cap ~40 lines; over it, you're storing derivables.
+
+```markdown
+# Stack — verified facts (refresh: run Verify before relying)
+
+| Fact | Value | Verify |
+| ---- | ----- | ------ |
+| Laravel | 13.x | `php artisan --version` |
+| Runner | Sail | `test -x vendor/bin/sail && ls compose.yaml` |
+| Tests | Pest 4 | `grep pestphp/pest composer.json` |
+| Queue | Redis + Horizon | `grep -l horizon config/` |
+
+## Where things live
+- <one line each: domains, key configs, entry points — only the non-obvious>
+
+## Command quirks
+- <exact invocations that differ from defaults, each with why>
+```
+
+## Decisions ledger — `docs/team/decisions.md` (coordinator)
+
+Rejected approaches only — the one thing neither git nor code can tell an agent. One
+entry per rejection; ADR-worthy decisions go to `docs/adr/` instead, linked from here.
+
+```markdown
+## <approach, imperative — e.g. "Cache invoice totals in Redis">
+- **Rejected:** <YYYY-MM-DD> — <one-line why (measured result, constraint, human call)>
+- **Instead:** <what the team does instead, one line>
+```
+
 ## Delivery log — `docs/delivery/<feature>/log.md` (coordinator)
 
 Per stage: specialist engaged · brief given (one line) · artifact path returned · verification run + result · human checkpoints flagged/cleared. This is the paper trail — append, never rewrite history.

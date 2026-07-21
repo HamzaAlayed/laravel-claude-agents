@@ -111,6 +111,8 @@ Every agent answers to a guild name — the Laravel-ecosystem tool closest to it
 
 **Project memory where it earns its keep.** Writing roles — the architect, data layer, product, discovery, and orchestration agents — persist context (ADRs, conventions, schema decisions, requirements) across sessions. Read-only reviewers keep memory for cross-session recall but never write it; the orchestrator persists their findings.
 
+**The team keeps a knowledge base — in your repo, not in a hidden store.** Three files under `docs/team/`, all human-readable, PR-reviewable, and deletable: `conventions.md` (rules you teach via `/teach` — every agent applies them as overrides), `stack.md` (verified project facts + where-things-live; every fact carries a **Verify** command so agents trust-but-verify instead of re-deriving configs each invocation), and `decisions.md` (approaches tried and rejected, with why — the one thing neither git nor the code can tell an agent). The coordinator harvests all three at delivery end and flags stale entries for *you* to remove — agents propose, the human approves, the repo remembers. The design rule: store what the repo can't answer (intent, taste, rejections); derive what it can (hot paths, naming, current state).
+
 **Laravel-aware, not Laravel-flavored.** Every applicable agent references concrete Laravel primitives — Form Requests, API Resources, Policies, Eloquent relationships, Pint, Larastan, Pest, Horizon, Octane, Sanctum, Filament — and names the antipatterns they refuse to ship.
 
 **One frontend agent, paradigm-aware.** Rather than splitting Blade/Livewire/Inertia/Filament into separate agents, `frontend-developer` detects the project's paradigm from composer.json + the codebase and behaves accordingly. Filament is treated as a first-class paradigm, not a Blade add-on.
@@ -145,7 +147,7 @@ Each is a thin orchestrator that hands work to the right specialist agent.
 | `/review-pr [base-branch]`                | Layered diff review — fans out to `tech-lead`, `security-engineer`, `qa-engineer`, `performance-engineer`; one verdict with Blocking/Should-fix/Nits. |
 | `/optimize-query <route, query, method>`  | Captures the query + timing, diagnoses (index/N+1/`SELECT *`/unbounded), routes index fixes to `database-developer`, shape fixes to `backend-developer`. |
 | `/upgrade-laravel <target-version>`       | Inventories breaking changes + first-party package compat, produces a staged upgrade plan with a verify checkpoint per stage.                  |
-| `/teach <rule>`                           | Records a rule/preference in `docs/team/conventions.md` — every agent reads it before starting and applies it as an override. No args → harvests this session's corrections. |
+| `/teach <rule>`                           | Records a rule/preference in `docs/team/conventions.md` — every agent reads it before starting and applies it as an override. No args → harvests this session's corrections. Facts (commands, paths) carry a **Verify** command so they can't go silently stale. |
 | `/board [port]`                           | Opens the live agents dashboard — serves `.claude/board.html` over localhost; running agents pulse with a live timer, finished ones show duration + tokens. Fed by the `emit-agent-events` hook. |
 
 ---

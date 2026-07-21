@@ -34,6 +34,7 @@ Record a user-taught rule in the team conventions ledger at `docs/team/conventio
    - **Why:** <the user's reason; ask if it isn't obvious — a rule without a why gets misapplied>
    - **Scope:** <which agents / areas it binds — e.g. database-developer + backend-developer (migrations, models); "all agents" when truly global>
    - **Source:** user, <YYYY-MM-DD>
+   - **Verify:** <only when the rule states a project FACT (command, path, config) rather than a preference: one command that proves it still holds — facts go stale; preferences don't>
    ```
 
 5. **Confirm back.** Show the recorded entry, name the agents it binds, and remind: it takes effect on each agent's next invocation. If the rule belongs in `CLAUDE.md` instead (a hard project constraint, not an agent-behavior preference), say so and offer to put it there.

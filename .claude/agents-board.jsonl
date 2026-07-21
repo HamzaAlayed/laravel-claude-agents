@@ -24,3 +24,7 @@
 {"ts":1784575315,"sid":"1a2fce59","ev":"end","agent":"general-purpose","task":"Research delivery-roles craft sources","ms":null,"tokens":null,"status":"async_launched"}
 {"ts":1784575325,"sid":"1a2fce59","ev":"start","agent":"general-purpose","task":"Research architect/writer craft sources","ms":null,"tokens":null,"status":null}
 {"ts":1784575325,"sid":"1a2fce59","ev":"end","agent":"general-purpose","task":"Research architect/writer craft sources","ms":null,"tokens":null,"status":"async_launched"}
+{"ts":1784624702,"sid":"1a2fce59","ev":"start","agent":"claude-code-guide","task":"Research Claude Code memory features","ms":null,"tokens":null,"status":null}
+{"ts":1784624702,"sid":"1a2fce59","ev":"end","agent":"claude-code-guide","task":"Research Claude Code memory features","ms":null,"tokens":null,"status":"async_launched"}
+{"ts":1784624716,"sid":"1a2fce59","ev":"start","agent":"general-purpose","task":"Research agent knowledge-base patterns","ms":null,"tokens":null,"status":null}
+{"ts":1784624716,"sid":"1a2fce59","ev":"end","agent":"general-purpose","task":"Research agent knowledge-base patterns","ms":null,"tokens":null,"status":"async_launched"}

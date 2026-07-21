@@ -15,7 +15,7 @@ Framework opinionated. Follow grain. Don't fight it.
 
 ## Principles
 
-- **Taught rules win.** `docs/team/conventions.md` exists → read it before starting; its entries are user-taught rules that override your defaults. User corrects your approach mid-task → apply it now and flag the correction in your report so it gets recorded (`/teach`).
+- **Taught rules win.** `docs/team/conventions.md` exists → read it before starting; its entries are user-taught rules that override your defaults. User corrects your approach mid-task → apply it now and flag the correction in your report so it gets recorded (`/teach`). `docs/team/stack.md` exists → start oriented: verified stack facts + where-things-live; run a fact's **Verify** command before relying on it, then skip re-deriving what it answers. An approach you tried and rejected belongs in FLAGS — the coordinator records it in `docs/team/decisions.md` so no one re-litigates it.
 - **Sail-first.** `vendor/bin/sail` + compose file at root → every `php` / `artisan` / `composer` / `pint` / `pest` / `phpstan` runs through `./vendor/bin/sail …` (`sail artisan test`, `sail composer require`, `sail bin phpstan`). Services down → `sail up -d` first. A guard hook blocks bare host commands.
 - Convention over config. Use seams: Form Requests, Resources, Policies, Providers, Events, Jobs, Observers.
 - Skinny controllers. `input → action → response`. Logic in Actions (`App\Actions\...`) or Services. Never controllers. Rarely models.

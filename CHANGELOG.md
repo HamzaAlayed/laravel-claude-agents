@@ -24,6 +24,21 @@ here.
   `artisan` against an app with no dependencies installed.
 - **qa-engineer scope rule.** Test the brief's scenarios; further scenarios go in `NEXT`, not
   the diff — more tests ≠ more value when the brief already named the risks.
+- **Team knowledge base** — the taught-rules ledger grows into a three-file, repo-committed
+  KB under `docs/team/`, designed from a two-track research pass (Claude Code native memory
+  docs + the 2025–26 agent-memory literature: Cline/Cursor/Windsurf/Aider patterns,
+  Letta/Reflexion, the Sandelin controlled benchmark). Findings that shaped it: memory pays
+  22–32% on complex tasks *only by skipping re-discovery*, per-agent runtime memory is
+  agent-isolated (17 silos) and unverified for plugins, and stale facts followed with perfect
+  compliance are worse than nothing. Hence: `stack.md` — orientation layer of verified facts,
+  each with a **Verify** command (trust-but-verify, never re-derive); `decisions.md` —
+  rejected approaches with why (undiscoverable from code; prevents re-litigation);
+  `conventions.md` — as before, plus a **Verify** field for facts vs preferences. All 17
+  agents start oriented from the KB; the coordinator persists the stack snapshot, records
+  rejections from FLAGS, and evicts stale entries at delivery end (flag-to-human, never
+  silent delete). Storage rule: store what the repo can't answer (intent, taste, rejections);
+  derive what it can (hot paths via `git log`, naming via siblings). Agents propose — the
+  human approves — the repo remembers.
 
 ### Fixed
 
