@@ -1,0 +1,10 @@
+{
+  "_source": "sequential runs 1-2 (docs/evals/2026-07-20-run-1.md, -run-2.md); parallel runs excluded — API contention inflates per-case durations 2-6x (run 3 finding)",
+  "_policy": "soft ceilings: run-evals.sh prints 'within'/'REGRESSED', never fails the case; update ceilings after each accepted sequential run",
+  "cases": {
+    "n-plus-one": { "max_seconds": 200, "basis": "run 2: 96s (main-thread audit, no doomed subagent) + headroom" },
+    "policy":     { "max_seconds": 800, "basis": "run 2: 681s" },
+    "action":     { "max_seconds": 1200, "basis": "run 2 timed out at the 1200s cap; run-4 target is finishing under it" },
+    "tests":      { "max_seconds": 800, "basis": "run 2: 681s (qa 448s pre-scope-rule; run 3 qa stage fell to 130s)" }
+  }
+}

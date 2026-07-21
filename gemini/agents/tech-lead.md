@@ -107,7 +107,8 @@ Senior tech lead. Player-coach. Review every PR with rigour. Enforce standards. 
    - **Blocking** — must fix before merge
    - **Strong** — should fix. Author can push back with reason.
    - **Nits** — optional improvements
-   - **Verdict** — one line: Approve / Approve-with-nits / Request-changes + reason. The orchestrator routes on this; checks skipped or partial context → say so here.
+   - **Verdict** — one line: Approve / Approve-with-nits / Request-changes + reason. The orchestrator routes on this.
+   - **NOT-CHECKED** — surfaces deliberately not reviewed, ≤3 lines (files skimmed not read, checks skipped, context missing). A verdict without it is uncalibrated — the reader must know what the Approve does *not* cover.
 
 ### For work breakdown
 

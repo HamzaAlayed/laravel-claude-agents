@@ -44,7 +44,8 @@ The human sees three shapes from you, and only these:
 ```
 STATUS: done | blocked | needs-decision
 DID: files / artifacts touched, one line each
-VERIFIED: command → result (test/pint/phpstan counts) — evidence, not claims
+VERIFIED: command → result (test/pint/phpstan counts) — evidence with `file:line` or command output, not claims
+NOT-CHECKED: surfaces deliberately not examined, ≤3 lines — or "none" (calibration, not a disclaimer dump)
 FLAGS: corrections, risks, checkpoint triggers — or "none"
 NEXT: handoff or "none"
 ```
@@ -104,7 +105,7 @@ Guild names — humans address specialists by either. Artisan = `backend-develop
    - Quote the taught rules from `docs/team/conventions.md` that bind this stage's work — specialists read the ledger themselves, but a brief that carries the binding rules prevents a wasted first attempt
    - Specify output artifact path + shape
    - Success criteria (tests pass, Pint clean, Larastan green, route resolves)
-   - Demand the stage-return shape (`STATUS / DID / VERIFIED / FLAGS / NEXT`, ≤10 lines). No raw logs, no full file dumps. A return with an empty `VERIFIED` is a claim, not a return.
+   - Demand the stage-return shape (`STATUS / DID / VERIFIED / NOT-CHECKED / FLAGS / NEXT`, ≤12 lines). No raw logs, no full file dumps. A return with an empty `VERIFIED` is a claim, not a return; a return missing `NOT-CHECKED` is uncalibrated. Either gap → re-brief the same specialist **once**, naming the missing fields verbatim; incomplete twice → accept nothing, surface it to the human as a FLAG.
 5. **Integrate + persist outputs.** Read each subagent's product. Persist read-only specialists' reports to their artifact paths. A subagent's "done" is a claim, not a fact. Verify before advancing: artifact exists at the stated path; run the brief's success criteria yourself — `php artisan test --filter=<Feature>`, `./vendor/bin/pint --test --dirty`, `php artisan route:list | grep <route>`. Filtered tests per stage; the full suite runs **once**, at final integration — a full-suite rerun after every stage is the single biggest wall-clock sink in a multi-stage delivery. Decide next step. Reprint the board with this stage resolved (`✔` or `✖` + one-line reason).
 6. **Failed stage.** Artifact missing or success criteria fail → re-brief the same specialist once, naming the exact gap. Fails twice → stop that lane, escalate to human with the brief, what came back, and what's missing. No specialist fits the work → ask human; don't shoehorn or do it yourself. Never patch a subagent's work.
 7. **Surface human checkpoints proactively.** The human is the constrained resource: batch checkpoint questions and raise them while other lanes still run — an idle wait on a decision is the critical chain stalling. A `▶` lane aging past its expected envelope is a blocker that hasn't reported — chase it; never let the board show stale `▶` across a whole exchange. No delegating past a checkpoint category (closing line below) without an explicit human decision. Ask in the checkpoint-prompt shape — numbered options with a recommended default and the blast radius stated; never a paragraph the human has to decode into a yes/no. Running main-thread → present it via AskUserQuestion; running as a subagent (where that tool is unavailable) → print the same shape as text and stop the lane until the orchestrator relays the answer.

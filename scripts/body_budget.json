@@ -1,0 +1,99 @@
+{
+  "_policy": "ratchet: CI fails when any actual exceeds its budget; reseed with --reseed after a deliberate, reviewed size change",
+  "agents": {
+    "backend-developer": {
+      "lines": 172,
+      "description_chars": 563
+    },
+    "business-analyst": {
+      "lines": 63,
+      "description_chars": 283
+    },
+    "database-developer": {
+      "lines": 116,
+      "description_chars": 635
+    },
+    "delivery-coordinator": {
+      "lines": 149,
+      "description_chars": 616
+    },
+    "devops-engineer": {
+      "lines": 147,
+      "description_chars": 629
+    },
+    "frontend-developer": {
+      "lines": 131,
+      "description_chars": 494
+    },
+    "mobile-developer": {
+      "lines": 119,
+      "description_chars": 448
+    },
+    "package-developer": {
+      "lines": 170,
+      "description_chars": 413
+    },
+    "performance-engineer": {
+      "lines": 116,
+      "description_chars": 447
+    },
+    "product-owner": {
+      "lines": 69,
+      "description_chars": 301
+    },
+    "qa-engineer": {
+      "lines": 136,
+      "description_chars": 579
+    },
+    "scrum-master": {
+      "lines": 84,
+      "description_chars": 422
+    },
+    "security-engineer": {
+      "lines": 158,
+      "description_chars": 631
+    },
+    "solution-architect": {
+      "lines": 139,
+      "description_chars": 435
+    },
+    "tech-lead": {
+      "lines": 172,
+      "description_chars": 478
+    },
+    "technical-writer": {
+      "lines": 98,
+      "description_chars": 433
+    },
+    "ui-ux-designer": {
+      "lines": 90,
+      "description_chars": 571
+    }
+  },
+  "skills": {
+    "accessibility-design": {
+      "lines": 51
+    },
+    "delivery-templates": {
+      "lines": 96
+    },
+    "docs-authoring": {
+      "lines": 42
+    },
+    "eloquent-performance": {
+      "lines": 56
+    },
+    "laravel-conventions": {
+      "lines": 60
+    },
+    "laravel-deploy": {
+      "lines": 44
+    },
+    "laravel-security": {
+      "lines": 46
+    },
+    "laravel-testing": {
+      "lines": 59
+    }
+  }
+}

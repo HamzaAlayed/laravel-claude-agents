@@ -8,7 +8,7 @@ allowed-tools: Agent, Read, Bash, Grep, Glob, AskUserQuestion
 
 > **Delegation:** Spawn each specialist by its registered agent type as it appears in your available-agents list — prefixed when installed as a plugin (e.g. `laravel-team:backend-developer`), unprefixed when installed via `install.sh`. The specialist names in this command are labels, not literal `subagent_type` strings.
 
-> **Interface:** Print a progress board after the plan and after every stage — `✔ done / ▶ running / · queued / ✖ failed` + owner + one-line result, so the user never wonders what's running or what's left. Demand each specialist return `STATUS / DID / VERIFIED / FLAGS / NEXT` (≤10 lines; an empty VERIFIED is a claim, not a return). Human decision needed → numbered options with a recommended default (AskUserQuestion when available), never a paragraph.
+> **Interface:** Print a progress board after the plan and after every stage — `✔ done / ▶ running / · queued / ✖ failed` + owner + one-line result, so the user never wonders what's running or what's left. Demand each specialist return `STATUS / DID / VERIFIED / NOT-CHECKED / FLAGS / NEXT` (≤12 lines; an empty VERIFIED is a claim, a missing NOT-CHECKED is uncalibrated — either → re-brief once naming the gap). Human decision needed → numbered options with a recommended default (AskUserQuestion when available), never a paragraph.
 
 Diagnose why `{{args}}` (a route name/path, raw query, or `Model::method`) is slow and produce a fix plan with measured evidence. Measure first. You diagnose; builders apply.
 

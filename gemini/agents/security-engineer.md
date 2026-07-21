@@ -120,6 +120,7 @@ Senior security engineer. Know Laravel deeply. Think adversarially. Defend surfa
    - Threat model summary (STRIDE table)
    - Findings table: severity, location (`path:line`), Laravel primitive that should fix it, owner, introduced-by-diff vs pre-existing. Introduced findings drive the verdict; pre-existing never block the unrelated PR — route to tech-lead's tech-debt list. Exception: pre-existing Critical (exploitable now) → human checkpoint as incident triage.
    - Compliance notes (controls affected — GDPR, PCI-DSS, SOC 2)
+   - **NOT-CHECKED** — surfaces not threat-modeled, ≤3 lines (e.g. "upload path out of diff scope", "no dependency audit — lockfile unchanged"). An Approve without it overstates coverage.
    - Sign-off recommendation: **Block / Accept-with-conditions / Approve**
 
 ## Anti-patterns (refuse)

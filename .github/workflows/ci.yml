@@ -133,3 +133,13 @@ jobs:
         run: |
           python3 scripts/build-codex-extension.py
           git diff --exit-code -- codex/ || { echo "::error::codex/ is stale — run: python3 scripts/build-codex-extension.py and commit"; exit 1; }
+
+  budgets:
+    name: ratchet budgets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Agent bodies, descriptions, skills within committed budget
+        run: python3 scripts/check_body_budget.py
+      - name: Inventory claims (README + manifests + generators) match disk
+        run: python3 scripts/check_inventory_sync.py

@@ -5,6 +5,33 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.19.0] - 2026-07-21
+
+### Added
+
+- **`NOT-CHECKED` in the stage-return contract.** Every specialist return now names the
+  surfaces it deliberately did not examine (≤3 lines) alongside evidence-backed
+  `VERIFIED` — a Ship/Approve verdict without its gaps named is uncalibrated. The
+  coordinator re-briefs an incomplete return exactly once (naming the missing fields
+  verbatim), then surfaces it to the human; never silently accepts. Applied to the
+  coordinator's shape, the four reviewer bodies (qa: Ship gates + "suite not run — no
+  vendor/" moves from VERIFIED to NOT-CHECKED; tech-lead: verdict; security: report;
+  performance: distilled numbers), all nine orchestrating commands' Interface line, and
+  the README. Inspired by jcode's swarm deep-mode completion contract
+  (docs/plans/2026-07-21-jcode-inspired-improvements.md).
+- **Ratchet budgets in CI** (new `budgets` job). `scripts/check_body_budget.py` +
+  committed `body_budget.json` freeze every agent body's line count, description
+  length, and skill size at current +10% — growth fails CI, deliberate changes reseed
+  via `--reseed`. `scripts/check_inventory_sync.py` verifies every count claim (README,
+  all four manifests, the gemini build script) against disk, encoding the deliberate
+  offsets (gemini = commands −1 for board.md; codex = its PreToolUse hook subset) —
+  the 1.10.0 stale-counts class of bug is now structural, not remembered.
+- **Eval timing baseline** (`tests/eval/baseline.json`): per-case duration ceilings
+  from sequential runs 1–2. `run-evals.sh` prints within/REGRESSED per case on
+  sequential runs — soft warning only, never a failure; parallel runs skip it
+  (contention inflates 2–6×). The `tests` eval case now also asserts the return
+  includes `NOT-CHECKED`.
+
 ## [1.18.0] - 2026-07-21
 
 ### Changed

@@ -69,7 +69,7 @@ Senior QA engineer embedded in Laravel codebase. Find every defect before custom
    - Accessibility: Pest v4 `assertNoAccessibilityIssues()`; `axe-core` via Dusk otherwise.
    - Security smoke: handed to `security-engineer`. Cover obvious classes, don't replace them.
 
-4. **Run + report distilled.** Run suite locally. Report pass / fail / skip counts per layer; each failure as test name + failing assertion + `file:line`. Excerpt only the relevant failure output — never paste full suite output. Never claim "tests pass" without having run the suite. Suite won't run (missing DB, env, extension)? Report the blocker — never guess or estimate results. **One probe decides**: no `vendor/` → the suite cannot run, period — write the tests, mark VERIFIED "not run — no vendor/", and stop attempting execution.
+4. **Run + report distilled.** Run suite locally. Report pass / fail / skip counts per layer; each failure as test name + failing assertion + `file:line`. Excerpt only the relevant failure output — never paste full suite output. Never claim "tests pass" without having run the suite. Suite won't run (missing DB, env, extension)? Report the blocker — never guess or estimate results. **One probe decides**: no `vendor/` → the suite cannot run, period — write the tests, record "suite not run — no vendor/" under NOT-CHECKED (VERIFIED carries only what static checks actually ran), and stop attempting execution.
    - `php artisan test` or `./vendor/bin/pest` for changed area, then full suite
    - `php artisan dusk` for browser tests when relevant
    - `./vendor/bin/pint --test` for style on test files themselves
@@ -87,6 +87,7 @@ Senior QA engineer embedded in Laravel codebase. Find every defect before custom
    - Performance + accessibility checks
    - Known issues with severity
    - **Ship / Hold** recommendation with rationale — Ship names its gates, each with evidence: suite green (quarantine list empty or accepted), rollback path stated, monitoring covers the changed surface, no open Sev-1/2. Canary/staged-rollout execution → devops-engineer; the watch criteria live here.
+   - **NOT-CHECKED** — surfaces deliberately not examined, ≤3 lines ("browser path not run — no Dusk setup", "queue jobs untouched by this change"). A Ship verdict without it is incomplete: the human is signing off on the gaps too, so name them.
 
 ## Laravel-specific always-check
 

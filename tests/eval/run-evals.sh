@@ -136,6 +136,7 @@ checks_tests() {
   check_touched "tests/" "test files added or updated"
   check_in_files 'posts\.update|->put\(|->patch\(' "tests" "covers the update route"
   check_in_files 'assertForbidden|403' "tests" "probes the missing update authorization"
+  check_log 'NOT-CHECKED' "return includes NOT-CHECKED calibration"
 }
 
 # ---------------------------------------------------------------- plumbing ---
@@ -220,6 +221,25 @@ run_case() { # run_case <name> <results-dir>
   local verdict=PASS
   [ "$CHECK_FAIL" -gt 0 ] && verdict=FAIL
   echo "   $verdict — $CHECK_PASS/$((CHECK_PASS + CHECK_FAIL)) checks, ${dur}s"
+
+  # Soft timing ratchet: sequential runs only (parallel contention inflates
+  # durations 2-6x — see tests/eval/README.md). Warns, never fails: timings
+  # are machine- and API-load-dependent. Ceilings live in baseline.json.
+  if [ "$MODE" = "sequential" ] && [ -f "$ROOT/tests/eval/baseline.json" ] \
+     && command -v python3 >/dev/null 2>&1; then
+    python3 - "$name" "$dur" "$ROOT/tests/eval/baseline.json" <<'PY' || true
+import json, sys
+name, dur, path = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+try:
+    case = json.load(open(path)).get("cases", {}).get(name)
+except Exception:
+    sys.exit(0)
+cap = (case or {}).get("max_seconds")
+if cap is not None:
+    state = "within" if dur <= cap else "REGRESSED vs"
+    print(f"   baseline: {state} {cap}s ceiling ({dur}s)")
+PY
+  fi
   echo
 
   echo "| $name | $verdict | $CHECK_PASS/$((CHECK_PASS + CHECK_FAIL)) | ${dur}s |" >"$results/.$name.row"
