@@ -9,6 +9,7 @@
     "require-dev": {
         "fakerphp/faker": "^1.23",
         "laravel/pint": "^1.27",
+        "mockery/mockery": "^1.6",
         "pestphp/pest": "^4.0",
         "pestphp/pest-plugin-laravel": "^4.0"
     },

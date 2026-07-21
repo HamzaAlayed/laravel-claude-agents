@@ -11,11 +11,19 @@ below. It also times every run, which feeds the speed findings in
 commands, or model tiers.
 
 ```bash
-./tests/eval/run-evals.sh              # all cases
+./tests/eval/run-evals.sh              # all cases, sequential
+EVAL_PARALLEL=1 ./tests/eval/run-evals.sh   # all cases concurrently — wall-clock ≈ slowest case
 ./tests/eval/run-evals.sh n-plus-one   # one case
 ./tests/eval/run-evals.sh --list       # list cases
 KEEP_WORKDIR=1 ./tests/eval/run-evals.sh policy   # keep workdir to inspect
 ```
+
+Parallel mode is safe (every case gets its own throwaway workdir + git repo) but
+burstier on API usage; console output prints per case as each finishes.
+**Per-case durations from a parallel run are not comparable to sequential
+runs** — four concurrent sessions contend for the same API limits and CPU
+(run 3 saw n-plus-one go 96s → 619s). Use parallel for pass/fail smoke before
+a release; use sequential when the findings doc needs timing numbers.
 
 Results land in `tests/eval/results/<run-id>/` (gitignored): per-case output
 log, check results, `git diff` of what the agents changed, and the

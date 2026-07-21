@@ -5,6 +5,37 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Added
+
+- **Parallel eval mode.** `EVAL_PARALLEL=1 ./tests/eval/run-evals.sh` runs all cases
+  concurrently — safe because every case owns an isolated throwaway workdir. Console output
+  buffers per case and prints in launch order as cases finish. Run 3 taught us the honest
+  caveat (now in `tests/eval/README.md`): concurrent sessions contend for the same API limits,
+  inflating per-case durations 2–6× — parallel is for pass/fail smoke, sequential for timing.
+- **Third eval run + findings** (`docs/evals/2026-07-21-run-3.md`). 4/4 cases, 14/14 checks
+  against the released 1.16.0 bodies — three runs, zero quality regressions. Lever scorecard:
+  qa scope rule **worked** (`tests` case qa stage 448s/108.6k tok → 130s/50k); static-mode
+  detection killed the retry-flailing (write cases now deliberately `composer install` and
+  ship real passing suites instead); event dedupe had a race (below).
+
+### Fixed
+
+- **Agent-event dedupe race.** The 1.16.0 twin suppression compared against the feed's last
+  line — but the twin hook invocations run *concurrently*, so both read before either wrote
+  and the compare never fired (run 3 evidence: same-second duplicate lines). The emitter now
+  serializes through an atomic `mkdir` lock (stale locks stolen after ~2s, fail-open — the
+  dashboard never blocks delivery). Concurrent-twin regression test added (guardrails #78).
+- **Eval watchdog drift.** The per-case timeout counted `sleep 5`s instead of reading a
+  clock and drifted 601s past the cap under parallel load (`policy` at 2401s vs an 1800s
+  limit). Now a wall-clock deadline, with TERM→KILL escalation after a 30s grace.
+- **Fixture-app realism gaps** that taxed every write case with identical bootstrap work:
+  `mockery/mockery` added to require-dev (a real Laravel 13 skeleton ships it; without it the
+  test suite cannot boot, and every eval agent added it and flagged a phantom dependency
+  approval), `.env.example` added, standard `storage/` + `bootstrap/cache/` directory
+  skeletons added, and the `site_stats.posts_total` row is now seeded by its migration.
+
 ## [1.16.0] - 2026-07-21
 
 The first release driven by the eval harness's own findings: run 2 confirmed 4/4 quality

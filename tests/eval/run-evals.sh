@@ -21,6 +21,9 @@
 #   CLAUDE_BIN=claude   claude executable to use
 #   EVAL_MODEL=         optional --model for the headless runs
 #   EVAL_TIMEOUT=1200   per-case timeout in seconds
+#   EVAL_PARALLEL=1     run cases concurrently (isolated workdirs make this safe;
+#                       wall-clock drops to the slowest case, console prints per
+#                       case as each finishes)
 #   KEEP_WORKDIR=1      keep throwaway workdirs for inspection
 #
 # Headless runs use --dangerously-skip-permissions INSIDE the throwaway
@@ -142,13 +145,17 @@ run_with_timeout() { # run_with_timeout <seconds> <cmd...>
   "$@" &
   local pid=$!
   (
-    waited=0
-    while kill -0 "$pid" 2>/dev/null && [ "$waited" -lt "$secs" ]; do
+    # Deadline off the wall clock, not a sleep counter — counting sleeps
+    # drifts under load (run 3: a case sailed 600s past its cap). TERM
+    # first, KILL 30s later: claude finishes its in-flight turn on TERM.
+    deadline=$((SECONDS + secs))
+    while kill -0 "$pid" 2>/dev/null && [ "$SECONDS" -lt "$deadline" ]; do
       sleep 5
-      waited=$((waited + 5))
     done
     if kill -0 "$pid" 2>/dev/null; then
       kill -TERM "$pid" 2>/dev/null
+      sleep 30
+      kill -KILL "$pid" 2>/dev/null
     fi
   ) &
   local watchdog=$!
@@ -214,9 +221,7 @@ run_case() { # run_case <name> <results-dir>
   echo "   $verdict — $CHECK_PASS/$((CHECK_PASS + CHECK_FAIL)) checks, ${dur}s"
   echo
 
-  {
-    echo "| $name | $verdict | $CHECK_PASS/$((CHECK_PASS + CHECK_FAIL)) | ${dur}s |"
-  } >>"$results/summary-rows.md"
+  echo "| $name | $verdict | $CHECK_PASS/$((CHECK_PASS + CHECK_FAIL)) | ${dur}s |" >"$results/.$name.row"
   printf '%s\n' "${CHECK_LINES[@]}" >"$results/$name.checks.txt"
 
   if [ "$KEEP_WORKDIR" != "1" ]; then
@@ -254,25 +259,45 @@ done
 RUN_ID="$(date -u +%Y%m%dT%H%M%SZ)"
 RESULTS="$ROOT/tests/eval/results/$RUN_ID"
 mkdir -p "$RESULTS"
-: >"$RESULTS/summary-rows.md"
 
-echo "eval run $RUN_ID — ${#CASES[@]} case(s), timeout ${EVAL_TIMEOUT}s each"
+MODE=sequential
+[ "${EVAL_PARALLEL:-0}" = "1" ] && [ "${#CASES[@]}" -gt 1 ] && MODE=parallel
+echo "eval run $RUN_ID — ${#CASES[@]} case(s), timeout ${EVAL_TIMEOUT}s each, $MODE"
 echo "results: $RESULTS"
 echo
 
 FAILED=0
-for c in "${CASES[@]}"; do
-  run_case "$c" "$RESULTS" || FAILED=$((FAILED + 1))
-done
+if [ "$MODE" = parallel ]; then
+  # Each case runs in its own subshell (run_case's globals are per-process),
+  # console buffered per case and printed in launch order as cases finish.
+  PIDS=()
+  for c in "${CASES[@]}"; do
+    run_case "$c" "$RESULTS" >"$RESULTS/.$c.console" 2>&1 &
+    PIDS+=($!)
+  done
+  i=0
+  for c in "${CASES[@]}"; do
+    wait "${PIDS[$i]}" || FAILED=$((FAILED + 1))
+    cat "$RESULTS/.$c.console"
+    rm -f "$RESULTS/.$c.console"
+    i=$((i + 1))
+  done
+else
+  for c in "${CASES[@]}"; do
+    run_case "$c" "$RESULTS" || FAILED=$((FAILED + 1))
+  done
+fi
 
 {
   echo "# Eval run $RUN_ID"
   echo
   echo "| case | verdict | checks | duration |"
   echo "| ---- | ------- | ------ | -------- |"
-  cat "$RESULTS/summary-rows.md"
+  for c in "${CASES[@]}"; do
+    cat "$RESULTS/.$c.row" 2>/dev/null
+    rm -f "$RESULTS/.$c.row"
+  done
 } >"$RESULTS/summary.md"
-rm -f "$RESULTS/summary-rows.md"
 
 echo "done: $((${#CASES[@]} - FAILED))/${#CASES[@]} cases passed — summary: $RESULTS/summary.md"
 exit "$FAILED"

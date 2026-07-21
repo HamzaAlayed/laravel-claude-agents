@@ -61,6 +61,20 @@ mkdir -p "$DIR" 2>/dev/null || exit 0
 # and via install.sh (command ./scripts/…), Claude Code registers two distinct
 # command strings for the same event, so this script runs twice per spawn.
 # Suppress the twin: identical to the last line modulo ts, within 2 seconds.
+#
+# The twin invocations run CONCURRENTLY — without a lock both read the feed
+# before either appends and the compare never fires (eval run 3 evidence).
+# mkdir is the atomic primitive; a stale lock (killed hook) is stolen after
+# ~2s of spinning so the dashboard never blocks delivery.
+LOCKDIR="$OUT.lock"
+tries=0
+until mkdir "$LOCKDIR" 2>/dev/null; do
+  tries=$((tries + 1))
+  [ "$tries" -gt 40 ] && break
+  sleep 0.05
+done
+trap 'rmdir "$LOCKDIR" 2>/dev/null' EXIT
+
 LAST="$(tail -n 1 "$OUT" 2>/dev/null || true)"
 if [ -n "$LAST" ]; then
   LAST_KEY="$(printf '%s' "$LAST" | sed 's/"ts":[0-9]*/"ts":0/')"
