@@ -252,6 +252,16 @@ expect "dual-registration twin suppressed (plugin + settings both fire)" "4" \
 CONC_JSON='{"session_id":"abc12345-zzz","hook_event_name":"PreToolUse","tool_name":"Agent","tool_input":{"subagent_type":"laravel-team:security-engineer","description":"Concurrent dedup probe"}}'
 expect "CONCURRENT twins suppressed (real hooks fire simultaneously)" "5" \
   "$(CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh "$CONC_JSON" >/dev/null & CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh "$CONC_JSON" >/dev/null & wait; wc -l < "$FEED" | tr -d ' ')"
+NESTED_JSON='{"session_id":"abc12345-zzz","hook_event_name":"PreToolUse","tool_name":"Agent","agent_id":"par-agent-1","agent_type":"laravel-team:delivery-coordinator","tool_input":{"subagent_type":"laravel-team:qa-engineer","description":"Nested spawn probe"}}'
+expect "nested spawn records parent (calling agent_type, prefix stripped)" "6" \
+  "$(CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh "$NESTED_JSON" >/dev/null; wc -l < "$FEED" | tr -d ' ')$(grep -q '"parent":"delivery-coordinator"' "$FEED" || echo MISSING)"
+expect "top-level spawn records parent null" "1" \
+  "$(head -n 1 "$FEED" | grep -c '"parent":null')"
+STOP_JSON='{"session_id":"abc12345-zzz","hook_event_name":"SubagentStop","agent_id":"sub-agent-1","agent_type":"laravel-team:qa-engineer","duration":12.5,"tool_response":"done"}'
+expect "SubagentStop recorded as end with ms from duration" "7" \
+  "$(CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh "$STOP_JSON" >/dev/null; wc -l < "$FEED" | tr -d ' ')$(grep -q '"status":"subagent_stop"' "$FEED" && grep -q '"ms":12500' "$FEED" || echo MISSING)"
+expect "SubagentStop twin suppressed (dual registration)" "7" \
+  "$(CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh "$STOP_JSON" >/dev/null; wc -l < "$FEED" | tr -d ' ')"
 expect "viewer copied next to the feed" "yes" \
   "$([ -f "$BOARDPROJ/.claude/board.html" ] && echo yes || echo no)"
 expect "FALLBACK (no jq/python3): exits 0, fails open" "$ALLOW" \

@@ -5,6 +5,25 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.20.0] - 2026-07-21
+
+### Added
+
+- **Delegation tree on the board.** `emit-agent-events.sh` now records `parent` — the
+  hook stdin's top-level `agent_type` identifies the calling agent when a spawn happens
+  inside another subagent (verified against the hooks docs; absent from the main
+  thread). `board.html` indents child lanes under their spawner with a `↳ parent` tag.
+- **Async-launched agents are visible.** New `SubagentStop` hook registration (plugin
+  `hooks.json` + `install.sh` merge list): fires on completion of sync AND async
+  subagents, carrying `duration` — the completion signal async agents never had
+  (PostToolUse fires at launch with `status: async_launched` and null ms/tokens; eval
+  run 3 finding). The board now keeps an async lane open at launch (tagged background)
+  and closes it with real duration on `subagent_stop`; a `subagent_stop` with no open
+  lane (sync run already closed by PostToolUse) never creates a ghost lane.
+- Four new guardrail tests (82 total): nested-spawn parent capture, top-level parent
+  null, SubagentStop→end mapping with `ms` from `duration`, SubagentStop twin dedupe.
+  Both parser branches (jq / python3 fallback) verified.
+
 ## [1.19.0] - 2026-07-21
 
 ### Added

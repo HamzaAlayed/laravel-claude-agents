@@ -218,6 +218,7 @@ desired = [
     ("PreToolUse",  "Write|Edit", "./scripts/protect-env-files.sh"),
     ("PreToolUse",  "Agent|Task", "./scripts/emit-agent-events.sh"),
     ("PostToolUse", "Agent|Task", "./scripts/emit-agent-events.sh"),
+    ("SubagentStop", "",          "./scripts/emit-agent-events.sh"),
 ]
 
 def has_command(entry, matcher, command):

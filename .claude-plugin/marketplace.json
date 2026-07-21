@@ -13,7 +13,7 @@
       "displayName": "Laravel Guild",
       "source": "./",
       "description": "A 17-agent Laravel-specialized Claude Code team plus 11 workflow commands, 8 on-demand skills, role-matched MCP grants, and 5 production guardrail hooks.",
-      "version": "1.19.0",
+      "version": "1.20.0",
       "author": {
         "name": "Hamza Alayed",
         "url": "https://github.com/HamzaAlayed"

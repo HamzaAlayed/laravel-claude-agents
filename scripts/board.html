@@ -45,6 +45,7 @@
     padding: 10px 16px; animation: enter .25s ease;
   }
   .run.running { border-color: color-mix(in srgb, var(--dot) 45%, var(--line)); }
+  .run.child { margin-left: 28px; }
   @keyframes enter { from { opacity: 0; transform: translateY(4px);} to { opacity: 1; transform: none;} }
   .avatar {
     width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
@@ -127,15 +128,25 @@ function pair(events) {
     const s = sessions.get(e.sid);
     s.last = e.ts;
     if (e.ev === "start") {
-      s.runs.push({ agent: e.agent, task: e.task, start: e.ts, done: false });
+      s.runs.push({ agent: e.agent, task: e.task, parent: e.parent || null, start: e.ts, done: false });
     } else {
       let r = s.runs.find(r => !r.done && r.agent === e.agent && r.task === e.task)
            || s.runs.find(r => !r.done && r.agent === e.agent);
-      if (!r) { r = { agent: e.agent, task: e.task, start: e.ts }; s.runs.push(r); }
+      if (e.status === "async_launched") {
+        // Launch confirmation, not completion — keep the lane open (tagged
+        // background); the SubagentStop event closes it with real duration.
+        if (r) r.bg = true;
+        continue;
+      }
+      if (!r) {
+        // A subagent_stop with no open lane = sync run already closed by
+        // PostToolUse — never create a ghost lane for it.
+        if (e.status === "subagent_stop") continue;
+        r = { agent: e.agent, task: e.task, parent: e.parent || null, start: e.ts }; s.runs.push(r);
+      }
       r.done = true;
       r.ms = e.ms != null ? e.ms : (e.ts - r.start) * 1000;
-      r.tokens = e.tokens;
-      r.bg = e.status === "async_launched";
+      if (e.tokens != null) r.tokens = e.tokens;
     }
   }
   return [...sessions.values()].sort((a, b) => b.last - a.last);
@@ -157,10 +168,10 @@ function render(sessions) {
       if (!r.done) running++; else { done++; tokens += r.tokens || 0; }
       const meta = r.done
         ? `<span class="dur">${fmtDur(r.ms)}</span>${r.tokens ? " · " + fmtTok(r.tokens) : ""}${r.bg ? '<span class="tag">background</span>' : ""}`
-        : `<span class="dur">${fmtDur((now - r.start) * 1000)}</span> · working`;
-      return `<div class="run ${r.done ? "" : "running"}" style="--dot:${color(r.agent)}">
+        : `<span class="dur">${fmtDur((now - r.start) * 1000)}</span> · ${r.bg ? "background" : "working"}`;
+      return `<div class="run ${r.done ? "" : "running"}${r.parent ? " child" : ""}" style="--dot:${color(r.agent)}"${r.parent ? ` title="spawned by ${esc(r.parent)}"` : ""}>
         <div class="avatar">${initials(r.agent)}</div>
-        <div class="who"><div class="agent">${esc(GUILD[base(r.agent)] || r.agent)}${GUILD[base(r.agent)] ? ` <span class="slug">${esc(base(r.agent))}</span>` : ""}</div><div class="task">${esc(r.task || "")}</div></div>
+        <div class="who"><div class="agent">${esc(GUILD[base(r.agent)] || r.agent)}${GUILD[base(r.agent)] ? ` <span class="slug">${esc(base(r.agent))}</span>` : ""}${r.parent ? ` <span class="slug">↳ ${esc(GUILD[base(r.parent)] || r.parent)}</span>` : ""}</div><div class="task">${esc(r.task || "")}</div></div>
         <div class="meta">${meta}</div></div>`;
     }).join("");
     const when = new Date(s.first * 1000).toLocaleString([], { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
@@ -188,7 +199,7 @@ async function tick() {
     // twins: drop an event identical (modulo ts) to one seen ≤2s earlier.
     const seen = new Map();
     current = pair(events.filter(e => {
-      const key = JSON.stringify([e.sid, e.ev, e.agent, e.task, e.ms, e.tokens, e.status]);
+      const key = JSON.stringify([e.sid, e.ev, e.agent, e.task, e.ms, e.tokens, e.status, e.parent]);
       const last = seen.get(key);
       seen.set(key, e.ts);
       return !(last !== undefined && Math.abs(e.ts - last) <= 2);

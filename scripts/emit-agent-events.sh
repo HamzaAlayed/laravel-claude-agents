@@ -2,7 +2,14 @@
 # Observer, not a guard: streams subagent lifecycle events to
 # .claude/agents-board.jsonl so the /board HTML dashboard can render the team
 # working live. Wired as PreToolUse + PostToolUse on the subagent tool
-# (matcher "Agent|Task" — Task is the pre-2.1.63 alias of Agent).
+# (matcher "Agent|Task" — Task is the pre-2.1.63 alias of Agent) and as
+# SubagentStop, which fires on completion of sync AND async subagents — the
+# only completion signal an async-launched agent ever gets (PostToolUse fires
+# at launch with status "async_launched" and null ms/tokens).
+#
+# Events carry `parent`: hook stdin's top-level agent_type identifies the
+# CALLING agent when the spawn happens inside a subagent (absent from the
+# main thread) — the board indents child lanes under their spawner.
 #
 # Deterministic by design: hooks fire on every spawn/finish regardless of what
 # the orchestrating model remembers to narrate. Fails open everywhere — a
@@ -22,24 +29,52 @@ OUT="$DIR/agents-board.jsonl"
 EVENT=""
 if command -v jq >/dev/null 2>&1; then
   EVENT="$(printf '%s' "$INPUT" | jq -c '
-    select(((.tool_name // "Agent") | test("^(Agent|Task)$")))
-    | {ts: (now | floor),
+    if .hook_event_name == "SubagentStop" then
+      {ts: (now | floor),
        sid: ((.session_id // "local")[0:8]),
-       ev: (if .hook_event_name == "PostToolUse" then "end" else "start" end),
-       agent: ((.tool_input.subagent_type // "unknown") | sub("^.*:"; "")),
-       task: ((.tool_input.description // "")[0:120]),
-       ms: (.tool_response.totalDurationMs // null),
-       tokens: (.tool_response.totalTokens // null),
-       status: (.tool_response.status // null)}' 2>/dev/null)"
+       ev: "end",
+       agent: ((.agent_type // "unknown") | sub("^.*:"; "")),
+       task: "",
+       ms: (if .duration != null then (.duration * 1000 | floor) else null end),
+       tokens: null,
+       status: "subagent_stop",
+       parent: null}
+    else
+      select(((.tool_name // "Agent") | test("^(Agent|Task)$")))
+      | {ts: (now | floor),
+         sid: ((.session_id // "local")[0:8]),
+         ev: (if .hook_event_name == "PostToolUse" then "end" else "start" end),
+         agent: ((.tool_input.subagent_type // "unknown") | sub("^.*:"; "")),
+         task: ((.tool_input.description // "")[0:120]),
+         ms: (.tool_response.totalDurationMs // null),
+         tokens: (.tool_response.totalTokens // null),
+         status: (.tool_response.status // null),
+         parent: (if .agent_type != null then (.agent_type | sub("^.*:"; "")) else null end)}
+    end' 2>/dev/null)"
 elif command -v python3 >/dev/null 2>&1; then
   EVENT="$(printf '%s' "$INPUT" | python3 -c '
 import sys, json, time
 try:
     d = json.load(sys.stdin)
+    if d.get("hook_event_name") == "SubagentStop":
+        dur = d.get("duration")
+        print(json.dumps({
+            "ts": int(time.time()),
+            "sid": (d.get("session_id") or "local")[:8],
+            "ev": "end",
+            "agent": (d.get("agent_type") or "unknown").split(":")[-1],
+            "task": "",
+            "ms": int(dur * 1000) if isinstance(dur, (int, float)) else None,
+            "tokens": None,
+            "status": "subagent_stop",
+            "parent": None,
+        }, separators=(",", ":")))
+        sys.exit(0)
     if d.get("tool_name", "Agent") not in ("Agent", "Task"):
         sys.exit(0)
     ti = d.get("tool_input", {}) or {}
     tr = d.get("tool_response", {}) or {}
+    at = d.get("agent_type")
     print(json.dumps({
         "ts": int(time.time()),
         "sid": (d.get("session_id") or "local")[:8],
@@ -49,6 +84,7 @@ try:
         "ms": tr.get("totalDurationMs"),
         "tokens": tr.get("totalTokens"),
         "status": tr.get("status"),
+        "parent": at.split(":")[-1] if at else None,
     }, separators=(",", ":")))
 except Exception:
     pass' 2>/dev/null)"
