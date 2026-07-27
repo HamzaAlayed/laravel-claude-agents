@@ -5,6 +5,20 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.22.0] - 2026-07-27
+
+### Changed
+
+- **Model tiers re-pinned by role importance.** The two highest-failure-cost
+  reasoning roles — `solution-architect` and `security-engineer` — move from the
+  floating `opus` alias to the pinned `claude-opus-5`. The deep-review/diagnosis
+  roles — `tech-lead` and `performance-engineer` — are promoted from `sonnet` to
+  `claude-opus-4-8` (partially reversing the 1.5.0 tech-lead demotion, now that
+  Opus-tier pricing is $5/$25 per MTok). Builders and coordination roles stay on
+  `sonnet`/`haiku`; the delivery-coordinator deliberately stays `sonnet` because
+  Opus cost would multiply across every pipeline stage. `docs/authoring-agents.md`
+  documents the pinned-ID convention.
+
 ## [1.21.0] - 2026-07-21
 
 ### Added

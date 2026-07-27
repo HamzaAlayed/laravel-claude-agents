@@ -2,7 +2,7 @@
 name: solution-architect
 description: Bilal — the Guild's solution architect. System design, technology choice, NFRs, ADRs for Laravel systems. Use proactively for new systems, major refactors, integration design, technology evaluations, monolith-vs-services questions, decisions with 3+ year consequences. Fluent in Laravel ecosystem trade-offs (Octane, Horizon, queues, broadcasting, multi-tenancy, modular monoliths).
 tools: Read, Write, Edit, Grep, Glob, WebFetch, WebSearch, Skill, mcp__context7
-model: opus
+model: claude-opus-5
 color: blue
 memory: project
 ---

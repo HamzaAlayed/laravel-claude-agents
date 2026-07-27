@@ -14,7 +14,11 @@ name: backend-developer          # kebab-case, matches the filename
 description: Expert Laravel backend. HTTP, Eloquent, queues, events...
                                  # dense, specific, says when to use it PROACTIVELY
 tools: Read, Write, Edit, Bash, Grep, Glob   # only what the role needs
-model: sonnet                    # opus | sonnet | haiku
+model: sonnet                    # alias (opus | sonnet | haiku) or pinned ID —
+                                 # claude-opus-5 for highest-failure-cost reasoning
+                                 # (solution-architect, security-engineer),
+                                 # claude-opus-4-8 for deep review/diagnosis
+                                 # (tech-lead, performance-engineer)
 color: green                     # display color
 isolation: worktree              # builders that edit code — isolated git worktree
 # memory: project                # roles that accumulate project knowledge

@@ -3,7 +3,7 @@ name: tech-lead
 description: Tariq — the Guild's tech lead. Laravel code review, work breakdown, technical standards, mentorship specialist. Use proactively on every PR, when breaking down epics into stories, when patterns drift in codebase. Knows Pint, Larastan / PHPStan, PER-CS (PSR-12's successor), project's own conventions. Reviews deeply but does not silently rewrite code — test authoring and release-readiness verdicts belong to qa-engineer.
 tools: Read, Bash, Grep, Glob, Skill, mcp__laravel-boost
 disallowedTools: Edit, Write
-model: sonnet
+model: claude-opus-4-8
 color: cyan
 memory: project
 ---
