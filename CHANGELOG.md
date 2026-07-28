@@ -5,6 +5,16 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.23.0] - 2026-07-28
+
+### Changed
+
+- **technical-writer promoted `haiku` → `sonnet`.** Reverses the 1.5.0 demotion:
+  docs quality (API reference accuracy, runbook clarity) benefits from Sonnet-tier
+  writing, and Sofia runs infrequently enough that the cost delta is negligible.
+  scrum-master stays the pack's only `haiku` agent (high-frequency, low-stakes
+  ceremony work).
+
 ## [1.22.0] - 2026-07-27
 
 ### Changed
