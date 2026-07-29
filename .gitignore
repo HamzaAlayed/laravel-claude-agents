@@ -7,3 +7,9 @@ __pycache__/
 
 # Console local state: venv (self-ignores via its own .gitignore) and run transcripts
 .claude/console/
+
+# Console frontend build inputs. NOTE: scripts/console/dist/ is deliberately NOT
+# ignored — the built bundle is committed so installing users need no Node.
+console-ui/node_modules/
+console-ui/.vite/
+console-ui/*.tsbuildinfo
