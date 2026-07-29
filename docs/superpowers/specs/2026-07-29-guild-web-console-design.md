@@ -97,13 +97,17 @@ session.
 
 `pack_root` resolves to the repo root when it contains
 `.claude-plugin/plugin.json`, otherwise the installed plugin directory. On the
-`init` event the console asserts the pack loaded — agents present, hooks
-present, `plugin_errors` empty — and raises a banner if not.
+`init` event the console asserts the pack loaded: `plugin_errors` empty **and**
+`laravel-team` present in `plugins`. Those are what `init` actually reports — it
+carries no agent inventory — so the check is stated in those terms rather than
+in agent counts, and a failure raises a banner.
 
 ### Permission posture
 
 Default `default`: every call not pre-approved by settings reaches the browser.
-A per-run toggle switches to `acceptEdits`.
+A per-run selector also offers `acceptEdits` and `plan`, and either can be
+changed mid-run. `plan` is included because clarifying questions are most
+common there, which is exactly what the console renders best.
 
 `bypassPermissions` is **not offered in the UI** — subagents inherit it and
 cannot override it, so one toggle would grant seventeen agents unattended
@@ -165,8 +169,15 @@ generated Gemini and Codex mirrors, guarded the same way by a CI drift check.
 human name from the description prefix (`"Adam — the Guild's…"`), plus
 `commands/*.md` and `skills/*/SKILL.md`. It introduces **no new name registry**;
 a sixth place to register an agent would fight `check_inventory_sync.py`.
-Consequence, accepted: lane colours are hash-derived from the slug and will not
-match `board.html`'s hand-picked palette. Cosmetic only.
+
+Card colour comes from each agent's existing `color:` frontmatter field, which
+all seventeen already declare. Eight hue families cover seventeen agents, so
+families collide (three purples, two each of red, orange, cyan, green, blue,
+pink, yellow). The console resolves a collision by assigning each member of a
+family a distinct shade from a four-step ramp, indexed by the agent's position
+in the alphabetically sorted list of that family's members — deterministic,
+reviewable, and distinct for every agent. Colours will not match
+`board.html`'s hand-picked hex map; that is cosmetic and accepted.
 
 **`engine.py`** — `RunManager` with surface `start(spec) -> run_id`, `send`,
 `interrupt`, `answer`, `set_mode`, `set_model`, `subscribe(run_id, since_seq)`.
@@ -292,7 +303,7 @@ freeform prompts are main-thread and do get question cards.
 | Condition | Behaviour |
 | --- | --- |
 | SDK or CLI missing / incompatible | diagnostic page, not a 500 |
-| `plugin_errors` non-empty, or agent count ≠ catalog | red banner, run proceeds — fail loud, not fail closed |
+| `plugin_errors` non-empty, or `laravel-team` absent from `plugins` | red banner, run proceeds — fail loud, not fail closed |
 | `api_retry` event | surfaced on the card ("retrying, attempt 2/5") so it never looks hung |
 | SSE disconnect | reconnect with `Last-Event-ID`; server replays from the run jsonl |
 | Server killed mid-run | SDK child process dies with it; on restart disk runs show `interrupted`, never a false `running` |
