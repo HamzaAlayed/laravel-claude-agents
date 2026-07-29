@@ -13,6 +13,11 @@
 ## Global Constraints
 
 - **Python floor: 3.10+.** The plan uses `X | Y` union syntax and the SDK requires it.
+- **Canonical test command: `python3 -m unittest discover -s tests/console -t tests/console`.**
+  `-t .` fails on Python 3.14 with `ImportError: Start directory is not importable`, because
+  `tests/console` has no `__init__.py`. Do **not** add one to make `-t .` work: the absence of
+  package files is load-bearing for how `scripts/console` modules resolve via `sys.path`
+  insertion in each test file.
 - **`claude-agent-sdk` is the only pip dependency**, installed into `.claude/console/venv`. Everything else is python stdlib. No pytest — tests are `unittest`.
 - **Node is build-time only.** `scripts/console/dist/` is committed; installing users never run npm.
 - **Never offer `bypassPermissions` in the UI** — subagents inherit it and cannot override it. **Never use `dontAsk`** — it denies `AskUserQuestion`.
@@ -2888,7 +2893,7 @@ Then replace the `can_use_tool` closure inside `sdk_client_factory` in `scripts/
 
 - [ ] **Step 6: Run tests to verify they pass**
 
-Run: `cd console-ui && npx vitest run` then `cd .. && python3 -m unittest discover -s tests/console -t . -v`
+Run: `cd console-ui && npx vitest run` then `cd .. && python3 -m unittest discover -s tests/console -t tests/console -v`
 Expected: 19 frontend tests pass; all python tests still pass
 
 - [ ] **Step 7: Commit**
@@ -3401,7 +3406,7 @@ Append two jobs to `.github/workflows/ci.yml`:
     steps:
       - uses: actions/checkout@v5
       - name: Run console unit tests (stdlib unittest, no SDK required)
-        run: python3 -m unittest discover -s tests/console -t . -v
+        run: python3 -m unittest discover -s tests/console -t tests/console -v
 
   console-ui:
     name: console ui
@@ -3455,7 +3460,7 @@ Then add the `[1.27.0]` entry to `CHANGELOG.md` in Keep-a-Changelog voice, under
 Run:
 ```bash
 ./tests/guardrails.test.sh
-python3 -m unittest discover -s tests/console -t . -v
+python3 -m unittest discover -s tests/console -t tests/console -v
 python3 scripts/validate-frontmatter.py
 python3 scripts/check_inventory_sync.py && python3 scripts/check-hook-sync.py
 shellcheck install.sh tests/guardrails.test.sh
