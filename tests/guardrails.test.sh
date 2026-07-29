@@ -329,6 +329,30 @@ expect "the rubric judge never alters the case verdict" "0" \
   "$(sed -n '/^judge_case()/,/^}/p' "$EVAL_SH" \
      | grep -cE '(^|[^_[:alnum:]])(CHECK_PASS|CHECK_FAIL|verdict)=')"
 
+echo "console (static ratchets)"
+# bypassPermissions is inherited by subagents and cannot be overridden per
+# subagent — offering it in the UI would grant 17 agents unattended access.
+# Checked against dist/ (the built, installed bundle) and console-ui/src (the
+# source, repo-side only) so the assertion still has evidence post-install.
+expect "console never offers bypassPermissions" "0" \
+  "$(grep -rl 'bypassPermissions' "$SCRIPT_DIR"/scripts/console/dist "$SCRIPT_DIR"/console-ui/src 2>/dev/null | wc -l | tr -d ' ')"
+# dontAsk denies AskUserQuestion, which is how checkpoint prompts arrive.
+expect "console never selects dontAsk" "0" \
+  "$(grep -rl "dontAsk" "$SCRIPT_DIR"/scripts/console/dist "$SCRIPT_DIR"/console-ui/src 2>/dev/null | wc -l | tr -d ' ')"
+expect "console server binds loopback only" "1" \
+  "$(grep -q 'make_server("127\.0\.0\.1"' "$SCRIPT_DIR"/scripts/console/serve.py && echo 1 || echo 0)"
+expect "console never binds a public interface" "0" \
+  "$(grep -c '0\.0\.0\.0' "$SCRIPT_DIR"/scripts/console/serve.py "$SCRIPT_DIR"/scripts/console/server.py | awk -F: '{s+=$2} END{print s+0}')"
+expect "console API is token-guarded" "1" \
+  "$(grep -q 'X-Guild-Token' "$SCRIPT_DIR"/scripts/console/server.py && echo 1 || echo 0)"
+expect "console rejects non-local Origin" "1" \
+  "$(grep -q 'LOCAL_ORIGIN' "$SCRIPT_DIR"/scripts/console/server.py && echo 1 || echo 0)"
+expect "console bundle is committed" "1" \
+  "$([ -f "$SCRIPT_DIR/scripts/console/dist/index.html" ] && echo 1 || echo 0)"
+# The board and its observer are deliberately untouched by the console work.
+expect "emit-agent-events.sh still wired three ways" "3" \
+  "$(grep -c 'emit-agent-events.sh' "$SCRIPT_DIR/hooks/hooks.json" | tr -d ' ')"
+
 echo
 echo "----------------------------------------"
 printf 'total: %d passed, %d failed\n' "$PASS" "$FAIL"
