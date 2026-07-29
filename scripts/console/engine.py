@@ -345,7 +345,12 @@ def _to_permission_result(decision: dict, input_data: dict):
             updated["response"] = decision["response"]
     if updated is None:
         updated = input_data
-    return {"behavior": "allow", "updated_input": updated}
+    result = {"behavior": "allow", "updated_input": updated}
+    if decision.get("remember"):
+        # Ask the SDK adapter to echo back the localSettings suggestion so
+        # matching calls stop prompting in future sessions.
+        result["persist"] = "localSettings"
+    return result
 
 
 def _as_dict(message) -> dict:

@@ -79,11 +79,21 @@ def sdk_client_factory(options: dict):
 
     async def can_use_tool(tool_name, input_data, context):
         decision = await engine_callback(tool_name, input_data, context)
-        if decision.get("behavior") == "allow":
-            # Allow MUST echo updated_input — an omitted one was rejected
-            # outright before Claude Code v2.1.207.
-            return PermissionResultAllow(updated_input=decision["updated_input"])
-        return PermissionResultDeny(message=decision.get("message") or "Denied by the user.")
+        if decision.get("behavior") != "allow":
+            return PermissionResultDeny(message=decision.get("message") or "Denied by the user.")
+        # Allow MUST echo updated_input — an omitted one was rejected outright
+        # before Claude Code v2.1.207.
+        if decision.get("persist") == "localSettings":
+            persist = [
+                suggestion
+                for suggestion in (getattr(context, "suggestions", None) or [])
+                if getattr(suggestion, "destination", None) == "localSettings"
+            ]
+            if persist:
+                return PermissionResultAllow(
+                    updated_input=decision["updated_input"], updated_permissions=persist
+                )
+        return PermissionResultAllow(updated_input=decision["updated_input"])
 
     sdk_options = ClaudeAgentOptions(
         cwd=options["cwd"],
