@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { emptyRun, reduce } from "./reducer";
+import { emptyRun, isRunOver, reduce } from "./reducer";
 import type { GuildEvent } from "./types";
 
 let seq = 0;
@@ -167,6 +167,31 @@ describe("reduce", () => {
       ev({ type: "result", subtype: "success", result: "done", duration_ms: 10, total_cost_usd: 1 }),
     ]);
     expect(view.result?.result).toBe("done");
+  });
+
+  // The engine's _pump publishes `error` INSTEAD of a result when the CLI or the
+  // transport dies. With no terminal case for it the run read as live forever:
+  // the Launcher stayed disabled, and the advice "interrupt it first" 500s on a
+  // dead client, so a page reload was the only way out.
+  it("ends the run on an error event and keeps the message", () => {
+    expect(isRunOver(emptyRun("command"))).toBe(false);
+    const view = play("command", [
+      ev({ type: "agent_start", agent: "qa-engineer", task: "t", tool_use_id: "t1" }),
+      ev({ type: "error", message: "CLI transport closed" }),
+    ]);
+    expect(view.failure?.message).toBe("CLI transport closed");
+    expect(isRunOver(view)).toBe(true);
+    // Not swallowed: the timeline still shows it happened.
+    expect(view.main.some((e) => e.type === "error")).toBe(true);
+  });
+
+  it("an error after a result does not resurrect the run", () => {
+    const finished = play("command", [
+      ev({ type: "result", subtype: "success", result: "done", duration_ms: 10, total_cost_usd: 1 }),
+    ]);
+    const after = reduce(finished, ev({ type: "error", message: "late transport error" }));
+    expect(after.result?.result).toBe("done");
+    expect(isRunOver(after)).toBe(true);
   });
 
   it("is idempotent for replayed events", () => {

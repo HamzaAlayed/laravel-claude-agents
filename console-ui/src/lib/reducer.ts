@@ -9,7 +9,17 @@ export const emptyRun = (kind: string): RunView => ({
   init: null,
   retry: null,
   result: null,
+  failure: null,
 });
+
+/**
+ * Has the engine reported a terminal outcome? `result` is the happy path;
+ * `failure` is the `error` event `_pump` publishes INSTEAD of a result when the
+ * client dies. "Live" derived from `result === null` alone marked a dead run
+ * live forever.
+ */
+export const isRunOver = (view: RunView): boolean =>
+  view.result !== null || view.failure !== null;
 
 const withLane = (lanes: Lane[], toolUseId: string, patch: Partial<Lane>): Lane[] =>
   lanes.map((lane) => (lane.toolUseId === toolUseId ? { ...lane, ...patch } : lane));
@@ -103,6 +113,17 @@ export function reduce(view: RunView, event: GuildEvent): RunView {
           duration_ms: (event.duration_ms as number) ?? 0,
           total_cost_usd: (event.total_cost_usd as number) ?? 0,
         },
+      };
+
+    // A dead client / transport ends the run WITHOUT a result: `_pump` catches
+    // the exception and publishes this instead. Terminal, like `result` — and
+    // the message is the only account of why the run stopped, so it lands both
+    // on the banner and in the timeline rather than being swallowed.
+    case "error":
+      return {
+        ...next,
+        main: [...next.main, event],
+        failure: { message: String(event.message ?? "the run ended with an error") },
       };
 
     default: {

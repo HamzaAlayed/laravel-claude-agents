@@ -43,6 +43,13 @@ export type RunView = {
   init: { plugins: string[]; plugin_errors: unknown[] } | null;
   retry: { attempt: number; max_retries: number; error: string } | null;
   result: { subtype: string; result: string; duration_ms: number; total_cost_usd: number } | null;
+  /**
+   * The OTHER terminal outcome. When the CLI or the transport dies mid-run the
+   * engine publishes an `error` event and never a `result`, so a run read as
+   * "still live" forever and the Launcher stayed disabled with no way back
+   * short of reloading the page.
+   */
+  failure: { message: string } | null;
 };
 
 export type Agent = {

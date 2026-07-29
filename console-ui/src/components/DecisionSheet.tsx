@@ -48,11 +48,19 @@ export function buildAnswers(
 export function DecisionSheet({
   pending,
   open,
+  disabled,
   onClose,
   onAnswer,
 }: {
   pending: PendingPrompt;
   open: boolean;
+  /**
+   * True while an answer is in flight or this prompt has only just appeared —
+   * one click must resolve exactly one decision. Owned by App: this component is
+   * remounted per prompt_id, so a local flag would reset at the very moment the
+   * queue advances. See lib/submitGate.ts.
+   */
+  disabled: boolean;
   onClose: () => void;
   onAnswer: (payload: Record<string, unknown>) => void;
 }) {
@@ -123,9 +131,12 @@ export function DecisionSheet({
               </fieldset>
             ))}
             <div className="flex gap-2">
-              <Button onClick={submitQuestions}>Send answers</Button>
+              <Button disabled={disabled} onClick={submitQuestions}>
+                Send answers
+              </Button>
               <Button
                 variant="outline"
+                disabled={disabled}
                 onClick={() =>
                   onAnswer({
                     prompt_id: pending.prompt_id,
@@ -151,6 +162,7 @@ export function DecisionSheet({
             </pre>
             <div className="flex flex-wrap gap-2">
               <Button
+                disabled={disabled}
                 onClick={() => onAnswer({ prompt_id: pending.prompt_id, behavior: "allow" })}
               >
                 Allow once
@@ -158,6 +170,7 @@ export function DecisionSheet({
               {pending.suggestions.length > 0 && (
                 <Button
                   variant="secondary"
+                  disabled={disabled}
                   onClick={() =>
                     onAnswer({
                       prompt_id: pending.prompt_id,
@@ -171,6 +184,7 @@ export function DecisionSheet({
               )}
               <Button
                 variant="destructive"
+                disabled={disabled}
                 onClick={() =>
                   onAnswer({
                     prompt_id: pending.prompt_id,

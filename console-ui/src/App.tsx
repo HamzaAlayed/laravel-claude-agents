@@ -9,7 +9,8 @@ import { FocusRun } from "@/components/FocusRun";
 import { Launcher, type LaunchSpec } from "@/components/Launcher";
 import { Transcript } from "@/components/Transcript";
 import * as api from "@/lib/api";
-import { emptyRun, reduce } from "@/lib/reducer";
+import { emptyRun, isRunOver, reduce } from "@/lib/reducer";
+import { armGate, canSubmit, settleSubmit, startSubmit } from "@/lib/submitGate";
 import type { Catalog, GuildEvent, Lane, RunView } from "@/lib/types";
 
 export default function App() {
@@ -22,6 +23,10 @@ export default function App() {
   // so the sheet advances to the next decision without waiting for the round
   // trip, and restored if the POST fails (the agent is still parked).
   const [answering, setAnswering] = useState<string[]>([]);
+  // Which decision may be submitted, and which one is already submitted. Kept
+  // here rather than in DecisionSheet because the sheet is remounted the instant
+  // the queue advances and would lose the flag exactly when it matters.
+  const [gate, setGate] = useState(() => armGate(null));
   const [stopped, setStopped] = useState(false);
   const [followUp, setFollowUp] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -44,12 +49,29 @@ export default function App() {
     return api.streamRun(runId, lastSeq.current, onEvent);
   }, [runId, onEvent]);
 
+  const queue = view.pending.filter((prompt) => !answering.includes(prompt.prompt_id));
+  const head = queue[0] ?? null;
+  const headId = head?.prompt_id ?? null;
+
+  // Arming is deliberately an effect: it costs a render cycle AFTER the queue
+  // advanced and the sheet remounted for the next prompt, so the second click of
+  // a double-click has nothing enabled to hit. No timer, no confirmation step.
+  // `armedFor` is a dependency too so that no batching of the submit and its
+  // settle can leave the gate shut on a prompt that is still waiting.
+  useEffect(() => {
+    if (headId === null) return;
+    setGate((current) =>
+      current.inFlight === null && current.armedFor !== headId ? armGate(headId) : current,
+    );
+  }, [headId, gate.inFlight, gate.armedFor]);
+
   const launch = async (spec: LaunchSpec) => {
     setError(null);
     lastSeq.current = 0;
     setView(emptyRun(spec.kind));
     setSelected(null);
     setAnswering([]);
+    setGate(armGate(null));
     setSheetOpen(false);
     setStopped(false);
     try {
@@ -74,13 +96,11 @@ export default function App() {
     view.init !== null &&
     (view.init.plugin_errors.length > 0 || !view.init.plugins.includes("laravel-team"));
 
-  // Live = launched, and no terminal result and no interrupt yet. Launching a
-  // second run while one is live abandoned the first: its SDK client stayed
-  // connected and billing, still reported `running`, and could park on an
+  // Live = launched, no terminal outcome (result OR error) and no interrupt yet.
+  // Launching a second run while one is live abandoned the first: its SDK client
+  // stayed connected and billing, still reported `running`, and could park on an
   // approval no browser was watching.
-  const live = runId !== null && view.result === null && !stopped;
-  const queue = view.pending.filter((prompt) => !answering.includes(prompt.prompt_id));
-  const head = queue[0] ?? null;
+  const live = runId !== null && !isRunOver(view) && !stopped;
   const agentLabel = head?.agent
     ? catalog.agents.find((agent) => agent.slug === head.agent)?.name ?? head.agent
     : null;
@@ -88,6 +108,10 @@ export default function App() {
   const answer = async (payload: Record<string, unknown>) => {
     if (!runId) return;
     const promptId = String(payload.prompt_id ?? "");
+    // One click, one decision. The buttons are already disabled while the gate
+    // is closed; this refuses anything that gets past them anyway.
+    if (!canSubmit(gate, promptId)) return;
+    setGate((current) => startSubmit(current, promptId));
     setAnswering((ids) => [...ids, promptId]);
     // One prompt is answered at a time; if others are still waiting the sheet
     // stays open on the next one rather than leaving a parked run hidden.
@@ -97,6 +121,10 @@ export default function App() {
     } catch (e) {
       setAnswering((ids) => ids.filter((id) => id !== promptId));
       setError(String((e as Error).message));
+    } finally {
+      // Releases the gate; the effect above re-arms it for whatever prompt is on
+      // screen one render later.
+      setGate((current) => settleSubmit(current, promptId));
     }
   };
 
@@ -104,9 +132,15 @@ export default function App() {
     if (!runId) return;
     try {
       await api.interruptRun(runId);
-      setStopped(true);
     } catch (e) {
-      setError(String((e as Error).message));
+      // An interrupt that fails is still an ended run — the usual cause is a
+      // client that already died (CLINotConnectedError → 500). Leaving `stopped`
+      // false there wedged the Launcher until the page was reloaded.
+      setError(
+        `Interrupt failed — treating this run as ended: ${String((e as Error).message)}`,
+      );
+    } finally {
+      setStopped(true);
     }
   };
 
@@ -186,6 +220,16 @@ export default function App() {
         </section>
       )}
 
+      {/* The run died without a result — say why instead of looking idle. */}
+      {view.failure && (
+        <section role="alert" className="mt-4 rounded-xl border-2 border-destructive p-3">
+          <h2 className="mb-1 flex items-center gap-2 text-sm font-medium">
+            <AlertTriangle className="size-4" aria-hidden /> The run ended with an error
+          </h2>
+          <p className="whitespace-pre-wrap text-sm">{view.failure.message}</p>
+        </section>
+      )}
+
       {/* Clarifications arrive as plain text; this is how the user replies. */}
       {live && (
         <form className="mt-4 flex items-center gap-2" onSubmit={sendFollowUp}>
@@ -209,6 +253,10 @@ export default function App() {
           key={head.prompt_id}
           pending={head}
           open={sheetOpen}
+          // Closed while an answer is in flight AND until this prompt has been
+          // armed, so a click meant for the previous decision cannot commit this
+          // one. Survives the remount above because the gate is App state.
+          disabled={!canSubmit(gate, head.prompt_id)}
           onClose={() => setSheetOpen(false)}
           onAnswer={answer}
         />
