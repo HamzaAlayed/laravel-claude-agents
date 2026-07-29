@@ -5,6 +5,7 @@
     "n-plus-one": { "max_seconds": 200, "basis": "run 2: 96s (main-thread audit, no doomed subagent) + headroom" },
     "policy":     { "max_seconds": 800, "basis": "run 2: 681s" },
     "action":     { "max_seconds": 1200, "basis": "run 2 timed out at the 1200s cap; run-4 target is finishing under it" },
-    "tests":      { "max_seconds": 800, "basis": "run 2: 681s (qa 448s pre-scope-rule; run 3 qa stage fell to 130s)" }
+    "tests":      { "max_seconds": 800, "basis": "run 2: 681s (qa 448s pre-scope-rule; run 3 qa stage fell to 130s)" },
+    "hygiene":    { "max_seconds": 200, "basis": "run 4: 86s (scrum-master, read-only ledger scan) + headroom" }
   }
 }

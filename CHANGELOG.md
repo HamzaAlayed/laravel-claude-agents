@@ -5,6 +5,86 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.24.0] - 2026-07-28
+
+Everything here traces to a measured failure in
+[eval run 4](docs/evals/2026-07-28-run-4.md) — the first sequential run since
+run 2, and the first quality regression in four runs (`tests` 2/4). Nothing
+discretionary: no model-tier changes, no new agents, skills, or commands.
+
+### Fixed
+
+- **Builders can run their own verification gates again — `isolation: worktree`
+  removed from all eight writers.** `git worktree add` checks out *tracked* files
+  only, so a worktree never contains `vendor/`, `node_modules/`, or `.env`. Every
+  gate the bodies promise — `pint --dirty`, `phpstan analyse`, `artisan test` —
+  was unrunnable there. Run 4 caught `qa-engineer` writing an entire test suite
+  it could not execute ("couldn't run — no `vendor/`"), leaving the main thread to
+  install dependencies and redo the verification, while two other cases spent a
+  whole stage on `composer install`. Under Sail it fails harder: the container
+  mounts the main project directory, so a worktree-resident agent tests the wrong
+  tree or collides on container names and ports. `isolation:` is static
+  frontmatter and cannot be conditional, so the choice was binary — and
+  self-verification is worth more than write isolation.
+- **The NOT-CHECKED contract now reaches the human.** Nine of ten commands bound
+  the calibration shape to *specialist → coordinator* returns, which are internal;
+  headless runs print only the final assistant message, so the v1.19.0 contract
+  was structurally invisible (`/team-hygiene` was the sole exception). The shared
+  `Interface` block — still byte-identical across all nine — now also binds the
+  run's **own final answer** to `VERIFIED` + `NOT-CHECKED`, and
+  `delivery-coordinator` gains the matching step 10. Run 4 showed the honesty was
+  already there in prose ("PHPStan not run — no `phpstan.neon` exists"); it just
+  wasn't labelled where the human scans.
+- **qa-engineer can no longer pin a security hole as expected behavior.** Dina
+  found the fixture's unguarded `update` route, flagged it — then wrote a test
+  asserting "non-owner update pinned as current behavior", turning a live IDOR
+  into a passing spec that the eventual fix would appear to break. The
+  authorization always-check fired only for endpoints that were *already*
+  protected. It now covers the unprotected case: assert the **secure** outcome
+  (403), mark it `->todo()` / `markTestIncomplete()` with the reason, name it in
+  FLAGS. A matching entry joins the refuse-to-ship list.
+
+### Changed
+
+- **Writers stay in their lane by contract instead of by isolation.** All eight
+  gain one byte-identical principle: the brief names the paths you own, and a fix
+  worth making outside that scope belongs in FLAGS, never in your diff.
+  `delivery-coordinator`'s three worktree-dependent paragraphs are rewritten for a
+  shared tree — parallel lanes must own **disjoint paths**, and integration means
+  verifying one tree rather than merging branches.
+- **qa-engineer's scope rule gains a reachability test.** Run 4's `policy` case
+  spent 634s writing allowed+denied pairs for all seven Policy methods, and its
+  own report admits `delete`/`restore`/`forceDelete` "have no corresponding
+  routes". An ability with no real call site now gets one line in `NEXT`, never a
+  test pair — grep for the call site first.
+- **Documentation corrected where it taught the defect.**
+  `docs/authoring-agents.md`'s `isolation: worktree` section is inverted (it told
+  authors to set it on any agent that edits code) and gains the empirical
+  reasoning; `CONTRIBUTING.md`'s frontmatter table marks the field **never**;
+  `README.md` replaces "Writers run in isolated worktrees" with why nobody does.
+  Three stale model annotations in the README tree are fixed in passing
+  (`technical-writer` Haiku → Sonnet, `tech-lead` and `performance-engineer`
+  Sonnet → Opus 4.8 — drift from 1.22.0/1.23.0).
+
+### Added
+
+- **Two static ratchets** in `tests/guardrails.test.sh` (86 tests): no agent body
+  may declare `isolation: worktree`, and the `Interface` block must stay
+  byte-identical across all nine pipeline commands *and* contain the final-answer
+  clause. Both regressions would otherwise return silently.
+- **`docs/evals/2026-07-28-run-4.md`** — the run-4 findings doc, evidence base for
+  this release. Also records two verified wins (the 1.17.0 atomic-lock dedupe held:
+  0 duplicate lines across all five feeds; 1.20.0's `SubagentStop` emitter made
+  run 3's invisible async lanes visible) and one doc-vs-reality correction:
+  **real `SubagentStop` payloads carry no `duration` field** — every stop event
+  has `ms: null`, so async stage durations must come from the start→stop timestamp
+  delta.
+- **`hygiene` ceiling in `tests/eval/baseline.json`** (200s, from run 4's 86s). The
+  other four ceilings are deliberately left alone: this release makes no speed
+  claim, and only a sequential **run 5** can confirm the two latency levers. The
+  eval answer key is unchanged on purpose — both failing `tests` checks are now
+  legitimately passable, which is the cleanest verification available.
+
 ## [1.23.0] - 2026-07-28
 
 ### Changed

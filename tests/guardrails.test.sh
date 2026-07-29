@@ -269,6 +269,21 @@ expect "FALLBACK (no jq/python3): exits 0, fails open" "$ALLOW" \
 
 rm -rf "$BOARDPROJ"
 
+echo "static ratchets (eval run 4 regressions must not return)"
+# Finding 1: `git worktree add` checks out tracked files only, so a worktree has
+# no vendor/ — an isolated agent cannot run pint, phpstan, or the suite it just
+# wrote, and under Sail it mounts the wrong tree. See docs/evals/2026-07-28-run-4.md.
+expect "no agent body declares isolation: worktree" "0" \
+  "$(grep -l '^isolation: worktree$' "$SCRIPT_DIR"/agents/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# Finding 2: stage returns are internal — headless runs print only the final
+# assistant message, so the shared block must bind that too, identically in all 9.
+expect "all 9 pipeline commands carry the Interface block" "9" \
+  "$(grep -l '^> \*\*Interface:\*\*' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block is byte-identical across them" "1" \
+  "$(grep -h '^> \*\*Interface:\*\*' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | sort -u | wc -l | tr -d ' ')"
+expect "Interface block binds the final answer to VERIFIED + NOT-CHECKED" "9" \
+  "$(grep -l 'Your own final answer closes the same way' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+
 echo
 echo "----------------------------------------"
 printf 'total: %d passed, %d failed\n' "$PASS" "$FAIL"

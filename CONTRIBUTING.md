@@ -34,7 +34,7 @@ Create `agents/<name>.md`. Start from the frontmatter, then write the body in th
 | `tools` | yes | Comma-separated allowlist (e.g. `Read, Write, Edit, Bash, Grep, Glob`). Grant only what the role needs. |
 | `model` | yes | `opus`, `sonnet`, or `haiku` — see [Model selection](#model-selection). |
 | `color` | yes | Display color (e.g. `green`, `cyan`, `red`). |
-| `isolation: worktree` | optional | Builders that edit code. Runs the agent in an isolated git worktree so parallel work doesn't collide. |
+| `isolation: worktree` | **never** | A worktree has no `vendor/`, so the agent cannot run its own gates — see [authoring-agents.md](docs/authoring-agents.md#isolation-worktree--why-this-pack-sets-it-on-nobody). A guardrails test fails the build if one appears. |
 | `memory: project` | optional | Roles that accumulate durable, project-specific knowledge (architects, leads, security, data layer, orchestration). |
 | `disallowedTools` | optional | Explicitly deny tools even if otherwise implied. Reviewers deny `Edit, Write` — they report, they do not rewrite. |
 | `skills` | optional | Skills the agent may invoke. |
@@ -47,7 +47,7 @@ The agents are deliberately terse. Match it.
 - **Imperative.** Tell the agent what to do, in order.
 - **Laravel-specific and concrete.** Name real primitives: Form Request, API Resource, Policy, `lockForUpdate()`, `Http::fake()`, `chunkById()`, `ShouldBeUnique`. Vague advice is worthless; concrete advice is the whole point.
 - **Reviewers refuse antipatterns; they don't edit.** Review and security roles report findings with `path/to/file.php:line` and rationale. They never silently rewrite another agent's code.
-- **Builders run in worktrees.** Any agent that edits code declares `isolation: worktree`.
+- **Writers share one tree.** Nobody declares `isolation: worktree` — an isolated worktree has no `vendor/`, so no gate can run in it. Writers instead open Principles with the file-scope rule: the brief names the paths you own, anything outside goes in FLAGS.
 
 ### Sections every agent should have
 

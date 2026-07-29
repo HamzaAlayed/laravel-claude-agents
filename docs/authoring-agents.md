@@ -20,7 +20,8 @@ model: sonnet                    # alias (opus | sonnet | haiku) or pinned ID �
                                  # claude-opus-4-8 for deep review/diagnosis
                                  # (tech-lead, performance-engineer)
 color: green                     # display color
-isolation: worktree              # builders that edit code — isolated git worktree
+# isolation: worktree           # NEVER in this pack — a worktree has no vendor/,
+#                                # so no agent can run its own verification gates
 # memory: project                # roles that accumulate project knowledge
 # disallowedTools: Edit, Write   # reviewers: explicitly forbidden from editing
 # skills: ...                    # AVOID — preloads full skill content on every invocation.
@@ -79,9 +80,20 @@ Grant the minimum. A role's tool list is also a statement of intent.
 - **Reviewers** (`tech-lead`, `security-engineer`) get `Read, Bash, Grep, Glob` and explicitly set `disallowedTools: Edit, Write`. This is not a formality. A review that quietly rewrites the code it reviews destroys the paper trail and the author's learning. Reviewers **report findings** with exact `path/to/file.php:line` references and rationale; the responsible builder applies the fix. Security fixes in particular need explicit human awareness — a silent patch hides the vulnerability instead of surfacing it.
 - Add `WebFetch` / `WebSearch` only when the role genuinely needs external lookup (e.g. security CVE research).
 
-## `isolation: worktree`
+## `isolation: worktree` — why this pack sets it on nobody
 
-Set this on any agent that **edits code**. It runs the agent in an isolated git worktree, so multiple builders can work in parallel without stepping on each other's files, and a half-finished change never pollutes the main working tree. In this pack the builders — `backend-developer`, `frontend-developer`, `database-developer`, `mobile-developer`, `package-developer` — all use it. Read-only reviewers do not need it.
+**Never set this on an agent that must execute anything to verify its own work.** That is every agent in this pack, so no body declares it, and a guardrails test fails the build if one reappears.
+
+The reasoning is empirical, from [eval run 4](evals/2026-07-28-run-4.md). `git worktree add` checks out **tracked** files only. `vendor/`, `node_modules/` and `.env` are gitignored, so they are absent from a fresh worktree — and with them goes every gate an agent body promises: `pint --dirty`, `phpstan analyse`, `artisan test`. Run 4 caught `qa-engineer` writing a whole test suite it could not execute ("couldn't run — no `vendor/`"), leaving the main thread to install dependencies and redo the verification. Two other cases spent a stage on `composer install` before doing any real work.
+
+Under Sail it fails harder still. The container mounts the main project directory, so an agent working in a worktree either tests the wrong tree or boots a second container stack that collides on names and ports. Since `isolation:` is static frontmatter and cannot be conditional, the choice per agent is binary — and self-verification is worth more than write isolation.
+
+**What replaces it.** Isolation bought parallel-write safety; two explicit mechanisms carry that instead:
+
+- Every writer's Principles open with a file-scope rule — the brief names the paths it owns, and a fix spotted outside that scope goes in FLAGS rather than the diff.
+- `delivery-coordinator` caps parallel lanes at 2–3 and assigns each lane disjoint paths, so two writers never share a file.
+
+A collision is then a coordination bug with a named owner, which is easier to fix than a verification gate that silently cannot run.
 
 ## `memory: project`
 
@@ -122,7 +134,8 @@ Before you open the PR, confirm your agent:
 - [ ] **Has clear handoffs.** Names the downstream agents and the trigger for each.
 - [ ] **Declares its human checkpoints.** The auth/authz/billing/PII/money/tenant surfaces it won't ship without sign-off.
 - [ ] **Reads in the house voice.** Terse, imperative, fragment-heavy. No filler.
-- [ ] **Grants minimal tools.** Reviewers set `disallowedTools: Edit, Write`. Builders set `isolation: worktree`.
+- [ ] **Grants minimal tools.** Reviewers set `disallowedTools: Edit, Write`. Nobody sets `isolation: worktree`.
+- [ ] **Writers open Principles with the file-scope rule.** The brief's paths are the lane; anything outside goes in FLAGS.
 - [ ] **Sets `memory: project`** if it's an architect, lead, security, data-layer, or orchestration role.
 - [ ] **Has the standard sections.** Role line, Principles, When invoked, Anti-patterns, Handoffs, Human checkpoint.
 - [ ] **Opens Principles with "Taught rules win."** Reads `docs/team/conventions.md` when present and treats its entries as overrides.

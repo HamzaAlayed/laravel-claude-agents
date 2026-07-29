@@ -15,20 +15,20 @@ Every agent now knows what "good" looks like in a Laravel codebase. Reviewers re
 ├── agents/
 │   ├── business-analyst.md       # "Sara" — discovery & requirements (Sonnet, project memory)
 │   ├── product-owner.md          # "Hana" — backlog & prioritization (Sonnet, project memory)
-│   ├── ui-ux-designer.md         # "Bruno" — paradigm-aware design specs (Sonnet, worktree, project memory)
-│   ├── frontend-developer.md     # "Bella" — Blade/Livewire/Inertia/Filament (Sonnet, worktree)
-│   ├── backend-developer.md      # "Adam" — APIs, services, Eloquent (Sonnet, worktree)
-│   ├── database-developer.md     # "Elena" — migrations, indexes, factories (Sonnet, worktree, project memory)
-│   ├── package-developer.md      # "Clara" — Laravel package authoring (Sonnet, worktree, project memory) ★ NEW
-│   ├── qa-engineer.md            # "Dina" — Pest/PHPUnit/Dusk, fakes (Sonnet, worktree)
-│   ├── devops-engineer.md        # "Farid" — Forge/Cloud/Octane/Horizon (Sonnet, worktree)
+│   ├── ui-ux-designer.md         # "Bruno" — paradigm-aware design specs (Sonnet, project memory)
+│   ├── frontend-developer.md     # "Bella" — Blade/Livewire/Inertia/Filament (Sonnet)
+│   ├── backend-developer.md      # "Adam" — APIs, services, Eloquent (Sonnet)
+│   ├── database-developer.md     # "Elena" — migrations, indexes, factories (Sonnet, project memory)
+│   ├── package-developer.md      # "Clara" — Laravel package authoring (Sonnet, project memory) ★ NEW
+│   ├── qa-engineer.md            # "Dina" — Pest/PHPUnit/Dusk, fakes (Sonnet)
+│   ├── devops-engineer.md        # "Farid" — Forge/Cloud/Octane/Horizon (Sonnet)
 │   ├── scrum-master.md           # "Petra" — delivery rhythm & blockers (Haiku, project memory)
 │   ├── solution-architect.md     # "Bilal" — system design & ADRs (Opus, project memory)
 │   ├── security-engineer.md      # "Felix" — STRIDE + Laravel hardening (Opus, project memory, no Edit/Write)
-│   ├── technical-writer.md       # "Sofia" — Scribe, route:list-driven docs (Haiku)
-│   ├── tech-lead.md              # "Tariq" — code review w/ Laravel checklist (Sonnet, project memory, no Edit/Write)
-│   ├── performance-engineer.md   # "Omar" — profiling, N+1, caching, Octane, CWV (Sonnet, project memory, no Edit/Write) ★ NEW
-│   ├── mobile-developer.md       # "Pablo" — iOS/Android consuming Laravel APIs (Sonnet, worktree)
+│   ├── technical-writer.md       # "Sofia" — Scribe, route:list-driven docs (Sonnet)
+│   ├── tech-lead.md              # "Tariq" — code review w/ Laravel checklist (Opus 4.8, project memory, no Edit/Write)
+│   ├── performance-engineer.md   # "Omar" — profiling, N+1, caching, Octane, CWV (Opus 4.8, project memory, no Edit/Write) ★ NEW
+│   ├── mobile-developer.md       # "Pablo" — iOS/Android consuming Laravel APIs (Sonnet)
 │   └── delivery-coordinator.md   # "Emre" — orchestrator main-thread agent (Sonnet, project memory)
 │
 └── commands/
@@ -124,7 +124,7 @@ Each run's misses become levers, ship in the next release, and get re-measured �
 
 **You can see the team working.** The `delivery-coordinator` and all nine orchestrating commands print a progress board after planning and after every stage (`✔ done / ▶ running / · queued / ✖ failed / ⏸ checkpoint`), demand one stage-return shape from every specialist (`STATUS / DID / VERIFIED / NOT-CHECKED / FLAGS / NEXT` — evidence required, gaps named, claims rejected), and present human checkpoints as numbered options with a recommended default (via `AskUserQuestion` when running main-thread). And `/board` opens a live HTML dashboard — the `emit-agent-events` hook streams every subagent start/finish (agent, task, duration, tokens) to `.claude/agents-board.jsonl` deterministically, so the board fills up no matter which command or agent is orchestrating. Agents spawned from inside another agent nest under their spawner (the hook records the calling agent as `parent`), and async-launched agents get a real completion event via `SubagentStop` — background work shows its true duration instead of vanishing at launch. A multi-agent run reads like a dashboard, not a silence.
 
-**Writers run in isolated worktrees.** `backend-developer`, `frontend-developer`, `database-developer`, `mobile-developer`, `package-developer`, `devops-engineer`, and `ui-ux-designer` use `isolation: worktree` so parallel changes don't collide.
+**Every agent can run its own gates.** No agent uses `isolation: worktree`, and a guardrails test keeps it that way. A fresh git worktree contains tracked files only — no `vendor/`, no `node_modules/`, no `.env` — so an isolated agent cannot run `pint`, `phpstan`, or the test suite it just wrote, and under Sail it tests the wrong tree entirely. [Eval run 4](docs/evals/2026-07-28-run-4.md) caught exactly that: a full test suite written and never executed, verification silently deferred to the main thread. Writers share the working tree and stay in their lane by contract instead — the brief names the paths each owns, the coordinator gives parallel lanes disjoint paths, and anything spotted outside scope is reported rather than edited. A gate that can actually run beats isolation that hides the fact it can't.
 
 **Project memory where it earns its keep.** Writing roles — the architect, data layer, product, discovery, and orchestration agents — persist context (ADRs, conventions, schema decisions, requirements) across sessions. Read-only reviewers keep memory for cross-session recall but never write it; the orchestrator persists their findings.
 

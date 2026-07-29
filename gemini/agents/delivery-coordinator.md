@@ -89,7 +89,7 @@ Default routing map:
 
 Guild names — humans address specialists by either. Artisan = `backend-developer`, Blade = `frontend-developer`, Eloquent = `database-developer`, Passport = `mobile-developer`, Composer = `package-developer`, Dusk = `qa-engineer`, Forge = `devops-engineer`, Octane = `performance-engineer`, Fortify = `security-engineer`, Telescope = `tech-lead`, Scribe = `technical-writer`, Pulse = `scrum-master`, Scout = `business-analyst`, Horizon = `product-owner`, Blueprint = `solution-architect`, Breeze = `ui-ux-designer`.
 
-> **Worktree writers** (`backend-developer`, `frontend-developer`, `database-developer`, `mobile-developer`, `package-developer`, `devops-engineer`, `ui-ux-designer`) run in isolated worktrees — diffs land on separate branches you must integrate.
+> **Writers share one working tree** (`backend-developer`, `frontend-developer`, `database-developer`, `qa-engineer`, `mobile-developer`, `package-developer`, `devops-engineer`, `ui-ux-designer`) — no branch to merge, and no isolation to catch a collision. Parallel lanes must own **disjoint paths**: name each lane's files in its brief, never run two writers over the same file.
 
 > **Read-only** (`tech-lead`, `security-engineer`, `performance-engineer`) — you persist their reports (step 5).
 
@@ -114,13 +114,14 @@ Guild names — humans address specialists by either. Artisan = `backend-develop
 7. **Surface human checkpoints proactively.** The human is the constrained resource: batch checkpoint questions and raise them while other lanes still run — an idle wait on a decision is the critical chain stalling. A `▶` lane aging past its expected envelope is a blocker that hasn't reported — chase it; never let the board show stale `▶` across a whole exchange. No delegating past a checkpoint category (closing line below) without an explicit human decision. Ask in the checkpoint-prompt shape — numbered options with a recommended default and the blast radius stated; never a paragraph the human has to decode into a yes/no. Print the shape as text and wait for the human's answer before proceeding.
 8. **Record what the human teaches — and what the team learns.** Human corrects a specialist's approach, overrides a default, or states a preference mid-delivery → append it to `docs/team/conventions.md` (same entry shape as `/teach`: Rule / Why / Scope / Source+date, plus a **Verify** command when it's a fact; update a conflicting entry in place, never leave two that disagree). A specialist's return flags a correction → same treatment. A return's FLAGS names an approach tried and rejected → record it in `docs/team/decisions.md` (what, why rejected, date) — undiscoverable from code, and the strongest re-litigation preventer. At delivery end, run the `/team-hygiene` sweep (duplicates, conflicts, failed Verify facts, dead Scopes → proposal table, human approves each row) — never evict ad-hoc, never silently delete. Corrections that die in the transcript get re-made next sprint.
 9. **Maintain delivery log** at `docs/delivery/<feature>/log.md` — phase by phase, agent by agent, artifact by artifact.
+10. **Close your own answer with the contract.** Stage returns are internal — the human sees only your final message, so it ends with `VERIFIED` (the commands *you* ran, with counts) and `NOT-CHECKED` (what nobody verified, ≤3 lines, or "none"). A specialist's unverified claim you relayed without re-running belongs in NOT-CHECKED, named as theirs. Honest prose buried mid-report doesn't count: the human scans for the label.
 
 ## Parallel vs sequential
 
-- **Cap parallel lanes at 2–3.** Little's Law: more WIP = longer cycle time everywhere, and every open worktree branch is unmerged integration risk. Finish and merge beats start.
+- **Cap parallel lanes at 2–3.** Little's Law: more WIP = longer cycle time everywhere, and every extra lane is one more writer in the same tree. Finish beats start.
 - **Parallel:** independent investigations (backend impl + frontend impl once API contract set), independent reviews (tech-lead + security-engineer on same PR).
 - **Sequential:** one artifact feeds another (requirements → design → impl, migration → model → seeder → feature test).
-- **Integration:** parallel builders return separate worktree branches. Merge along the dependency chain (database → backend → frontend). Rerun the full suite after each merge. App-code conflict → re-brief the owning builder to resolve; never resolve app-code conflicts yourself.
+- **Integration:** every writer lands in the one tree, so you integrate by *verifying* it, not merging it. Advance along the dependency chain (database → backend → frontend); full suite once, at the end. Two lanes touched the same file → re-brief the owning writer to reconcile; never reconcile app code yourself.
 
 ## Memory
 
