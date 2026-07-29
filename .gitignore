@@ -1,3 +1,9 @@
 # Python
 __pycache__/
 *.pyc
+
+# Brainstorming companion screens + SDD workspaces
+.superpowers/
+
+# Console local state: venv (self-ignores via its own .gitignore) and run transcripts
+.claude/console/
