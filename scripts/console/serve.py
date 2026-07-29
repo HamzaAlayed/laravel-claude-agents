@@ -100,6 +100,15 @@ def sdk_client_factory(options: dict):
         permission_mode=options["permission_mode"],
         can_use_tool=can_use_tool,
         plugins=[{"type": "local", "path": str(pack_root())}],
+        # The console's whole promise is that in `default` mode every call not
+        # pre-approved by settings reaches the browser. SandboxSettings'
+        # autoAllowBashIfSandboxed defaults to True, which auto-decides
+        # sandboxed Bash calls inside the CLI: can_use_tool is never invoked, so
+        # no `prompt` event is emitted and nobody is asked. Containment is not
+        # the issue (hooks outrank every permission mode and still fire) —
+        # visibility is. False makes the documented guarantee true. Pinned by
+        # tests/guardrails.test.sh so the SDK default cannot flip it back.
+        sandbox={"autoAllowBashIfSandboxed": False},
         **({"model": options["model"]} if options.get("model") else {}),
     )
     return ClaudeSDKClient(options=sdk_options)
@@ -117,7 +126,11 @@ def main() -> int:
 
     if not args.in_venv:
         python = ensure_venv()
-        os.execv(str(python), [str(python), str(Path(__file__).resolve()),
+        # -u is not inherited: this builds a fresh argv, so a `python3 -u
+        # serve.py` invocation would re-exec WITHOUT it and the startup banner
+        # (which carries the token) would sit in a fully-buffered pipe whenever
+        # stdout is not a tty -- which is exactly how /console starts it.
+        os.execv(str(python), [str(python), "-u", str(Path(__file__).resolve()),
                                "--port", str(args.port),
                                *(["--no-open"] if args.no_open else []), "--in-venv"])
 

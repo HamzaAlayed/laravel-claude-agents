@@ -104,10 +104,37 @@ in agent counts, and a failure raises a banner.
 
 ### Permission posture
 
-Default `default`: every call not pre-approved by settings reaches the browser.
-A per-run selector also offers `acceptEdits` and `plan`, and either can be
+Default `default`: every call not pre-approved by settings reaches the browser,
+**with one measured exception** — see "What the CLI decides before we are asked"
+below. A per-run selector also offers `acceptEdits` and `plan`, and either can be
 changed mid-run. `plan` is included because clarifying questions are most
 common there, which is exactly what the console renders best.
+
+#### What the CLI decides before we are asked
+
+`can_use_tool` is not the first gate. Claude Code resolves some Bash calls
+itself and never consults the callback, so no `prompt` event is emitted and the
+browser is never asked. Two such paths exist in CLI 2.1.220:
+
+1. **Read-only commands** (`READ_ONLY_AUTO_ALLOW_REASON`, "Read-only command is
+   allowed"). A command the CLI classifies as read-only is allowed before the
+   callback runs. Measured against this console: `echo hello` produced
+   `tool_use` → `tool_result` with **zero** `prompt` events, while
+   `mkdir -p /tmp/…` produced `prompt` → `prompt_resolved` normally. There is no
+   SDK option or settings key that turns this off; only a `PreToolUse` hook sees
+   every call. The console still shows *that* the command ran — as a `tool_use`
+   event — just not that nobody was asked.
+2. **Sandboxed commands** (`SANDBOX_AUTO_ALLOW_REASON`). When bash sandboxing is
+   on, `sandbox.autoAllowBashIfSandboxed` (SDK default `True`) auto-approves
+   sandboxed commands the same way. This one *is* configurable, so
+   `sdk_client_factory` sets `sandbox={"autoAllowBashIfSandboxed": False}`
+   explicitly and `tests/guardrails.test.sh` pins it. The CLI's own
+   `sandbox.enabled` default is `False`, so this is insurance for the case where
+   user, project or managed settings turn sandboxing on.
+
+Containment is unaffected either way: hooks outrank every permission mode, so
+the five guardrail hooks still fire on an auto-approved call. What is affected is
+visibility, and the honest statement of it is this section.
 
 `bypassPermissions` is **not offered in the UI** — subagents inherit it and
 cannot override it, so one toggle would grant seventeen agents unattended

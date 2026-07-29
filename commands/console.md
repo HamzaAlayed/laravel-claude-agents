@@ -35,7 +35,13 @@ only — it drives the Claude Agent SDK, which the other runtimes don't ship.
 - Runs persist to `.claude/console/runs/*.jsonl`; add `.claude/console/` to
   `.gitignore` if `.claude/` is committed.
 - A run **parks** until you answer an approval or a checkpoint question — the
-  amber bar at the top of the board is the signal.
+  amber bar at the top of the board is the signal. Several agents can park at
+  once; the bar counts them and you answer one at a time.
+- **Read-only Bash commands are approved by Claude Code itself** and never reach
+  the browser: `echo hello` just runs, while `mkdir -p /tmp/x` asks. You still
+  see the command in the transcript as a tool call — you were simply not asked
+  about it. No setting changes this; only a `PreToolUse` hook sees every call.
 - The five guardrail hooks still apply. A hook deny outranks every permission
-  mode, so the console cannot be used to route around them.
+  mode, so the console cannot be used to route around them — including the
+  auto-approved read-only calls above.
 - `/board` is unchanged and still covers runs you start in the terminal.

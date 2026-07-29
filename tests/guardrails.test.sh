@@ -347,6 +347,14 @@ expect "console API is token-guarded" "1" \
   "$(grep -q 'X-Guild-Token' "$SCRIPT_DIR"/scripts/console/server.py && echo 1 || echo 0)"
 expect "console rejects non-local Origin" "1" \
   "$(grep -q 'LOCAL_ORIGIN' "$SCRIPT_DIR"/scripts/console/server.py && echo 1 || echo 0)"
+# SandboxSettings.autoAllowBashIfSandboxed defaults to True, which auto-decides
+# sandboxed Bash calls INSIDE the CLI: can_use_tool never fires, no `prompt`
+# event is emitted, and the spec's "every non-preapproved call reaches the
+# browser" stops being true. Comments are stripped first so the explanation
+# above cannot satisfy the ratchet on its own.
+expect "console disables the SDK's sandboxed-bash auto-approval" "1" \
+  "$(sed 's/#.*//' "$SCRIPT_DIR"/scripts/console/serve.py \
+     | grep -cE 'sandbox=\{"autoAllowBashIfSandboxed": False\}')"
 expect "console bundle is committed" "1" \
   "$([ -f "$SCRIPT_DIR/scripts/console/dist/index.html" ] && echo 1 || echo 0)"
 # The board and its observer are deliberately untouched by the console work.
