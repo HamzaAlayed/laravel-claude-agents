@@ -3449,7 +3449,7 @@ Add to `.gitignore`:
 ```bash
 echo "1.27.0" > VERSION
 sed -i '' 's/"version": "1.26.0"/"version": "1.27.0"/' \
-  .claude-plugin/plugin.json .cursor-plugin/plugin.json
+  .claude-plugin/plugin.json .cursor-plugin/plugin.json .claude-plugin/marketplace.json
 python3 scripts/build-gemini-extension.py
 ```
 
