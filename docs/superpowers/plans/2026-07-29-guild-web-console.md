@@ -2329,7 +2329,7 @@ export function streamRun(runId: string, sinceSeq: number, onEvent: (e: GuildEve
 - [ ] **Step 5: Run test to verify it passes**
 
 Run: `cd console-ui && npx vitest run src/lib/reducer.test.ts`
-Expected: PASS, 15 tests
+Expected: PASS, 14 tests
 
 - [ ] **Step 6: Commit**
 
@@ -2538,7 +2538,7 @@ Append to `console-ui/src/index.css`:
 - [ ] **Step 5: Verify it compiles and tests still pass**
 
 Run: `cd console-ui && npx tsc --noEmit && npx vitest run`
-Expected: no type errors; 15 tests pass
+Expected: no type errors; 14 tests pass
 
 - [ ] **Step 6: Commit**
 
@@ -3256,7 +3256,7 @@ createRoot(document.getElementById("root")!).render(
 - [ ] **Step 5: Build and verify**
 
 Run: `cd console-ui && npm run build && npx vitest run`
-Expected: build writes `../scripts/console/dist/index.html`; 19 tests pass
+Expected: build writes `../scripts/console/dist/index.html`; 18 tests pass
 
 - [ ] **Step 6: Commit source and the built bundle**
 
