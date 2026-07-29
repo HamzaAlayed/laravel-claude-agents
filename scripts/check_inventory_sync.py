@@ -17,7 +17,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-GEMINI_SKIPPED_COMMANDS = {"board.md"}  # kept in sync with build-gemini-extension.py
+GEMINI_SKIPPED_COMMANDS = {"board.md", "console.md"}  # kept in sync with build-gemini-extension.py
 OBSERVER_HOOKS = {"emit-agent-events.sh"}  # wired in hooks.json but not a guardrail
 
 WORDS = {w: i for i, w in enumerate(

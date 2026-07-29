@@ -149,8 +149,9 @@ def toml_basic(s):
 
 # Commands that depend on Claude-only plumbing and are not ported.
 # board.md reads the feed written by emit-agent-events.sh, a PreToolUse/
-# PostToolUse hook on the Agent tool — Gemini's hook input has no equivalent.
-GEMINI_SKIP_COMMANDS = {"board.md"}
+# PostToolUse observer Gemini has no equivalent for. console.md drives the
+# Claude Agent SDK, which Gemini does not ship.
+GEMINI_SKIP_COMMANDS = {"board.md", "console.md"}
 
 
 def build_commands():
