@@ -143,3 +143,35 @@ jobs:
         run: python3 scripts/check_body_budget.py
       - name: Inventory claims (README + manifests + generators) match disk
         run: python3 scripts/check_inventory_sync.py
+
+  console-python:
+    name: console python units
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run console unit tests (stdlib unittest, no SDK required)
+        run: python3 -m unittest discover -s tests/console -t tests/console -v
+
+  console-ui:
+    name: console ui
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: console-ui/package-lock.json
+      - name: Install
+        working-directory: console-ui
+        run: npm ci
+      - name: Typecheck + unit tests
+        working-directory: console-ui
+        run: npx tsc --noEmit && npx vitest run
+      - name: Built bundle is in sync with source
+        working-directory: console-ui
+        run: npm run build
+      - name: Fail if dist/ is stale
+        run: |
+          git diff --exit-code -- scripts/console/dist \
+            || { echo "::error::scripts/console/dist is stale — run: cd console-ui && npm run build and commit"; exit 1; }

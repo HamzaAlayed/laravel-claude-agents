@@ -158,6 +158,24 @@ install_dir() {
   echo "  $what: $copied copied, $skipped skipped, $backed_up backed up -> $dest"
 }
 
+# scripts/console/ is a tree (python modules + the built dist/), which
+# install_dir deliberately skips — it copies files only. Recurse here instead.
+install_console() {
+  local src="$SCRIPT_DIR/scripts/console"
+  local dest="$TARGET/scripts/console"
+  if [ ! -d "$src" ]; then
+    echo "  console: source missing — skipped"
+    return 0
+  fi
+  if [ ! -f "$src/dist/index.html" ]; then
+    echo "  console: bundle not built — skipped (run: cd console-ui && npm ci && npm run build)"
+    return 0
+  fi
+  mkdir -p "$dest"
+  cp -R "$src/." "$dest/"
+  echo "  console: installed -> $dest"
+}
+
 install_claudemd() {
   [ "$SKIP_CLAUDEMD" -eq 1 ] && return 0
   [ "$GLOBAL" -eq 1 ] && return 0
@@ -273,6 +291,7 @@ install_dir "$SCRIPT_DIR/commands" "$DEST_ROOT/commands" "commands"
 if [ "$GLOBAL" -eq 0 ]; then
   SCRIPTS_DEST="$TARGET/scripts"
   install_dir "$SCRIPT_DIR/scripts" "$SCRIPTS_DEST" "guardrail scripts"
+  install_console
   find "$SCRIPTS_DEST" -maxdepth 1 -name "*.sh" -type f -exec chmod +x {} \; 2>/dev/null || true
 
   install_claudemd
