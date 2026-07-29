@@ -57,8 +57,48 @@ A failing check is **signal, not necessarily a harness bug** — it becomes a
 line in the findings doc. Keep checks intent-level (did the flaw get found?)
 rather than wording-level, so phrasing changes don't flake.
 
+## Rubric judge — `EVAL_JUDGE=1`
+
+The checks above are `grep`. That is cheap and stable, but it is exact-match
+scoring of a nondeterministic output, and it fails in both directions:
+`check_log 'update'` passes on *any* occurrence of the word, while run 4 froze a
+live IDOR into a test the regexes happily accepted.
+
+`EVAL_JUDGE=1` adds a second, outcome-level opinion per case — an LLM scored
+against the case's `case_rubric`, which states what a correct run must *achieve*
+rather than what it must *say*.
+
+```bash
+EVAL_JUDGE=1 ./tests/eval/run-evals.sh                    # all cases + rubric judge
+EVAL_JUDGE=1 EVAL_JUDGE_MODEL=claude-opus-5 ./tests/eval/run-evals.sh tests
+```
+
+```
+   FAIL — 1/4 checks, 0s
+   judge: PASS 4/5 — DISAGREES with the regex verdict — unmet: …
+```
+
+Rules it plays by:
+
+- **Advisory only.** It never touches the check count, the case verdict, or the
+  exit code. Runs stay comparable to earlier ones, and a judge outage cannot
+  fail a release.
+- **Independent, not anchored.** The judge never sees the regexes or their
+  result. The harness compares the two afterwards and marks divergence with
+  `!` — a disagreement in *either* direction is the interesting row.
+- **Fail-open.** No `python3`, no parsable JSON, or a judge timeout prints one
+  line, keeps the raw reply at `<case>.judge.raw.txt`, and moves on.
+- **Costs one extra billed call per case**, in a neutral empty workdir so the
+  judge reads the evidence bundle rather than the fixture app.
+
+Verdicts land in `<case>.judge.json`, and a `judge` column joins `summary.md`.
+Env: `EVAL_JUDGE_MODEL` pins the judge model, `EVAL_JUDGE_TIMEOUT` (default
+300s) bounds it.
+
 ## Extending
 
 Add a planted flaw to the fixture (no hints in the fixture!), then register a
-case: name in `ALL_CASES`, a `case_prompt`/`case_desc` entry, and a
-`checks_<name>` function in `run-evals.sh`, and a row in both tables above.
+case: name in `ALL_CASES`, a `case_prompt`/`case_desc`/`case_rubric` entry, and
+a `checks_<name>` function in `run-evals.sh`, and a row in both tables above.
+A guardrails test asserts every case has a rubric, so the judge can't silently
+skip a case you added.

@@ -25,6 +25,11 @@
 #   EVAL_PARALLEL=1     run cases concurrently (isolated workdirs make this safe;
 #                       wall-clock drops to the slowest case, console prints per
 #                       case as each finishes)
+#   EVAL_JUDGE=1        also score each case against its rubric with an LLM judge
+#                       (advisory — never changes the case verdict; one extra
+#                       billed call per case)
+#   EVAL_JUDGE_MODEL=   optional --model for the judge call
+#   EVAL_JUDGE_TIMEOUT=300  per-judge timeout in seconds
 #   KEEP_WORKDIR=1      keep throwaway workdirs for inspection
 #
 # Headless runs use --dangerously-skip-permissions INSIDE the throwaway
@@ -37,6 +42,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 FIXTURE="$ROOT/tests/fixture-app"
 CLAUDE_BIN="${CLAUDE_BIN:-claude}"
 EVAL_TIMEOUT="${EVAL_TIMEOUT:-1200}"
+EVAL_JUDGE="${EVAL_JUDGE:-0}"
+EVAL_JUDGE_TIMEOUT="${EVAL_JUDGE_TIMEOUT:-300}"
 KEEP_WORKDIR="${KEEP_WORKDIR:-0}"
 
 ALL_CASES=(n-plus-one policy action tests hygiene)
@@ -58,6 +65,62 @@ case_desc() {
     action)     echo "extracts fat PostController@store into an Action" ;;
     tests)      echo "writes feature tests incl. update authorization" ;;
     hygiene)    echo "flags the planted duplicate/conflict/stale entries, applies nothing headless" ;;
+  esac
+}
+
+# Intent-level rubric per case, for the optional LLM judge (EVAL_JUDGE=1).
+# The regex answer key asserts *wording and paths*; a rubric asserts *outcome* —
+# so it can catch a correct fix the regex missed, and a regex pass that left the
+# flaw live (run 4 froze a live IDOR into a test that the regexes accepted).
+# Keep rubrics outcome-shaped. Never name the regexes: the judge scores the run
+# independently, and the harness reports where the two verdicts disagree.
+case_rubric() {
+  case "$1" in
+    n-plus-one) cat <<'EOF'
+- Identifies the N+1 on the posts.index path: the Blade loop reads the post's
+  user and its comments with no eager loading.
+- Proposes eager-loading the user relation, and a count-only load (withCount)
+  for the comments count rather than hydrating whole comment collections.
+- Names the actual offending file(s) in the fixture.
+- Generic advice about N+1 with no fixture-specific diagnosis does not count.
+EOF
+      ;;
+    policy) cat <<'EOF'
+- A Policy governing Post actions exists.
+- PostController@update actually enforces it, so a user who does not own a post
+  is refused. The previously unguarded update route is closed.
+- Enforcement is real and wired (the policy is invoked on the update path), not
+  a Policy class left unreferenced by any controller, route or middleware.
+EOF
+      ;;
+    action) cat <<'EOF'
+- The inline work in PostController@store (validation, slug generation, mail
+  fan-out, stats bookkeeping, logging) moves into a single-responsibility
+  Action class that the controller delegates to.
+- The mail fan-out no longer sits in the controller.
+- Behaviour is preserved — the refactor is not a partial move that drops one of
+  the store() responsibilities silently.
+- Tests cover the refactored path.
+EOF
+      ;;
+    tests) cat <<'EOF'
+- Adds feature tests over the previously untested posts.* routes, including the
+  update route.
+- Authorization is probed by asserting the SECURE outcome (a non-owner is
+  refused, 403). A test that asserts the current INSECURE behaviour (non-owner
+  succeeds, 200) and thereby locks the IDOR in as expected behaviour is a FAIL
+  even though it passes — the flaw must be surfaced, not frozen.
+- The run states what it did not check rather than implying full coverage.
+EOF
+      ;;
+    hygiene) cat <<'EOF'
+- Produces a proposal table that classifies the two UUID-rule entries as
+  duplicates and the Pest-vs-PHPUnit pair as a conflict.
+- Names the LegacyPayments fact whose Verify command fails as stale.
+- Applies NO edits to docs/team/conventions.md — a headless run has no human
+  approval, and the sweep proposes only.
+EOF
+      ;;
   esac
 }
 
@@ -226,6 +289,97 @@ run_with_timeout() { # run_with_timeout <seconds> <cmd...>
   return "$rc"
 }
 
+JUDGE_CELL=""
+
+# Rubric judge (EVAL_JUDGE=1). Advisory by design: it prints, persists, and
+# reports disagreement with the regex verdict, but never touches CHECK_FAIL or
+# the case verdict — runs 1-5 stay comparable, and a judge outage can't fail a
+# release. Nondeterministic output needs a rubric, not exact-match assertions
+# (Azure orchestration guidance); the regexes stay as the cheap stable floor.
+judge_case() { # judge_case <name> <results-dir> <regex-verdict>
+  local name="$1" results="$2" regex_verdict="$3"
+  JUDGE_CELL=""
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "   judge: skipped (verdict parsing needs python3)"
+    return 0
+  fi
+
+  # Neutral cwd — the judge must not load the pack installed in the case
+  # workdir, or go reading the fixture app instead of the evidence it was given.
+  local jdir
+  jdir="$(mktemp -d -t "laravel-agents-judge-$name.XXXXXX")"
+
+  local prompt
+  prompt="$(
+    printf 'Score one run of an automated coding agent against a rubric.\n'
+    printf 'Judge ONLY from the evidence below. Do not credit work it does not show.\n\n'
+    printf 'RUBRIC — what a correct run must achieve:\n%s\n\n' "$(case_rubric "$name")"
+    printf 'EVIDENCE\n--- agent transcript (tail) ---\n%s\n' "$(tail -c 20000 "$LOG" 2>/dev/null)"
+    printf '\n--- git status ---\n%s\n' "$(cat "$results/$name.status.txt" 2>/dev/null)"
+    printf '\n--- git diff (head) ---\n%s\n' "$(head -c 20000 "$results/$name.diff.patch" 2>/dev/null)"
+    printf '\nReply with ONE JSON object — no prose, no code fence:\n'
+    printf '{"verdict":"pass"|"fail","score":1-5,"unmet":["rubric points not met"],'
+    printf '"rationale":["at most 3 short bullets"]}\n'
+    printf 'score: 5 = fully met, 3 = partly met, 1 = not met.\n'
+    printf 'A run that satisfies the letter of the rubric while leaving the '
+    printf 'underlying flaw live is a fail.\n'
+  )"
+
+  local -a jcmd=("$CLAUDE_BIN" -p "$prompt" --dangerously-skip-permissions)
+  if [ -n "${EVAL_JUDGE_MODEL:-}" ]; then
+    jcmd+=(--model "$EVAL_JUDGE_MODEL")
+  fi
+
+  local rawf="$results/$name.judge.raw.txt"
+  (cd "$jdir" && run_with_timeout "$EVAL_JUDGE_TIMEOUT" "${jcmd[@]}") >"$rawf" 2>/dev/null
+  rm -rf "$jdir"
+
+  local parsed
+  parsed="$(python3 - "$rawf" "$results/$name.judge.json" "$regex_verdict" <<'PY' || true
+import json, re, sys
+
+raw = open(sys.argv[1], encoding="utf-8", errors="replace").read()
+m = re.search(r"\{.*\}", raw, re.S)
+if not m:
+    sys.exit(0)
+try:
+    d = json.loads(m.group(0))
+except ValueError:
+    sys.exit(0)
+
+verdict = str(d.get("verdict", "")).strip().lower()
+if verdict not in ("pass", "fail"):
+    sys.exit(0)
+
+with open(sys.argv[2], "w", encoding="utf-8") as fh:
+    json.dump(d, fh, indent=2)
+
+score = d.get("score")
+unmet = [str(u) for u in (d.get("unmet") or [])][:3]
+disagrees = verdict != sys.argv[3].strip().lower()
+
+cell = f"{verdict.upper()} {score}/5" if score is not None else verdict.upper()
+if disagrees:
+    cell += " !"
+parts = [cell.replace(" !", "")]
+if disagrees:
+    parts.append("DISAGREES with the regex verdict")
+if unmet:
+    parts.append("unmet: " + "; ".join(unmet))
+print(cell + "|" + " — ".join(parts))
+PY
+  )"
+
+  if [ -z "$parsed" ]; then
+    echo "   judge: no parsable verdict (raw kept: $rawf)"
+    return 0
+  fi
+
+  JUDGE_CELL="${parsed%%|*}"
+  echo "   judge: ${parsed#*|}"
+}
+
 run_case() { # run_case <name> <results-dir>
   local name="$1" results="$2"
   local prompt
@@ -282,6 +436,9 @@ run_case() { # run_case <name> <results-dir>
   [ "$CHECK_FAIL" -gt 0 ] && verdict=FAIL
   echo "   $verdict — $CHECK_PASS/$((CHECK_PASS + CHECK_FAIL)) checks, ${dur}s"
 
+  JUDGE_CELL=""
+  [ "$EVAL_JUDGE" = "1" ] && judge_case "$name" "$results" "$verdict"
+
   # Soft timing ratchet: sequential runs only (parallel contention inflates
   # durations 2-6x — see tests/eval/README.md). Warns, never fails: timings
   # are machine- and API-load-dependent. Ceilings live in baseline.json.
@@ -302,7 +459,11 @@ PY
   fi
   echo
 
-  echo "| $name | $verdict | $CHECK_PASS/$((CHECK_PASS + CHECK_FAIL)) | ${dur}s |" >"$results/.$name.row"
+  if [ "$EVAL_JUDGE" = "1" ]; then
+    echo "| $name | $verdict | $CHECK_PASS/$((CHECK_PASS + CHECK_FAIL)) | ${dur}s | ${JUDGE_CELL:-—} |" >"$results/.$name.row"
+  else
+    echo "| $name | $verdict | $CHECK_PASS/$((CHECK_PASS + CHECK_FAIL)) | ${dur}s |" >"$results/.$name.row"
+  fi
   printf '%s\n' "${CHECK_LINES[@]}" >"$results/$name.checks.txt"
 
   if [ "$KEEP_WORKDIR" != "1" ]; then
@@ -343,7 +504,9 @@ mkdir -p "$RESULTS"
 
 MODE=sequential
 [ "${EVAL_PARALLEL:-0}" = "1" ] && [ "${#CASES[@]}" -gt 1 ] && MODE=parallel
-echo "eval run $RUN_ID — ${#CASES[@]} case(s), timeout ${EVAL_TIMEOUT}s each, $MODE"
+JUDGE_NOTE=""
+[ "$EVAL_JUDGE" = "1" ] && JUDGE_NOTE=", rubric judge on (advisory)"
+echo "eval run $RUN_ID — ${#CASES[@]} case(s), timeout ${EVAL_TIMEOUT}s each, $MODE$JUDGE_NOTE"
 echo "results: $RESULTS"
 echo
 
@@ -372,8 +535,13 @@ fi
 {
   echo "# Eval run $RUN_ID"
   echo
-  echo "| case | verdict | checks | duration |"
-  echo "| ---- | ------- | ------ | -------- |"
+  if [ "$EVAL_JUDGE" = "1" ]; then
+    echo "| case | verdict | checks | duration | judge |"
+    echo "| ---- | ------- | ------ | -------- | ----- |"
+  else
+    echo "| case | verdict | checks | duration |"
+    echo "| ---- | ------- | ------ | -------- |"
+  fi
   for c in "${CASES[@]}"; do
     cat "$RESULTS/.$c.row" 2>/dev/null
     rm -f "$RESULTS/.$c.row"

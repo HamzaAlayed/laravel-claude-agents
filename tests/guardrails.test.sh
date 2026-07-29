@@ -314,6 +314,20 @@ expect "Interface block is byte-identical across them" "1" \
   "$(grep -h '^> \*\*Interface:\*\*' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | sort -u | wc -l | tr -d ' ')"
 expect "Interface block binds the final answer to VERIFIED + NOT-CHECKED" "9" \
   "$(grep -l 'Your own final answer closes the same way' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# Finding 3 (2026-07-29 literature audit): regex answer keys are exact-match
+# scoring of nondeterministic output. The rubric judge is the second opinion, so
+# a case registered without a rubric would be silently unjudged.
+EVAL_SH="$SCRIPT_DIR/tests/eval/run-evals.sh"
+MISSING_RUBRIC=""
+read -r -a EVAL_CASE_LIST <<<"$(sed -n 's/^ALL_CASES=(\(.*\))$/\1/p' "$EVAL_SH")"
+for c in "${EVAL_CASE_LIST[@]}"; do
+  sed -n '/^case_rubric()/,/^}/p' "$EVAL_SH" | grep -qE "^ *$c\)" || MISSING_RUBRIC="$MISSING_RUBRIC $c"
+done
+expect "every eval case has a judge rubric" "" "$MISSING_RUBRIC"
+# Assignments only — `regex_verdict="$3"` (reading the verdict) must not trip it.
+expect "the rubric judge never alters the case verdict" "0" \
+  "$(sed -n '/^judge_case()/,/^}/p' "$EVAL_SH" \
+     | grep -cE '(^|[^_[:alnum:]])(CHECK_PASS|CHECK_FAIL|verdict)=')"
 
 echo
 echo "----------------------------------------"

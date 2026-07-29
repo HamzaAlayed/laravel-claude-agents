@@ -5,6 +5,63 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.26.0] - 2026-07-29
+
+Five published sources on agent design read end to end and audited against the
+pack — [`docs/research/2026-07-29-agent-literature-audit.md`](docs/research/2026-07-29-agent-literature-audit.md).
+Most of the canon turned out to be already here under pack-native names
+(orchestrator-workers, least-privilege tools, model tiers by failure cost,
+fail-closed guardrails, HITL gates, the fast path, per-agent token telemetry),
+so the audit's value is the four places it *wasn't*. One lands here; three are
+held.
+
+### Added
+
+- **Rubric judge for the eval harness — `EVAL_JUDGE=1`.** The answer key is
+  `grep`, which is exact-match scoring of a nondeterministic output, and it has
+  already failed in both directions: `check_log 'update'` passes on any
+  occurrence of the word, while run 4 froze a live IDOR into a test the regexes
+  accepted. Each case now carries a `case_rubric` stating what a correct run must
+  *achieve* rather than what it must *say*, and `EVAL_JUDGE=1` scores the run
+  against it.
+  - **Advisory by construction.** It never touches the check count, the case
+    verdict, or the exit code, so runs stay comparable to 1–4 and eval run 5 is
+    unaffected. A guardrails test asserts `judge_case` assigns to none of
+    `CHECK_PASS` / `CHECK_FAIL` / `verdict`.
+  - **Independent, not anchored.** The judge never sees the regexes or their
+    result; the harness compares the two afterwards and marks divergence with
+    `!` in `summary.md`. A disagreement in either direction is the signal.
+  - **Fail-open.** Missing `python3`, an unparsable reply, or a judge timeout
+    prints one line, keeps the raw reply at `<case>.judge.raw.txt`, and moves on.
+    The judge runs in a neutral empty workdir so it scores the evidence bundle
+    instead of wandering into the fixture app.
+  - Env: `EVAL_JUDGE_MODEL` pins the judge model, `EVAL_JUDGE_TIMEOUT` (300s)
+    bounds it. Verdicts persist to `<case>.judge.json`.
+- **Two static ratchets** (92 guardrail tests, from 90): every case in
+  `ALL_CASES` has a `case_rubric` — so a case added later can't be silently
+  unjudged — and the judge-never-alters-the-verdict assertion above.
+
+### Changed
+
+- `tests/eval/README.md` documents the judge, its rules, and the rubric
+  requirement when extending with a new case.
+
+### Deferred
+
+- Three body-level findings — `NOT-CHECKED` as an escalation trigger
+  (confidence, not just category, should stop a lane), a declared stage budget
+  with an explicit completion condition, and resume state flushed before a
+  blocking checkpoint — are staged in
+  [`docs/plans/2026-07-29-literature-gap-tranche.md`](docs/plans/2026-07-29-literature-gap-tranche.md)
+  with the exact edits and their risks. They change agent behaviour, and **eval
+  run 5** is outstanding with a deliberately un-reseeded baseline so it isolates
+  the 1.24.0 worktree and reachability levers. Landing them first would confound
+  it; they ship as one release after run 5 reports.
+- Also recorded: the patterns deliberately **not** adopted — group-chat debate,
+  decentralized handoff (not implementable, Claude Code subagents cannot transfer
+  control to each other), magentic task-ledger orchestration, and voting
+  ensembles — each with the reason, so they don't get re-proposed.
+
 ## [1.25.0] - 2026-07-28
 
 Closes the two items 1.24.0 recorded but deliberately left out of scope, both
