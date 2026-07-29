@@ -1,11 +1,14 @@
+import concurrent.futures
 import json
 import pathlib
+import socket
 import sys
 import tempfile
 import threading
 import unittest
 import urllib.error
 import urllib.request
+from unittest import mock
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts" / "console"))
@@ -23,11 +26,23 @@ class FakeManager:
         self.sent = []
 
     def start(self, spec):
+        # Two failure shapes the engine really produces, keyed off `model` so
+        # the fake stays stateless: a bounded crossing into the engine loop
+        # timing out, and client_factory rejecting an option.
+        if spec.get("model") == "wedged-cli":
+            raise concurrent.futures.TimeoutError()
+        if spec.get("model") == "no-such-model":
+            raise RuntimeError("model 'no-such-model' is not supported")
         self.started.append(spec)
         return "run_abc"
 
     def send(self, run_id, text):
+        if run_id == "run_wedged":
+            raise concurrent.futures.TimeoutError()
         self.sent.append((run_id, text))
+
+    def is_live(self, run_id):
+        return run_id == "run_abc"
 
     def answer(self, run_id, prompt_id, payload):
         self.answered.append((run_id, prompt_id, payload))
@@ -175,6 +190,52 @@ class TestServer(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError) as ctx:
             urllib.request.urlopen(self.url("/../../VERSION"), timeout=5)
         self.assertIn(ctx.exception.code, (400, 403, 404))
+
+    def test_events_stream_for_an_unknown_run_is_404_not_an_empty_200(self):
+        # subscribe() is a generator: its KeyError does not fire until the first
+        # next(), which used to be AFTER the 200 and the event-stream headers
+        # were on the wire. EventSource then saw a clean close of a successful
+        # stream and retry-looped forever on a stream that can never deliver.
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            self.get("/api/runs/run_nope/events")
+        self.assertEqual(ctx.exception.code, 404)
+        self.assertNotIn("event-stream", ctx.exception.headers.get("Content-Type", ""))
+        self.assertIn("error", json.loads(ctx.exception.read()))
+
+    def test_engine_timeout_becomes_504_not_a_dropped_connection(self):
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            self.post("/api/runs/run_wedged/message", {"text": "hi"})
+        self.assertEqual(ctx.exception.code, 504)
+        self.assertIn("time", json.loads(ctx.exception.read())["error"])
+
+    def test_start_timeout_becomes_504(self):
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            self.post("/api/runs", {"kind": "prompt", "text": "hi", "model": "wedged-cli"})
+        self.assertEqual(ctx.exception.code, 504)
+
+    def test_rejected_client_option_becomes_400_naming_the_reason(self):
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            self.post("/api/runs", {"kind": "prompt", "text": "hi", "model": "no-such-model"})
+        self.assertEqual(ctx.exception.code, 400)
+        self.assertIn("no-such-model", json.loads(ctx.exception.read())["error"])
+
+
+class TestServerBind(unittest.TestCase):
+    def test_bind_does_not_reverse_resolve_the_host(self):
+        """HTTPServer.server_bind calls socket.getfqdn purely to fill in
+        server_name, and that reverse lookup measured 35.0s on the author's
+        machine -- paid before serve.py can print the tokenized URL, and once
+        per process in this module's setUpClass. Assert the call is gone, not
+        merely that it is currently fast."""
+        with mock.patch.object(socket, "getfqdn", wraps=socket.getfqdn) as getfqdn:
+            httpd = server.make_server("127.0.0.1", 0, TOKEN, FakeManager(), REPO,
+                                       pathlib.Path(__file__).parent)
+            try:
+                self.assertFalse(getfqdn.called)
+                self.assertEqual(httpd.server_name, "127.0.0.1")
+                self.assertEqual(httpd.server_port, httpd.server_address[1])
+            finally:
+                httpd.server_close()
 
 
 if __name__ == "__main__":

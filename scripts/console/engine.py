@@ -120,7 +120,6 @@ class RunManager:
         mode = _check_mode(spec.get("mode"))
         run_id = f"run_{uuid.uuid4().hex[:12]}"
         run = Run(run_id, spec, self.runs_dir / f"{run_id}.jsonl")
-        self.runs[run_id] = run
         options = {
             "cwd": str(self.root),
             "permission_mode": mode,
@@ -128,7 +127,17 @@ class RunManager:
         }
         if spec.get("model"):
             options["model"] = spec["model"]
+        # Build the client BEFORE registering the run. client_factory does real
+        # work on this thread (imports the SDK, constructs ClaudeAgentOptions
+        # with an unvalidated `model`), so it can raise -- and registering first
+        # left a zombie behind: client=None, status="running" forever, listed by
+        # GET /api/runs, AttributeError on every later /message|/mode|/interrupt.
+        # Raising here instead makes POST /api/runs answer 400 with the reason.
         run.client = self.client_factory(options)
+        self.runs[run_id] = run
+        # A _boot failure deliberately KEEPS the registration: the client exists
+        # and may hold a live CLI subprocess, so shutdown() must still be able
+        # to disconnect it. _pump reports the failure as an `error` event.
         self.submit(self._boot(run, build_prompt(spec))).result(timeout=30)
         return run_id
 
@@ -188,9 +197,38 @@ class RunManager:
 
     # ---- approvals ---------------------------------------------------------
 
+    @staticmethod
+    def _agent_for_prompt(run: Run, context) -> str | None:
+        """Which agent's lane is blocked on this approval.
+
+        can_use_tool is not handed a lane id, so this is layered, most exact
+        first:
+
+        1. `context.tool_use_id` is the id of the very call being asked about.
+           If the assistant message carrying that tool_use block has already
+           been normalized, `lane_by_tool_use` knows exactly which lane emitted
+           it -- including `None` for the main thread. Exact, not a guess.
+        2. Otherwise the permission request overtook its own assistant message
+           in the transport (both are handled on this loop, but messages queue
+           through receive_messages while control requests are dispatched
+           directly). `context.agent_id` is None on the main thread, so a None
+           there is still a fact: no subagent asked.
+        3. A subagent did ask but we cannot yet say which block: attribute to
+           the most recently started still-open lane. This is the one
+           heuristic, and it is strictly better than the browser's previous
+           behaviour of marking whichever lane happened to be first.
+        """
+        lane = run.state.lane_for_tool_use(_getattr(context, "tool_use_id", None))
+        if lane is not events_mod.MISSING:
+            return lane
+        if _getattr(context, "agent_id", None) is None:
+            return None
+        return run.state.newest_open_lane()
+
     def _make_can_use_tool(self, run: Run):
         async def can_use_tool(tool_name, input_data, context):
             prompt_id = f"p_{uuid.uuid4().hex[:10]}"
+            agent = self._agent_for_prompt(run, context)
             future: asyncio.Future = asyncio.get_running_loop().create_future()
             run.pending[prompt_id] = future
             suggestions = []
@@ -204,7 +242,7 @@ class RunManager:
                 "run_id": run.run_id,
                 "ts": int(time.time() * 1000),
                 "type": "prompt",
-                "agent": None,
+                "agent": agent,
                 "prompt_id": prompt_id,
                 "tool": tool_name,
                 "input": input_data,
@@ -218,7 +256,7 @@ class RunManager:
                 "run_id": run.run_id,
                 "ts": int(time.time() * 1000),
                 "type": "prompt_resolved",
-                "agent": None,
+                "agent": agent,
                 "prompt_id": prompt_id,
                 "behavior": decision.get("behavior"),
             })
@@ -259,6 +297,15 @@ class RunManager:
             return False
 
     # ---- reads -------------------------------------------------------------
+
+    def is_live(self, run_id: str) -> bool:
+        """True when this process owns the run, i.e. subscribe() can serve it.
+
+        A run replayable from disk is NOT live: subscribe() would raise KeyError
+        on its first next(), so the HTTP layer must refuse before it promises a
+        stream. snapshot() still serves those from the jsonl.
+        """
+        return run_id in self.runs
 
     def subscribe(self, run_id: str, since_seq: int = 0) -> Iterator[dict]:
         run = self.runs[run_id]

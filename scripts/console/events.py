@@ -17,6 +17,9 @@ import time
 AGENT_TOOLS = ("Agent", "Task")  # Task is the pre-2.1.63 alias
 
 
+MISSING = object()  # "no attribution recorded", distinct from "the main thread"
+
+
 class RunState:
     """Mutable per-run bookkeeping. One instance per run, never shared."""
 
@@ -24,7 +27,15 @@ class RunState:
         self.run_id = run_id
         self.seq = 0
         self.agent_by_tool_use: dict[str, str] = {}
-        self.open_lanes: set[str] = set()
+        # tool_use_id -> agent slug, for the Agent/Task calls that opened a lane
+        # and have not been closed by their tool_result yet. A dict, not a set,
+        # because insertion order is what tells the engine which subagent most
+        # recently started when an approval has to be attributed to a lane.
+        self.open_lanes: dict[str, str] = {}
+        # EVERY tool_use id -> the lane that emitted it (None = main thread).
+        # This is the exact attribution an approval prompt wants: can_use_tool
+        # receives the tool_use_id of the very call being asked about.
+        self.lane_by_tool_use: dict[str, str | None] = {}
 
     def next_seq(self) -> int:
         self.seq += 1
@@ -34,6 +45,19 @@ class RunState:
         if not parent_tool_use_id:
             return None
         return self.agent_by_tool_use.get(parent_tool_use_id)
+
+    def lane_for_tool_use(self, tool_use_id: str | None):
+        """The lane that emitted this tool call, or MISSING when the assistant
+        message carrying it has not been normalized yet."""
+        if not tool_use_id:
+            return MISSING
+        return self.lane_by_tool_use.get(tool_use_id, MISSING)
+
+    def newest_open_lane(self) -> str | None:
+        """The most recently started subagent lane still open, or None."""
+        for slug in reversed(list(self.open_lanes.values())):
+            return slug
+        return None
 
 
 def _strip_namespace(value: str) -> str:
@@ -116,6 +140,8 @@ def _tool_use(block: dict, state: RunState, lane: str | None) -> list[dict]:
     tool_use_id = block.get("id") or ""
     name = block.get("name") or ""
     tool_input = block.get("input") or {}
+    if tool_use_id:
+        state.lane_by_tool_use[tool_use_id] = lane
     out = [_event(state, "tool_use", lane,
                   tool=name,
                   tool_use_id=tool_use_id,
@@ -123,7 +149,7 @@ def _tool_use(block: dict, state: RunState, lane: str | None) -> list[dict]:
     if name in AGENT_TOOLS:
         spawned = _strip_namespace(str(tool_input.get("subagent_type") or "unknown"))
         state.agent_by_tool_use[tool_use_id] = spawned
-        state.open_lanes.add(tool_use_id)
+        state.open_lanes[tool_use_id] = spawned
         out.append(_event(state, "agent_start", spawned,
                           tool_use_id=tool_use_id,
                           task=tool_input.get("description") or "",
@@ -146,7 +172,7 @@ def _user(raw: dict, state: RunState) -> list[dict]:
                           is_error=bool(block.get("is_error")),
                           content=block.get("content")))
         if tool_use_id in state.open_lanes:
-            state.open_lanes.discard(tool_use_id)
+            state.open_lanes.pop(tool_use_id, None)
             out.append(_event(state, "agent_end", state.agent_by_tool_use.get(tool_use_id),
                               tool_use_id=tool_use_id,
                               is_error=bool(block.get("is_error"))))

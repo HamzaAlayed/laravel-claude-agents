@@ -182,6 +182,28 @@ class TestRunLifecycle(EngineTestCase):
         rows = self.mgr.list_runs()
         self.assertEqual([r["run_id"] for r in rows], [run_id])
 
+    def test_a_rejected_client_option_leaves_no_zombie_run(self):
+        """The run used to be registered BEFORE client_factory ran, so a factory
+        failure (e.g. the SDK rejecting `model`) left an entry with client=None
+        and status="running" forever: listed as live by GET /api/runs, and an
+        AttributeError on every later /message, /mode or /interrupt."""
+        def refuse(options):
+            raise RuntimeError(f"model {options.get('model')!r} is not supported")
+
+        self.mgr.client_factory = refuse
+        with self.assertRaises(RuntimeError) as ctx:
+            self.mgr.start({"kind": "prompt", "target": "", "text": "x", "model": "nope"})
+        self.assertIn("nope", str(ctx.exception))
+        self.assertEqual(self.mgr.runs, {})
+        self.assertEqual(self.mgr.list_runs(), [])
+
+    def test_is_live_is_true_only_for_runs_this_process_owns(self):
+        # is_live is what the SSE route checks before it promises a stream --
+        # subscribe() can only serve runs held in memory.
+        run_id = self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        self.assertTrue(self.mgr.is_live(run_id))
+        self.assertFalse(self.mgr.is_live("run_from_a_previous_process"))
+
 
 class TestApprovals(EngineTestCase):
     def ask(self, tool_name="Bash", tool_input=None):
@@ -283,8 +305,146 @@ class TestApprovals(EngineTestCase):
         self.assertEqual(self.clients[0].interrupts, 1)
 
 
+class TestPromptAttribution(EngineTestCase):
+    """engine.py used to hardcode `"agent": None` on prompt/prompt_resolved, so
+    Board.tsx had to GUESS the parked card as "the first running lane" -- with
+    several agents running it marked the wrong one, and the approval bar could
+    not name who was blocked."""
+
+    def push_assistant(self, blocks, parent=None):
+        self.run_coro(self.clients[0].push(
+            {"type": "assistant", "parent_tool_use_id": parent,
+             "message": {"role": "assistant", "content": blocks}}
+        ))
+
+    def spawn(self, tool_use_id, slug):
+        self.push_assistant([{"type": "tool_use", "id": tool_use_id, "name": "Agent",
+                              "input": {"subagent_type": slug, "description": "work"}}])
+
+    def ask(self, context, tool_name="Bash", tool_input=None):
+        return self.mgr.submit(self.clients[0].can_use_tool(
+            tool_name, tool_input or {"command": "ls"}, context))
+
+    def settle(self, run_id, pending, expected_types):
+        """Read the stream up to and including the prompt, then release the
+        callback so no future is left dangling at shutdown."""
+        events = self.drain(run_id, expected_types)
+        prompt = events[-1]
+        self.mgr.answer(run_id, prompt["prompt_id"], {"behavior": "allow"})
+        pending.result(timeout=5)
+        return prompt
+
+    def test_prompt_names_the_subagent_whose_call_it_is(self):
+        run_id = self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        self.spawn("t1", "backend-developer")
+        self.push_assistant(
+            [{"type": "tool_use", "id": "tb1", "name": "Bash", "input": {"command": "ls"}}],
+            parent="t1",
+        )
+        # Drain first: this guarantees _pump has normalized both messages, so the
+        # exact tool_use_id -> lane path is what answers, not the fallback.
+        self.drain(run_id, ["tool_use", "agent_start", "tool_use"])
+        pending = self.ask(_FakeContext(tool_use_id="tb1", agent_id="agent_7"))
+        prompt = self.settle(run_id, pending,
+                             ["tool_use", "agent_start", "tool_use", "prompt"])
+        self.assertEqual(prompt["agent"], "backend-developer")
+
+    def test_prompt_from_the_main_thread_is_not_blamed_on_an_open_lane(self):
+        run_id = self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        self.spawn("t1", "backend-developer")
+        self.push_assistant([{"type": "tool_use", "id": "tm1", "name": "Write", "input": {}}])
+        self.drain(run_id, ["tool_use", "agent_start", "tool_use"])
+        pending = self.ask(_FakeContext(tool_use_id="tm1", agent_id=None), tool_name="Write")
+        prompt = self.settle(run_id, pending,
+                             ["tool_use", "agent_start", "tool_use", "prompt"])
+        self.assertIsNone(prompt["agent"])
+
+    def test_unseen_subagent_call_falls_back_to_the_newest_open_lane(self):
+        # The permission request can overtake its own assistant message in the
+        # transport. agent_id proves a subagent asked; the most recently started
+        # open lane is the best available attribution.
+        run_id = self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        self.spawn("t1", "security-engineer")
+        self.spawn("t2", "performance-engineer")
+        self.drain(run_id, ["tool_use", "agent_start", "tool_use", "agent_start"])
+        pending = self.ask(_FakeContext(tool_use_id="never-seen", agent_id="agent_9"))
+        prompt = self.settle(
+            run_id, pending,
+            ["tool_use", "agent_start", "tool_use", "agent_start", "prompt"],
+        )
+        self.assertEqual(prompt["agent"], "performance-engineer")
+
+    def test_unseen_main_thread_call_stays_unattributed(self):
+        run_id = self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        self.spawn("t1", "security-engineer")
+        self.drain(run_id, ["tool_use", "agent_start"])
+        pending = self.ask(_FakeContext(tool_use_id="never-seen", agent_id=None))
+        prompt = self.settle(run_id, pending, ["tool_use", "agent_start", "prompt"])
+        self.assertIsNone(prompt["agent"])
+
+    def test_a_closed_lane_is_no_longer_a_fallback_candidate(self):
+        run_id = self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        self.spawn("t1", "security-engineer")
+        self.run_coro(self.clients[0].push(
+            {"type": "user", "parent_tool_use_id": None,
+             "message": {"content": [{"type": "tool_result", "tool_use_id": "t1",
+                                      "is_error": False, "content": "done"}]}}
+        ))
+        self.drain(run_id, ["tool_use", "agent_start", "tool_result", "agent_end"])
+        pending = self.ask(_FakeContext(tool_use_id="never-seen", agent_id="agent_9"))
+        prompt = self.settle(
+            run_id, pending,
+            ["tool_use", "agent_start", "tool_result", "agent_end", "prompt"],
+        )
+        self.assertIsNone(prompt["agent"])
+
+    def test_prompt_resolved_carries_the_same_agent(self):
+        run_id = self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        self.spawn("t1", "qa-engineer")
+        self.push_assistant(
+            [{"type": "tool_use", "id": "tb1", "name": "Bash", "input": {"command": "ls"}}],
+            parent="t1",
+        )
+        self.drain(run_id, ["tool_use", "agent_start", "tool_use"])
+        pending = self.ask(_FakeContext(tool_use_id="tb1", agent_id="agent_7"))
+        self.settle(run_id, pending, ["tool_use", "agent_start", "tool_use", "prompt"])
+        events = self.drain(
+            run_id,
+            ["tool_use", "agent_start", "tool_use", "prompt", "prompt_resolved"],
+        )
+        self.assertEqual(events[-1]["agent"], "qa-engineer")
+
+    def test_two_prompts_are_attributed_independently(self):
+        run_id = self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        self.spawn("t1", "security-engineer")
+        self.spawn("t2", "performance-engineer")
+        self.push_assistant(
+            [{"type": "tool_use", "id": "ta", "name": "Bash", "input": {}}], parent="t1")
+        self.push_assistant(
+            [{"type": "tool_use", "id": "tb", "name": "Read", "input": {}}], parent="t2")
+        prelude = ["tool_use", "agent_start", "tool_use", "agent_start",
+                   "tool_use", "tool_use"]
+        self.drain(run_id, prelude)
+        first = self.ask(_FakeContext(tool_use_id="ta", agent_id="a1"))
+        second = self.ask(_FakeContext(tool_use_id="tb", agent_id="a2"), tool_name="Read")
+        events = self.drain(run_id, prelude + ["prompt", "prompt"])
+        prompts = {e["agent"]: e["prompt_id"] for e in events[-2:]}
+        self.assertEqual(set(prompts), {"security-engineer", "performance-engineer"})
+        for prompt_id in prompts.values():
+            self.mgr.answer(run_id, prompt_id, {"behavior": "allow"})
+        first.result(timeout=5)
+        second.result(timeout=5)
+
+
 class _FakeContext:
-    suggestions = []
+    """Stands in for the SDK's ToolPermissionContext. `tool_use_id` (the id of
+    the call being asked about) and `agent_id` (None on the main thread) are
+    real fields on it, copied from the installed SDK's types.py."""
+
+    def __init__(self, tool_use_id=None, agent_id=None):
+        self.suggestions = []
+        self.tool_use_id = tool_use_id
+        self.agent_id = agent_id
 
 
 # ---------------------------------------------------------------------------

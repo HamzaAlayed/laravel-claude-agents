@@ -8,10 +8,12 @@ origin must not be able to launch agents against the developer's checkout, and
 
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import mimetypes
 import posixpath
 import re
+import socketserver
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -21,9 +23,31 @@ from catalog import load_catalog
 LOCAL_ORIGIN = re.compile(r"^http://(localhost|127\.0\.0\.1)(:\d+)?$")
 RUN_ROUTE = re.compile(r"^/api/runs/(?P<run_id>[A-Za-z0-9_]+)(?P<rest>/[a-z]+)?$")
 
+# concurrent.futures.TimeoutError is an alias of the builtin from 3.11 on, but
+# not on 3.10 (serve.py's MIN_PYTHON) -- catch both so a wedged engine loop can
+# never become a dropped connection.
+TIMEOUTS = (TimeoutError, concurrent.futures.TimeoutError)
+
+
+class _Server(ThreadingHTTPServer):
+    """ThreadingHTTPServer without HTTPServer.server_bind's reverse-DNS lookup.
+
+    HTTPServer.server_bind calls socket.getfqdn(host) purely to populate
+    self.server_name (used only for CGI's SERVER_NAME). On a machine whose
+    resolver is slow to reverse-map 127.0.0.1 -- wildcard .test/.localhost dev
+    TLDs, dnsmasq, Docker/OrbStack, split-DNS VPN -- that blocks for tens of
+    seconds (35.0s measured on the author's machine) BEFORE serve.py can print
+    the tokenized URL, so the console's only entry point looks hung. The same
+    call is what made tests/console/test_server.py cost 35s per process.
+    """
+
+    def server_bind(self):
+        socketserver.TCPServer.server_bind(self)
+        self.server_name, self.server_port = self.server_address[:2]
+
 
 def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
-                dist_dir: Path) -> ThreadingHTTPServer:
+                dist_dir: Path) -> _Server:
     class Handler(BaseHTTPRequestHandler):
         server_version = "GuildConsole/1.0"
         protocol_version = "HTTP/1.1"
@@ -91,6 +115,14 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
                 since_seq = int(since)
             except ValueError:
                 since_seq = 0
+            # Validate BEFORE the status line. manager.subscribe is a generator,
+            # so its KeyError for an unknown run does not fire until the first
+            # next() -- by which point a 200 plus event-stream headers are
+            # already on the wire, and EventSource treats a clean close of a
+            # successful stream as "retry", looping forever on an empty 200.
+            # A 404 fails the connection once, which is the truth.
+            if not manager.is_live(run_id):
+                return self._json(404, {"error": "no such live run"})
             self.send_response(200)
             self.send_header("Content-Type", "text/event-stream")
             self.send_header("Cache-Control", "no-store")
@@ -120,8 +152,15 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
                     return self._json(400, {"error": "text or target is required"})
                 try:
                     return self._json(200, {"run_id": manager.start(body)})
-                except ValueError as exc:
-                    return self._json(400, {"error": str(exc)})
+                except TIMEOUTS:
+                    return self._json(504, {"error": "the Claude Code CLI did not respond in "
+                                                     "time; the run was not started"})
+                except Exception as exc:
+                    # A rejected model string, a missing CLI, a bad option --
+                    # all are the caller's spec being unusable, and all used to
+                    # kill this handler thread (connection reset, "Failed to
+                    # fetch" in the browser) instead of naming the problem.
+                    return self._json(400, {"error": f"could not start the run: {exc}"})
             match = RUN_ROUTE.match(parsed.path)
             if not match:
                 return self._json(404, {"error": "no such route"})
@@ -145,6 +184,13 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
                 return self._json(404, {"error": "no such run"})
             except ValueError as exc:
                 return self._json(400, {"error": str(exc)})
+            except TIMEOUTS:
+                # Every RunManager crossing into the engine loop is a bounded
+                # .result(timeout=...); a wedged or slow CLI raises here. Say so
+                # instead of dying and resetting the connection.
+                return self._json(504, {"error": "the engine did not respond in time"})
+            except Exception as exc:
+                return self._json(500, {"error": str(exc)})
             return self._json(404, {"error": "no such route"})
 
         # ---- static ----
@@ -172,4 +218,4 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
             self.end_headers()
             self.wfile.write(data)
 
-    return ThreadingHTTPServer((host, port), Handler)
+    return _Server((host, port), Handler)
