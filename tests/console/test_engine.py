@@ -1,4 +1,5 @@
 import asyncio
+import dataclasses
 import pathlib
 import sys
 import tempfile
@@ -9,6 +10,7 @@ REPO = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(REPO / "scripts" / "console"))
 
 import engine  # noqa: E402
+import events  # noqa: E402
 
 
 class FakeClient:
@@ -283,6 +285,233 @@ class TestApprovals(EngineTestCase):
 
 class _FakeContext:
     suggestions = []
+
+
+# ---------------------------------------------------------------------------
+# Stand-ins for the real claude_agent_sdk message/content-block dataclasses.
+#
+# These are NOT imported from the SDK -- engine.py is required to stay free of
+# `import claude_agent_sdk` (that is the guardrail this module is unit
+# testable against), and the whole point of this fixture set is to stop
+# pinning the CLI's stream-json wire format as if it were the SDK's shape.
+# The 62 pre-existing tests in this file and in test_events.py all pass dicts
+# shaped like the wire format -- they were passing while the console was
+# completely broken, because `_as_dict` used to dataclasses.asdict() these
+# objects and lose the `type` discriminator entirely. Class *names* and field
+# *names* here are copied verbatim from introspecting the installed SDK, so
+# that `_as_dict`'s `type(obj).__name__` dispatch is exercised for real.
+# ---------------------------------------------------------------------------
+
+
+@dataclasses.dataclass
+class SystemMessage:
+    subtype: str
+    data: dict = None
+
+
+@dataclasses.dataclass
+class AssistantMessage:
+    content: list
+    model: str = None
+    parent_tool_use_id: str = None
+    error: object = None
+    usage: dict = None
+    message_id: str = None
+    stop_reason: str = None
+    session_id: str = None
+    uuid: str = None
+
+
+@dataclasses.dataclass
+class UserMessage:
+    content: list
+    uuid: str = None
+    parent_tool_use_id: str = None
+    tool_use_result: object = None
+
+
+@dataclasses.dataclass
+class ResultMessage:
+    subtype: str = None
+    duration_ms: int = None
+    duration_api_ms: int = None
+    is_error: bool = False
+    num_turns: int = None
+    session_id: str = None
+    stop_reason: str = None
+    total_cost_usd: float = None
+    usage: dict = None
+    result: str = None
+    structured_output: object = None
+    model_usage: object = None
+    permission_denials: object = None
+    deferred_tool_use: object = None
+    errors: object = None
+    api_error_status: object = None
+    uuid: str = None
+    terminal_reason: str = None
+
+
+@dataclasses.dataclass
+class HookEventMessage:
+    subtype: str = None
+    data: dict = None
+    hook_event_name: str = None
+    session_id: str = None
+    uuid: str = None
+
+
+@dataclasses.dataclass
+class RateLimitEvent:
+    rate_limit_info: dict = None
+    uuid: str = None
+    session_id: str = None
+
+
+@dataclasses.dataclass
+class TextBlock:
+    text: str
+
+
+@dataclasses.dataclass
+class ThinkingBlock:
+    thinking: str
+    signature: str = None
+
+
+@dataclasses.dataclass
+class ToolUseBlock:
+    id: str
+    name: str
+    input: dict = None
+
+
+@dataclasses.dataclass
+class ToolResultBlock:
+    tool_use_id: str
+    content: object = None
+    is_error: bool = False
+
+
+class TestAsDictTranslatesSdkMessages(unittest.TestCase):
+    """_as_dict() is the seam between the real Agent SDK's typed dataclasses
+    and events.normalize()'s wire-format reducer. These push SDK-shaped
+    stand-in objects through _as_dict() and then normalize(), the same two
+    calls engine._pump makes on every message from run.client.receive_messages().
+    """
+
+    def setUp(self):
+        self.state = events.RunState("run_1")
+
+    def emit(self, message):
+        return events.normalize(engine._as_dict(message), self.state)
+
+    def test_system_init_flattens_data_into_an_init_event(self):
+        msg = SystemMessage(
+            subtype="init",
+            data={
+                "plugins": [{"name": "laravel-team"}],
+                "capabilities": ["interrupt_receipt_v1"],
+                "model": "claude-sonnet-5",
+                "cwd": "/repo",
+                "permissionMode": "default",
+            },
+        )
+        out = self.emit(msg)
+        self.assertEqual([e["type"] for e in out], ["init"])
+        self.assertIn("laravel-team", out[0]["plugins"])
+        self.assertIn("interrupt_receipt_v1", out[0]["capabilities"])
+
+    def test_assistant_text_block_becomes_a_text_event(self):
+        msg = AssistantMessage(content=[TextBlock(text="hi")], parent_tool_use_id=None)
+        out = self.emit(msg)
+        self.assertEqual([e["type"] for e in out], ["text"])
+        self.assertEqual(out[0]["text"], "hi")
+
+    def test_assistant_tool_use_spawns_agent_start(self):
+        msg = AssistantMessage(
+            content=[
+                ToolUseBlock(
+                    id="tu_1",
+                    name="Agent",
+                    input={
+                        "subagent_type": "laravel-team:backend-developer",
+                        "description": "work",
+                    },
+                )
+            ],
+            parent_tool_use_id=None,
+        )
+        out = self.emit(msg)
+        self.assertEqual([e["type"] for e in out], ["tool_use", "agent_start"])
+        start = out[-1]
+        self.assertEqual(start["type"], "agent_start")
+        self.assertEqual(start["agent"], "backend-developer")
+
+    def test_user_tool_result_closes_the_spawned_lane(self):
+        spawn = AssistantMessage(
+            content=[
+                ToolUseBlock(
+                    id="tu_1",
+                    name="Agent",
+                    input={
+                        "subagent_type": "laravel-team:backend-developer",
+                        "description": "work",
+                    },
+                )
+            ],
+            parent_tool_use_id=None,
+        )
+        self.emit(spawn)
+
+        result = UserMessage(
+            content=[ToolResultBlock(tool_use_id="tu_1", content="ok", is_error=False)],
+            parent_tool_use_id=None,
+        )
+        out = self.emit(result)
+        self.assertEqual([e["type"] for e in out], ["tool_result", "agent_end"])
+        self.assertEqual(out[-1]["agent"], "backend-developer")
+
+    def test_result_message_carries_the_final_answer(self):
+        msg = ResultMessage(
+            subtype="success",
+            result="READY",
+            duration_ms=10,
+            total_cost_usd=0.01,
+            usage={},
+        )
+        out = self.emit(msg)
+        self.assertEqual([e["type"] for e in out], ["result"])
+        self.assertEqual(out[0]["result"], "READY")
+
+    def test_hook_event_message_yields_no_events_and_does_not_raise(self):
+        msg = HookEventMessage(subtype="pre_tool_use", data={}, hook_event_name="PreToolUse")
+        self.assertEqual(self.emit(msg), [])
+
+    def test_rate_limit_event_yields_no_events_and_does_not_raise(self):
+        msg = RateLimitEvent(rate_limit_info={"status": "allowed"})
+        self.assertEqual(self.emit(msg), [])
+
+    def test_plain_dict_wire_format_still_works_unchanged(self):
+        # Regression guard: the unit tests (and the fixture-driven
+        # test_events.py suite) feed events.normalize() dicts directly, and
+        # that path must be untouched by the SDK-object translation.
+        raw = {
+            "type": "assistant",
+            "parent_tool_use_id": None,
+            "message": {"role": "assistant", "content": [{"type": "text", "text": "yo"}]},
+        }
+        self.assertEqual(engine._as_dict(raw), raw)
+        out = self.emit(raw)
+        self.assertEqual([e["type"] for e in out], ["text"])
+        self.assertEqual(out[0]["text"], "yo")
+
+    def test_unknown_object_class_does_not_raise(self):
+        class SomethingTheSdkAddedLater:
+            pass
+
+        self.assertEqual(engine._as_dict(SomethingTheSdkAddedLater()), {})
+        self.assertEqual(self.emit(SomethingTheSdkAddedLater()), [])
 
 
 if __name__ == "__main__":

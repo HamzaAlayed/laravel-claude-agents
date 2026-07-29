@@ -353,16 +353,108 @@ def _to_permission_result(decision: dict, input_data: dict):
     return result
 
 
+def _getattr(obj, name, default=None):
+    """getattr that never raises -- _as_dict sits between a third-party
+    library and the whole event pipeline, so a missing/odd attribute on an
+    SDK object must degrade to `default`, not blow up the run."""
+    try:
+        return getattr(obj, name, default)
+    except Exception:
+        return default
+
+
+def _block_to_dict(block) -> dict:
+    """Translate one Agent SDK content-block dataclass into the wire-format
+    block shape events.normalize reads. Dispatches on class name, never
+    isinstance, so this file never needs to import claude_agent_sdk.
+    Already-dict blocks pass through; anything unrecognized becomes {} which
+    normalize's `block.get("type")` skips silently."""
+    if isinstance(block, dict):
+        return block
+    name = type(block).__name__
+    if name == "TextBlock":
+        return {"type": "text", "text": _getattr(block, "text", "")}
+    if name == "ThinkingBlock":
+        return {"type": "thinking", "thinking": _getattr(block, "thinking", "")}
+    if name == "ToolUseBlock":
+        return {
+            "type": "tool_use",
+            "id": _getattr(block, "id"),
+            "name": _getattr(block, "name"),
+            "input": _getattr(block, "input") or {},
+        }
+    if name == "ToolResultBlock":
+        return {
+            "type": "tool_result",
+            "tool_use_id": _getattr(block, "tool_use_id"),
+            "content": _getattr(block, "content"),
+            "is_error": _getattr(block, "is_error"),
+        }
+    return {}
+
+
 def _as_dict(message) -> dict:
-    """SDK objects -> plain dicts so events.normalize stays fixture-testable."""
+    """Agent SDK message objects -> the CLI stream-json wire-format dicts
+    events.normalize is written against.
+
+    The SDK yields typed dataclasses (SystemMessage, AssistantMessage,
+    UserMessage, ResultMessage, HookEventMessage, RateLimitEvent) that do not
+    carry a `type` field and nest their payloads differently from the wire
+    format -- a plain dataclasses.asdict() (the previous implementation)
+    produces a dict with no "type" key, so normalize() silently returns []
+    for every message. This dispatches on `type(message).__name__` (never
+    isinstance, so engine.py never needs `import claude_agent_sdk` -- it
+    stays unit-testable without the SDK installed) and rebuilds the exact
+    shape normalize() reads.
+
+    Inputs that are already dicts pass through unchanged: the fixture-driven
+    unit tests feed dicts directly and that path must keep working as-is.
+    """
     if isinstance(message, dict):
         return message
-    if hasattr(message, "to_dict"):
-        return message.to_dict()
-    try:
-        import dataclasses
-        if dataclasses.is_dataclass(message):
-            return dataclasses.asdict(message)
-    except Exception:
-        pass
-    return {k: v for k, v in vars(message).items() if not k.startswith("_")}
+
+    name = type(message).__name__
+
+    if name == "SystemMessage":
+        out = {"type": "system", "subtype": _getattr(message, "subtype")}
+        data = _getattr(message, "data") or {}
+        if isinstance(data, dict):
+            for key, value in data.items():
+                if key == "subtype":  # never let the init payload shadow it
+                    continue
+                out[key] = value
+        return out
+
+    if name == "AssistantMessage":
+        content = _getattr(message, "content") or []
+        return {
+            "type": "assistant",
+            "parent_tool_use_id": _getattr(message, "parent_tool_use_id"),
+            "message": {"content": [_block_to_dict(b) for b in content]},
+        }
+
+    if name == "UserMessage":
+        content = _getattr(message, "content") or []
+        return {
+            "type": "user",
+            "parent_tool_use_id": _getattr(message, "parent_tool_use_id"),
+            "message": {"content": [_block_to_dict(b) for b in content]},
+        }
+
+    if name == "ResultMessage":
+        # Already flat and already matches what normalize() reads -- this
+        # only needs a "type" key added.
+        return {
+            "type": "result",
+            "subtype": _getattr(message, "subtype"),
+            "result": _getattr(message, "result"),
+            "duration_ms": _getattr(message, "duration_ms"),
+            "total_cost_usd": _getattr(message, "total_cost_usd"),
+            "usage": _getattr(message, "usage") or {},
+        }
+
+    # HookEventMessage, RateLimitEvent, and anything else the SDK might ever
+    # add have no wire equivalent normalize() handles. Returning {} makes
+    # raw.get("type") None, so normalize() takes its no-match path and
+    # yields zero events instead of raising.
+    return {}
