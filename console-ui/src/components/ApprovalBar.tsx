@@ -3,17 +3,29 @@ import { AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import type { PendingPrompt } from "@/lib/types";
 
-/** Always on top of the board: a parked run must never be silent. */
+/**
+ * Always on top of the board: a parked run must never be silent.
+ *
+ * `pending` is the whole queue, so the bar can say how many decisions are
+ * outstanding; `agentLabel` names the owner of the one it is offering (the
+ * oldest), because "Approval needed — Bash" with five agents running tells the
+ * user nothing about who is blocked.
+ */
 export function ApprovalBar({
   pending,
+  agentLabel,
   onOpen,
 }: {
-  pending: PendingPrompt | null;
+  pending: PendingPrompt[];
+  agentLabel: string | null;
   onOpen: () => void;
 }) {
+  const head = pending[0] ?? null;
+  const who = agentLabel ?? "The Guild";
+
   return (
     <AnimatePresence>
-      {pending && (
+      {head && (
         <motion.div
           role="alert"
           initial={{ opacity: 0, y: -12 }}
@@ -24,10 +36,15 @@ export function ApprovalBar({
         >
           <AlertTriangle className="size-4 shrink-0 text-amber-600" aria-hidden />
           <p className="truncate text-sm font-semibold">
-            {pending.is_question
-              ? "The Guild needs a decision from you"
-              : `Approval needed — ${pending.tool}`}
+            {head.is_question
+              ? `${who} needs a decision from you`
+              : `${who} needs approval — ${head.tool}`}
           </p>
+          {pending.length > 1 && (
+            <span className="shrink-0 rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-semibold tabular-nums">
+              {pending.length} waiting on you
+            </span>
+          )}
           <Button size="sm" className="ml-auto" onClick={onOpen}>
             Review
           </Button>

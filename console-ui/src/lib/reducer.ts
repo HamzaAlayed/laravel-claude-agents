@@ -5,7 +5,7 @@ export const emptyRun = (kind: string): RunView => ({
   mode: kind === "command" ? "board" : "focus",
   lanes: [],
   main: [],
-  pending: null,
+  pending: [],
   init: null,
   retry: null,
   result: null,
@@ -64,20 +64,35 @@ export function reduce(view: RunView, event: GuildEvent): RunView {
         }),
       };
 
-    case "prompt":
+    // Approvals queue: parallel subagents can each park on their own prompt,
+    // and the engine keeps a future per prompt_id. Appending (not replacing)
+    // is what stops the earlier subagent from being parked with nothing in the
+    // UI able to name it. Idempotent because the SSE backlog is replayed on
+    // every reconnect.
+    case "prompt": {
+      const promptId = event.prompt_id as string;
+      if (next.pending.some((prompt) => prompt.prompt_id === promptId)) return next;
       return {
         ...next,
-        pending: {
-          prompt_id: event.prompt_id as string,
-          tool: event.tool as string,
-          input: (event.input as Record<string, unknown>) ?? {},
-          is_question: Boolean(event.is_question),
-          suggestions: (event.suggestions as unknown[]) ?? [],
-        },
+        pending: [
+          ...next.pending,
+          {
+            prompt_id: promptId,
+            agent: (event.agent as string) ?? null,
+            tool: event.tool as string,
+            input: (event.input as Record<string, unknown>) ?? {},
+            is_question: Boolean(event.is_question),
+            suggestions: (event.suggestions as unknown[]) ?? [],
+          },
+        ],
       };
+    }
 
+    // Removes exactly the resolved prompt and leaves every other one waiting.
     case "prompt_resolved":
-      return next.pending?.prompt_id === event.prompt_id ? { ...next, pending: null } : next;
+      return next.pending.some((prompt) => prompt.prompt_id === event.prompt_id)
+        ? { ...next, pending: next.pending.filter((p) => p.prompt_id !== event.prompt_id) }
+        : next;
 
     case "result":
       return {

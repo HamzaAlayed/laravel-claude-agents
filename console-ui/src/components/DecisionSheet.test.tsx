@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAnswers } from "./DecisionSheet";
+import { buildAnswers, mergeFreeText } from "./DecisionSheet";
 
 const questions = [
   {
@@ -28,12 +28,58 @@ describe("buildAnswers", () => {
     expect(out["Which suites?"]).toEqual(["Unit", "Feature"]);
   });
 
-  it("uses free text verbatim rather than the word Other", () => {
-    const out = buildAnswers(questions, { "How should I partition?": ["by tenant id, hashed"] });
-    expect(out["How should I partition?"]).toBe("by tenant id, hashed");
-  });
-
   it("omits unanswered questions", () => {
     expect(buildAnswers(questions, {})).toEqual({});
+  });
+});
+
+// The previous test named "uses free text verbatim rather than the word Other"
+// called buildAnswers, which has no notion of Other — the merge could be deleted
+// with every test still green while the field discarded the user's input. These
+// exercise the merge itself, and the composed path the Send button takes.
+describe("mergeFreeText", () => {
+  it("overrides the chosen option with the free text for that question", () => {
+    const merged = mergeFreeText(
+      { "How should I partition?": ["Hash"] },
+      { "How should I partition?": "by tenant id, hashed" },
+    );
+    expect(merged["How should I partition?"]).toEqual(["by tenant id, hashed"]);
+  });
+
+  it("answers a question that had no selection at all", () => {
+    expect(mergeFreeText({}, { "Which suites?": "smoke only" })).toEqual({
+      "Which suites?": ["smoke only"],
+    });
+  });
+
+  it("trims the free text", () => {
+    expect(mergeFreeText({}, { "Which suites?": "  smoke only  " })).toEqual({
+      "Which suites?": ["smoke only"],
+    });
+  });
+
+  it("keeps the selection when the free text is blank or whitespace", () => {
+    expect(
+      mergeFreeText({ "Which suites?": ["Unit"] }, { "Which suites?": "   " }),
+    ).toEqual({ "Which suites?": ["Unit"] });
+  });
+
+  it("leaves other questions untouched", () => {
+    const merged = mergeFreeText(
+      { "How should I partition?": ["Hash"], "Which suites?": ["Unit", "Feature"] },
+      { "How should I partition?": "by tenant id" },
+    );
+    expect(merged["Which suites?"]).toEqual(["Unit", "Feature"]);
+  });
+
+  it("reaches the wire answers verbatim, not the word Other", () => {
+    const answers = buildAnswers(
+      questions,
+      mergeFreeText(
+        { "How should I partition?": ["Hash"] },
+        { "How should I partition?": "by tenant id, hashed" },
+      ),
+    );
+    expect(answers["How should I partition?"]).toBe("by tenant id, hashed");
   });
 });

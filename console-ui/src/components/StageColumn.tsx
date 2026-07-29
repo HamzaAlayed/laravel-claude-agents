@@ -6,11 +6,12 @@ type Props = {
   stage: string;
   lanes: Lane[];
   agents: Record<string, Agent>;
-  parkedLane: string | null;
+  /** toolUseIds of every lane blocked on an approval — there can be several. */
+  parkedLanes: Set<string>;
   onSelect: (lane: Lane) => void;
 };
 
-export function StageColumn({ stage, lanes, agents, parkedLane, onSelect }: Props) {
+export function StageColumn({ stage, lanes, agents, parkedLanes, onSelect }: Props) {
   return (
     <section className="flex min-w-[150px] flex-1 flex-col rounded-xl border bg-muted/30 p-2">
       <h2 className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-muted-foreground">
@@ -24,7 +25,7 @@ export function StageColumn({ stage, lanes, agents, parkedLane, onSelect }: Prop
               key={lane.toolUseId}
               lane={lane}
               agent={agents[lane.slug]}
-              parked={parkedLane === lane.toolUseId}
+              parked={parkedLanes.has(lane.toolUseId)}
               onSelect={() => onSelect(lane)}
             />
           ))}

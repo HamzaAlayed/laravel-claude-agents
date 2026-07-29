@@ -12,6 +12,25 @@ export type Question = {
   options: { label: string; description: string }[];
 };
 
+/**
+ * Fold the per-question "Other — type your own answer" fields over the chosen
+ * option labels: non-blank free text REPLACES the selection for that question.
+ *
+ * Exported and named because it used to be an anonymous loop inside
+ * submitQuestions, testable by nothing — deleting it left every test green
+ * while the Other field silently discarded whatever the user typed.
+ */
+export function mergeFreeText(
+  selections: Record<string, string[]>,
+  other: Record<string, string>,
+): Record<string, string[]> {
+  const merged = { ...selections };
+  for (const [question, text] of Object.entries(other)) {
+    if (text.trim()) merged[question] = [text.trim()];
+  }
+  return merged;
+}
+
 /** Answers map question text -> chosen label(s), or the user's own words. */
 export function buildAnswers(
   questions: Question[],
@@ -54,17 +73,12 @@ export function DecisionSheet({
       };
     });
 
-  const submitQuestions = () => {
-    const merged = { ...selections };
-    for (const [question, text] of Object.entries(other)) {
-      if (text.trim()) merged[question] = [text.trim()];
-    }
+  const submitQuestions = () =>
     onAnswer({
       prompt_id: pending.prompt_id,
       behavior: "allow",
-      answers: buildAnswers(questions, merged),
+      answers: buildAnswers(questions, mergeFreeText(selections, other)),
     });
-  };
 
   return (
     <Sheet open={open} onOpenChange={(next) => !next && onClose()}>

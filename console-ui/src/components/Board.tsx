@@ -17,8 +17,18 @@ export function Board({ view, catalog, onSelect }: Props) {
   const stages = catalog.stages.filter(
     (stage) => stage !== "Working" || view.lanes.some((lane) => stageOf(lane.slug) === "Working"),
   );
-  const parkedLane =
-    view.pending && view.lanes.find((lane) => lane.status === "running")?.toolUseId;
+  // Marked from the prompt's own `agent`, never guessed. A prompt with no agent
+  // came from the main thread — the coordinator is the board's header, not a
+  // card — so nothing is marked, rather than blaming whichever lane is first.
+  const parkedLanes = new Set(
+    view.pending.flatMap((prompt) => {
+      if (!prompt.agent) return [];
+      const lane = view.lanes.find(
+        (candidate) => candidate.slug === prompt.agent && candidate.status === "running",
+      );
+      return lane ? [lane.toolUseId] : [];
+    }),
+  );
 
   return (
     <LayoutGroup>
@@ -29,7 +39,7 @@ export function Board({ view, catalog, onSelect }: Props) {
             stage={stage}
             lanes={view.lanes.filter((lane) => stageOf(lane.slug) === stage)}
             agents={agents}
-            parkedLane={parkedLane ?? null}
+            parkedLanes={parkedLanes}
             onSelect={onSelect}
           />
         ))}

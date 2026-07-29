@@ -1,6 +1,7 @@
-import { useCallback, useEffect, useRef, useState } from "react";
-import { AlertTriangle, Square } from "lucide-react";
+import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { AlertTriangle, Send, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ApprovalBar } from "@/components/ApprovalBar";
 import { Board } from "@/components/Board";
 import { DecisionSheet } from "@/components/DecisionSheet";
@@ -17,6 +18,12 @@ export default function App() {
   const [view, setView] = useState<RunView>(() => emptyRun("prompt"));
   const [selected, setSelected] = useState<Lane | null>(null);
   const [sheetOpen, setSheetOpen] = useState(false);
+  // prompt_ids whose answer is in flight: dropped from the queue optimistically
+  // so the sheet advances to the next decision without waiting for the round
+  // trip, and restored if the POST fails (the agent is still parked).
+  const [answering, setAnswering] = useState<string[]>([]);
+  const [stopped, setStopped] = useState(false);
+  const [followUp, setFollowUp] = useState("");
   const [error, setError] = useState<string | null>(null);
   const lastSeq = useRef(0);
 
@@ -28,6 +35,8 @@ export default function App() {
     lastSeq.current = Math.max(lastSeq.current, event.seq);
     setView((current) => reduce(current, event));
     if (event.type === "prompt") setSheetOpen(true);
+    if (event.type === "prompt_resolved")
+      setAnswering((ids) => ids.filter((id) => id !== event.prompt_id));
   }, []);
 
   useEffect(() => {
@@ -39,19 +48,13 @@ export default function App() {
     setError(null);
     lastSeq.current = 0;
     setView(emptyRun(spec.kind));
+    setSelected(null);
+    setAnswering([]);
+    setSheetOpen(false);
+    setStopped(false);
     try {
       const { run_id } = await api.createRun(spec);
       setRunId(run_id);
-    } catch (e) {
-      setError(String((e as Error).message));
-    }
-  };
-
-  const answer = async (payload: Record<string, unknown>) => {
-    if (!runId) return;
-    setSheetOpen(false);
-    try {
-      await api.answerPrompt(runId, payload);
     } catch (e) {
       setError(String((e as Error).message));
     }
@@ -71,6 +74,55 @@ export default function App() {
     view.init !== null &&
     (view.init.plugin_errors.length > 0 || !view.init.plugins.includes("laravel-team"));
 
+  // Live = launched, and no terminal result and no interrupt yet. Launching a
+  // second run while one is live abandoned the first: its SDK client stayed
+  // connected and billing, still reported `running`, and could park on an
+  // approval no browser was watching.
+  const live = runId !== null && view.result === null && !stopped;
+  const queue = view.pending.filter((prompt) => !answering.includes(prompt.prompt_id));
+  const head = queue[0] ?? null;
+  const agentLabel = head?.agent
+    ? catalog.agents.find((agent) => agent.slug === head.agent)?.name ?? head.agent
+    : null;
+
+  const answer = async (payload: Record<string, unknown>) => {
+    if (!runId) return;
+    const promptId = String(payload.prompt_id ?? "");
+    setAnswering((ids) => [...ids, promptId]);
+    // One prompt is answered at a time; if others are still waiting the sheet
+    // stays open on the next one rather than leaving a parked run hidden.
+    setSheetOpen(queue.some((prompt) => prompt.prompt_id !== promptId));
+    try {
+      await api.answerPrompt(runId, payload);
+    } catch (e) {
+      setAnswering((ids) => ids.filter((id) => id !== promptId));
+      setError(String((e as Error).message));
+    }
+  };
+
+  const interrupt = async () => {
+    if (!runId) return;
+    try {
+      await api.interruptRun(runId);
+      setStopped(true);
+    } catch (e) {
+      setError(String((e as Error).message));
+    }
+  };
+
+  const sendFollowUp = async (event: FormEvent) => {
+    event.preventDefault();
+    const text = followUp.trim();
+    if (!runId || !text) return;
+    setFollowUp("");
+    try {
+      await api.sendMessage(runId, text);
+    } catch (e) {
+      setFollowUp(text);
+      setError(String((e as Error).message));
+    }
+  };
+
   return (
     <main className="mx-auto max-w-6xl p-4 md:p-6">
       <header className="mb-4 flex items-baseline gap-3">
@@ -81,14 +133,21 @@ export default function App() {
             variant="outline"
             className="ml-auto"
             aria-label="Interrupt the running agent"
-            onClick={() => api.interruptRun(runId)}
+            onClick={interrupt}
           >
             <Square className="mr-1 size-3.5" aria-hidden /> Interrupt
           </Button>
         )}
       </header>
 
-      <Launcher catalog={catalog} busy={false} onLaunch={launch} />
+      <Launcher
+        catalog={catalog}
+        busy={live}
+        busyReason={
+          live ? "A run is in flight — interrupt it before starting another." : null
+        }
+        onLaunch={launch}
+      />
 
       {packBroken && (
         <p role="alert" className="mb-3 flex items-center gap-2 rounded-lg border-2 border-destructive px-3 py-2 text-sm">
@@ -103,7 +162,7 @@ export default function App() {
         </p>
       )}
 
-      <ApprovalBar pending={view.pending} onOpen={() => setSheetOpen(true)} />
+      <ApprovalBar pending={queue} agentLabel={agentLabel} onOpen={() => setSheetOpen(true)} />
 
       {view.mode === "board" ? (
         <Board view={view} catalog={catalog} onSelect={setSelected} />
@@ -127,9 +186,28 @@ export default function App() {
         </section>
       )}
 
-      {view.pending && (
+      {/* Clarifications arrive as plain text; this is how the user replies. */}
+      {live && (
+        <form className="mt-4 flex items-center gap-2" onSubmit={sendFollowUp}>
+          <Input
+            className="flex-1"
+            aria-label="Follow-up message"
+            placeholder="Reply to the Guild, or add context…"
+            value={followUp}
+            onChange={(event) => setFollowUp(event.target.value)}
+          />
+          <Button type="submit" variant="secondary" disabled={!followUp.trim()}>
+            <Send className="mr-1 size-4" aria-hidden /> Send
+          </Button>
+        </form>
+      )}
+
+      {head && (
+        // key: per-prompt local state (selections, the Other fields, the deny
+        // reason) must not leak from one prompt into the next.
         <DecisionSheet
-          pending={view.pending}
+          key={head.prompt_id}
+          pending={head}
           open={sheetOpen}
           onClose={() => setSheetOpen(false)}
           onAnswer={answer}

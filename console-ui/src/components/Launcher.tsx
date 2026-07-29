@@ -9,10 +9,13 @@ export type LaunchSpec = { kind: string; target: string; text: string; mode: str
 export function Launcher({
   catalog,
   busy,
+  busyReason,
   onLaunch,
 }: {
   catalog: Catalog;
   busy: boolean;
+  /** Shown next to the disabled Run button — never refuse a press silently. */
+  busyReason: string | null;
   onLaunch: (spec: LaunchSpec) => void;
 }) {
   const [kind, setKind] = useState("prompt");
@@ -34,6 +37,7 @@ export function Launcher({
       className="mb-4 flex flex-wrap items-center gap-2 rounded-xl border p-3"
       onSubmit={(event) => {
         event.preventDefault();
+        if (busy) return; // implicit submission must not sneak past the disabled button
         onLaunch({ kind, target, text, mode });
       }}
     >
@@ -86,9 +90,13 @@ export function Launcher({
         <option value="plan">Plan only</option>
       </select>
 
-      <Button type="submit" disabled={busy}>
+      <Button type="submit" disabled={busy} title={busy ? (busyReason ?? undefined) : undefined}>
         <Play className="mr-1 size-4" aria-hidden /> Run
       </Button>
+
+      {busy && busyReason && (
+        <p className="basis-full text-xs text-muted-foreground">{busyReason}</p>
+      )}
     </form>
   );
 }

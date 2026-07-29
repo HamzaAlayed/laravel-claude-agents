@@ -22,6 +22,8 @@ export type Lane = {
 
 export type PendingPrompt = {
   prompt_id: string;
+  /** The agent whose lane is blocked; null when the main thread asked. */
+  agent: string | null;
   tool: string;
   input: Record<string, unknown>;
   is_question: boolean;
@@ -32,7 +34,12 @@ export type RunView = {
   mode: "board" | "focus";
   lanes: Lane[];
   main: GuildEvent[];
-  pending: PendingPrompt | null;
+  /**
+   * A QUEUE, ordered by arrival — the engine holds many simultaneous pending
+   * prompts (one future per parallel subagent), so a single slot silently
+   * discarded the earlier one and parked that subagent forever.
+   */
+  pending: PendingPrompt[];
   init: { plugins: string[]; plugin_errors: unknown[] } | null;
   retry: { attempt: number; max_retries: number; error: string } | null;
   result: { subtype: string; result: string; duration_ms: number; total_cost_usd: number } | null;

@@ -77,17 +77,74 @@ describe("reduce", () => {
     const withPrompt = play("command", [
       ev({ type: "prompt", prompt_id: "p1", tool: "Bash", input: { command: "ls" }, is_question: false }),
     ]);
-    expect(withPrompt.pending?.prompt_id).toBe("p1");
+    expect(withPrompt.pending.map((p) => p.prompt_id)).toEqual(["p1"]);
     const resolved = reduce(withPrompt, ev({ type: "prompt_resolved", prompt_id: "p1", behavior: "allow" }));
-    expect(resolved.pending).toBeNull();
+    expect(resolved.pending).toEqual([]);
   });
 
-  it("ignores a resolution for a different prompt", () => {
-    const withPrompt = play("command", [
-      ev({ type: "prompt", prompt_id: "p1", tool: "Bash", input: {}, is_question: false }),
+  it("keeps the agent the engine attributed the prompt to", () => {
+    const view = play("command", [
+      ev({ type: "prompt", agent: "backend-developer", prompt_id: "p1", tool: "Bash", input: {} }),
+      ev({ type: "prompt", agent: null, prompt_id: "p2", tool: "Write", input: {} }),
     ]);
-    const other = reduce(withPrompt, ev({ type: "prompt_resolved", prompt_id: "p2", behavior: "allow" }));
-    expect(other.pending?.prompt_id).toBe("p1");
+    expect(view.pending.map((p) => p.agent)).toEqual(["backend-developer", null]);
+  });
+
+  // Two parallel subagents each parking on their own approval is this pack's
+  // normal orchestration shape. A single slot silently dropped the first one and
+  // left that subagent awaiting a future nothing in the UI could name.
+  it("queues two concurrent prompts in arrival order", () => {
+    const view = play("command", [
+      ev({ type: "prompt", agent: "security-engineer", prompt_id: "p1", tool: "Bash", input: {} }),
+      ev({ type: "prompt", agent: "performance-engineer", prompt_id: "p2", tool: "Read", input: {} }),
+    ]);
+    expect(view.pending.map((p) => p.prompt_id)).toEqual(["p1", "p2"]);
+    expect(view.pending[1].tool).toBe("Read");
+  });
+
+  it("resolving the first prompt leaves the second waiting", () => {
+    const queued = play("command", [
+      ev({ type: "prompt", prompt_id: "p1", tool: "Bash", input: {} }),
+      ev({ type: "prompt", prompt_id: "p2", tool: "Read", input: {} }),
+    ]);
+    const after = reduce(queued, ev({ type: "prompt_resolved", prompt_id: "p1", behavior: "allow" }));
+    expect(after.pending.map((p) => p.prompt_id)).toEqual(["p2"]);
+  });
+
+  it("resolving the second prompt leaves the first waiting", () => {
+    const queued = play("command", [
+      ev({ type: "prompt", prompt_id: "p1", tool: "Bash", input: {} }),
+      ev({ type: "prompt", prompt_id: "p2", tool: "Read", input: {} }),
+    ]);
+    const after = reduce(queued, ev({ type: "prompt_resolved", prompt_id: "p2", behavior: "deny" }));
+    expect(after.pending.map((p) => p.prompt_id)).toEqual(["p1"]);
+  });
+
+  it("ignores a resolution for an unknown prompt", () => {
+    const queued = play("command", [
+      ev({ type: "prompt", prompt_id: "p1", tool: "Bash", input: {} }),
+      ev({ type: "prompt", prompt_id: "p2", tool: "Read", input: {} }),
+    ]);
+    const after = reduce(queued, ev({ type: "prompt_resolved", prompt_id: "nope", behavior: "allow" }));
+    expect(after.pending.map((p) => p.prompt_id)).toEqual(["p1", "p2"]);
+  });
+
+  // The SSE backlog is replayed on every reconnect, so the same prompt event
+  // arrives again — it must not queue twice and demand two answers.
+  it("does not double-queue a replayed prompt", () => {
+    const prompt = ev({ type: "prompt", prompt_id: "p1", tool: "Bash", input: { command: "ls" } });
+    const once = reduce(emptyRun("command"), prompt);
+    const twice = reduce(once, prompt);
+    expect(twice.pending.map((p) => p.prompt_id)).toEqual(["p1"]);
+  });
+
+  it("a replayed resolution after the queue drained changes nothing", () => {
+    const resolution = ev({ type: "prompt_resolved", prompt_id: "p1", behavior: "allow" });
+    const drained = play("command", [
+      ev({ type: "prompt", prompt_id: "p1", tool: "Bash", input: {} }),
+      resolution,
+    ]);
+    expect(reduce(drained, resolution).pending).toEqual([]);
   });
 
   it("captures init warnings", () => {
