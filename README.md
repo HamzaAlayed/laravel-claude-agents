@@ -19,7 +19,7 @@ Every agent now knows what "good" looks like in a Laravel codebase. Reviewers re
 │   ├── frontend-developer.md     # "Bella" — Blade/Livewire/Inertia/Filament (Sonnet)
 │   ├── backend-developer.md      # "Adam" — APIs, services, Eloquent (Sonnet)
 │   ├── database-developer.md     # "Elena" — migrations, indexes, factories (Sonnet, project memory)
-│   ├── package-developer.md      # "Clara" — Laravel package authoring (Sonnet, project memory) ★ NEW
+│   ├── package-developer.md      # "Clara" — Laravel package authoring (Sonnet, project memory)
 │   ├── qa-engineer.md            # "Dina" — Pest/PHPUnit/Dusk, fakes (Sonnet)
 │   ├── devops-engineer.md        # "Farid" — Forge/Cloud/Octane/Horizon (Sonnet)
 │   ├── scrum-master.md           # "Petra" — delivery rhythm & blockers (Haiku, project memory)
@@ -27,7 +27,7 @@ Every agent now knows what "good" looks like in a Laravel codebase. Reviewers re
 │   ├── security-engineer.md      # "Felix" — STRIDE + Laravel hardening (Opus, project memory, no Edit/Write)
 │   ├── technical-writer.md       # "Sofia" — Scribe, route:list-driven docs (Sonnet)
 │   ├── tech-lead.md              # "Tariq" — code review w/ Laravel checklist (Opus 4.8, project memory, no Edit/Write)
-│   ├── performance-engineer.md   # "Omar" — profiling, N+1, caching, Octane, CWV (Opus 4.8, project memory, no Edit/Write) ★ NEW
+│   ├── performance-engineer.md   # "Omar" — profiling, N+1, caching, Octane, CWV (Opus 4.8, project memory, no Edit/Write)
 │   ├── mobile-developer.md       # "Pablo" — iOS/Android consuming Laravel APIs (Sonnet)
 │   └── delivery-coordinator.md   # "Emre" — orchestrator main-thread agent (Sonnet, project memory)
 │
@@ -37,24 +37,24 @@ Every agent now knows what "good" looks like in a Laravel codebase. Reviewers re
     ├── add-policy.md             # Add a Policy + patch all touch points + tests
     ├── refactor-to-action.md     # Extract a fat controller method into an Action class
     ├── ship-checklist.md         # Pre-release verification → SHIP / HOLD / CONDITIONAL verdict
-    ├── add-test.md               # Generate a test plan + tests for a class/route/component ★ NEW
-    ├── review-pr.md              # Layered diff review → tech-lead + security + QA + perf ★ NEW
+    ├── add-test.md               # Generate a test plan + tests for a class/route/component
+    ├── review-pr.md              # Layered diff review → tech-lead + security + QA + perf
     ├── optimize-query.md         # Diagnose a slow query/endpoint, route fixes to owners
     ├── upgrade-laravel.md        # Staged Laravel version-upgrade plan
     ├── teach.md                  # Record a user-taught rule all agents apply from then on
-    ├── team-hygiene.md           # Consolidate docs/team/ — dupes, conflicts, stale facts ★ NEW
-    └── board.md                  # Open the live agents dashboard (serves board.html) ★ NEW
+    ├── team-hygiene.md           # Consolidate docs/team/ — dupes, conflicts, stale facts
+    └── board.md                  # Open the live agents dashboard (serves board.html)
 
 scripts/
 ├── block-prod-destructive-sql.sh # Block DROP/TRUNCATE/unscoped DELETE/UPDATE
 ├── block-prod-artisan.sh         # Block migrate:fresh, db:wipe, tinker, etc. against prod
 ├── enforce-reviewer-readonly.sh  # Block file-mutating Bash from the read-only reviewers
 ├── enforce-sail.sh               # Redirect bare php/composer through ./vendor/bin/sail on Sail projects
-├── emit-agent-events.sh          # Stream subagent start/finish to .claude/agents-board.jsonl ★ NEW
-├── board.html                    # Self-contained live dashboard rendering that feed ★ NEW
+├── emit-agent-events.sh          # Stream subagent start/finish to .claude/agents-board.jsonl
+├── board.html                    # Self-contained live dashboard rendering that feed
 └── protect-env-files.sh          # Block writes to .env, .env.production, secrets paths
 
-skills/                           # 8 on-demand cookbooks (see the Skills section) ★ NEW
+skills/                           # 8 on-demand cookbooks (see the Skills section)
 ├── laravel-conventions/          # Which primitive to reach for, which antipattern to refuse
 ├── laravel-testing/              # Fakes syntax, Pest v4 browser tests, factories, time control
 ├── eloquent-performance/         # EXPLAIN reading, N+1 recipes, caching decision tree

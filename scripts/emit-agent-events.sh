@@ -5,7 +5,9 @@
 # (matcher "Agent|Task" — Task is the pre-2.1.63 alias of Agent) and as
 # SubagentStop, which fires on completion of sync AND async subagents — the
 # only completion signal an async-launched agent ever gets (PostToolUse fires
-# at launch with status "async_launched" and null ms/tokens).
+# at launch with status "async_launched" and null ms/tokens). Its documented
+# `duration` field never materialises in real payloads, so stop events get
+# their ms derived from the matching start event further down.
 #
 # Events carry `parent`: hook stdin's top-level agent_type identifies the
 # CALLING agent when the spawn happens inside a subagent (absent from the
@@ -111,10 +113,47 @@ until mkdir "$LOCKDIR" 2>/dev/null; do
 done
 trap 'rmdir "$LOCKDIR" 2>/dev/null' EXIT
 
+# `SubagentStop`'s documented `duration` field does not arrive in practice —
+# every stop event across all five eval-run-4 feeds had ms null, so the feed
+# was un-timed and stage durations had to be subtracted by hand. Derive it from
+# the matching start event instead, keeping the feed self-describing for anyone
+# parsing it (board.html already fell back to the ts delta; the eval harness,
+# which copies the feed verbatim, did not). Still reads `.duration` first, so a
+# payload that ever grows the field wins.
+# Pairing is by (sid, agent, latest start) — PreToolUse carries no id for the
+# agent being spawned, so two concurrent runs of the SAME agent type can only
+# be matched heuristically. Duration is advisory; the ts pair is the truth.
+if [ -n "$OUT" ] && [ -f "$OUT" ]; then
+  case "$EVENT" in
+    *'"ms":null'*'"status":"subagent_stop"'*)
+      STOP_TS="${EVENT#*\"ts\":}"; STOP_TS="${STOP_TS%%,*}"
+      EV_AGENT="${EVENT#*\"agent\":\"}"; EV_AGENT="${EV_AGENT%%\"*}"
+      EV_SID="${EVENT#*\"sid\":\"}"; EV_SID="${EV_SID%%\"*}"
+      START_LINE="$(grep -F "\"sid\":\"$EV_SID\"" "$OUT" 2>/dev/null \
+        | grep -F "\"agent\":\"$EV_AGENT\"" | grep -F '"ev":"start"' | tail -n 1)"
+      if [ -n "$START_LINE" ]; then
+        START_TS="${START_LINE#*\"ts\":}"; START_TS="${START_TS%%,*}"
+        case "$START_TS$STOP_TS" in
+          ''|*[!0-9]*) : ;; # unparsable — leave ms null, never guess
+          *)
+            if [ "$STOP_TS" -ge "$START_TS" ]; then
+              EVENT="${EVENT/\"ms\":null/\"ms\":$(( (STOP_TS - START_TS) * 1000 ))}"
+            fi
+            ;;
+        esac
+      fi
+      ;;
+  esac
+fi
+
 LAST="$(tail -n 1 "$OUT" 2>/dev/null || true)"
 if [ -n "$LAST" ]; then
-  LAST_KEY="$(printf '%s' "$LAST" | sed 's/"ts":[0-9]*/"ts":0/')"
-  NEW_KEY="$(printf '%s' "$EVENT" | sed 's/"ts":[0-9]*/"ts":0/')"
+  # ms is normalised alongside ts: a derived duration is a function of this
+  # hook's own clock, so the concurrent twin computes a slightly different one
+  # and would otherwise escape suppression. `[0-9][0-9]*` deliberately does not
+  # match `null` — an empty match would corrupt the key to `"ms":0null`.
+  LAST_KEY="$(printf '%s' "$LAST" | sed -e 's/"ts":[0-9]*/"ts":0/' -e 's/"ms":[0-9][0-9]*/"ms":0/')"
+  NEW_KEY="$(printf '%s' "$EVENT" | sed -e 's/"ts":[0-9]*/"ts":0/' -e 's/"ms":[0-9][0-9]*/"ms":0/')"
   if [ "$LAST_KEY" = "$NEW_KEY" ]; then
     LAST_TS="${LAST#*\"ts\":}"; LAST_TS="${LAST_TS%%,*}"
     NEW_TS="${EVENT#*\"ts\":}"; NEW_TS="${NEW_TS%%,*}"

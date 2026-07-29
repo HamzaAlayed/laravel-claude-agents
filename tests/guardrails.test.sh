@@ -262,6 +262,37 @@ expect "SubagentStop recorded as end with ms from duration" "7" \
   "$(CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh "$STOP_JSON" >/dev/null; wc -l < "$FEED" | tr -d ' ')$(grep -q '"status":"subagent_stop"' "$FEED" && grep -q '"ms":12500' "$FEED" || echo MISSING)"
 expect "SubagentStop twin suppressed (dual registration)" "7" \
   "$(CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh "$STOP_JSON" >/dev/null; wc -l < "$FEED" | tr -d ' ')"
+# Reality check: real SubagentStop payloads carry NO duration (eval run 4 — ms
+# was null on every stop event, all five feeds). ms must then be derived from
+# the matching start event so the feed stays timed.
+NODUR_START='{"session_id":"abc12345-zzz","hook_event_name":"PreToolUse","tool_name":"Agent","tool_input":{"subagent_type":"laravel-team:technical-writer","description":"Duration derivation probe"}}'
+NODUR_STOP='{"session_id":"abc12345-zzz","hook_event_name":"SubagentStop","agent_id":"sub-agent-2","agent_type":"laravel-team:technical-writer","tool_response":"done"}'
+expect "SubagentStop without duration derives ms from its start event" "0" \
+  "$(CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh "$NODUR_START" >/dev/null
+     CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh "$NODUR_STOP" >/dev/null
+     grep 'technical-writer' "$FEED" | grep -c '"ms":null,"tokens":null,"status":"subagent_stop"')"
+expect "derived-ms twin still suppressed (ms normalised in the dedupe key)" "9" \
+  "$(CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh "$NODUR_STOP" >/dev/null; wc -l < "$FEED" | tr -d ' ')"
+expect "unpaired SubagentStop leaves ms null rather than guessing" "1" \
+  "$(CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh '{"session_id":"abc12345-zzz","hook_event_name":"SubagentStop","agent_type":"laravel-team:product-owner","tool_response":"done"}' >/dev/null
+     grep 'product-owner' "$FEED" | grep -c '"ms":null')"
+
+# Exact-value proof, not just "non-null": seed a start event 42s in the past in
+# a clean feed, fire the stop, read back the derived duration. Tolerates a 1s
+# clock tick between seeding and the hook's own `now`.
+ELAPSED_PROJ="$(mktemp -d)"
+mkdir -p "$ELAPSED_PROJ/.claude"
+printf '{"ts":%s,"sid":"deadbeef","ev":"start","agent":"backend-developer","task":"Elapsed probe","ms":null,"tokens":null,"status":null,"parent":null}\n' \
+  "$(( $(date +%s) - 42 ))" > "$ELAPSED_PROJ/.claude/agents-board.jsonl"
+DERIVED_MS="$(CLAUDE_PROJECT_DIR="$ELAPSED_PROJ" run_hook emit-agent-events.sh \
+  '{"session_id":"deadbeef-xx","hook_event_name":"SubagentStop","agent_type":"laravel-team:backend-developer","tool_response":"done"}' >/dev/null
+  tail -n 1 "$ELAPSED_PROJ/.claude/agents-board.jsonl" | sed 's/.*"ms"://; s/,.*//')"
+case "$DERIVED_MS" in
+  42000 | 43000) DERIVED_VERDICT="elapsed" ;;
+  *) DERIVED_VERDICT="$DERIVED_MS" ;;
+esac
+expect "derived ms carries the real start->stop elapsed time (~42s)" "elapsed" "$DERIVED_VERDICT"
+rm -rf "$ELAPSED_PROJ"
 expect "viewer copied next to the feed" "yes" \
   "$([ -f "$BOARDPROJ/.claude/board.html" ] && echo yes || echo no)"
 expect "FALLBACK (no jq/python3): exits 0, fails open" "$ALLOW" \

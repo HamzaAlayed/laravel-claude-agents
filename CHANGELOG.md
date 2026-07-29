@@ -5,6 +5,45 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.25.0] - 2026-07-28
+
+Closes the two items 1.24.0 recorded but deliberately left out of scope, both
+from [eval run 4](docs/evals/2026-07-28-run-4.md).
+
+### Fixed
+
+- **The agents-board feed now carries real durations for async stages.**
+  `SubagentStop`'s documented `duration` field never arrives in practice — every
+  stop event across all five run-4 feeds had `ms: null`. `board.html` already
+  fell back to the `start`→`stop` timestamp delta, so the *dashboard* was never
+  wrong, but the feed itself was un-timed: run 4's per-stage numbers had to be
+  subtracted by hand, and the eval harness copies the feed verbatim. The emitter
+  now derives `ms` from the matching start event when `duration` is absent,
+  pairing on `sid` + `agent` + latest start. `.duration` is still read first, so
+  a payload that ever grows the field wins.
+  - The dedupe key now normalises `ms` alongside `ts`. A derived duration is a
+    function of the hook's own clock, so the concurrent twin computes a slightly
+    different value and would otherwise have escaped suppression — the exact
+    class of bug that took two releases to kill in 1.16.0/1.17.0. The pattern
+    deliberately does not match `null` (a zero-width match would corrupt the key
+    to `"ms":0null`).
+  - An unpaired stop event keeps `ms: null` rather than guessing. Pairing is
+    heuristic by necessity: `PreToolUse` carries no id for the agent being
+    spawned, so two concurrent runs of the *same* agent type can't be
+    distinguished. The timestamps remain the source of truth.
+- **Four new tests (90 total)**, including the realistic case the old suite
+  missed: it only ever fed a synthetic `duration`. New coverage — derivation
+  when `duration` is absent, twin suppression with a derived `ms`, an unpaired
+  stop staying null, and an exact-elapsed assertion (seeded 42s in the past,
+  asserts the derived value rather than merely "not null").
+
+### Changed
+
+- **Nine stale `★ NEW` markers removed from the README tree.** They marked
+  additions from 1.7.0 through 1.21.0 with no defined expiry, and an
+  unmaintained "new" claim is worse than no claim — the CHANGELOG is what says
+  what shipped when.
+
 ## [1.24.0] - 2026-07-28
 
 Everything here traces to a measured failure in
