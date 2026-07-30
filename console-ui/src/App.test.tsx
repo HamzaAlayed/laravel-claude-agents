@@ -355,6 +355,61 @@ describe("a run that ends badly", () => {
   });
 });
 
+describe("the coordinator on the board", () => {
+  const start = (agent: string, toolUseId: string, task: string) => ({
+    type: "agent_start", agent, tool_use_id: toolUseId, lane_id: toolUseId, task,
+  });
+
+  it("is the board's header, not a card in a column", async () => {
+    // catalog.py gives it stage: null for exactly this reason. Board.tsx then
+    // read `stage ?? "Working"`, which turned that null back into a card.
+    const { server } = await launch();
+    server.emit(start("delivery-coordinator", "t1", "drive the feature"));
+    server.emit(start("backend-developer", "t2", "add the export job"));
+
+    // It earns no column at all, so Working — which only appears when something
+    // lands in it — should not exist.
+    expect(screen.queryByRole("heading", { name: /Working/ })).toBeNull();
+    expect(screen.getByText(/drive the feature/)).toBeTruthy();
+    // The specialists still get their cards.
+    expect(button("Adam: add the export job")).toBeTruthy();
+  });
+
+  it("still opens its transcript, so nothing is hidden", async () => {
+    const { server, user } = await launch();
+    server.emit(start("delivery-coordinator", "t1", "drive the feature"));
+    server.emit(start("backend-developer", "t2", "add the export job"));
+
+    await user.click(screen.getByRole("button", { name: /Emre/ }));
+    expect(screen.getByRole("heading", { name: "Emre" })).toBeTruthy();
+  });
+
+  it("stays out of the Working column even when that column exists", async () => {
+    // With only a coordinator lane, Working is filtered out for being empty, so
+    // "no card" is true for the wrong reason. An unknown agent forces the column
+    // to exist, which is the only way to see whether the coordinator lands in it.
+    const { server } = await launch();
+    server.emit(start("delivery-coordinator", "t1", "drive the feature"));
+    server.emit(start("some-new-agent", "t2", "doing something"));
+
+    const working = screen.getByRole("heading", { name: /Working/ }).closest("section");
+    expect(working).not.toBeNull();
+    expect(within(working as HTMLElement).getByRole("button", { name: /some-new-agent/ })).toBeTruthy();
+    expect(within(working as HTMLElement).queryByRole("button", { name: /Emre/ })).toBeNull();
+  });
+
+  it("does not swallow an agent the catalog has never heard of", async () => {
+    // The `?? "Working"` fallback exists for unknown agents, and must survive:
+    // an agent missing from the catalog has no stage for a DIFFERENT reason.
+    const { server } = await launch();
+    server.emit(start("some-new-agent", "t1", "doing something"));
+    server.emit(start("backend-developer", "t2", "add the export job"));
+
+    expect(screen.getByRole("heading", { name: /Working/ })).toBeTruthy();
+    expect(button("some-new-agent: doing something")).toBeTruthy();
+  });
+});
+
 describe("an attribution the engine had to guess", () => {
   const guessed = (promptId: string, agent: string) => ({
     ...approval(promptId, agent),

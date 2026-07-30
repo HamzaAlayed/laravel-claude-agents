@@ -31,10 +31,21 @@ export const testCatalog: Catalog = {
       color: "#16a34a",
       stage: "verify",
     },
+    {
+      // stage null is deliberate and load-bearing: catalog.py gives the
+      // coordinator no stage because it is the board's header, not a card.
+      slug: "delivery-coordinator",
+      name: "Emre",
+      description: "coordinator",
+      model: "opus",
+      tools: ["Agent"],
+      color: "#a855f7",
+      stage: null,
+    },
   ],
   commands: [{ slug: "review-pr", description: "review the diff", argument_hint: "" }],
   skills: [{ slug: "laravel-testing", description: "test cookbook" }],
-  stages: ["build", "verify"],
+  stages: ["build", "verify", "Working"],
 };
 
 type PostRecord = { path: string; body: Record<string, unknown> };

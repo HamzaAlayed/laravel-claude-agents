@@ -227,10 +227,18 @@ hide a real hit. Verified both ways on fixtures, for both comment styles.
     the Agent call that opened its lane. The slug never was a lane identity: two backend-developers in
     parallel share it, so both cards received everything either one emitted. The reducer keys on
     `lane_id` and keeps slug matching only as the fallback for older jsonl.
-  - **The coordinator rendered as a card — NOT acted on.** `Board.tsx` says the coordinator is the
-    board's header rather than a card, but there is no header, and a `delivery-coordinator` spawned via
-    the Agent tool is genuinely an agent doing work. Without the review's reasoning I would be guessing
-    at the intent, and the current behaviour is defensible. Left alone deliberately.
+  - **The coordinator rendered as a card** — fixed once the intent turned up in `catalog.py`, which
+    states it directly: *"The coordinator is the board's own header and deliberately absent"*, and gives
+    it `stage: None` to say so. `Board.tsx` then read `agents[slug]?.stage ?? "Working"`, which turned
+    that deliberate `null` straight back into a Working-column card. The two cases are now
+    distinguished — a `null` stage means "not a column", a *missing* agent still gets its Working card —
+    and the coordinator renders as the board's header, still clickable so its transcript is reachable
+    exactly like a card's.
+
+    Worth recording about the test: with only a coordinator lane, "no card" passes for the wrong reason
+    (Working is filtered out for being empty). It took a second lane with an unknown agent, forcing the
+    column to exist, before the assertion could actually see the bug — the first version of the test
+    could not distinguish the fix from the mutation.
 
 ## 8. Local scratch to clear — needs a human hand
 
