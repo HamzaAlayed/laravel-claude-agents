@@ -3,10 +3,25 @@
 Everything below was found during the build of the Guild web console
 ([spec](../superpowers/specs/2026-07-29-guild-web-console-design.md),
 [plan](../superpowers/plans/2026-07-29-guild-web-console.md)) and deliberately **not** fixed in that
-branch. Nothing here blocks the console from working; the branch shipped with 85 python tests, 37
-frontend tests (59 since item 2), 101 guardrail tests, and a verified end-to-end run.
+branch. Nothing here blocked the console from working; the branch shipped with 85 python tests, 37
+frontend tests, 101 guardrail tests, and a verified end-to-end run.
 
-Ordered by what I'd do first.
+**Worked off on 2026-07-30.** Items 1–7 are done or resolved; the suites now stand at 98 python, 77
+frontend, 103 guardrail. Every fix was mutation-verified — each new test was watched failing against a
+deliberately broken version of the behaviour it claims to protect, because tests written against code
+that already exists prove nothing by passing.
+
+Still open, and each one says so in place:
+
+- **Item 1's end-to-end check** — that `echo hello` really does park a live run in the browser. The
+  spec asks for it explicitly and it has not been run; everything below it is unit, mount, and
+  real-SDK-construction evidence.
+- **Item 5's abandon route** — not built, on purpose. See the reasoning there.
+- **Item 7's node-22 bundle reproducibility**, and the ~24 minors from the branch's final review, which
+  this doc does not reproduce.
+- **Item 8** — needs a `rm -rf` no agent is permitted to run.
+
+Ordered by what I'd do first, not by what is left.
 
 ---
 
@@ -187,11 +202,17 @@ hide a real hit. Verified both ways on fixtures, for both comment styles.
   undrained request body on 401, raw SDK message duplicated on every event line, same-slug lanes
   double-receiving events, the coordinator rendered as a card).
 
-## 8. Local scratch to clear
+## 8. Local scratch to clear — needs a human hand
 
-- `.playwright-mcp/` — untracked, 3 files, left by the reviewer's browser check. `rm -rf` was
-  permission-denied for the agents.
-- `tests/fixture-app/.claude/console/venv` — ~300MB, gitignored, created by the smoke test.
+- `.playwright-mcp/` — untracked, 3 files (a 401 console log and two page snapshots from the
+  reviewer's no-token check). Still there: `rm -rf` is permission-denied for the agents, main thread
+  included. Run `rm -rf .playwright-mcp` to clear it. It is gitignored now, so it cannot be committed
+  by accident. Its content is fully superseded by the mount test
+  `degrades to a readable message when the API cannot be reached`.
+- `tests/fixture-app/.claude/console/venv` — 297MB, gitignored, created by the smoke test.
+  **Deliberately left**: it is regenerable, but only by reinstalling `claude-agent-sdk`, and it is what
+  makes the real-SDK checks in this branch runnable offline. Delete it when disk matters more than the
+  next smoke test's start-up time.
 
 ---
 
