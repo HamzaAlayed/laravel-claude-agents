@@ -31,6 +31,14 @@ export type PendingPrompt = {
   prompt_id: string;
   /** The agent whose lane is blocked; null when the main thread asked. */
   agent: string | null;
+  /**
+   * Whether `agent` is a fact or the engine's one heuristic. `can_use_tool` is
+   * not handed a lane id, so when a permission request overtakes its own
+   * assistant message the engine falls back to the newest still-open lane —
+   * which, with two lanes running, can name the wrong one. A guess is hedged in
+   * the bar and marks no card at all.
+   */
+  agentConfidence: "exact" | "guess";
   tool: string;
   input: Record<string, unknown>;
   is_question: boolean;

@@ -62,6 +62,26 @@ describe("reduce", () => {
     expect(view.lanes[0].events).toHaveLength(0);
   });
 
+  // can_use_tool is not handed a lane id. When the permission request overtakes
+  // its own assistant message the engine falls back to the newest open lane,
+  // which can name the wrong agent — so the guess has to travel with the prompt.
+  it("carries the engine's attribution confidence", () => {
+    const view = play("command", [
+      ev({ type: "prompt", agent: "qa-engineer", agent_confidence: "guess",
+           prompt_id: "p1", tool: "Bash", input: {}, is_question: false }),
+    ]);
+    expect(view.pending[0].agentConfidence).toBe("guess");
+  });
+
+  it("treats an attribution with no stated confidence as exact", () => {
+    // Runs replayed from a jsonl written before the field existed.
+    const view = play("command", [
+      ev({ type: "prompt", agent: "qa-engineer", prompt_id: "p1", tool: "Bash",
+           input: {}, is_question: false }),
+    ]);
+    expect(view.pending[0].agentConfidence).toBe("exact");
+  });
+
   it("opens a lane on agent_start", () => {
     const view = play("command", [
       ev({ type: "agent_start", agent: "backend-developer", task: "Add Action", tool_use_id: "t1" }),

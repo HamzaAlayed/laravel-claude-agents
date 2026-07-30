@@ -22,6 +22,9 @@ export function ApprovalBar({
 }) {
   const head = pending[0] ?? null;
   const who = agentLabel ?? "The Guild";
+  // The engine's fallback attribution can name the wrong lane. Saying "possibly"
+  // costs one word and stops the bar from asserting something it cannot know.
+  const named = head?.agentConfidence === "guess" ? `Possibly ${who}` : who;
 
   return (
     <AnimatePresence>
@@ -37,8 +40,8 @@ export function ApprovalBar({
           <AlertTriangle className="size-4 shrink-0 text-amber-600" aria-hidden />
           <p className="truncate text-sm font-semibold">
             {head.is_question
-              ? `${who} needs a decision from you`
-              : `${who} needs approval — ${head.tool}`}
+              ? `${named} needs a decision from you`
+              : `${named} needs approval — ${head.tool}`}
           </p>
           {pending.length > 1 && (
             <span className="shrink-0 rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-semibold tabular-nums">

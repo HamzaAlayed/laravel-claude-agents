@@ -215,8 +215,13 @@ class RunManager:
     # ---- approvals ---------------------------------------------------------
 
     @staticmethod
-    def _agent_for_prompt(run: Run, context) -> str | None:
-        """Which agent's lane is blocked on this approval.
+    def _agent_for_prompt(run: Run, context) -> tuple[str | None, str]:
+        """Which agent's lane is blocked on this approval, and how sure we are.
+
+        Returns `(agent, confidence)` where confidence is `"exact"` for a fact and
+        `"guess"` for the one heuristic below. The browser cannot tell the two
+        apart on its own, and it marks a card either way -- so the difference has
+        to travel with the event.
 
         can_use_tool is not handed a lane id, so this is layered, most exact
         first:
@@ -237,10 +242,10 @@ class RunManager:
         """
         lane = run.state.lane_for_tool_use(_getattr(context, "tool_use_id", None))
         if lane is not events_mod.MISSING:
-            return lane
+            return lane, "exact"
         if _getattr(context, "agent_id", None) is None:
-            return None
-        return run.state.newest_open_lane()
+            return None, "exact"
+        return run.state.newest_open_lane(), "guess"
 
     def _make_pre_tool_use(self, run: Run):
         """The PreToolUse hook: the only layer that sees every tool call.
@@ -293,7 +298,7 @@ class RunManager:
     def _make_can_use_tool(self, run: Run):
         async def can_use_tool(tool_name, input_data, context):
             prompt_id = f"p_{uuid.uuid4().hex[:10]}"
-            agent = self._agent_for_prompt(run, context)
+            agent, confidence = self._agent_for_prompt(run, context)
             future: asyncio.Future = asyncio.get_running_loop().create_future()
             run.pending[prompt_id] = future
             suggestions = []
@@ -308,6 +313,7 @@ class RunManager:
                 "ts": int(time.time() * 1000),
                 "type": "prompt",
                 "agent": agent,
+                "agent_confidence": confidence,
                 "prompt_id": prompt_id,
                 "tool": tool_name,
                 "input": input_data,
@@ -329,6 +335,7 @@ class RunManager:
                 "ts": int(time.time() * 1000),
                 "type": "prompt_resolved",
                 "agent": agent,
+                "agent_confidence": confidence,
                 "prompt_id": prompt_id,
                 "behavior": decision.get("behavior"),
             })

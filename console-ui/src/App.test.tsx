@@ -355,6 +355,47 @@ describe("a run that ends badly", () => {
   });
 });
 
+describe("an attribution the engine had to guess", () => {
+  const guessed = (promptId: string, agent: string) => ({
+    ...approval(promptId, agent),
+    agent_confidence: "guess",
+  });
+
+  it("hedges in the bar instead of naming the agent outright", async () => {
+    const { server } = await launch();
+    server.emit(guessed("p1", "backend-developer"));
+
+    expect(screen.getByText("Possibly Adam needs approval — Bash")).toBeTruthy();
+  });
+
+  it("does not mark any card, because the wrong one might be marked", async () => {
+    const { server, user } = await launch();
+    server.emit({
+      type: "agent_start", agent: "backend-developer",
+      tool_use_id: "t1", task: "add the export job",
+    });
+    server.emit({
+      type: "agent_start", agent: "qa-engineer",
+      tool_use_id: "t2", task: "cover it with tests",
+    });
+    server.emit(guessed("p1", "qa-engineer"));
+    await user.click(await screen.findByRole("button", { name: "Close" }));
+
+    expect(
+      within(button("Dina: cover it with tests")).queryByText("needs you"),
+    ).toBeNull();
+    // Still unmistakably parked — the bar is the honest surface for a guess.
+    expect(screen.getByText(/Possibly Dina needs approval/)).toBeTruthy();
+  });
+
+  it("still names the agent outright when the engine was sure", async () => {
+    const { server } = await launch();
+    server.emit({ ...approval("p1", "backend-developer"), agent_confidence: "exact" });
+
+    expect(screen.getByText("Adam needs approval — Bash")).toBeTruthy();
+  });
+});
+
 describe("calls that ran without an ask", () => {
   const gate = (agent: string | null, toolUseId: string, asked = false) => ({
     type: "tool_gate",

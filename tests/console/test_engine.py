@@ -414,6 +414,46 @@ class TestPromptAttribution(EngineTestCase):
         )
         self.assertEqual(events[-1]["agent"], "qa-engineer")
 
+    def test_an_exact_attribution_says_so(self):
+        # The browser cannot tell a fact from a guess unless the event says which
+        # it is, and it marks a card either way.
+        run_id = self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        self.spawn("t1", "backend-developer")
+        self.push_assistant(
+            [{"type": "tool_use", "id": "tb1", "name": "Bash", "input": {"command": "ls"}}],
+            parent="t1",
+        )
+        self.drain(run_id, ["tool_use", "agent_start", "tool_use"])
+        pending = self.ask(_FakeContext(tool_use_id="tb1", agent_id="agent_7"))
+        prompt = self.settle(run_id, pending,
+                             ["tool_use", "agent_start", "tool_use", "prompt"])
+        self.assertEqual(prompt["agent"], "backend-developer")
+        self.assertEqual(prompt["agent_confidence"], "exact")
+
+    def test_the_newest_open_lane_fallback_is_flagged_as_a_guess(self):
+        run_id = self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        self.spawn("t1", "security-engineer")
+        self.spawn("t2", "performance-engineer")
+        self.drain(run_id, ["tool_use", "agent_start", "tool_use", "agent_start"])
+        pending = self.ask(_FakeContext(tool_use_id="never-seen", agent_id="agent_9"))
+        prompt = self.settle(
+            run_id, pending,
+            ["tool_use", "agent_start", "tool_use", "agent_start", "prompt"],
+        )
+        self.assertEqual(prompt["agent"], "performance-engineer")
+        self.assertEqual(prompt["agent_confidence"], "guess")
+
+    def test_the_main_thread_is_a_fact_not_a_guess(self):
+        # agent_id None means no subagent asked. That is knowledge, not absence
+        # of it, so it must not be labelled a guess.
+        run_id = self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        self.spawn("t1", "security-engineer")
+        self.drain(run_id, ["tool_use", "agent_start"])
+        pending = self.ask(_FakeContext(tool_use_id="never-seen", agent_id=None))
+        prompt = self.settle(run_id, pending, ["tool_use", "agent_start", "prompt"])
+        self.assertIsNone(prompt["agent"])
+        self.assertEqual(prompt["agent_confidence"], "exact")
+
     def test_two_prompts_are_attributed_independently(self):
         run_id = self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
         self.spawn("t1", "security-engineer")

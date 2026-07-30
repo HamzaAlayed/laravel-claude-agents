@@ -22,7 +22,9 @@ export function Board({ view, catalog, onSelect }: Props) {
   // card — so nothing is marked, rather than blaming whichever lane is first.
   const parkedLanes = new Set(
     view.pending.flatMap((prompt) => {
-      if (!prompt.agent) return [];
+      // A guessed attribution marks nothing: this promise is that a marked card
+      // is really the blocked one, and the bar hedges in words instead.
+      if (!prompt.agent || prompt.agentConfidence === "guess") return [];
       const lane = view.lanes.find(
         (candidate) => candidate.slug === prompt.agent && candidate.status === "running",
       );

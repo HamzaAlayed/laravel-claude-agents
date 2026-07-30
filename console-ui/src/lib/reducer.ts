@@ -91,6 +91,9 @@ export function reduce(view: RunView, event: GuildEvent): RunView {
           {
             prompt_id: promptId,
             agent: (event.agent as string) ?? null,
+            // Absent on runs replayed from a jsonl written before the engine
+            // reported confidence; those attributions were exact or main-thread.
+            agentConfidence: event.agent_confidence === "guess" ? "guess" : "exact",
             tool: event.tool as string,
             input: (event.input as Record<string, unknown>) ?? {},
             is_question: Boolean(event.is_question),
