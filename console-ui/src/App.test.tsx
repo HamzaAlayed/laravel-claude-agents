@@ -447,6 +447,57 @@ describe("calls that ran without an ask", () => {
   });
 });
 
+describe("the event stream giving out", () => {
+  it("says so when it dies for good, and frees the console", async () => {
+    // What a 404 does: the run is no longer live in this console process, which
+    // is what a console restart looks like from the browser. It used to be
+    // completely silent — the page just stopped updating.
+    const { server } = await launch();
+    server.killStream();
+
+    expect(await screen.findByText(/event stream/i)).toBeTruthy();
+    await waitFor(() => expect(runButton().disabled).toBe(false));
+  });
+
+  it("stays quiet while the browser is only retrying", async () => {
+    const { server } = await launch();
+    server.blipStream();
+
+    expect(screen.queryByText(/event stream/i)).toBeNull();
+    expect(runButton().disabled).toBe(true);
+  });
+});
+
+describe("steering a live run", () => {
+  const modeSelect = () =>
+    screen.getByLabelText("Change this run's permission mode") as HTMLSelectElement;
+
+  it("switches the permission mode without restarting", async () => {
+    const { server, user } = await launch();
+    await user.selectOptions(modeSelect(), "plan");
+
+    await waitFor(() => expect(server.postsTo("/mode")).toHaveLength(1));
+    expect(server.postsTo("/mode")[0].body).toEqual({ mode: "plan" });
+    expect(modeSelect().value).toBe("plan");
+  });
+
+  it("puts the old mode back when the switch is refused", async () => {
+    const { server, user } = await launch();
+    server.failNext("/mode", "the run has already finished");
+    await user.selectOptions(modeSelect(), "acceptEdits");
+
+    expect(await screen.findByText(/the run has already finished/)).toBeTruthy();
+    expect(modeSelect().value).toBe("default");
+  });
+
+  it("is not offered once the run is over", async () => {
+    const { server } = await launch();
+    server.emit({ type: "result", subtype: "success", result: "done", duration_ms: 1, total_cost_usd: 0 });
+
+    expect(screen.queryByLabelText("Change this run's permission mode")).toBeNull();
+  });
+});
+
 describe("the follow-up composer", () => {
   it("sends a reply and clears the box", async () => {
     const { server, user } = await launch();

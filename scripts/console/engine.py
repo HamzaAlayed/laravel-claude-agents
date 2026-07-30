@@ -159,10 +159,23 @@ class RunManager:
         return run_id
 
     async def _boot(self, run: Run, text: str):
-        await run.client.connect()
-        asyncio.create_task(self._pump(run))
-        if text:
-            await run.client.query(text)
+        try:
+            await run.client.connect()
+            asyncio.create_task(self._pump(run))
+            if text:
+                await run.client.query(text)
+        except Exception as exc:
+            # _pump is what reports a client that dies mid-run -- but a connect()
+            # that never succeeded means _pump was never started, so the run sat
+            # registered as "running" forever with nothing on its stream to say
+            # why. Re-raised, so POST /api/runs still answers 400 with the reason.
+            self._publish(run, {
+                "seq": run.state.next_seq(), "run_id": run.run_id,
+                "ts": int(time.time() * 1000), "type": "error",
+                "agent": None, "message": str(exc),
+            })
+            run.status = "finished"
+            raise
 
     async def _pump(self, run: Run):
         try:

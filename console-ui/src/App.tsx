@@ -28,6 +28,9 @@ export default function App() {
   // the queue advances and would lose the flag exactly when it matters.
   const [gate, setGate] = useState(() => armGate(null));
   const [stopped, setStopped] = useState(false);
+  // The mode this run is CURRENTLY on, which the Launcher's select cannot
+  // represent: that one configures the next run.
+  const [liveMode, setLiveMode] = useState("default");
   const [followUp, setFollowUp] = useState("");
   const [error, setError] = useState<string | null>(null);
   const lastSeq = useRef(0);
@@ -44,10 +47,22 @@ export default function App() {
       setAnswering((ids) => ids.filter((id) => id !== event.prompt_id));
   }, []);
 
+  // A stream that fails for good (a 404 for a run this console process no longer
+  // owns — i.e. it was restarted) used to be completely silent: the page simply
+  // stopped updating, with the Launcher still disabled behind a run nobody was
+  // watching. Say it, and hand the console back.
+  const onStreamLost = useCallback(() => {
+    setError(
+      "Lost the event stream for this run — the console is no longer receiving it. " +
+        "Treating the run as ended.",
+    );
+    setStopped(true);
+  }, []);
+
   useEffect(() => {
     if (!runId) return;
-    return api.streamRun(runId, lastSeq.current, onEvent);
-  }, [runId, onEvent]);
+    return api.streamRun(runId, lastSeq.current, onEvent, onStreamLost);
+  }, [runId, onEvent, onStreamLost]);
 
   const queue = view.pending.filter((prompt) => !answering.includes(prompt.prompt_id));
   const head = queue[0] ?? null;
@@ -74,6 +89,7 @@ export default function App() {
     setGate(armGate(null));
     setSheetOpen(false);
     setStopped(false);
+    setLiveMode(spec.mode);
     try {
       const { run_id } = await api.createRun(spec);
       setRunId(run_id);
@@ -128,6 +144,21 @@ export default function App() {
     }
   };
 
+  // The spec promised the mode could be changed mid-run; the API could, and
+  // nothing in the UI called it. Optimistic, and reverted if the API refuses, so
+  // the select never shows a mode the run is not actually on.
+  const changeMode = async (next: string) => {
+    if (!runId) return;
+    const previous = liveMode;
+    setLiveMode(next);
+    try {
+      await api.setMode(runId, next);
+    } catch (e) {
+      setLiveMode(previous);
+      setError(String((e as Error).message));
+    }
+  };
+
   const interrupt = async () => {
     if (!runId) return;
     try {
@@ -161,11 +192,23 @@ export default function App() {
     <main className="mx-auto max-w-6xl p-4 md:p-6">
       <header className="mb-4 flex items-baseline gap-3">
         <h1 className="text-lg font-semibold">Laravel Guild Console</h1>
+        {live && (
+          <select
+            aria-label="Change this run's permission mode"
+            className="ml-auto h-8 rounded-md border bg-background px-2 text-sm"
+            value={liveMode}
+            onChange={(event) => changeMode(event.target.value)}
+          >
+            <option value="default">Ask me</option>
+            <option value="acceptEdits">Accept edits</option>
+            <option value="plan">Plan only</option>
+          </select>
+        )}
         {runId && (
           <Button
             size="sm"
             variant="outline"
-            className="ml-auto"
+            className={live ? undefined : "ml-auto"}
             aria-label="Interrupt the running agent"
             onClick={interrupt}
           >

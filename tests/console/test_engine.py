@@ -197,6 +197,27 @@ class TestRunLifecycle(EngineTestCase):
         self.assertEqual(self.mgr.runs, {})
         self.assertEqual(self.mgr.list_runs(), [])
 
+    def test_a_connect_failure_says_why_on_the_run_stream(self):
+        """_pump publishes the `error` event when a live client dies -- but a
+        connect() that never succeeded means _pump was never started, so the run
+        sat registered as "running" forever with nothing on its stream."""
+        class DeadClient(FakeClient):
+            async def connect(self):
+                raise RuntimeError("the Claude Code CLI was not found on PATH")
+
+        self.mgr.client_factory = DeadClient
+        with self.assertRaises(RuntimeError):
+            self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+
+        rows = self.mgr.list_runs()
+        self.assertEqual(len(rows), 1)
+        # Registered on purpose: the client may hold a CLI subprocess that
+        # shutdown() still has to disconnect. But it must not claim to be running.
+        self.assertEqual(rows[0]["status"], "finished")
+        events = self.mgr.snapshot(rows[0]["run_id"])
+        self.assertEqual([e["type"] for e in events], ["error"])
+        self.assertIn("not found on PATH", events[0]["message"])
+
     def test_is_live_is_true_only_for_runs_this_process_owns(self):
         # is_live is what the SSE route checks before it promises a stream --
         # subscribe() can only serve runs held in memory.

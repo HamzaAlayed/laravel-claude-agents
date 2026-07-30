@@ -40,15 +40,23 @@ export const testCatalog: Catalog = {
 type PostRecord = { path: string; body: Record<string, unknown> };
 
 class FakeEventSource {
+  // Copied from the real EventSource: api.streamRun compares against these, so a
+  // fake without them would make the comparison silently never match.
+  static readonly CONNECTING = 0;
+  static readonly OPEN = 1;
+  static readonly CLOSED = 2;
   static instances: FakeEventSource[] = [];
   onmessage: ((event: { data: string }) => void) | null = null;
   onerror: ((event: unknown) => void) | null = null;
   closed = false;
+  /** Mirrors the real readyState: 0 CONNECTING, 1 OPEN, 2 CLOSED. */
+  readyState = 1;
   constructor(public url: string) {
     FakeEventSource.instances.push(this);
   }
   close() {
     this.closed = true;
+    this.readyState = 2;
   }
 }
 
@@ -63,6 +71,13 @@ export type FakeServer = {
   hold: (suffix: string) => () => void;
   /** Push one event down the newest open SSE stream, as the engine would. */
   emit: (event: Record<string, unknown> & { type: string }) => void;
+  /**
+   * Fail the stream for good — what a 404 does when the run is no longer live in
+   * this console process (the classic case: the console was restarted).
+   */
+  killStream: () => void;
+  /** A transient drop the browser will retry on its own. Not terminal. */
+  blipStream: () => void;
   /** URLs of the SSE streams opened so far, closed ones included. */
   streams: () => string[];
   /** How many SSE streams are open right now. */
@@ -149,6 +164,22 @@ export function installFakeServer(catalog: Catalog | null = testCatalog): FakeSe
       };
       act(() => {
         stream.onmessage?.({ data: JSON.stringify(payload) });
+      });
+    },
+    killStream: () => {
+      const stream = [...FakeEventSource.instances].reverse().find((s) => !s.closed);
+      if (!stream) throw new Error("no open event stream to kill");
+      stream.readyState = 2;
+      act(() => {
+        stream.onerror?.({});
+      });
+    },
+    blipStream: () => {
+      const stream = [...FakeEventSource.instances].reverse().find((s) => !s.closed);
+      if (!stream) throw new Error("no open event stream to blip");
+      stream.readyState = 0; // CONNECTING — the browser is already retrying
+      act(() => {
+        stream.onerror?.({});
       });
     },
     streams: () => FakeEventSource.instances.map((stream) => stream.url),

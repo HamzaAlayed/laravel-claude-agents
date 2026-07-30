@@ -100,13 +100,31 @@ Two things surfaced while doing it, both now handled:
 waited out, not asserted), `Transcript` internals, and the `select`-driven Launcher paths for
 command/specialist runs.
 
-## 3. `SSE resume` doesn't do what the spec says
+## 3. ~~`SSE resume` doesn't do what the spec says~~ — RESOLVED 2026-07-30 (spec amended)
 
-The spec's failure-mode table promises "the server replays from the run jsonl". It replays from
-`run.buffer` **in memory**. Reconnecting mid-run works; reconnecting after a console restart silently
-returns nothing. Either implement the jsonl replay or amend the spec.
+The spec was wrong, not the code. Amended, with the reasoning recorded in the spec's failure-mode
+section: replay from the jsonl *does* exist as `GET /api/runs/{id}` (`snapshot()`), and streaming a
+dead run's history over SSE and then closing would reintroduce the EventSource retry loop the 404 was
+introduced to avoid. The two paths stay separate deliberately.
 
-## 4. Prompt→agent attribution can name the wrong agent
+What was a real bug is that the browser ignored the 404 completely — the page just stopped updating
+with the Launcher still disabled behind a run nobody was watching. `api.streamRun` now reports a
+stream that reaches `CLOSED`, distinguished from a transient retry (`CONNECTING`), and the console says
+so and frees itself. 2 tests, both mutation-verified.
+
+## 4. ~~Prompt→agent attribution can name the wrong agent~~ — DONE 2026-07-30
+
+`_agent_for_prompt` now returns `(agent, confidence)` and both `prompt` and `prompt_resolved` carry
+`agent_confidence`. `"exact"` means `tool_use_id` resolved the lane, or `agent_id` was `None` — which
+is knowledge (no subagent asked), not absence of it. `"guess"` is the newest-open-lane fallback.
+
+The bar says "Possibly Adam needs approval — Bash" for a guess, and the board marks **no** card,
+keeping its promise that a marked card is really the blocked one. A missing `agent_confidence` reads
+as exact, so older jsonl replays render unchanged. 3 engine tests, 4 frontend, all
+mutation-verified.
+
+<details>
+<summary>Original finding</summary>
 
 `engine.py` attributes a prompt to a lane via `context.tool_use_id` (exact), then falls back to the
 newest still-open lane (heuristic). With two lanes open the heuristic can flag the wrong card, and the
@@ -115,19 +133,29 @@ confidence level never reaches the browser. It did not fire in any observed run.
 **Fix:** send the attribution confidence in the `prompt` event and have the bar say "possibly" when it
 is a guess.
 
-## 5. Missing escape hatches
+</details>
 
-- `api.setMode` is wired server-side and tested, but nothing in the UI calls it — there is no mid-run
-  permission-mode switch, so the spec's "either can be changed mid-run" is only true over the API.
-- There is no server-side *abandon* route. Interrupt is the only exit, and it kills the turn.
-- A `connect()` failure emits no `error` event at all; the UI only recovers via the interrupt path.
+## 5. Missing escape hatches — two done, one deliberately not
 
-## 6. Guardrail ratchets grep raw file content
+- ~~`api.setMode` is wired server-side and tested, but nothing in the UI calls it~~ — **done.** A mode
+  select sits in the header while a run is live. Optimistic, and reverted if the API refuses, so it
+  never shows a mode the run is not on. The spec's "either can be changed mid-run" is now true of the
+  UI too. (`model` still has no control — one lever was the promise, and a model switch mid-run has no
+  obvious use here.)
+- ~~A `connect()` failure emits no `error` event at all~~ — **done.** `_boot` publishes the `error`
+  event and marks the run finished, then re-raises so `POST /api/runs` still answers 400 with the
+  reason. Previously the run stayed registered as `running` forever with nothing on its stream.
+- **No server-side abandon route — not done, on purpose.** Interrupt is the only exit and it kills the
+  turn, which is the honest thing to do: an "abandon" that leaves the SDK client connected and billing
+  is the zombie-run bug of v1.27.0 by another name. There is also no run-picker UI, so a detached run
+  would be unreachable. Revisit if a run list ever lands.
 
-The console ratchets match raw bytes with no code/comment distinction. `grep -c '0\.0\.0\.0'`
-expecting 0 means a future comment like `# never bind 0.0.0.0` reddens the build. Two docstrings in
-`engine.py` already mention `claude_agent_sdk` for exactly that kind of reason. Restrict to
-non-comment lines.
+## 6. ~~Guardrail ratchets grep raw file content~~ — DONE 2026-07-30
+
+`console_hits()` drops comment-only lines (`//`, `*`, `/*`, `#`). A trailing comment after real code
+still counts — a security ratchet must fail closed, so over-strict beats under-strict. The
+`path:line:` prefix is stripped by position, not by regex, so a URL's `//` inside matched text cannot
+hide a real hit. Verified both ways on fixtures, for both comment styles.
 
 ## 7. Small CI and hygiene items
 

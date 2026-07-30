@@ -35,11 +35,27 @@ export const interruptRun = (runId: string) => post(`/api/runs/${runId}/interrup
 export const setMode = (runId: string, mode?: string, model?: string) =>
   post(`/api/runs/${runId}/mode`, { mode, model });
 
-/** SSE with resume: EventSource cannot send headers, so the token rides the query. */
-export function streamRun(runId: string, sinceSeq: number, onEvent: (e: GuildEvent) => void) {
+/**
+ * SSE with resume: EventSource cannot send headers, so the token rides the query.
+ *
+ * Resume replays from the run's in-memory buffer, so it survives a dropped
+ * connection but NOT a console restart — the server answers 404 for a run this
+ * process no longer owns. `onFailure` is how that stops being silent.
+ */
+export function streamRun(
+  runId: string,
+  sinceSeq: number,
+  onEvent: (e: GuildEvent) => void,
+  onFailure?: () => void,
+) {
   const source = new EventSource(
     `/api/runs/${runId}/events?since=${sinceSeq}&token=${encodeURIComponent(token)}`,
   );
   source.onmessage = (message) => onEvent(JSON.parse(message.data) as GuildEvent);
+  // EventSource retries on its own while CONNECTING, so only CLOSED is final —
+  // shouting on every transient blip would train the user to ignore the message.
+  source.onerror = () => {
+    if (source.readyState === EventSource.CLOSED) onFailure?.();
+  };
   return () => source.close();
 }

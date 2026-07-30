@@ -338,12 +338,36 @@ freeform prompts are main-thread and do get question cards.
 | SDK or CLI missing / incompatible | diagnostic page, not a 500 |
 | `plugin_errors` non-empty, or `laravel-team` absent from `plugins` | red banner, run proceeds — fail loud, not fail closed |
 | `api_retry` event | surfaced on the card ("retrying, attempt 2/5") so it never looks hung |
-| SSE disconnect | reconnect with `Last-Event-ID`; server replays from the run jsonl |
+| SSE disconnect | reconnect with `Last-Event-ID`; server replays from the run's **in-memory buffer** — see below |
 | Server killed mid-run | SDK child process dies with it; on restart disk runs show `interrupted`, never a false `running` |
 | Interrupt while a prompt is pending | resolve that future with a deny **first**, then `client.interrupt()` — otherwise the loop parks behind an unanswerable card |
 | Two browser tabs | both subscribe; first answer wins, the second receives `prompt_resolved` and dismisses |
 | Browser closed while parked | run stays parked; reopening shows the bar again |
 | Port busy | increment until free |
+
+#### What SSE resume does and does not cover (corrected 2026-07-30)
+
+This table used to promise that a reconnect "replays from the run jsonl". It does
+not, and it should not: `subscribe()` replays from `run.buffer`, which is held in
+memory by the process that owns the run.
+
+- **Dropped connection, same process** — works as promised. `Last-Event-ID` (or
+  `?since=`) is honoured and the backlog is replayed from the buffer.
+- **After a console restart** — the run is not live in the new process, so
+  `/events` answers **404**, deliberately: `subscribe()` is a generator whose
+  `KeyError` would otherwise fire after a 200 and event-stream headers were
+  already on the wire, and EventSource treats a clean close of a successful
+  stream as "retry", looping forever on an empty 200.
+
+Replay from the jsonl does exist — it is `GET /api/runs/{id}`, which `snapshot()`
+serves from disk for exactly the runs this process does not own. Streaming a dead
+run's history over SSE and then closing would reintroduce that retry loop, so the
+two paths stay separate on purpose.
+
+The browser used to ignore the 404 entirely: the page just stopped updating,
+Launcher still disabled behind a run nobody was watching. `api.streamRun` now
+reports a stream that reaches `CLOSED` (not a transient retry) and the console
+says so and hands itself back.
 
 ---
 
