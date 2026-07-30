@@ -165,9 +165,11 @@ jobs:
       - name: Install
         working-directory: console-ui
         run: npm ci
-      - name: Typecheck + unit tests
+      # No explicit tsc here: `npm run build` below is `tsc --noEmit && vite
+      # build`, so typechecking already gates the bundle step.
+      - name: Unit tests
         working-directory: console-ui
-        run: npx tsc --noEmit && npx vitest run
+        run: npx vitest run
       - name: Built bundle is in sync with source
         working-directory: console-ui
         run: npm run build

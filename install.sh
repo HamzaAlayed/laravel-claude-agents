@@ -173,6 +173,10 @@ install_console() {
   fi
   mkdir -p "$dest"
   cp -R "$src/." "$dest/"
+  # Byte-compiled caches from running the console in THIS checkout are not part
+  # of the console: they carry absolute source paths and a python version that
+  # may not match the machine being installed onto.
+  find "$dest" -type d -name "__pycache__" -prune -exec rm -rf {} + 2>/dev/null || true
   echo "  console: installed -> $dest"
 }
 

@@ -157,9 +157,20 @@ still counts — a security ratchet must fail closed, so over-strict beats under
 `path:line:` prefix is stripped by position, not by regex, so a URL's `//` inside matched text cannot
 hide a real hit. Verified both ways on fixtures, for both comment styles.
 
-## 7. Small CI and hygiene items
+## 7. Small CI and hygiene items — mostly DONE 2026-07-30
 
-- `console-ui` job runs `npx tsc --noEmit` explicitly and again inside `npm run build`. Drop one.
+- ~~`console-ui` job runs `npx tsc --noEmit` explicitly and again inside `npm run build`. Drop one.~~
+  **Done** — the explicit one is gone; `npm run build` still typechecks before it bundles, so the gate
+  is unchanged.
+- ~~`.cursor-plugin/marketplace.json` stuck at `1.17.0`~~ — **done**, now `1.27.0`, and
+  `check_inventory_sync.py` fails the build if any manifest's declared version drifts from `VERSION`.
+  The check walks the JSON for `version` at any depth, because `plugin.json` declares it at the top
+  level while `marketplace.json` nests it under `plugins[]` — and a check that only looked where it
+  expected the field is how this drifted for ten releases. Verified by putting `1.17.0` back and
+  watching it fail.
+- ~~`install_console` copies `__pycache__` into installs~~ — **done.** This checkout carries one today,
+  so it was really shipping. The selector was verified to match only `__pycache__` directories, at any
+  depth, and nothing else.
 - **Bundle determinism, half verified (2026-07-30):** a clean-room worktree at `HEAD`, `npm ci` from
   the committed lockfile, reproduces the committed bundle *byte-for-byte* on node 26.5.0 — so the
   committed `dist/` is genuinely in sync with the committed source, and the gate is not already red.
