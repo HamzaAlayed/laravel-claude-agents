@@ -5,6 +5,104 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.28.0] - 2026-07-30
+
+The console v1.27.0 shipped did not work: `events.normalize` was written against
+the CLI's stream-json wire format while the Python SDK yields typed dataclasses
+with no `type` field, so every message normalized to nothing and the browser
+received **zero events** while 62/62 tests passed. This release is the first in
+which `/console` does what 1.27.0's entry claims, and the first in which its
+central promise — that a human sees every decision — is actually enforced.
+
+### Added
+
+- **Every Bash command now reaches the browser, including read-only ones.**
+  `can_use_tool` is not the first gate: Claude Code auto-allowed read-only Bash
+  before the callback ran, so `echo hello` produced `tool_use` → `tool_result`
+  with zero `prompt` events and nobody was asked. No SDK option or settings key
+  disables that — the SDK's own shadowing warning says to use a `PreToolUse`
+  hook, and that is the only layer which sees every call. The console registers
+  one in-process (`engine._make_pre_tool_use`, wrapped into a `HookMatcher` by
+  `serve.py` so `engine.py` stays free of `import claude_agent_sdk`) and returns
+  `permissionDecision: "ask"` for Bash, routing the call back through
+  `can_use_tool` — which already emits the `prompt` event the browser answers, so
+  the whole approval path is reused rather than duplicated. Verified against a
+  live run, not just units.
+- **"N ran unasked" on every lane and for the main thread.** A `tool_gate` event
+  now accompanies every tool call recording whether the browser was asked, so a
+  transcript can no longer be mistaken for an approval record. Non-Bash tools
+  allowed by a settings rule still run without an ask; they are now visible
+  rather than silent.
+- **"Allow always" keeps meaning something for Bash.** A hook `ask` outranks
+  allow rules, so the persisted `localSettings` rule would have been overridden
+  on the very next call. The run remembers exact `(Bash, command)` signatures and
+  the hook falls through for them — exact match, never a pattern.
+- **Mid-run permission-mode switch** in the console header, which the spec
+  claimed and only the API could do. Optimistic, and reverted if the API refuses.
+- **Attribution confidence.** `prompt` and `prompt_resolved` carry
+  `agent_confidence`; the approval bar says "Possibly Adam needs approval" for
+  the newest-open-lane fallback, and the board marks **no** card, keeping its
+  promise that a marked card is really the blocked one.
+- **The console UI is under test at last.** 22 mount tests drive a real `<App />`
+  with `fetch` and `EventSource` faked at the transport boundary, so `lib/api`,
+  the reducer, the submit gate and every component stay on the real path. 84
+  frontend tests (from 37), 105 console python tests (from 85).
+- **Four new guardrail ratchets** (104, from 100): the `PreToolUse` gate is
+  registered, Bash is still forced through the browser, the API token is compared
+  in constant time, and every manifest's declared version matches `VERSION` —
+  the last of which is why `.cursor-plugin/marketplace.json` can no longer sit
+  ten releases behind.
+
+### Changed
+
+- **A `git status` now parks a run.** Forcing read-only Bash through the browser
+  is the price of the promise and is deliberate; `/console`'s notes say so
+  plainly. Only Bash is forced — `Read`/`Grep`/`Glob` would park a routine run
+  dozens of times for no safety gain.
+- Tailwind no longer scans test files. Its scanner reads raw bytes, so
+  `static instances` in a fake and a comment about content being "hidden" added
+  `.static` and `.hidden` to the **shipped** stylesheet.
+- The console ratchets ignore comment-only lines, so the code can explain itself
+  without reddening the build. A trailing comment after real code still counts:
+  a security ratchet must fail closed.
+- CI no longer typechecks `console-ui` twice; `npm run build` already does it.
+- The spec's SSE-resume promise is corrected: resume replays from the run's
+  in-memory buffer, not the jsonl. Replay from disk is `GET /api/runs/{id}`, and
+  the two paths stay separate so a dead run's stream cannot loop EventSource.
+
+### Fixed
+
+- **The console emitted no events at all** — SDK dataclasses translated into the
+  wire format `normalize` reads (`_as_dict`, dispatching on class name so
+  `engine.py` needs no SDK import).
+- **A 36-second startup stall** before the tokenized URL appeared:
+  `HTTPServer.server_bind` calls `socket.getfqdn` purely to populate a CGI field.
+- **Approvals are a queue.** The UI modelled one pending prompt while the engine
+  held a dict, so with two parallel subagents one was parked forever, unnameable.
+- **One click resolves one decision.** The second click of a double-click landed
+  on the next prompt's "Allow once" in the same screen position — a silent
+  approval of something no human read.
+- **An errored run ends.** A run that died without a `result` read as live
+  forever, with the Launcher disabled and no way back short of reloading.
+- **A failed interrupt still ends the run** rather than wedging the console.
+- **A dead event stream says so.** A 404 for a run this process no longer owns
+  (a console restart) was ignored entirely: the page just stopped updating.
+- **A `connect()` failure reports itself** instead of leaving a run registered as
+  `running` forever with nothing on its stream.
+- The API token is compared with `secrets.compare_digest`; `==` exits at the
+  first mismatching byte.
+- A refused request drains its body. `protocol_version` is HTTP/1.1, so
+  connections are reused and an unread body was parsed as the beginning of the
+  next request on that connection.
+- The raw SDK message is recorded once per message, not once per event line.
+- Events route by `lane_id`, not agent slug: two subagents of the same kind
+  running in parallel each received the other's events.
+- The coordinator is the board's header, not a Working-column card —
+  `catalog.py` gave it `stage: None` for that reason and `?? "Working"` undid it.
+- `install_console` no longer copies `__pycache__` into installs.
+- Zombie runs, dropped SSE connections, and approval attribution now reported
+  from the prompt's own `tool_use_id` rather than guessed.
+
 ## [1.27.0] - 2026-07-30
 
 ### Added
