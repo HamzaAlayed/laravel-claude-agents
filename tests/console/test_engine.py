@@ -1,5 +1,6 @@
 import asyncio
 import dataclasses
+import json
 import pathlib
 import sys
 import tempfile
@@ -613,6 +614,80 @@ class TestPreToolUseGate(EngineTestCase):
         # An odd payload must degrade, not kill the agent loop.
         self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
         self.assertIsNone(self.decision(self.gate(None, None, tool_use_id=None)))
+
+
+class TestRunJsonlSize(EngineTestCase):
+    def test_the_raw_message_is_recorded_once_per_message_not_per_event(self):
+        """One SDK message can normalize to several events, and every line used to
+        carry a full copy of it -- so an Agent call (tool_use + agent_start) wrote
+        the whole message twice, and a multi-block assistant turn once per block."""
+        run_id = self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        self.run_coro(self.clients[0].push(
+            {"type": "assistant", "parent_tool_use_id": None,
+             "message": {"content": [
+                 {"type": "text", "text": "spawning"},
+                 {"type": "tool_use", "id": "t1", "name": "Agent",
+                  "input": {"subagent_type": "qa-engineer", "description": "work"}},
+             ]}}
+        ))
+        self.drain(run_id, ["text", "tool_use", "agent_start"])
+
+        path = self.root / ".claude" / "console" / "runs" / f"{run_id}.jsonl"
+        lines = [json.loads(line) for line in path.read_text().splitlines()]
+        self.assertEqual(len(lines), 3)
+        with_raw = [line for line in lines if line.get("raw")]
+        self.assertEqual(len(with_raw), 1, "raw should ride the first event only")
+        # Still recoverable: the message is on disk, once.
+        self.assertEqual(with_raw[0]["raw"]["type"], "assistant")
+
+
+class TestLaneScopedEvents(unittest.TestCase):
+    """Events were routed to a lane by agent SLUG, so two concurrent subagents of
+    the same kind (two backend-developers) both received every event either one
+    emitted. The lane's own tool_use_id is what disambiguates them."""
+
+    def setUp(self):
+        self.state = events.RunState("run_1")
+
+    def emit(self, raw):
+        return events.normalize(raw, self.state)
+
+    def spawn(self, tool_use_id, slug):
+        self.emit({"type": "assistant", "parent_tool_use_id": None,
+                   "message": {"content": [
+                       {"type": "tool_use", "id": tool_use_id, "name": "Agent",
+                        "input": {"subagent_type": slug, "description": "work"}}]}})
+
+    def test_a_subagent_event_names_the_lane_it_came_from(self):
+        self.spawn("t1", "backend-developer")
+        out = self.emit({"type": "assistant", "parent_tool_use_id": "t1",
+                         "message": {"content": [{"type": "text", "text": "hi"}]}})
+        self.assertEqual(out[0]["agent"], "backend-developer")
+        self.assertEqual(out[0]["lane_id"], "t1")
+
+    def test_two_lanes_of_the_same_kind_are_distinguishable(self):
+        self.spawn("t1", "backend-developer")
+        self.spawn("t2", "backend-developer")
+        first = self.emit({"type": "assistant", "parent_tool_use_id": "t1",
+                           "message": {"content": [{"type": "text", "text": "one"}]}})
+        second = self.emit({"type": "assistant", "parent_tool_use_id": "t2",
+                            "message": {"content": [{"type": "text", "text": "two"}]}})
+        self.assertEqual(first[0]["lane_id"], "t1")
+        self.assertEqual(second[0]["lane_id"], "t2")
+
+    def test_a_main_thread_event_belongs_to_no_lane(self):
+        out = self.emit({"type": "assistant", "parent_tool_use_id": None,
+                         "message": {"content": [{"type": "text", "text": "hi"}]}})
+        self.assertIsNone(out[0]["agent"])
+        self.assertIsNone(out[0]["lane_id"])
+
+    def test_a_tool_result_carries_its_lane_too(self):
+        self.spawn("t1", "backend-developer")
+        out = self.emit({"type": "user", "parent_tool_use_id": "t1",
+                         "message": {"content": [
+                             {"type": "tool_result", "tool_use_id": "x1",
+                              "is_error": False, "content": "ok"}]}})
+        self.assertEqual(out[0]["lane_id"], "t1")
 
 
 class _FakeHookContext:

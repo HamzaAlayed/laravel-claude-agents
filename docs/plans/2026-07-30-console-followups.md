@@ -211,9 +211,26 @@ hide a real hit. Verified both ways on fixtures, for both comment styles.
   pre-existing, unrelated to the console. All five other manifests read 1.27.0 and
   `check_inventory_sync` passes, because it never checks marketplace versions.
 - `install_console` copies `__pycache__` into installs.
-- `~24` further Minors are itemised in the branch's final review (non-constant-time token comparison,
-  undrained request body on 401, raw SDK message duplicated on every event line, same-slug lanes
-  double-receiving events, the coordinator rendered as a card).
+- The `~24` further Minors live in the branch's final review, which this doc does not reproduce — so
+  only the five it names could be acted on. **Four are fixed:**
+  - **Non-constant-time token comparison** — `==` exits at the first mismatching byte, leaking how much
+    of the token a caller guessed. Now `secrets.compare_digest`, with both sides encoded because it
+    rejects non-ASCII `str` and a caller controls that string. Reverting to `==` breaks no behavioural
+    test, so a ratchet pins it.
+  - **Undrained request body on 401** — `protocol_version` is HTTP/1.1, so connections are reused: an
+    unread body was parsed as the beginning of the *next* request on that connection. Demonstrated
+    before fixing — the follow-up request got a 400 — and now drained on both refusal paths.
+  - **Raw SDK message duplicated on every event line** — one message can normalize to several events
+    (an Agent call is `tool_use` + `agent_start`), and each line carried its own full copy. `raw` now
+    rides the first event only, and `_as_dict` runs once per message instead of once per event.
+  - **Same-slug lanes double-receiving events** — every event now carries `lane_id`, the tool_use_id of
+    the Agent call that opened its lane. The slug never was a lane identity: two backend-developers in
+    parallel share it, so both cards received everything either one emitted. The reducer keys on
+    `lane_id` and keeps slug matching only as the fallback for older jsonl.
+  - **The coordinator rendered as a card — NOT acted on.** `Board.tsx` says the coordinator is the
+    board's header rather than a card, but there is no header, and a `delivery-coordinator` spawned via
+    the Agent tool is genuinely an agent doing work. Without the review's reasoning I would be guessing
+    at the intent, and the current behaviour is defensible. Left alone deliberately.
 
 ## 8. Local scratch to clear — needs a human hand
 

@@ -25,6 +25,20 @@ export const isRunOver = (view: RunView): boolean =>
 const withLane = (lanes: Lane[], toolUseId: string, patch: Partial<Lane>): Lane[] =>
   lanes.map((lane) => (lane.toolUseId === toolUseId ? { ...lane, ...patch } : lane));
 
+/**
+ * Does this event belong to this lane?
+ *
+ * `lane_id` is the tool_use_id of the Agent call that opened the lane, so it
+ * identifies exactly one. The slug does not: two backend-developers running in
+ * parallel share it, and matching on it delivered each one's events to both
+ * cards. Slug matching survives only as the fallback for runs replayed from a
+ * jsonl written before `lane_id` existed.
+ */
+const belongsTo = (lane: Lane, event: GuildEvent): boolean =>
+  event.lane_id
+    ? lane.toolUseId === event.lane_id
+    : lane.slug === event.agent && lane.status === "running";
+
 export function reduce(view: RunView, event: GuildEvent): RunView {
   const next: RunView = { ...view, retry: event.type === "api_retry" ? view.retry : null };
 
@@ -120,9 +134,7 @@ export function reduce(view: RunView, event: GuildEvent): RunView {
       return {
         ...next,
         lanes: next.lanes.map((lane) =>
-          lane.slug === event.agent && lane.status === "running"
-            ? { ...lane, unasked: lane.unasked + 1 }
-            : lane,
+          belongsTo(lane, event) ? { ...lane, unasked: lane.unasked + 1 } : lane,
         ),
       };
     }
@@ -152,9 +164,7 @@ export function reduce(view: RunView, event: GuildEvent): RunView {
     default: {
       if (!event.agent) return { ...next, main: [...next.main, event] };
       const lanes = next.lanes.map((lane) =>
-        lane.slug === event.agent && lane.status === "running"
-          ? { ...lane, events: [...lane.events, event] }
-          : lane,
+        belongsTo(lane, event) ? { ...lane, events: [...lane.events, event] } : lane,
       );
       return { ...next, lanes };
     }

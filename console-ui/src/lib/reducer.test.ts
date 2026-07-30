@@ -82,6 +82,37 @@ describe("reduce", () => {
     expect(view.pending[0].agentConfidence).toBe("exact");
   });
 
+  // Two subagents of the SAME kind run in parallel all the time (two
+  // backend-developers on two stories). The slug cannot tell them apart, so
+  // routing by slug delivered each one's events to both cards.
+  it("routes an event to the lane that emitted it, not every lane of that kind", () => {
+    const view = play("command", [
+      ev({ type: "agent_start", agent: "backend-developer", task: "one", tool_use_id: "t1", lane_id: "t1" }),
+      ev({ type: "agent_start", agent: "backend-developer", task: "two", tool_use_id: "t2", lane_id: "t2" }),
+      ev({ type: "text", agent: "backend-developer", lane_id: "t1", text: "only mine" }),
+    ]);
+    expect(view.lanes[0].events.map((e) => e.text)).toEqual(["only mine"]);
+    expect(view.lanes[1].events).toHaveLength(0);
+  });
+
+  it("counts an unasked call against one lane only", () => {
+    const view = play("command", [
+      ev({ type: "agent_start", agent: "backend-developer", task: "one", tool_use_id: "t1", lane_id: "t1" }),
+      ev({ type: "agent_start", agent: "backend-developer", task: "two", tool_use_id: "t2", lane_id: "t2" }),
+      ev({ type: "tool_gate", agent: "backend-developer", lane_id: "t2", tool: "Read", asked: false }),
+    ]);
+    expect(view.lanes.map((lane) => lane.unasked)).toEqual([0, 1]);
+  });
+
+  it("still routes by slug when the event carries no lane_id", () => {
+    // Runs replayed from a jsonl written before lane_id existed.
+    const view = play("command", [
+      ev({ type: "agent_start", agent: "qa-engineer", task: "tests", tool_use_id: "t1" }),
+      ev({ type: "text", agent: "qa-engineer", text: "legacy" }),
+    ]);
+    expect(view.lanes[0].events).toHaveLength(1);
+  });
+
   it("opens a lane on agent_start", () => {
     const view = play("command", [
       ev({ type: "agent_start", agent: "backend-developer", task: "Add Action", tool_use_id: "t1" }),

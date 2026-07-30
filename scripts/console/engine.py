@@ -180,8 +180,14 @@ class RunManager:
     async def _pump(self, run: Run):
         try:
             async for message in run.client.receive_messages():
-                for event in events_mod.normalize(_as_dict(message), run.state):
-                    self._publish(run, event, raw=_as_dict(message))
+                # _as_dict once, not once per event -- and `raw` rides only the
+                # FIRST event of the message. One SDK message can normalize to
+                # several events (an Agent call is tool_use + agent_start; a
+                # multi-block turn is one per block), and every line used to carry
+                # its own full copy of the same message.
+                raw = _as_dict(message)
+                for index, event in enumerate(events_mod.normalize(raw, run.state)):
+                    self._publish(run, event, raw=raw if index == 0 else None)
         except Exception as exc:  # never let a dead client kill the loop
             self._publish(run, {
                 "seq": run.state.next_seq(), "run_id": run.run_id,

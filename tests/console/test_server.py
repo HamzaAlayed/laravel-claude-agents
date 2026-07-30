@@ -1,4 +1,5 @@
 import concurrent.futures
+import http.client
 import json
 import pathlib
 import socket
@@ -117,6 +118,36 @@ class TestServer(unittest.TestCase):
     def test_token_may_arrive_as_query_param(self):
         response = self.get(f"/api/catalog?token={TOKEN}", token=None)
         self.assertEqual(response.status, 200)
+
+    def test_a_rejected_post_does_not_poison_the_connection(self):
+        """protocol_version is HTTP/1.1, so connections are reused. A 401 that
+        never read the request body left it in the socket, and the NEXT request on
+        that connection was parsed starting from the leftover JSON."""
+        conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
+        try:
+            conn.request(
+                "POST", "/api/runs",
+                body=json.dumps({"kind": "prompt", "text": "x" * 500}),
+                headers={"Content-Type": "application/json", "X-Guild-Token": "nope"},
+            )
+            rejected = conn.getresponse()
+            rejected.read()
+            self.assertEqual(rejected.status, 401)
+
+            conn.request("GET", "/api/catalog", headers={"X-Guild-Token": TOKEN})
+            follow_up = conn.getresponse()
+            body = follow_up.read()
+            self.assertEqual(follow_up.status, 200)
+            self.assertIn(b"agents", body)
+        finally:
+            conn.close()
+
+    def test_a_non_ascii_token_is_refused_not_a_crash(self):
+        # secrets.compare_digest raises TypeError on a non-ASCII str, so the
+        # comparison has to encode first. A 500 here would leak that it crashed.
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            self.get("/api/catalog", token="café-très-long")
+        self.assertEqual(ctx.exception.code, 401)
 
     def test_cross_origin_is_403(self):
         with self.assertRaises(urllib.error.HTTPError) as ctx:

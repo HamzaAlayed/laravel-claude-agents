@@ -85,13 +85,22 @@ def normalize(raw: dict, state: RunState) -> list[dict]:
     return []
 
 
-def _event(state: RunState, type_: str, agent: str | None, **fields) -> dict:
+def _event(state: RunState, type_: str, agent: str | None, lane_id: str | None = None,
+           **fields) -> dict:
+    """One wire event.
+
+    `lane_id` is the tool_use_id of the Agent call that opened the lane this
+    event belongs to (None on the main thread). The slug in `agent` is NOT a lane
+    identity: two backend-developers running in parallel share it, and a consumer
+    routing by slug alone delivers each one's events to both.
+    """
     event = {
         "seq": state.next_seq(),
         "run_id": state.run_id,
         "ts": int(time.time() * 1000),
         "type": type_,
         "agent": agent,
+        "lane_id": lane_id,
     }
     event.update(fields)
     return event
@@ -128,21 +137,22 @@ def _assistant(raw: dict, state: RunState) -> list[dict]:
             continue
         btype = block.get("type")
         if btype == "text":
-            out.append(_event(state, "text", lane, text=block.get("text", "")))
+            out.append(_event(state, "text", lane, parent, text=block.get("text", "")))
         elif btype == "thinking":
-            out.append(_event(state, "thinking", lane, text=block.get("thinking", "")))
+            out.append(_event(state, "thinking", lane, parent, text=block.get("thinking", "")))
         elif btype == "tool_use":
-            out.extend(_tool_use(block, state, lane))
+            out.extend(_tool_use(block, state, lane, parent))
     return out
 
 
-def _tool_use(block: dict, state: RunState, lane: str | None) -> list[dict]:
+def _tool_use(block: dict, state: RunState, lane: str | None,
+              lane_id: str | None = None) -> list[dict]:
     tool_use_id = block.get("id") or ""
     name = block.get("name") or ""
     tool_input = block.get("input") or {}
     if tool_use_id:
         state.lane_by_tool_use[tool_use_id] = lane
-    out = [_event(state, "tool_use", lane,
+    out = [_event(state, "tool_use", lane, lane_id,
                   tool=name,
                   tool_use_id=tool_use_id,
                   input=tool_input)]
@@ -150,7 +160,9 @@ def _tool_use(block: dict, state: RunState, lane: str | None) -> list[dict]:
         spawned = _strip_namespace(str(tool_input.get("subagent_type") or "unknown"))
         state.agent_by_tool_use[tool_use_id] = spawned
         state.open_lanes[tool_use_id] = spawned
-        out.append(_event(state, "agent_start", spawned,
+        # agent_start's lane_id is the lane it OPENS, not the one that spawned it:
+        # this is the event the consumer keys its new lane on.
+        out.append(_event(state, "agent_start", spawned, tool_use_id,
                           tool_use_id=tool_use_id,
                           task=tool_input.get("description") or "",
                           model=tool_input.get("model"),
@@ -167,13 +179,15 @@ def _user(raw: dict, state: RunState) -> list[dict]:
         if not isinstance(block, dict) or block.get("type") != "tool_result":
             continue
         tool_use_id = block.get("tool_use_id") or ""
-        out.append(_event(state, "tool_result", lane,
+        out.append(_event(state, "tool_result", lane, parent,
                           tool_use_id=tool_use_id,
                           is_error=bool(block.get("is_error")),
                           content=block.get("content")))
         if tool_use_id in state.open_lanes:
             state.open_lanes.pop(tool_use_id, None)
+            # Closes the lane this result belongs to, so lane_id is that lane.
             out.append(_event(state, "agent_end", state.agent_by_tool_use.get(tool_use_id),
+                              tool_use_id,
                               tool_use_id=tool_use_id,
                               is_error=bool(block.get("is_error"))))
     return out

@@ -368,6 +368,12 @@ expect "console API is token-guarded" "1" \
   "$(grep -q 'X-Guild-Token' "$SCRIPT_DIR"/scripts/console/server.py && echo 1 || echo 0)"
 expect "console rejects non-local Origin" "1" \
   "$(grep -q 'LOCAL_ORIGIN' "$SCRIPT_DIR"/scripts/console/server.py && echo 1 || echo 0)"
+# `==` on the token exits at the first mismatching byte, which leaks how much of
+# it a caller guessed. Reverting to `==` breaks no behavioural test -- both forms
+# reject a wrong token -- so this is the only thing that would notice.
+expect "console compares the token in constant time" "1" \
+  "$(sed 's/#.*//' "$SCRIPT_DIR"/scripts/console/server.py \
+     | grep -cE 'secrets\.compare_digest\(')"
 # SandboxSettings.autoAllowBashIfSandboxed defaults to True, which auto-decides
 # sandboxed Bash calls INSIDE the CLI: can_use_tool never fires, no `prompt`
 # event is emitted, and the spec's "every non-preapproved call reaches the

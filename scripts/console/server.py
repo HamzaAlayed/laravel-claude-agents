@@ -13,6 +13,7 @@ import json
 import mimetypes
 import posixpath
 import re
+import secrets
 import socketserver
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -62,7 +63,37 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
 
         def _token_ok(self, query: dict) -> bool:
             supplied = self.headers.get("X-Guild-Token") or (query.get("token") or [None])[0]
-            return supplied == token
+            if supplied is None:
+                return False
+            # compare_digest, not `==`: a byte-by-byte comparison that exits on
+            # the first mismatch leaks how much of the token the caller guessed.
+            # Both sides are encoded first because compare_digest rejects
+            # non-ASCII str outright, and a caller controls this string.
+            try:
+                return secrets.compare_digest(supplied.encode("utf-8"), token.encode("utf-8"))
+            except (AttributeError, UnicodeError):
+                return False
+
+        def _content_length(self) -> int:
+            try:
+                return max(0, int(self.headers.get("Content-Length") or 0))
+            except ValueError:
+                return 0
+
+        def _drain(self):
+            """Read and discard the request body.
+
+            protocol_version is HTTP/1.1, so this connection is reused: a body
+            left unread is parsed as the beginning of the NEXT request on it, and
+            the caller gets an inexplicable 400 for a well-formed request.
+            Refusing a request is not a reason to skip reading it.
+            """
+            remaining = self._content_length()
+            while remaining > 0:
+                chunk = self.rfile.read(min(remaining, 65536))
+                if not chunk:
+                    return
+                remaining -= len(chunk)
 
         def _json(self, status: int, payload: dict):
             body = json.dumps(payload).encode()
@@ -73,7 +104,7 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
             self.wfile.write(body)
 
         def _read_body(self) -> dict:
-            length = int(self.headers.get("Content-Length") or 0)
+            length = self._content_length()
             if not length:
                 return {}
             try:
@@ -83,9 +114,11 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
 
         def _guard(self, query: dict) -> bool:
             if not self._origin_ok():
+                self._drain()
                 self._json(403, {"error": "cross-origin requests are refused"})
                 return False
             if not self._token_ok(query):
+                self._drain()
                 self._json(401, {"error": "missing or invalid token"})
                 return False
             return True
