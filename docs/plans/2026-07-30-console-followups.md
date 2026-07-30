@@ -11,11 +11,24 @@ frontend, 103 guardrail. Every fix was mutation-verified — each new test was w
 deliberately broken version of the behaviour it claims to protect, because tests written against code
 that already exists prove nothing by passing.
 
+**Item 1's end-to-end check has now been run** — the one measurement that matters, against a real SDK
+run over the real HTTP/SSE API (same method as
+[the smoke test](../evals/2026-07-30-console-smoke.md)). `echo hello`, the exact command that used to
+produce `tool_use` → `tool_result` with **zero** `prompt` events:
+
+```
+init → tool_use Bash → tool_gate Bash asked=True → prompt Bash
+     → (answered allow) → prompt_resolved → tool_result → text → result
+
+prompt input: {"command": "echo hello", "description": "Echo hello"}
+agent=None  agent_confidence='exact'
+```
+
+One `tool_gate`, `asked=True`, and a `prompt` the browser answered. Item 4's confidence field is
+visible in the same trace, on the main-thread path where `None` is a fact rather than a guess.
+
 Still open, and each one says so in place:
 
-- **Item 1's end-to-end check** — that `echo hello` really does park a live run in the browser. The
-  spec asks for it explicitly and it has not been run; everything below it is unit, mount, and
-  real-SDK-construction evidence.
 - **Item 5's abandon route** — not built, on purpose. See the reasoning there.
 - **Item 7's node-22 bundle reproducibility**, and the ~24 minors from the branch's final review, which
   this doc does not reproduce.
