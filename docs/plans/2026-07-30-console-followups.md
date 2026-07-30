@@ -27,12 +27,15 @@ agent=None  agent_confidence='exact'
 One `tool_gate`, `asked=True`, and a `prompt` the browser answered. Item 4's confidence field is
 visible in the same trace, on the main-thread path where `None` is a fact rather than a guess.
 
-Still open, and each one says so in place:
+**Everything on this list is now closed**, released as v1.28.0 (`60395e7`, tagged), after the branch
+merged via PR #2. Two things were deliberately *not* built rather than left undone, and both say so in
+place: item 5's abandon route, and item 7's fifth minor (the coordinator card — which was then fixed
+once `catalog.py` turned out to state the intent outright).
 
-- **Item 5's abandon route** — not built, on purpose. See the reasoning there.
-- **Item 7's node-22 bundle reproducibility**, and the ~24 minors from the branch's final review, which
-  this doc does not reproduce.
-- **Item 8** — needs a `rm -rf` no agent is permitted to run.
+The only genuinely unrecoverable item: the **~19 unnamed minors** from the branch's final review. This
+doc only ever named five, all five are handled, and the review itself is gone. A full pass over the
+console surface found one further substantive defect and two knowingly-left trivia — recorded under
+item 7 — so that line is closed rather than left open forever.
 
 Ordered by what I'd do first, not by what is left.
 
@@ -199,11 +202,18 @@ hide a real hit. Verified both ways on fixtures, for both comment styles.
 - ~~`install_console` copies `__pycache__` into installs~~ — **done.** This checkout carries one today,
   so it was really shipping. The selector was verified to match only `__pycache__` directories, at any
   depth, and nothing else.
-- **Bundle determinism, half verified (2026-07-30):** a clean-room worktree at `HEAD`, `npm ci` from
-  the committed lockfile, reproduces the committed bundle *byte-for-byte* on node 26.5.0 — so the
-  committed `dist/` is genuinely in sync with the committed source, and the gate is not already red.
-  **CI's node 22 is still unverified** (the docker run to check it was not permitted); if the gate
-  fails on the first CI run, pin CI's node rather than rebuild-and-commit blindly.
+- **Bundle determinism — VERIFIED on both toolchains (2026-07-30).** A clean-room worktree at `HEAD`,
+  `npm ci` from the committed lockfile, reproduces the committed bundle *byte-for-byte* on node 26.5.0.
+  CI then did the other half for free: the `console ui` job builds on **node 22** and its
+  `Fail if dist/ is stale` step passed on the v1.28.0 release commit. Both versions agree, so the
+  committed `dist/` is genuinely in sync with the committed source.
+
+  Worth noting that this never needed the docker run I was blocked on — the `dist/` gate answers it on
+  every push, at zero cost. **But nothing declares the blessed build toolchain**: it works only because
+  22 and 26 happen to agree. If that gate ever fails on a clean checkout, do *not* rebuild-and-commit on
+  whatever node is installed — that trades one toolchain's output for another's and the next
+  contributor flips it back. Add an `.nvmrc` (or a `volta` / `engines` pin) and have CI's `setup-node`
+  read it, so exactly one node version is blessed for producing `scripts/console/dist`.
   Worth knowing before debugging that gate: the entry chunk's hash covers the CSS asset it imports, so
   a Tailwind-only change renames `index-*.js` while its bytes are identical. A changed JS filename is
   therefore not evidence that any JS changed.
