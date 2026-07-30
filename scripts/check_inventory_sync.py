@@ -11,13 +11,14 @@ Exit 1 on any mismatch, or when a claim phrase disappears entirely (a reworded
 claim must update this checker in the same change). Stdlib only.
 """
 
+import json
 import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 
-GEMINI_SKIPPED_COMMANDS = {"board.md"}  # kept in sync with build-gemini-extension.py
+GEMINI_SKIPPED_COMMANDS = {"board.md", "console.md"}  # kept in sync with build-gemini-extension.py
 OBSERVER_HOOKS = {"emit-agent-events.sh"}  # wired in hooks.json but not a guardrail
 
 WORDS = {w: i for i, w in enumerate(
@@ -78,9 +79,55 @@ CLAIMS = [
 ]
 
 
+# Manifests whose declared version must equal VERSION. `.cursor-plugin/
+# marketplace.json` sat at 1.17.0 for ten releases because nothing checked it:
+# the release sed listed the files by hand and this one fell off the list.
+VERSIONED = [
+    ".claude-plugin/plugin.json",
+    ".claude-plugin/marketplace.json",
+    ".cursor-plugin/plugin.json",
+    ".cursor-plugin/marketplace.json",
+    "gemini/gemini-extension.json",
+]
+
+
+def _versions(node):
+    """Every `version` string in a manifest, at any nesting depth.
+
+    Walked rather than indexed because plugin.json declares it at the top level
+    while marketplace.json nests it under `plugins[]` — and a check that only
+    looked where it expected the field is how this drifted in the first place.
+    """
+    if isinstance(node, dict):
+        for key, value in node.items():
+            if key == "version" and isinstance(value, str):
+                yield value
+            else:
+                yield from _versions(value)
+    elif isinstance(node, list):
+        for item in node:
+            yield from _versions(item)
+
+
+def check_versions(expected: str) -> int:
+    fail = 0
+    for rel in VERSIONED:
+        found = list(_versions(json.loads((ROOT / rel).read_text(encoding="utf-8"))))
+        if not found:
+            print(f"::error file={rel}::no version field found — moved or renamed? "
+                  f"update scripts/check_inventory_sync.py in the same commit")
+            fail = 1
+        for value in found:
+            if value != expected:
+                print(f"::error file={rel}::declares version {value}, VERSION says {expected}")
+                fail = 1
+    return fail
+
+
 def main() -> int:
     counts = actuals()
-    fail = 0
+    version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
+    fail = check_versions(version)
     for rel, label, pattern, key in CLAIMS:
         text = (ROOT / rel).read_text(encoding="utf-8")
         matches = re.findall(pattern, text)
@@ -95,7 +142,7 @@ def main() -> int:
                 print(f"::error file={rel}::{label} claims {claimed}, disk says {counts[key]}")
                 fail = 1
     if fail == 0:
-        print("ok: inventory claims match disk — " +
+        print(f"ok: every manifest declares {version}; inventory claims match disk — " +
               ", ".join(f"{k}={v}" for k, v in counts.items()))
     return fail
 

@@ -43,7 +43,8 @@ Every agent now knows what "good" looks like in a Laravel codebase. Reviewers re
     ├── upgrade-laravel.md        # Staged Laravel version-upgrade plan
     ├── teach.md                  # Record a user-taught rule all agents apply from then on
     ├── team-hygiene.md           # Consolidate docs/team/ — dupes, conflicts, stale facts
-    └── board.md                  # Open the live agents dashboard (serves board.html)
+    ├── board.md                  # Open the live agents dashboard (serves board.html)
+    └── console.md                # Open the Guild web console (React board, approvals, interrupt)
 
 scripts/
 ├── block-prod-destructive-sql.sh # Block DROP/TRUNCATE/unscoped DELETE/UPDATE
@@ -167,6 +168,7 @@ Each is a thin orchestrator that hands work to the right specialist agent.
 | `/upgrade-laravel <target-version>`       | Inventories breaking changes + first-party package compat, produces a staged upgrade plan with a verify checkpoint per stage.                  |
 | `/teach <rule>`                           | Records a rule/preference in `docs/team/conventions.md` — every agent reads it before starting and applies it as an override. No args → harvests this session's corrections. Facts (commands, paths) carry a **Verify** command so they can't go silently stale. |
 | `/board [port]`                           | Opens the live agents dashboard — serves `.claude/board.html` over localhost; running agents pulse with a live timer, finished ones show duration + tokens. Fed by the `emit-agent-events` hook. |
+| `/console [port]`                         | Opens the Guild web console — a browser UI that launches runs (command, specialist, or freeform), streams every agent onto a pipeline board, and surfaces approvals and checkpoint questions as real UI. Claude Code only. |
 
 ---
 
@@ -250,7 +252,7 @@ Add the marketplace once, then install the plugin:
 /plugin install laravel-team@laravel-claude-agents
 ```
 
-That registers all 17 agents, the 12 slash commands, the `laravel-conventions` skill, and the five guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
+That registers all 17 agents, the 13 slash commands, the `laravel-conventions` skill, and the five guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
 
 ```
 /plugin install laravel-team@laravel-claude-agents --scope project

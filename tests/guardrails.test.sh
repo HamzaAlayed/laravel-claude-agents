@@ -329,6 +329,75 @@ expect "the rubric judge never alters the case verdict" "0" \
   "$(sed -n '/^judge_case()/,/^}/p' "$EVAL_SH" \
      | grep -cE '(^|[^_[:alnum:]])(CHECK_PASS|CHECK_FAIL|verdict)=')"
 
+echo "console (static ratchets)"
+
+# console_hits <token> <file-or-dir>... -> count of matching NON-COMMENT lines.
+#
+# These ratchets used to match raw bytes, which punished the code for explaining
+# itself: a comment reading "never offer bypassPermissions" reddened the build,
+# and the cheapest way to green it was to delete the explanation. Comment-ONLY
+# lines are dropped (`//`, `*`, `/*`, `#`). A trailing comment after real code
+# still counts: a security ratchet must fail closed, so over-strict beats
+# under-strict. The `path:line:` prefix is removed by position rather than by
+# regex, so a URL's `//` inside the matched text cannot hide a real hit.
+console_hits() {
+  local token="$1"
+  shift
+  { grep -rn "$token" "$@" 2>/dev/null || true; } \
+    | awk '{ line = $0
+             sub(/^[^:]*:[0-9]+:/, "", line)
+             sub(/^[[:space:]]+/, "", line)
+             if (line !~ /^(\/\/|\*|\/\*|#)/) print }' \
+    | wc -l | tr -d ' '
+}
+
+# bypassPermissions is inherited by subagents and cannot be overridden per
+# subagent — offering it in the UI would grant 17 agents unattended access.
+# Checked against dist/ (the built, installed bundle) and console-ui/src (the
+# source, repo-side only) so the assertion still has evidence post-install.
+expect "console never offers bypassPermissions" "0" \
+  "$(console_hits 'bypassPermissions' "$SCRIPT_DIR"/scripts/console/dist "$SCRIPT_DIR"/console-ui/src)"
+# dontAsk denies AskUserQuestion, which is how checkpoint prompts arrive.
+expect "console never selects dontAsk" "0" \
+  "$(console_hits 'dontAsk' "$SCRIPT_DIR"/scripts/console/dist "$SCRIPT_DIR"/console-ui/src)"
+expect "console server binds loopback only" "1" \
+  "$(grep -q 'make_server("127\.0\.0\.1"' "$SCRIPT_DIR"/scripts/console/serve.py && echo 1 || echo 0)"
+expect "console never binds a public interface" "0" \
+  "$(console_hits '0\.0\.0\.0' "$SCRIPT_DIR"/scripts/console/serve.py "$SCRIPT_DIR"/scripts/console/server.py)"
+expect "console API is token-guarded" "1" \
+  "$(grep -q 'X-Guild-Token' "$SCRIPT_DIR"/scripts/console/server.py && echo 1 || echo 0)"
+expect "console rejects non-local Origin" "1" \
+  "$(grep -q 'LOCAL_ORIGIN' "$SCRIPT_DIR"/scripts/console/server.py && echo 1 || echo 0)"
+# `==` on the token exits at the first mismatching byte, which leaks how much of
+# it a caller guessed. Reverting to `==` breaks no behavioural test -- both forms
+# reject a wrong token -- so this is the only thing that would notice.
+expect "console compares the token in constant time" "1" \
+  "$(sed 's/#.*//' "$SCRIPT_DIR"/scripts/console/server.py \
+     | grep -cE 'secrets\.compare_digest\(')"
+# SandboxSettings.autoAllowBashIfSandboxed defaults to True, which auto-decides
+# sandboxed Bash calls INSIDE the CLI: can_use_tool never fires, no `prompt`
+# event is emitted, and the spec's "every non-preapproved call reaches the
+# browser" stops being true. Comments are stripped first so the explanation
+# above cannot satisfy the ratchet on its own.
+expect "console disables the SDK's sandboxed-bash auto-approval" "1" \
+  "$(sed 's/#.*//' "$SCRIPT_DIR"/scripts/console/serve.py \
+     | grep -cE 'sandbox=\{"autoAllowBashIfSandboxed": False\}')"
+# The other half: read-only Bash (READ_ONLY_AUTO_ALLOW_REASON) is auto-allowed
+# before can_use_tool runs and NO setting disables it. A PreToolUse hook is the
+# only layer that sees every call, so dropping this registration silently
+# reopens the hole. Comments stripped first, as above.
+expect "console registers the PreToolUse gate" "1" \
+  "$(sed 's/#.*//' "$SCRIPT_DIR"/scripts/console/serve.py \
+     | grep -cE 'hooks=\{"PreToolUse": \[HookMatcher\(')"
+expect "console still forces Bash through the browser" "1" \
+  "$(sed 's/#.*//' "$SCRIPT_DIR"/scripts/console/engine.py \
+     | grep -cE '^ASK_ALWAYS_TOOLS = \("Bash",\)')"
+expect "console bundle is committed" "1" \
+  "$([ -f "$SCRIPT_DIR/scripts/console/dist/index.html" ] && echo 1 || echo 0)"
+# The board and its observer are deliberately untouched by the console work.
+expect "emit-agent-events.sh still wired three ways" "3" \
+  "$(grep -c 'emit-agent-events.sh' "$SCRIPT_DIR/hooks/hooks.json" | tr -d ' ')"
+
 echo
 echo "----------------------------------------"
 printf 'total: %d passed, %d failed\n' "$PASS" "$FAIL"

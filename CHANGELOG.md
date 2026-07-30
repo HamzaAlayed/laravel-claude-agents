@@ -5,6 +5,39 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.27.0] - 2026-07-30
+
+### Added
+
+- **The Guild web console — `/console [port]`.** A browser UI (React,
+  `console-ui/`) that launches runs — a slash command, a named specialist, or a
+  freeform task — streams every agent onto a live pipeline board, and surfaces
+  approvals and checkpoint questions as real UI instead of terminal text.
+  Backed by a stdlib `http.server` + Claude Agent SDK bridge
+  (`scripts/console/`), served on loopback only, guarded by a per-start token
+  (`X-Guild-Token`) and an Origin allowlist. The built bundle is committed
+  under `scripts/console/dist/` so installing users need no Node toolchain.
+  Claude Code only — it drives the Claude Agent SDK, which the other runtimes
+  don't ship. This is the 13th slash command; the installer now recurses
+  `scripts/console/` (a tree `install_dir` would otherwise skip).
+- **Two new CI jobs.** `console-python` runs the stdlib `unittest` suite under
+  `tests/console/` (no SDK required); `console-ui` typechecks, unit-tests, and
+  rebuilds the React app, then fails if `scripts/console/dist/` drifts from
+  source — the same staleness guard the Gemini/Codex mirrors already have.
+- **Eight new guardrail ratchets** (100 tests, from 92): the console never
+  offers `bypassPermissions` or `dontAsk` as a selectable permission mode, the
+  server binds `127.0.0.1` only and never `0.0.0.0`, its API is
+  token-guarded and rejects a non-local `Origin`, the built bundle stays
+  committed, and `emit-agent-events.sh` (the board's observer, deliberately
+  untouched by this work) is still wired three ways in `hooks/hooks.json`.
+
+### Changed
+
+- Command count is 13 everywhere it's claimed (four manifests + README); the
+  Gemini command count stays 11 (13 minus `board.md` and the newly-skipped
+  `console.md` — Gemini has no Agent SDK to drive it), so no Gemini-facing
+  claim moved.
+
 ## [1.26.0] - 2026-07-29
 
 Five published sources on agent design read end to end and audited against the
