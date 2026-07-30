@@ -436,6 +436,129 @@ class TestPromptAttribution(EngineTestCase):
         second.result(timeout=5)
 
 
+class TestPreToolUseGate(EngineTestCase):
+    """can_use_tool is NOT the first gate: Claude Code auto-allows read-only Bash
+    before the callback runs, so no `prompt` event was emitted and the browser was
+    never asked. `echo hello` just ran. No SDK option or settings key disables
+    that -- a PreToolUse hook is the only layer that sees every call, which the
+    SDK's own shadowing warning says in as many words.
+
+    The hook forces Bash back through can_use_tool and reports every other call
+    as having run unasked.
+    """
+
+    def gate(self, tool_name="Bash", tool_input=None, tool_use_id="tu_1"):
+        """Invoke the registered PreToolUse hook the way the SDK would."""
+        hook = self.clients[0].options["pre_tool_use"]
+        payload = {
+            "hook_event_name": "PreToolUse",
+            "tool_name": tool_name,
+            "tool_input": tool_input if tool_input is not None else {"command": "ls"},
+            "tool_use_id": tool_use_id,
+        }
+        return self.run_coro(hook(payload, tool_use_id, _FakeHookContext()))
+
+    @staticmethod
+    def decision(output):
+        return (output or {}).get("hookSpecificOutput", {}).get("permissionDecision")
+
+    def test_bash_is_forced_back_through_the_browser(self):
+        self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        output = self.gate("Bash", {"command": "echo hello"})
+        self.assertEqual(self.decision(output), "ask")
+
+    def test_the_ask_carries_a_reason_for_the_sheet_to_show(self):
+        # The SDK forwards permissionDecisionReason to
+        # ToolPermissionContext.decision_reason, i.e. into the same can_use_tool
+        # call the console turns into a `prompt` event.
+        self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        output = self.gate("Bash", {"command": "echo hello"})
+        reason = output["hookSpecificOutput"]["permissionDecisionReason"]
+        self.assertIn("Bash", reason)
+
+    def test_other_tools_fall_through_untouched(self):
+        # Read/Grep/Glob auto-allowing is not a safety story worth parking a run
+        # for. No decision at all: permission rules and mode decide as before.
+        self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        for tool in ("Read", "Grep", "Glob", "Edit", "AskUserQuestion"):
+            self.assertIsNone(self.decision(self.gate(tool, {})), tool)
+
+    def test_every_call_reports_whether_it_was_asked_about(self):
+        run_id = self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        self.gate("Bash", {"command": "ls"}, tool_use_id="tu_bash")
+        self.gate("Read", {"file_path": "/x"}, tool_use_id="tu_read")
+        events = self.drain(run_id, ["tool_gate", "tool_gate"])
+        self.assertEqual(
+            [(e["tool"], e["tool_use_id"], e["asked"]) for e in events],
+            [("Bash", "tu_bash", True), ("Read", "tu_read", False)],
+        )
+
+    def test_the_gate_event_names_the_lane_that_made_the_call(self):
+        run_id = self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        self.run_coro(self.clients[0].push(
+            {"type": "assistant", "parent_tool_use_id": None,
+             "message": {"content": [{"type": "tool_use", "id": "t1", "name": "Agent",
+                                      "input": {"subagent_type": "qa-engineer",
+                                                "description": "work"}}]}}
+        ))
+        self.run_coro(self.clients[0].push(
+            {"type": "assistant", "parent_tool_use_id": "t1",
+             "message": {"content": [{"type": "tool_use", "id": "tb1", "name": "Bash",
+                                      "input": {"command": "ls"}}]}}
+        ))
+        self.drain(run_id, ["tool_use", "agent_start", "tool_use"])
+        self.gate("Bash", {"command": "ls"}, tool_use_id="tb1")
+        events = self.drain(
+            run_id, ["tool_use", "agent_start", "tool_use", "tool_gate"])
+        self.assertEqual(events[-1]["agent"], "qa-engineer")
+
+    def test_allow_always_stops_the_hook_asking_again_this_run(self):
+        """A hook `ask` outranks allow rules, so without this "Allow always"
+        would persist a settings rule and then be overridden on the very next
+        call -- a button that quietly lies."""
+        run_id = self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        pending = self.mgr.submit(self.clients[0].can_use_tool(
+            "Bash", {"command": "git status"}, _FakeContext(tool_use_id="tb1")))
+        prompt = self.drain(run_id, ["prompt"])[0]
+        self.mgr.answer(run_id, prompt["prompt_id"],
+                        {"behavior": "allow", "remember": True})
+        pending.result(timeout=5)
+
+        self.assertIsNone(self.decision(self.gate("Bash", {"command": "git status"})))
+
+    def test_a_different_command_is_still_asked_about(self):
+        run_id = self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        pending = self.mgr.submit(self.clients[0].can_use_tool(
+            "Bash", {"command": "git status"}, _FakeContext(tool_use_id="tb1")))
+        prompt = self.drain(run_id, ["prompt"])[0]
+        self.mgr.answer(run_id, prompt["prompt_id"],
+                        {"behavior": "allow", "remember": True})
+        pending.result(timeout=5)
+
+        self.assertEqual(self.decision(self.gate("Bash", {"command": "rm -rf /"})), "ask")
+
+    def test_allow_once_does_not_stop_the_next_ask(self):
+        run_id = self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        pending = self.mgr.submit(self.clients[0].can_use_tool(
+            "Bash", {"command": "git status"}, _FakeContext(tool_use_id="tb1")))
+        prompt = self.drain(run_id, ["prompt"])[0]
+        self.mgr.answer(run_id, prompt["prompt_id"], {"behavior": "allow"})
+        pending.result(timeout=5)
+
+        self.assertEqual(self.decision(self.gate("Bash", {"command": "git status"})), "ask")
+
+    def test_a_malformed_hook_payload_never_breaks_the_run(self):
+        # This sits between a third-party library and the whole event pipeline.
+        # An odd payload must degrade, not kill the agent loop.
+        self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        self.assertIsNone(self.decision(self.gate(None, None, tool_use_id=None)))
+
+
+class _FakeHookContext:
+    """Stands in for the SDK's HookContext (a placeholder type carrying an abort
+    signal; the console reads nothing off it)."""
+
+
 class _FakeContext:
     """Stands in for the SDK's ToolPermissionContext. `tool_use_id` (the id of
     the call being asked about) and `agent_id` (None on the main thread) are

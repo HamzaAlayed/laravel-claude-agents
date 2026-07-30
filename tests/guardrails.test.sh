@@ -355,6 +355,16 @@ expect "console rejects non-local Origin" "1" \
 expect "console disables the SDK's sandboxed-bash auto-approval" "1" \
   "$(sed 's/#.*//' "$SCRIPT_DIR"/scripts/console/serve.py \
      | grep -cE 'sandbox=\{"autoAllowBashIfSandboxed": False\}')"
+# The other half: read-only Bash (READ_ONLY_AUTO_ALLOW_REASON) is auto-allowed
+# before can_use_tool runs and NO setting disables it. A PreToolUse hook is the
+# only layer that sees every call, so dropping this registration silently
+# reopens the hole. Comments stripped first, as above.
+expect "console registers the PreToolUse gate" "1" \
+  "$(sed 's/#.*//' "$SCRIPT_DIR"/scripts/console/serve.py \
+     | grep -cE 'hooks=\{"PreToolUse": \[HookMatcher\(')"
+expect "console still forces Bash through the browser" "1" \
+  "$(sed 's/#.*//' "$SCRIPT_DIR"/scripts/console/engine.py \
+     | grep -cE '^ASK_ALWAYS_TOOLS = \("Bash",\)')"
 expect "console bundle is committed" "1" \
   "$([ -f "$SCRIPT_DIR/scripts/console/dist/index.html" ] && echo 1 || echo 0)"
 # The board and its observer are deliberately untouched by the console work.

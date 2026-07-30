@@ -41,6 +41,18 @@ ALLOWED_MODES = ("default", "acceptEdits", "plan")
 FORBIDDEN_MODES = ("bypassPermissions", "dontAsk", "auto")
 SENTINEL = object()
 
+# Tools whose calls must reach the browser even when Claude Code would decide
+# them itself. can_use_tool is NOT the first gate: read-only Bash commands are
+# auto-allowed before the callback runs, so `echo hello` produced no `prompt`
+# event and nobody was asked. No SDK option or settings key disables that -- a
+# PreToolUse hook is the only layer that sees every call, which the SDK's own
+# shadowing warning says outright ("To gate every tool call, use a PreToolUse
+# hook instead"). Bash is the whole of the remaining hole and the only tool here
+# that can do damage; forcing Read/Grep/Glob through the browser would park a
+# routine run dozens of times for no safety gain.
+ASK_ALWAYS_TOOLS = ("Bash",)
+ASK_REASON = "The console asks about every Bash call, including read-only ones."
+
 # Wall-clock cap for the answer() round trip to the engine loop. Answering a
 # prompt is a single non-suspending coroutine step, so it is effectively
 # instantaneous once scheduled; this only guards against a wedged/closed loop.
@@ -78,6 +90,10 @@ class Run:
         self.buffer: list[dict] = []
         self.subscribers: list[queue.SimpleQueue] = []
         self.pending: dict[str, asyncio.Future] = {}
+        # (tool, exact command) pairs the user chose "Allow always" for. A hook
+        # `ask` outranks allow rules, so without this the button would persist a
+        # settings rule and then be overridden on the very next matching call.
+        self.remembered: set[tuple[str, str]] = set()
         self.status = "running"
         self.started_at = int(time.time() * 1000)
         self.lock = threading.Lock()
@@ -124,6 +140,7 @@ class RunManager:
             "cwd": str(self.root),
             "permission_mode": mode,
             "can_use_tool": self._make_can_use_tool(run),
+            "pre_tool_use": self._make_pre_tool_use(run),
         }
         if spec.get("model"):
             options["model"] = spec["model"]
@@ -225,6 +242,54 @@ class RunManager:
             return None
         return run.state.newest_open_lane()
 
+    def _make_pre_tool_use(self, run: Run):
+        """The PreToolUse hook: the only layer that sees every tool call.
+
+        Two jobs, and deliberately no more. It forces the tools in
+        ASK_ALWAYS_TOOLS back through `can_use_tool` -- which is what emits the
+        `prompt` event the browser already knows how to answer, so the whole
+        approval path is reused rather than duplicated -- and it publishes a
+        `tool_gate` event for EVERY call recording whether the browser was asked,
+        so a transcript stops implying that every call was approved.
+
+        Returning `{}` is not "allow": it is no decision at all, leaving
+        permission rules and the run's mode to decide exactly as before.
+        """
+        async def pre_tool_use(payload, tool_use_id, context):
+            data = payload if isinstance(payload, dict) else {}
+            tool_name = data.get("tool_name") or ""
+            tool_input = data.get("tool_input")
+            # The hook's own tool_use_id is authoritative; the positional one is
+            # the SDK's convenience copy and may be None.
+            call_id = data.get("tool_use_id") or tool_use_id or ""
+            # An unparseable signature yields None, which is never in the
+            # remembered set -- so a Bash call whose input we cannot read is
+            # asked about rather than waved through.
+            remembered = _signature(tool_name, tool_input) in run.remembered
+            ask = tool_name in ASK_ALWAYS_TOOLS and not remembered
+
+            lane = run.state.lane_for_tool_use(call_id)
+            self._publish(run, {
+                "seq": run.state.next_seq(),
+                "run_id": run.run_id,
+                "ts": int(time.time() * 1000),
+                "type": "tool_gate",
+                "agent": None if lane is events_mod.MISSING else lane,
+                "tool": tool_name,
+                "tool_use_id": call_id,
+                "asked": ask,
+            })
+
+            if not ask:
+                return {}
+            return {"hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "ask",
+                "permissionDecisionReason": ASK_REASON,
+            }}
+
+        return pre_tool_use
+
     def _make_can_use_tool(self, run: Run):
         async def can_use_tool(tool_name, input_data, context):
             prompt_id = f"p_{uuid.uuid4().hex[:10]}"
@@ -251,6 +316,13 @@ class RunManager:
             })
             decision = await future
             run.pending.pop(prompt_id, None)
+            # "Allow always" has to mean something for the tools the hook forces:
+            # the SDK persists a localSettings rule, but a hook `ask` outranks
+            # allow rules, so only this stops the same command being asked again.
+            if decision.get("remember"):
+                signature = _signature(tool_name, input_data)
+                if signature is not None:
+                    run.remembered.add(signature)
             self._publish(run, {
                 "seq": run.state.next_seq(),
                 "run_id": run.run_id,
@@ -377,6 +449,22 @@ class RunManager:
         # Stable, deterministic ordering by run_id.
         rows.sort(key=lambda r: r["run_id"])
         return rows
+
+
+def _signature(tool_name: str, tool_input) -> tuple[str, str] | None:
+    """What an "Allow always" answer covers: one tool, one exact command string.
+
+    Only for the tools the hook forces -- nothing else is overridden, so nothing
+    else needs remembering. Exact match, never a pattern: a signature scheme
+    cleverer than the user's expectation is a way to auto-approve something they
+    did not mean to approve.
+    """
+    if tool_name not in ASK_ALWAYS_TOOLS or not isinstance(tool_input, dict):
+        return None
+    command = tool_input.get("command")
+    if not isinstance(command, str) or not command:
+        return None
+    return (tool_name, command)
 
 
 def _to_permission_result(decision: dict, input_data: dict):

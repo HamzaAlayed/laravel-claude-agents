@@ -73,9 +73,14 @@ def pack_root() -> Path:
 def sdk_client_factory(options: dict):
     """Wrap ClaudeSDKClient so the engine speaks dicts and never imports the SDK."""
     from claude_agent_sdk import ClaudeAgentOptions, ClaudeSDKClient
-    from claude_agent_sdk.types import PermissionResultAllow, PermissionResultDeny
+    from claude_agent_sdk.types import (
+        HookMatcher,
+        PermissionResultAllow,
+        PermissionResultDeny,
+    )
 
     engine_callback = options.pop("can_use_tool")
+    pre_tool_use = options.pop("pre_tool_use")
 
     async def can_use_tool(tool_name, input_data, context):
         decision = await engine_callback(tool_name, input_data, context)
@@ -109,6 +114,14 @@ def sdk_client_factory(options: dict):
         # visibility is. False makes the documented guarantee true. Pinned by
         # tests/guardrails.test.sh so the SDK default cannot flip it back.
         sandbox={"autoAllowBashIfSandboxed": False},
+        # The other half of the same promise, and the half no setting can fix:
+        # read-only Bash (`READ_ONLY_AUTO_ALLOW_REASON`) is allowed before
+        # can_use_tool runs, so `echo hello` was never shown to the browser. A
+        # PreToolUse hook is the only layer that sees every call -- the SDK's own
+        # shadowing warning says so. One matcher over all tools, with the policy
+        # in engine._make_pre_tool_use, so it stays testable without the SDK.
+        # Pinned by tests/guardrails.test.sh so a refactor cannot drop the gate.
+        hooks={"PreToolUse": [HookMatcher(hooks=[pre_tool_use])]},
         **({"model": options["model"]} if options.get("model") else {}),
     )
     return ClaudeSDKClient(options=sdk_options)
