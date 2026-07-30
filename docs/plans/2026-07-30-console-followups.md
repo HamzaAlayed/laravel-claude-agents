@@ -4,7 +4,7 @@ Everything below was found during the build of the Guild web console
 ([spec](../superpowers/specs/2026-07-29-guild-web-console-design.md),
 [plan](../superpowers/plans/2026-07-29-guild-web-console.md)) and deliberately **not** fixed in that
 branch. Nothing here blocks the console from working; the branch shipped with 85 python tests, 37
-frontend tests, 101 guardrail tests, and a verified end-to-end run.
+frontend tests (59 since item 2), 101 guardrail tests, and a verified end-to-end run.
 
 Ordered by what I'd do first.
 
@@ -28,19 +28,46 @@ say so plainly.
 **Option if you want the promise back in full:** ship a `PreToolUse` hook that emits a console event
 for every tool call. That is the only layer that sees all of them.
 
-## 2. The UI has never been exercised by a test
+## 2. ~~The UI has never been exercised by a test~~ — DONE 2026-07-30
 
-~480 lines of React have never been mounted. `jsdom` is configured but unused; the 37 frontend tests
-cover pure functions only (`reducer`, `buildAnswers`/`mergeFreeText`, `submitGate`). The smoke test ran
-no JS at all.
+22 mount tests now drive a real `<App />` (`console-ui/src/App.test.tsx`); the suite is 37 → 59.
+`fetch` and `EventSource` are faked at the transport boundary (`src/test/fakeServer.ts`) rather than
+mocking `lib/api`, so `api`, `reducer`, `submitGate` and every component stay on the real path — the
+lesson from the two defects at the bottom of this file.
 
-Specifically untested: the `disabled` plumbing on the decision sheet, the interrupt path's
-`finally { setStopped(true) }`, the follow-up composer, and the whole board render. A reviewer did
-confirm in a real browser that the page renders, `/api/catalog` returns 200, there are no console
-errors, and the no-token path degrades cleanly — but every interactive path is unverified.
+Covered: the `disabled` plumbing (a held POST proves one double-click cannot resolve two decisions,
+and that the gate re-arms after the answer lands), the interrupt path's `finally { setStopped(true) }`
+via a failing interrupt, an errored run freeing the Launcher, the follow-up composer both ways, the
+board's parked-card marking, and the Other field reaching the wire through the real sheet.
 
-**Fix:** add `@testing-library/react` and mount the four flows that can strand a user — parked
-approval, queued approvals, run error, interrupt.
+Because the tests were written against code that already existed, passing proved nothing on its own —
+each was verified by mutation. Six behaviours were broken one at a time; every one was caught by the
+test that should catch it, and only by tests in its own area:
+
+| mutation | caught by |
+|---|---|
+| sheet buttons never disabled | double-click cannot resolve two decisions |
+| `setStopped` moved out of the interrupt's `finally` | failed interrupt is still an ended run |
+| `isRunOver` ignores `failure` | errored run ends and frees the Launcher |
+| `pending` back to a single slot | 4 queue + question tests |
+| free text not merged into answers | typed answer beats the clicked option |
+| a prompt no longer opens the sheet | 12 tests |
+
+Two things surfaced while doing it, both now handled:
+
+- **Tailwind was scanning the test files.** Its scanner reads raw bytes, so `static instances` in the
+  fake `EventSource` and a comment about content being "hidden" added `.static` and `.hidden` to the
+  *shipped* stylesheet — 45 bytes that changed the bundle hash and would have failed CI's
+  bundle-in-sync gate for reasons no reviewer could have seen in the diff. `src/index.css` now carries
+  `@source not` for `*.test.ts(x)` and `src/test/`, and the rebuilt `dist/` is byte-identical to the
+  committed one. Same shape as item 6 — a raw-content scan with no code/comment distinction.
+- **A failed answer closes the sheet** while correctly putting the prompt back in the queue. Not a
+  strand (the sticky bar still names the agent and `Review` reopens the same decision, re-armed) so
+  the behaviour is now pinned by a test rather than changed.
+
+**Still not covered:** anything needing layout or real animation timing (the approval bar's exit is
+waited out, not asserted), `Transcript` internals, and the `select`-driven Launcher paths for
+command/specialist runs.
 
 ## 3. `SSE resume` doesn't do what the spec says
 
@@ -74,10 +101,14 @@ non-comment lines.
 ## 7. Small CI and hygiene items
 
 - `console-ui` job runs `npx tsc --noEmit` explicitly and again inside `npm run build`. Drop one.
-- **Bundle determinism risk, unverified:** CI pins node 22; the committed bundle was built on node
-  26.5.0. `vite`/`rollup`/`esbuild` are pinned by `package-lock`, so output *should* be identical. If
-  the `dist/` staleness gate fails on the first CI run, pin CI's node to match rather than
-  rebuild-and-commit blindly.
+- **Bundle determinism, half verified (2026-07-30):** a clean-room worktree at `HEAD`, `npm ci` from
+  the committed lockfile, reproduces the committed bundle *byte-for-byte* on node 26.5.0 — so the
+  committed `dist/` is genuinely in sync with the committed source, and the gate is not already red.
+  **CI's node 22 is still unverified** (the docker run to check it was not permitted); if the gate
+  fails on the first CI run, pin CI's node rather than rebuild-and-commit blindly.
+  Worth knowing before debugging that gate: the entry chunk's hash covers the CSS asset it imports, so
+  a Tailwind-only change renames `index-*.js` while its bytes are identical. A changed JS filename is
+  therefore not evidence that any JS changed.
 - `.cursor-plugin/marketplace.json` has been stuck at version `1.17.0` for 10+ releases —
   pre-existing, unrelated to the console. All five other manifests read 1.27.0 and
   `check_inventory_sync` passes, because it never checks marketplace versions.

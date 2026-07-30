@@ -3,6 +3,16 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
+/*
+ * Tests are not markup. Tailwind's scanner reads raw bytes, so a bare word in a
+ * test file becomes a utility in the SHIPPED stylesheet: `static instances` and a
+ * comment about content being "hidden" added `.static` and `.hidden` to dist/,
+ * which then failed CI's bundle-in-sync gate for reasons no reviewer could see.
+ */
+@source not "./**/*.test.ts";
+@source not "./**/*.test.tsx";
+@source not "./test/**/*";
+
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
