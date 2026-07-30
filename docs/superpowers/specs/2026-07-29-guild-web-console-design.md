@@ -122,8 +122,14 @@ browser is never asked. Two such paths exist in CLI 2.1.220:
    `tool_use` → `tool_result` with **zero** `prompt` events, while
    `mkdir -p /tmp/…` produced `prompt` → `prompt_resolved` normally. There is no
    SDK option or settings key that turns this off; only a `PreToolUse` hook sees
-   every call. The console still shows *that* the command ran — as a `tool_use`
-   event — just not that nobody was asked.
+   every call.
+
+   **Closed since 2026-07-30** ([design](2026-07-30-console-approval-visibility-design.md)):
+   a `PreToolUse` hook returns `permissionDecision: "ask"` for Bash, which routes
+   the call back through `can_use_tool` and therefore emits the `prompt` event
+   after all. Every other tool still falls through — and now publishes a
+   `tool_gate` event recording that nobody was asked, so the transcript stops
+   implying otherwise.
 2. **Sandboxed commands** (`SANDBOX_AUTO_ALLOW_REASON`). When bash sandboxing is
    on, `sandbox.autoAllowBashIfSandboxed` (SDK default `True`) auto-approves
    sandboxed commands the same way. This one *is* configurable, so

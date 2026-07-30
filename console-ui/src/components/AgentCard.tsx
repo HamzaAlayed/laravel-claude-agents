@@ -39,6 +39,14 @@ export function AgentCard({ lane, agent, parked, onSelect }: Props) {
       <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
         {parked ? "needs you" : elapsed}
       </p>
+      {/* Claude Code decides some calls before can_use_tool is consulted. Saying
+          so is the difference between a transcript and an approval record. One
+          template literal, not two nodes, so the line reads as one string. */}
+      {lane.unasked > 0 && (
+        <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
+          {`${lane.unasked} ran unasked`}
+        </p>
+      )}
     </motion.button>
   );
 }

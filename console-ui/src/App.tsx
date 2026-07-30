@@ -190,6 +190,13 @@ export default function App() {
         </p>
       )}
       {error && <p role="alert" className="mb-3 text-sm text-destructive">{error}</p>}
+      {/* The main thread has no card to carry this, and in a freeform run it is
+          where most tool calls happen. */}
+      {view.unasked > 0 && (
+        <p className="mb-3 text-xs text-muted-foreground">
+          {`${view.unasked} ran unasked on the main thread`}
+        </p>
+      )}
       {view.retry && (
         <p className="mb-3 text-xs text-muted-foreground">
           Retrying after {view.retry.error} — attempt {view.retry.attempt} of {view.retry.max_retries}

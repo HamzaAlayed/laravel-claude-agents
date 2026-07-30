@@ -18,6 +18,13 @@ export type Lane = {
   startedAt: number;
   endedAt: number;
   events: GuildEvent[];
+  /**
+   * How many of this lane's tool calls ran WITHOUT the browser being asked.
+   * Claude Code decides some calls before `can_use_tool` is consulted, so a
+   * transcript that showed only tool calls implied every one had been approved.
+   * Counted from `tool_gate` events published by the PreToolUse hook.
+   */
+  unasked: number;
 };
 
 export type PendingPrompt = {
@@ -50,6 +57,8 @@ export type RunView = {
    * short of reloading the page.
    */
   failure: { message: string } | null;
+  /** Main-thread calls that ran without an ask — the lane-less counterpart. */
+  unasked: number;
 };
 
 export type Agent = {

@@ -10,6 +10,7 @@ export const emptyRun = (kind: string): RunView => ({
   retry: null,
   result: null,
   failure: null,
+  unasked: 0,
 });
 
 /**
@@ -59,6 +60,7 @@ export function reduce(view: RunView, event: GuildEvent): RunView {
         startedAt: event.ts,
         endedAt: 0,
         events: [],
+        unasked: 0,
       };
       const lanes = [...next.lanes, lane];
       // Promotion is one-way: a board run never demotes to focus.
@@ -103,6 +105,24 @@ export function reduce(view: RunView, event: GuildEvent): RunView {
       return next.pending.some((prompt) => prompt.prompt_id === event.prompt_id)
         ? { ...next, pending: next.pending.filter((p) => p.prompt_id !== event.prompt_id) }
         : next;
+
+    // The PreToolUse gate reports EVERY tool call and whether the browser was
+    // asked about it. Bookkeeping, not something the agent did, so it is counted
+    // rather than appended to a transcript — the `tool_use` event that follows is
+    // what belongs in the timeline. Only unasked calls are worth surfacing;
+    // asked ones already produced a decision the user answered.
+    case "tool_gate": {
+      if (event.asked) return next;
+      if (!event.agent) return { ...next, unasked: next.unasked + 1 };
+      return {
+        ...next,
+        lanes: next.lanes.map((lane) =>
+          lane.slug === event.agent && lane.status === "running"
+            ? { ...lane, unasked: lane.unasked + 1 }
+            : lane,
+        ),
+      };
+    }
 
     case "result":
       return {

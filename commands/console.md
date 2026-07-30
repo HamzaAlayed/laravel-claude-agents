@@ -37,10 +37,17 @@ only — it drives the Claude Agent SDK, which the other runtimes don't ship.
 - A run **parks** until you answer an approval or a checkpoint question — the
   amber bar at the top of the board is the signal. Several agents can park at
   once; the bar counts them and you answer one at a time.
-- **Read-only Bash commands are approved by Claude Code itself** and never reach
-  the browser: `echo hello` just runs, while `mkdir -p /tmp/x` asks. You still
-  see the command in the transcript as a tool call — you were simply not asked
-  about it. No setting changes this; only a `PreToolUse` hook sees every call.
+- **Every Bash command asks you** — including read-only ones like `echo hello`,
+  which Claude Code would otherwise approve by itself before the console was
+  consulted. A `PreToolUse` hook forces them back through the browser, because no
+  setting can. Expect a `git status` to park the run just like an `rm` would.
+- **"Allow always" means "stop asking me this run"** for Bash: the exact same
+  command falls through from then on, while any other command still asks. It also
+  persists a settings rule for future sessions, as before.
+- **Other tools can still run without asking you** when a settings rule or the
+  run's mode already allows them — a `Read` is not forced through the browser. The
+  agent's card now says how many of its calls ran unasked, so the transcript is
+  not mistaken for an approval record.
 - The five guardrail hooks still apply. A hook deny outranks every permission
   mode, so the console cannot be used to route around them — including the
   auto-approved read-only calls above.

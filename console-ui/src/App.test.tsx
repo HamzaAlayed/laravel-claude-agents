@@ -355,6 +355,57 @@ describe("a run that ends badly", () => {
   });
 });
 
+describe("calls that ran without an ask", () => {
+  const gate = (agent: string | null, toolUseId: string, asked = false) => ({
+    type: "tool_gate",
+    agent,
+    tool: "Read",
+    tool_use_id: toolUseId,
+    asked,
+  });
+
+  it("says so on the card of the agent that made them", async () => {
+    const { server, user } = await launch();
+    server.emit({
+      type: "agent_start",
+      agent: "backend-developer",
+      tool_use_id: "t1",
+      task: "add the export job",
+    });
+    server.emit({
+      type: "agent_start",
+      agent: "qa-engineer",
+      tool_use_id: "t2",
+      task: "cover it with tests",
+    });
+    server.emit(gate("qa-engineer", "r1"));
+    server.emit(gate("qa-engineer", "r2"));
+
+    const card = button("Dina: cover it with tests");
+    expect(within(card).getByText("2 ran unasked")).toBeTruthy();
+    expect(
+      within(button("Adam: add the export job")).queryByText(/ran unasked/),
+    ).toBeNull();
+    // Nothing to answer — this is a record, not a decision.
+    expect(screen.queryByText(/needs approval/)).toBeNull();
+    expect(user).toBeTruthy();
+  });
+
+  it("says so for the main thread, which has no card", async () => {
+    const { server } = await launch();
+    server.emit(gate(null, "r1"));
+
+    expect(screen.getByText("1 ran unasked on the main thread")).toBeTruthy();
+  });
+
+  it("stays quiet about calls the browser was asked about", async () => {
+    const { server } = await launch();
+    server.emit(gate(null, "r1", true));
+
+    expect(screen.queryByText(/ran unasked/)).toBeNull();
+  });
+});
+
 describe("the follow-up composer", () => {
   it("sends a reply and clears the box", async () => {
     const { server, user } = await launch();

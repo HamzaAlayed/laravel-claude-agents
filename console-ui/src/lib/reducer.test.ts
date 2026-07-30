@@ -14,6 +14,54 @@ describe("reduce", () => {
     expect(emptyRun("command").mode).toBe("board");
   });
 
+  // The PreToolUse gate publishes one tool_gate per call. Calls it did not force
+  // through the browser ran unasked, and the transcript has to say so rather
+  // than implying every call was approved.
+  it("counts a lane's unasked calls", () => {
+    const view = play("command", [
+      ev({ type: "agent_start", agent: "qa-engineer", task: "tests", tool_use_id: "t1" }),
+      ev({ type: "tool_gate", agent: "qa-engineer", tool: "Read", tool_use_id: "r1", asked: false }),
+      ev({ type: "tool_gate", agent: "qa-engineer", tool: "Grep", tool_use_id: "r2", asked: false }),
+    ]);
+    expect(view.lanes[0].unasked).toBe(2);
+  });
+
+  it("does not count a call the browser was asked about", () => {
+    const view = play("command", [
+      ev({ type: "agent_start", agent: "qa-engineer", task: "tests", tool_use_id: "t1" }),
+      ev({ type: "tool_gate", agent: "qa-engineer", tool: "Bash", tool_use_id: "b1", asked: true }),
+    ]);
+    expect(view.lanes[0].unasked).toBe(0);
+  });
+
+  it("counts main-thread unasked calls on the run, not on someone's lane", () => {
+    const view = play("prompt", [
+      ev({ type: "agent_start", agent: "qa-engineer", task: "tests", tool_use_id: "t1" }),
+      ev({ type: "tool_gate", agent: null, tool: "Read", tool_use_id: "r1", asked: false }),
+    ]);
+    expect(view.unasked).toBe(1);
+    expect(view.lanes[0].unasked).toBe(0);
+  });
+
+  it("attributes each lane's unasked calls separately", () => {
+    const view = play("command", [
+      ev({ type: "agent_start", agent: "qa-engineer", task: "tests", tool_use_id: "t1" }),
+      ev({ type: "agent_start", agent: "backend-developer", task: "build", tool_use_id: "t2" }),
+      ev({ type: "tool_gate", agent: "backend-developer", tool: "Read", tool_use_id: "r1", asked: false }),
+    ]);
+    expect(view.lanes.map((lane) => lane.unasked)).toEqual([0, 1]);
+  });
+
+  it("keeps a tool_gate out of the lane transcript", () => {
+    // It is bookkeeping, not something the agent did — the tool_use event that
+    // follows is what belongs in the timeline.
+    const view = play("command", [
+      ev({ type: "agent_start", agent: "qa-engineer", task: "tests", tool_use_id: "t1" }),
+      ev({ type: "tool_gate", agent: "qa-engineer", tool: "Read", tool_use_id: "r1", asked: false }),
+    ]);
+    expect(view.lanes[0].events).toHaveLength(0);
+  });
+
   it("opens a lane on agent_start", () => {
     const view = play("command", [
       ev({ type: "agent_start", agent: "backend-developer", task: "Add Action", tool_use_id: "t1" }),

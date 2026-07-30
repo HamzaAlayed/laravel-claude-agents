@@ -10,7 +10,36 @@ Ordered by what I'd do first.
 
 ---
 
-## 1. Approval visibility has a permanent hole (documented, partly unfixable)
+## 1. ~~Approval visibility has a permanent hole~~ — CLOSED 2026-07-30
+
+Fixed as specced in
+[the design](../superpowers/specs/2026-07-30-console-approval-visibility-design.md).
+A `PreToolUse` hook — registered in-process from `engine.py`, wrapped into a
+`HookMatcher` by `serve.py`, so no shell script and no IPC — returns
+`permissionDecision: "ask"` for Bash. That routes the call back through
+`can_use_tool`, which already emits the `prompt` event the browser answers, so
+the entire approval path is reused. Every call also publishes a `tool_gate` event
+carrying `asked`, and the UI shows `N ran unasked` per lane and for the main
+thread.
+
+`ASK_ALWAYS_TOOLS` is Bash alone: read-only Bash was the whole of the hole and
+Bash is the only tool there that can do damage. **Accepted cost:** every `ls` and
+`git status` now parks the run.
+
+"Allow always" needed rescuing along the way — a hook `ask` outranks allow rules,
+so the persisted settings rule would have been overridden on the very next call.
+The run now remembers exact `(Bash, command)` signatures and the hook falls
+through for them.
+
+Two guardrail ratchets pin the registration and the Bash policy; both were
+confirmed to fail when the gate is removed. 9 engine tests, 8 UI tests.
+
+**Not fixed, and not claimed to be:** item 4 below. The hook fires *earlier* than
+`can_use_tool`, so the `MISSING` attribution branch gets hit more often, not less.
+
+<details>
+<summary>Original finding</summary>
+
 
 `can_use_tool` is not the first gate. Claude Code auto-allows some Bash calls before the callback runs,
 so **no `prompt` event is emitted and the browser is never asked**:
@@ -27,6 +56,8 @@ say so plainly.
 
 **Option if you want the promise back in full:** ship a `PreToolUse` hook that emits a console event
 for every tool call. That is the only layer that sees all of them.
+
+</details>
 
 ## 2. ~~The UI has never been exercised by a test~~ — DONE 2026-07-30
 
