@@ -396,6 +396,13 @@ run_case() { # run_case <name> <results-dir>
   echo "   workdir: $WORK"
 
   cp -R "$FIXTURE/." "$WORK/"
+  # Start every case's board feed empty. Run 5 was analysed with a feed that
+  # opened with two qa-engineer stages of exactly 3000ms and 5000ms in EVERY
+  # case -- committed telemetry from an unrelated 2026-07-30 session, copied in
+  # with the fixture. Read naively it said `hygiene` ran qa-engineer. Truncating
+  # here means the feed is this case's events and nothing else, whatever the
+  # fixture happens to carry.
+  : >"$WORK/.claude/agents-board.jsonl"
   if ! bash "$ROOT/install.sh" "$WORK" >"$results/$name.install.log" 2>&1; then
     echo "   ERROR: install.sh failed — see $results/$name.install.log"
     return 1

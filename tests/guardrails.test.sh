@@ -392,6 +392,16 @@ expect "console registers the PreToolUse gate" "1" \
 expect "console still forces Bash through the browser" "1" \
   "$(sed 's/#.*//' "$SCRIPT_DIR"/scripts/console/engine.py \
      | grep -cE '^ASK_ALWAYS_TOOLS = \("Bash",\)')"
+# The harness copies the fixture into every eval workdir, so anything left in
+# tests/fixture-app/.claude leaks into EVERY case's feed. Run 5 was analysed with
+# two qa-engineer stages that never happened, in all five cases, from a local
+# console smoke test that had run inside the fixture. That directory is gitignored
+# so it cannot be committed — which is exactly why there is no assertion about its
+# contents here: on a fresh clone it does not exist at all. The truncate below is
+# the load-bearing guard, because it holds whatever the working copy contains.
+expect "the eval harness starts each feed empty" "1" \
+  "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE ': >".*/\.claude/agents-board\.jsonl"')"
 expect "console bundle is committed" "1" \
   "$([ -f "$SCRIPT_DIR/scripts/console/dist/index.html" ] && echo 1 || echo 0)"
 # The committed bundle needs ONE blessed toolchain. A hardcoded node-version in
