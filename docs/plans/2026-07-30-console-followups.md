@@ -143,6 +143,13 @@ with the Launcher still disabled behind a run nobody was watching. `api.streamRu
 stream that reaches `CLOSED`, distinguished from a transient retry (`CONNECTING`), and the console says
 so and frees itself. 2 tests, both mutation-verified.
 
+**Follow-on, 2026-07-31:** the jsonl replay now has a UI. A "Recorded runs…" picker reads
+`GET /api/runs` and replays the chosen run through the same reducer the live stream uses, so a run
+this process no longer owns is readable instead of being a dead end. Read-only by construction: the
+picker is disabled while a run is live, and a recorded run's pending queue is emptied — a `prompt` with
+no `prompt_resolved` means the process died holding that decision, so an approval bar there would
+invite an answer that can never land.
+
 ## 4. ~~Prompt→agent attribution can name the wrong agent~~ — DONE 2026-07-30
 
 `_agent_for_prompt` now returns `(agent, confidence)` and both `prompt` and `prompt_resolved` carry
@@ -176,10 +183,13 @@ is a guess.
 - ~~A `connect()` failure emits no `error` event at all~~ — **done.** `_boot` publishes the `error`
   event and marks the run finished, then re-raises so `POST /api/runs` still answers 400 with the
   reason. Previously the run stayed registered as `running` forever with nothing on its stream.
-- **No server-side abandon route — not done, on purpose.** Interrupt is the only exit and it kills the
-  turn, which is the honest thing to do: an "abandon" that leaves the SDK client connected and billing
-  is the zombie-run bug of v1.27.0 by another name. There is also no run-picker UI, so a detached run
-  would be unreachable. Revisit if a run list ever lands.
+- **No server-side abandon route — still not done, but one of the two reasons expired.** Interrupt is
+  the only exit and it kills the turn, which remains the honest thing to do: an "abandon" that leaves
+  the SDK client connected and billing is the zombie-run bug of v1.27.0 by another name. The second
+  argument — "a detached run would be unreachable" — **no longer holds**: the recorded-run picker
+  landed 2026-07-31, so any run in `GET /api/runs` can be read back from its jsonl. The trigger this
+  entry set for itself ("revisit if a run list ever lands") has therefore been met, and the case now
+  rests on the billing argument alone. Worth a real decision rather than inheriting this one.
 
 ## 6. ~~Guardrail ratchets grep raw file content~~ — DONE 2026-07-30
 
