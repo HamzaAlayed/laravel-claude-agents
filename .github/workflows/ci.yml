@@ -157,9 +157,14 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
+      # Read from .nvmrc, not hardcoded: scripts/console/dist is committed, so
+      # exactly one node version should be blessed for producing it. The bundle
+      # happens to be byte-identical on 22 and 26.5.0 today — that is luck, not a
+      # guarantee, and a silent drift here shows up as an inexplicable
+      # "dist/ is stale" failure on somebody else's clean checkout.
       - uses: actions/setup-node@v4
         with:
-          node-version: "22"
+          node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: console-ui/package-lock.json
       - name: Install

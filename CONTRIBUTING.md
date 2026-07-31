@@ -111,6 +111,23 @@ For changes to **agent bodies, commands, or model tiers**, also run the eval har
 
 See [`tests/eval/README.md`](tests/eval/README.md) for the answer key and how to add cases. Keep answer-key hints **out of** `tests/fixture-app/` — agents under evaluation can read the fixture.
 
+### Changing the web console
+
+`/console` has a React front end in `console-ui/`, and its **built bundle is committed** to `scripts/console/dist/` so installing users need no Node toolchain. That means any change under `console-ui/src/` must ship with a rebuild, and CI fails if the two drift:
+
+```sh
+node --version                    # must match .nvmrc
+cd console-ui && npm ci
+npx vitest run                    # unit + mount tests
+npm run build                     # typechecks, then rebuilds ../scripts/console/dist
+git diff --stat scripts/console/dist   # expect a diff only if src changed
+python3 -m unittest discover -s tests/console -t tests/console   # server/engine units
+```
+
+**Use the node version in [`.nvmrc`](.nvmrc)** (`nvm use` / `fnm use` picks it up). The bundle is byte-identical on node 22 and 26.5.0 today, but that is luck rather than a guarantee — one blessed version keeps a "dist/ is stale" failure from landing on somebody whose change had nothing to do with it.
+
+Tests are excluded from Tailwind's scan (`@source not` in `src/index.css`). Its scanner reads raw bytes, so a bare word in a test file — `static`, a comment mentioning `hidden` — otherwise becomes a utility class in the shipped stylesheet.
+
 ## Commits and pull requests
 
 - **Conventional commits.** Prefix with `feat:`, `fix:`, or `docs:` (e.g. `feat: add caching-strategist agent`, `fix: harden prod-artisan guardrail regex`).

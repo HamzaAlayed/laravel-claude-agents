@@ -394,6 +394,15 @@ expect "console still forces Bash through the browser" "1" \
      | grep -cE '^ASK_ALWAYS_TOOLS = \("Bash",\)')"
 expect "console bundle is committed" "1" \
   "$([ -f "$SCRIPT_DIR/scripts/console/dist/index.html" ] && echo 1 || echo 0)"
+# The committed bundle needs ONE blessed toolchain. A hardcoded node-version in
+# CI drifting from .nvmrc is invisible until someone's clean checkout fails the
+# dist/ staleness gate for reasons that have nothing to do with their change.
+expect "one blessed node version, declared in .nvmrc" "1" \
+  "$([ -s "$SCRIPT_DIR/.nvmrc" ] && echo 1 || echo 0)"
+expect "CI reads the node version from .nvmrc" "1" \
+  "$(grep -c 'node-version-file: .nvmrc' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "CI pins no node version by hand" "0" \
+  "$(sed 's/#.*//' "$SCRIPT_DIR/.github/workflows/ci.yml" | grep -cE 'node-version:' || true)"
 # The board and its observer are deliberately untouched by the console work.
 expect "emit-agent-events.sh still wired three ways" "3" \
   "$(grep -c 'emit-agent-events.sh' "$SCRIPT_DIR/hooks/hooks.json" | tr -d ' ')"
