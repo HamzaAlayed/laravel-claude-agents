@@ -14,3 +14,4 @@ console-ui/node_modules/
 console-ui/.vite/
 console-ui/*.tsbuildinfo
 .playwright-mcp/
+.claude/agents-board.jsonl
