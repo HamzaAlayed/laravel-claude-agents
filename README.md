@@ -108,6 +108,7 @@ The pack is evaluated against a fixture Laravel app with documented planted flaw
 | 2 · 2026-07-20 | 4/4 | 14/14 | `n-plus-one` 4× faster after lever tuning |
 | 3 · 2026-07-21 | 4/4 | 14/14 | first parallel run — pass/fail smoke only, timings excluded |
 | 4 · 2026-07-28 | 4/5 | 17/19 | first quality regression — caught `isolation: worktree` blinding agents to their own gates |
+| 5 · 2026-07-31 | 5/5 | 19/19 | first clean sweep; `tests` 2/4 → 4/4, `action` 1174s → 420s; found the per-case event feeds polluted by committed fixture telemetry |
 
 Each run's misses become levers, ship in the next release, and get re-measured — the harness runs the 5 eval cases (the fifth, `hygiene`, ships unscored until run 4). Because grep is exact-match scoring of a nondeterministic output, `EVAL_JUDGE=1` adds an independent rubric judge per case and flags where it disagrees with the answer key — advisory only, so verdicts stay comparable across runs.
 
