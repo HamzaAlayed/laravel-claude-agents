@@ -5,6 +5,45 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.29.0] - 2026-07-31
+
+### Added
+
+- **A finished run can be read back from the browser.** `snapshot()` has always
+  served a run's whole history from `.claude/console/runs/<id>.jsonl` — for
+  precisely the runs the console process no longer owns — and nothing in the UI
+  ever called it, so every completed run was on disk and unreachable. A
+  "Recorded runs…" picker in the console header lists what `GET /api/runs`
+  reports and replays the chosen run through **the same reducer the live stream
+  uses**, so the board, transcripts, final answer and error banner all render
+  identically with no second code path to keep in step. This is also what makes
+  the SSE 404 after a console restart stop being a dead end.
+  Read-only by construction: the picker is disabled while a run is live (two runs
+  sharing one view is how the abandoned-run bug looked), and a recorded run's
+  pending queue is **emptied** rather than its approval bar hidden — a `prompt`
+  with no `prompt_resolved` means the process died holding that decision, so
+  offering an answer that can never land would be a lie.
+- **One blessed node version for the committed bundle.** `scripts/console/dist/`
+  is committed and CI fails if it drifts from source, but nothing declared which
+  toolchain produces it; the bundle is byte-identical on node 22 and 26.5.0
+  today, which is luck rather than a guarantee. `.nvmrc` now declares it, CI's
+  `setup-node` reads it via `node-version-file` instead of a hardcoded string,
+  and three ratchets pin the arrangement (**107 guardrail tests**, from 104).
+  22 rather than 26 because CI is the authority: a contributor on another major
+  is told to switch instead of discovering a phantom `dist/` diff.
+- **A contributing guide for the console.** `console-ui/` was not mentioned
+  anywhere in README or CONTRIBUTING, so a contributor touching the front end had
+  no documented way to rebuild the bundle CI would then fail them on. Every
+  command in the new section was run as written. It also records *why* tests are
+  excluded from Tailwind's scan — the kind of line that otherwise gets tidied
+  away by someone who does not know it changes the shipped stylesheet.
+
+### Changed
+
+- The console header's controls (recorded-run picker, mid-run permission mode,
+  interrupt) are one right-aligned group, which retires the conditional
+  `ml-auto` that was being juggled between them.
+
 ## [1.28.0] - 2026-07-30
 
 The console v1.27.0 shipped did not work: `events.normalize` was written against
