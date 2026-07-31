@@ -33,11 +33,22 @@ export default function App() {
   const [liveMode, setLiveMode] = useState("default");
   const [followUp, setFollowUp] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [runs, setRuns] = useState<api.RunRow[]>([]);
+  // The run_id being read back from disk, or null when this is a live run.
+  // Recorded runs are strictly read-only: their approval futures died with the
+  // process that held them, so there is nothing left to answer or interrupt.
+  const [recorded, setRecorded] = useState<string | null>(null);
   const lastSeq = useRef(0);
 
   useEffect(() => {
     api.fetchCatalog().then(setCatalog).catch((e) => setError(String(e.message ?? e)));
   }, []);
+
+  const refreshRuns = useCallback(() => {
+    api.listRuns().then(setRuns).catch((e) => setError(String((e as Error).message)));
+  }, []);
+
+  useEffect(refreshRuns, [refreshRuns]);
 
   const onEvent = useCallback((event: GuildEvent) => {
     lastSeq.current = Math.max(lastSeq.current, event.seq);
@@ -64,7 +75,12 @@ export default function App() {
     return api.streamRun(runId, lastSeq.current, onEvent, onStreamLost);
   }, [runId, onEvent, onStreamLost]);
 
-  const queue = view.pending.filter((prompt) => !answering.includes(prompt.prompt_id));
+  // A recorded run offers no approvals: a `prompt` with no `prompt_resolved`
+  // means the process died holding that decision, and a bar inviting an answer
+  // that can never land would be a lie.
+  const queue = recorded
+    ? []
+    : view.pending.filter((prompt) => !answering.includes(prompt.prompt_id));
   const head = queue[0] ?? null;
   const headId = head?.prompt_id ?? null;
 
@@ -90,9 +106,29 @@ export default function App() {
     setSheetOpen(false);
     setStopped(false);
     setLiveMode(spec.mode);
+    setRecorded(null);
     try {
       const { run_id } = await api.createRun(spec);
       setRunId(run_id);
+      refreshRuns();
+    } catch (e) {
+      setError(String((e as Error).message));
+    }
+  };
+
+  /** Read one run back from its jsonl and replay it through the same reducer. */
+  const openRecorded = async (id: string) => {
+    setError(null);
+    try {
+      const events = await api.fetchRun(id);
+      const kind = runs.find((row) => row.run_id === id)?.spec?.kind ?? "prompt";
+      // Detach from any live stream first: the effect below closes the
+      // EventSource when runId goes null.
+      setRunId(null);
+      setSelected(null);
+      setSheetOpen(false);
+      setView(events.reduce(reduce, emptyRun(kind)));
+      setRecorded(id);
     } catch (e) {
       setError(String((e as Error).message));
     }
@@ -192,30 +228,58 @@ export default function App() {
     <main className="mx-auto max-w-6xl p-4 md:p-6">
       <header className="mb-4 flex items-baseline gap-3">
         <h1 className="text-lg font-semibold">Laravel Guild Console</h1>
-        {live && (
-          <select
-            aria-label="Change this run's permission mode"
-            className="ml-auto h-8 rounded-md border bg-background px-2 text-sm"
-            value={liveMode}
-            onChange={(event) => changeMode(event.target.value)}
-          >
-            <option value="default">Ask me</option>
-            <option value="acceptEdits">Accept edits</option>
-            <option value="plan">Plan only</option>
-          </select>
-        )}
-        {runId && (
-          <Button
-            size="sm"
-            variant="outline"
-            className={live ? undefined : "ml-auto"}
-            aria-label="Interrupt the running agent"
-            onClick={interrupt}
-          >
-            <Square className="mr-1 size-3.5" aria-hidden /> Interrupt
-          </Button>
-        )}
+        <div className="ml-auto flex items-center gap-2">
+          {runs.length > 0 && (
+            <select
+              aria-label="Open a recorded run"
+              className="h-8 max-w-56 rounded-md border bg-background px-2 text-sm"
+              disabled={live}
+              title={live ? "Interrupt the live run before reading an old one." : undefined}
+              value={recorded ?? ""}
+              onChange={(event) => event.target.value && openRecorded(event.target.value)}
+            >
+              <option value="">Recorded runs…</option>
+              {runs.map((row) => (
+                <option key={row.run_id} value={row.run_id}>
+                  {`${row.spec?.kind ?? "run"} · ${row.status} · ${row.run_id}`}
+                </option>
+              ))}
+            </select>
+          )}
+          {live && (
+            <select
+              aria-label="Change this run's permission mode"
+              className="h-8 rounded-md border bg-background px-2 text-sm"
+              value={liveMode}
+              onChange={(event) => changeMode(event.target.value)}
+            >
+              <option value="default">Ask me</option>
+              <option value="acceptEdits">Accept edits</option>
+              <option value="plan">Plan only</option>
+            </select>
+          )}
+          {runId && (
+            <Button
+              size="sm"
+              variant="outline"
+              aria-label="Interrupt the running agent"
+              onClick={interrupt}
+            >
+              <Square className="mr-1 size-3.5" aria-hidden /> Interrupt
+            </Button>
+          )}
+        </div>
       </header>
+
+      {/* Deliberately not "it has finished": GET /api/runs lists live runs too, so
+          the one being replayed may still be running elsewhere. What is reliably
+          true is that this view is a replay and cannot act on it. */}
+      {recorded && (
+        <p className="mb-3 rounded-lg border px-3 py-2 text-sm text-muted-foreground">
+          Viewing a recorded run — {recorded}. Read-only replay: approvals and
+          interrupts are not available here.
+        </p>
+      )}
 
       <Launcher
         catalog={catalog}

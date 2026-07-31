@@ -25,17 +25,28 @@ const runButton = () => screen.getByRole("button", { name: "Run" }) as HTMLButto
 
 const button = (name: string) => screen.getByRole("button", { name }) as HTMLButtonElement;
 
-/** Render the console and wait for the catalog to land. */
-async function open(catalog: Catalog | null = testCatalog) {
+/**
+ * Render the console and wait for the catalog to land. `seed` runs before the
+ * first render, so anything it sets up is already on disk when the console opens
+ * — which is the only honest way to test the recorded-run list, since the list is
+ * fetched once on mount.
+ */
+async function open(
+  catalog: Catalog | null = testCatalog,
+  seed?: (server: FakeServer) => void,
+) {
   server = installFakeServer(catalog);
+  seed?.(server);
   const user = userEvent.setup();
   render(<App />);
   return { server, user };
 }
 
 /** Render, then launch a freeform run and wait for its event stream. */
-async function launch(): Promise<{ server: FakeServer; user: UserEvent }> {
-  const opened = await open();
+async function launch(
+  seed?: (server: FakeServer) => void,
+): Promise<{ server: FakeServer; user: UserEvent }> {
+  const opened = await open(testCatalog, seed);
   await screen.findByLabelText("Run kind");
   await opened.user.type(
     screen.getByPlaceholderText("describe the task"),
@@ -499,6 +510,73 @@ describe("calls that ran without an ask", () => {
     server.emit(gate(null, "r1", true));
 
     expect(screen.queryByText(/ran unasked/)).toBeNull();
+  });
+});
+
+describe("recorded runs", () => {
+  const picker = () =>
+    screen.getByLabelText("Open a recorded run") as HTMLSelectElement;
+
+  it("opens one from disk and shows what it did", async () => {
+    // snapshot() already served these from the run jsonl; nothing in the UI
+    // called it, so every finished run was unreachable from the browser.
+    const opened = await open(testCatalog, (s) =>
+      s.addRecordedRun({ run_id: "run_old", spec: { kind: "prompt" } }, [
+        { type: "agent_start", agent: "qa-engineer", tool_use_id: "t1", lane_id: "t1", task: "cover the export" },
+        { type: "result", subtype: "success", result: "shipped it", duration_ms: 10, total_cost_usd: 0.2 },
+      ]),
+    );
+    await screen.findByLabelText("Run kind");
+    await waitFor(() => expect(picker()).toBeTruthy());
+
+    await opened.user.selectOptions(picker(), "run_old");
+
+    expect(await screen.findByText("shipped it")).toBeTruthy();
+    expect(screen.getByText(/Viewing a recorded run/)).toBeTruthy();
+  });
+
+  it("offers nothing to answer on a run that was parked when it died", async () => {
+    const opened = await open(testCatalog, (s) =>
+      s.addRecordedRun({ run_id: "run_parked", spec: { kind: "prompt" } }, [
+        // A prompt with no prompt_resolved: the process died holding it. Its
+        // future is long gone, so an approval bar here would be a lie.
+        { type: "prompt", prompt_id: "p1", agent: "backend-developer", tool: "Bash",
+          input: { command: "ls" }, is_question: false, suggestions: [] },
+      ]),
+    );
+    await screen.findByLabelText("Run kind");
+    await waitFor(() => expect(picker()).toBeTruthy());
+
+    await opened.user.selectOptions(picker(), "run_parked");
+
+    await screen.findByText(/Viewing a recorded run/);
+    expect(screen.queryByText(/needs approval/)).toBeNull();
+    expect(screen.queryByText("Allow Bash?")).toBeNull();
+  });
+
+  it("cannot be opened while a run is live", async () => {
+    await launch((s) => s.addRecordedRun({ run_id: "run_old" }, []));
+
+    await waitFor(() => expect(picker()).toBeTruthy());
+    expect(picker().disabled).toBe(true);
+  });
+
+  it("is replaced by a new launch", async () => {
+    const opened = await open(testCatalog, (s) =>
+      s.addRecordedRun({ run_id: "run_old", spec: { kind: "prompt" } }, [
+        { type: "result", subtype: "success", result: "old news", duration_ms: 1, total_cost_usd: 0 },
+      ]),
+    );
+    await screen.findByLabelText("Run kind");
+    await waitFor(() => expect(picker()).toBeTruthy());
+    await opened.user.selectOptions(picker(), "run_old");
+    await screen.findByText("old news");
+
+    await opened.user.type(screen.getByPlaceholderText("describe the task"), "something new");
+    await opened.user.click(runButton());
+
+    await waitFor(() => expect(screen.queryByText("old news")).toBeNull());
+    expect(screen.queryByText(/Viewing a recorded run/)).toBeNull();
   });
 });
 

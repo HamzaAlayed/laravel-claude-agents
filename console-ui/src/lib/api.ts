@@ -16,6 +16,31 @@ export const fetchCatalog = async (): Promise<Catalog> => {
   return response.json();
 };
 
+/** A run this process may or may not still own. `spec` is null for disk-derived rows. */
+export type RunRow = {
+  run_id: string;
+  status: string;
+  spec: { kind?: string; target?: string; text?: string } | null;
+  started_at: number;
+};
+
+export const listRuns = async (): Promise<RunRow[]> => {
+  const response = await fetch("/api/runs", { headers });
+  if (!response.ok) throw new Error("could not list the runs");
+  return (await response.json()).runs ?? [];
+};
+
+/**
+ * The whole event history of one run, from memory if this process owns it and
+ * from the run's jsonl otherwise. This is the replay the SSE stream deliberately
+ * does not do — see the spec's failure-mode section.
+ */
+export const fetchRun = async (runId: string): Promise<GuildEvent[]> => {
+  const response = await fetch(`/api/runs/${runId}`, { headers });
+  if (!response.ok) throw new Error("could not load that run");
+  return (await response.json()).events ?? [];
+};
+
 export const createRun = (spec: {
   kind: string;
   target: string;

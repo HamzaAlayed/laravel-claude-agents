@@ -89,6 +89,11 @@ export type FakeServer = {
   killStream: () => void;
   /** A transient drop the browser will retry on its own. Not terminal. */
   blipStream: () => void;
+  /** Seed a run this process no longer owns: a row in the list, plus its jsonl. */
+  addRecordedRun: (
+    row: { run_id: string; status?: string; spec?: unknown; started_at?: number },
+    events?: Array<Record<string, unknown> & { type: string }>,
+  ) => void;
   /** URLs of the SSE streams opened so far, closed ones included. */
   streams: () => string[];
   /** How many SSE streams are open right now. */
@@ -108,8 +113,11 @@ export function installFakeServer(catalog: Catalog | null = testCatalog): FakeSe
   const posts: PostRecord[] = [];
   const failures = new Map<string, { message: string; status: number }>();
   const holds = new Map<string, Promise<void>>();
+  // What GET /api/runs and GET /api/runs/:id serve — the recorded runs on disk.
+  let runs: Record<string, unknown>[] = [];
+  const snapshots = new Map<string, Record<string, unknown>[]>();
   let seq = 0;
-  let runs = 0;
+  let launched = 0;
 
   const respond = (body: unknown, ok = true, status = 200) =>
     ({
@@ -127,6 +135,19 @@ export function installFakeServer(catalog: Catalog | null = testCatalog): FakeSe
         : respond(catalog);
     }
 
+    // Reads, before the POST path claims everything else.
+    if ((init?.method ?? "GET") === "GET") {
+      if (url === "/api/runs") return respond({ runs });
+      const match = /^\/api\/runs\/([^/]+)$/.exec(url);
+      if (match) {
+        const events = snapshots.get(match[1]);
+        return events === undefined
+          ? respond({ error: "no such run" }, false, 404)
+          : respond({ events });
+      }
+      return respond({ error: "no such route" }, false, 404);
+    }
+
     // Recorded before any hold, so a test can assert the request went out while
     // it is still in flight.
     posts.push({ path: url, body: init?.body ? JSON.parse(String(init.body)) : {} });
@@ -139,7 +160,7 @@ export function installFakeServer(catalog: Catalog | null = testCatalog): FakeSe
       return respond({ error: failure.message }, false, failure.status);
     }
 
-    if (url === "/api/runs") return respond({ run_id: `run-${++runs}` });
+    if (url === "/api/runs") return respond({ run_id: `run-${++launched}` });
     return respond({ ok: true });
   }) as typeof fetch;
 
@@ -176,6 +197,30 @@ export function installFakeServer(catalog: Catalog | null = testCatalog): FakeSe
       act(() => {
         stream.onmessage?.({ data: JSON.stringify(payload) });
       });
+    },
+    addRecordedRun: (row, events = []) => {
+      runs = [
+        ...runs,
+        {
+          status: "interrupted",
+          spec: null,
+          started_at: 1_700_000_000_000,
+          ...row,
+        },
+      ];
+      // Snapshots are served as-is: the engine wrote these seq numbers when the
+      // run was live, so a replay must reduce them in the order they landed.
+      snapshots.set(
+        row.run_id,
+        events.map((event, index) => ({
+          seq: index + 1,
+          run_id: row.run_id,
+          ts: 1_700_000_000_000 + index * 1000,
+          agent: null,
+          lane_id: null,
+          ...event,
+        })),
+      );
     },
     killStream: () => {
       const stream = [...FakeEventSource.instances].reverse().find((s) => !s.closed);
