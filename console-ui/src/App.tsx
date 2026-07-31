@@ -7,6 +7,7 @@ import { Board } from "@/components/Board";
 import { DecisionSheet } from "@/components/DecisionSheet";
 import { FocusRun } from "@/components/FocusRun";
 import { Launcher, type LaunchSpec } from "@/components/Launcher";
+import { Markdown } from "@/components/Markdown";
 import { Transcript } from "@/components/Transcript";
 import * as api from "@/lib/api";
 import { emptyRun, isRunOver, reduce } from "@/lib/reducer";
@@ -330,7 +331,9 @@ export default function App() {
       {view.result && (
         <section className="mt-4 rounded-xl border bg-muted/30 p-3">
           <h2 className="mb-1 text-sm font-medium">Final answer</h2>
-          <p className="whitespace-pre-wrap text-sm">{view.result.result}</p>
+          {/* Agents answer in markdown — headings, bullets, fenced diffs. As
+              pre-wrapped text it read as a wall of asterisks and backticks. */}
+          <Markdown>{view.result.result}</Markdown>
         </section>
       )}
 

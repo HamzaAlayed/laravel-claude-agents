@@ -665,4 +665,21 @@ describe("the follow-up composer", () => {
     expect(screen.queryByLabelText("Follow-up message")).toBeNull();
     expect(screen.getByText("shipped")).toBeTruthy();
   });
+
+  it("renders the final answer as markdown, not as a wall of asterisks", async () => {
+    const { server } = await launch();
+    server.emit({
+      type: "result",
+      subtype: "success",
+      result: "## Done\n\n- added the Action\n- moved the mail fan-out",
+      duration_ms: 10,
+      total_cost_usd: 0.1,
+    });
+
+    expect(screen.getByRole("heading", { name: "Done" })).toBeTruthy();
+    expect(screen.getAllByRole("listitem").map((li) => li.textContent)).toEqual([
+      "added the Action",
+      "moved the mail fan-out",
+    ]);
+  });
 });
