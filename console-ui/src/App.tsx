@@ -12,6 +12,7 @@ import { Markdown } from "@/components/Markdown";
 import { Transcript } from "@/components/Transcript";
 import * as api from "@/lib/api";
 import { fadeRise } from "@/lib/motion";
+import { formatRunLabel } from "@/lib/runLabel";
 import { emptyRun, isRunOver, reduce } from "@/lib/reducer";
 import { armGate, canSubmit, settleSubmit, startSubmit } from "@/lib/submitGate";
 import type { Catalog, GuildEvent, Lane, RunView } from "@/lib/types";
@@ -244,7 +245,7 @@ export default function App() {
               <option value="">Recorded runs…</option>
               {runs.map((row) => (
                 <option key={row.run_id} value={row.run_id}>
-                  {`${row.spec?.kind ?? "run"} · ${row.status} · ${row.run_id}`}
+                  {formatRunLabel(row)}
                 </option>
               ))}
             </select>
