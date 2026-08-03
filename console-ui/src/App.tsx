@@ -116,10 +116,10 @@ export default function App() {
     setStopped(false);
     setLiveMode(spec.mode);
     setRecorded(null);
+    setRunStartedAt(Date.now());
     try {
       const { run_id } = await api.createRun(spec);
       setRunId(run_id);
-      setRunStartedAt(Date.now());
       refreshRuns();
     } catch (e) {
       setError(String((e as Error).message));
@@ -356,7 +356,14 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <ApprovalBar pending={queue} agentLabel={agentLabel} onOpen={() => setSheetOpen(true)} />
+      <ApprovalBar
+        pending={queue}
+        agentLabel={agentLabel}
+        onOpen={() => {
+          setSheetOpen(true);
+          setSelected(null);
+        }}
+      />
 
       {view.mode === "board" ? (
         <Board view={view} catalog={catalog} onSelect={setSelected} />

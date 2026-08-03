@@ -22,8 +22,9 @@ all confirmed by the user:
 4. **General polish** — state changes teleport instead of transitioning.
 
 Motion character: **calm and purposeful.** 150–300 ms micro-interactions,
-motion only where it carries state information, one looping animation in the
-whole UI (the parked pulse).
+motion only where it carries state information, one looping attention
+animation in the whole UI (the parked pulse; the header status dot is a
+passive liveness indicator).
 
 ## Constraints
 

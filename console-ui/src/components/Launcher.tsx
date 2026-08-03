@@ -134,7 +134,7 @@ export function Launcher({
       />
 
       <p className="text-xs text-muted-foreground">
-        {kindCaption} {modeCaption} <kbd className="rounded border px-1">⌘↵</kbd> to run.
+        {kindCaption} {modeCaption} <kbd className="rounded border px-1">⌘/Ctrl ↵</kbd> to run.
       </p>
 
       {busy && busyReason && (
