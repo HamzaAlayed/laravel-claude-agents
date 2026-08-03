@@ -703,3 +703,52 @@ describe("the follow-up composer", () => {
     ]);
   });
 });
+
+describe("the header status chip", () => {
+  it("ticks while the run is live", async () => {
+    await launch();
+    expect(screen.getByText(/running ·/)).toBeTruthy();
+  });
+
+  it("turns into done when the result lands", async () => {
+    const { server } = await launch();
+    server.emit({ type: "result", subtype: "success", result: "shipped", duration_ms: 10, total_cost_usd: 0 });
+
+    expect(screen.getByText("done")).toBeTruthy();
+    expect(screen.queryByText(/running ·/)).toBeNull();
+  });
+
+  it("says error when the run dies", async () => {
+    const { server } = await launch();
+    server.emit({ type: "error", message: "CLINotConnectedError: transport closed" });
+
+    expect(screen.getByText("error")).toBeTruthy();
+  });
+
+  it("says stopped after an interrupt", async () => {
+    const { user } = await launch();
+    await user.click(button("Interrupt the running agent"));
+
+    expect(await screen.findByText("stopped")).toBeTruthy();
+  });
+
+  it("shows nothing for a recorded replay", async () => {
+    const opened = await open(testCatalog, (s) =>
+      s.addRecordedRun({ run_id: "run_old", spec: { kind: "prompt" } }, [
+        { type: "result", subtype: "success", result: "old news", duration_ms: 1, total_cost_usd: 0 },
+      ]),
+    );
+    await screen.findByLabelText("Run kind");
+    // The runs list lands async — every recorded-run test waits for the picker.
+    await waitFor(() =>
+      expect(screen.getByLabelText("Open a recorded run")).toBeTruthy(),
+    );
+    await opened.user.selectOptions(
+      screen.getByLabelText("Open a recorded run"), "run_old",
+    );
+    await screen.findByText(/Viewing a recorded run/);
+
+    expect(screen.queryByText(/running ·/)).toBeNull();
+    expect(screen.queryByText("done")).toBeNull();
+  });
+});

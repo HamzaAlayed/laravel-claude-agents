@@ -7,7 +7,7 @@ export function FocusRun({ view, catalog }: { view: RunView; catalog: Catalog })
   const lane = view.lanes[0];
   const agent = catalog.agents.find((candidate) => candidate.slug === lane?.slug);
   const elapsed = useElapsed(lane?.startedAt ?? 0, lane?.endedAt ?? 0);
-  const events = lane ? lane.events : view.main;
+  const events = lane ? lane.events : view.main.filter((e) => e.type !== "error");
 
   return (
     <div className="flex flex-col gap-3 md:flex-row">

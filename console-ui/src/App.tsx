@@ -9,6 +9,7 @@ import { DecisionSheet } from "@/components/DecisionSheet";
 import { FocusRun } from "@/components/FocusRun";
 import { Launcher, type LaunchSpec } from "@/components/Launcher";
 import { Markdown } from "@/components/Markdown";
+import { StatusChip } from "@/components/StatusChip";
 import { Transcript } from "@/components/Transcript";
 import * as api from "@/lib/api";
 import { fadeRise } from "@/lib/motion";
@@ -42,6 +43,7 @@ export default function App() {
   // Recorded runs are strictly read-only: their approval futures died with the
   // process that held them, so there is nothing left to answer or interrupt.
   const [recorded, setRecorded] = useState<string | null>(null);
+  const [runStartedAt, setRunStartedAt] = useState(0);
   const lastSeq = useRef(0);
 
   useEffect(() => {
@@ -114,6 +116,7 @@ export default function App() {
     try {
       const { run_id } = await api.createRun(spec);
       setRunId(run_id);
+      setRunStartedAt(Date.now());
       refreshRuns();
     } catch (e) {
       setError(String((e as Error).message));
@@ -232,6 +235,13 @@ export default function App() {
     <main className="mx-auto max-w-6xl p-4 md:p-6">
       <header className="mb-4 flex items-baseline gap-3">
         <h1 className="text-lg font-semibold">Laravel Guild Console</h1>
+        {runId && !recorded && (
+          <StatusChip
+            live={live}
+            startedAt={runStartedAt}
+            outcome={view.result ? "done" : view.failure ? "error" : stopped ? "stopped" : null}
+          />
+        )}
         <div className="ml-auto flex items-center gap-2">
           {runs.length > 0 && (
             <select
