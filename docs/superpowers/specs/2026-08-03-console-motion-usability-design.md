@@ -90,9 +90,11 @@ and Interrupt button unchanged in behavior.
 The `selected`-lane section currently rendered below the board moves into the
 existing shadcn `Sheet`, `side="right"`, ~28 rem wide, slide-in animated.
 Header: agent color chip, name, current task. Body: the `Transcript`
-component unchanged — its tail-following behavior is already right. Escape or
-the overlay closes it (`selected` → null); clicking a different card while
-open swaps content in place. Full-width on small screens. `App`'s `selected`
+component unchanged — its tail-following behavior is already right. The panel
+is non-modal with no backdrop — that is what keeps the board clickable so a
+different card can swap the content in place. Escape closes it (`selected` →
+null); an arriving decision prompt closes it too, so exactly one overlay ever
+owns the screen (the decision sheet, which is modal, wins). Full-width on small screens. `App`'s `selected`
 state and the `onSelect` wiring are untouched; only where it renders changes.
 
 ## Approvals
