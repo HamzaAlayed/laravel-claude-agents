@@ -5,6 +5,27 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Changed
+
+- **The console moves like one thing now.** A single motion vocabulary
+  (`console-ui/src/lib/motion.ts`) drives every transition: banners and the
+  final answer fade-rise instead of teleporting, a parked lane breathes its
+  agent's color (the only looping attention animation — and a static colored
+  border under `prefers-reduced-motion`), and the approval-queue badge pops
+  when it grows.
+- **The launcher explains itself.** A segmented Freeform / Command /
+  Specialist control with a live caption, specialists listed by name and
+  role, permission modes captioned in plain words, and Cmd/Ctrl+Enter to run.
+- **The transcript is a slide-over, not a footnote.** Selecting a card opens
+  a non-modal right panel — the board stays clickable, Escape dismisses, and
+  an arriving decision sheet takes precedence.
+- **Smaller answers to constant questions.** A header chip answers "is it
+  still running?" with a ticking elapsed time; the run picker says
+  `make-feature · done · 12m ago` instead of a raw run id; the decision sheet
+  says "Decision 1 of 3" when a queue is waiting.
+
 ## [1.29.0] - 2026-07-31
 
 ### Added
