@@ -47,7 +47,7 @@ export function Transcript({ events }: { events: GuildEvent[] }) {
       className="max-h-[60vh] space-y-1.5 overflow-y-auto text-xs"
     >
       {events.map((event) => (
-        <li key={event.seq} className="flex gap-2">
+        <li key={event.seq} className="flex gap-2 animate-in fade-in duration-300">
           <span className="w-16 shrink-0 tabular-nums text-muted-foreground">
             {new Date(event.ts).toLocaleTimeString()}
           </span>

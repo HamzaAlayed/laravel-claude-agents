@@ -190,6 +190,26 @@ describe("a parked approval", () => {
     expect(screen.getByRole("heading", { name: "Dina" })).toBeTruthy();
   });
 
+  it("pulses the parked card so it can be found without reading", async () => {
+    const { server, user } = await launch();
+    // Two lanes, not one: a single lane keeps the run in "focus" mode (see
+    // reducer.ts), which renders FocusRun instead of Board — there would be no
+    // card at all to assert on. The sibling test above needs the same thing.
+    server.emit({
+      type: "agent_start", agent: "backend-developer",
+      tool_use_id: "t1", task: "add the export job",
+    });
+    server.emit({
+      type: "agent_start", agent: "qa-engineer",
+      tool_use_id: "t2", task: "cover it with tests",
+    });
+    server.emit(approval("p1", "qa-engineer"));
+    await user.click(await screen.findByRole("button", { name: "Close" }));
+
+    // The class is the contract here: the animation itself is CSS.
+    expect(button("Dina: cover it with tests").className).toContain("animate-attention");
+  });
+
   it("keeps the run live and the sheet shut once the engine resolves the prompt", async () => {
     const { server, user } = await launch();
     server.emit(approval("p1", "backend-developer"));

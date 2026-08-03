@@ -42,7 +42,10 @@ export function ApprovalBar({
               : `${named} needs approval — ${head.tool}`}
           </p>
           {pending.length > 1 && (
-            <span className="shrink-0 rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-semibold tabular-nums">
+            <span
+              key={pending.length}
+              className="shrink-0 animate-in fade-in zoom-in-75 duration-200 rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-semibold tabular-nums"
+            >
               {pending.length} waiting on you
             </span>
           )}
