@@ -722,7 +722,10 @@ describe("the header status chip", () => {
     const { server } = await launch();
     server.emit({ type: "error", message: "CLINotConnectedError: transport closed" });
 
-    expect(screen.getByText("error")).toBeTruthy();
+    // Scoped to the header: the main-thread transcript also renders a bare
+    // "error" row for the same event, and that row is not the chip.
+    const header = screen.getByText("Laravel Guild Console").closest("header") as HTMLElement;
+    expect(within(header).getByText("error")).toBeTruthy();
   });
 
   it("says stopped after an interrupt", async () => {
