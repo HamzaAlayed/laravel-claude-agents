@@ -364,13 +364,15 @@ export default function App() {
         <FocusRun view={view} catalog={catalog} />
       )}
 
-      {selectedLane && (
-        <LanePanel
-          lane={selectedLane}
-          agent={catalog.agents.find((a) => a.slug === selectedLane.slug)}
-          onClose={() => setSelected(null)}
-        />
-      )}
+      <AnimatePresence>
+        {selectedLane && (
+          <LanePanel
+            lane={selectedLane}
+            agent={catalog.agents.find((a) => a.slug === selectedLane.slug)}
+            onClose={() => setSelected(null)}
+          />
+        )}
+      </AnimatePresence>
 
       <AnimatePresence>
         {view.result && (
