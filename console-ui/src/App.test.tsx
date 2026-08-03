@@ -186,8 +186,9 @@ describe("a parked approval", () => {
     ).toBeNull();
 
     // Selecting a card reveals that lane's transcript under its agent's name.
+    // The panel now mounts in a portal, a tick after the click.
     await user.click(parked);
-    expect(screen.getByRole("heading", { name: "Dina" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Dina" })).toBeTruthy();
   });
 
   it("pulses the parked card so it can be found without reading", async () => {
@@ -222,6 +223,61 @@ describe("a parked approval", () => {
       timeout: 3000,
     });
     expect(runButton().disabled).toBe(true);
+  });
+});
+
+describe("the transcript panel", () => {
+  const start = (agent: string, toolUseId: string, task: string) => ({
+    type: "agent_start", agent, tool_use_id: toolUseId, lane_id: toolUseId, task,
+  });
+
+  it("slides over the board and closes on Escape", async () => {
+    const { server, user } = await launch();
+    // Two lanes, not one: a single lane keeps the run in "focus" mode (see
+    // reducer.ts), which renders FocusRun instead of Board — there would be no
+    // card at all to click.
+    server.emit(start("backend-developer", "t1", "add the export job"));
+    server.emit(start("qa-engineer", "t2", "cover it with tests"));
+
+    await user.click(button("Adam: add the export job"));
+    expect(await screen.findByRole("heading", { name: "Adam" })).toBeTruthy();
+
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByRole("heading", { name: "Adam" })).toBeNull(),
+    );
+  });
+
+  it("keeps the board clickable: another card swaps the panel in place", async () => {
+    const { server, user } = await launch();
+    server.emit(start("backend-developer", "t1", "add the export job"));
+    server.emit(start("qa-engineer", "t2", "cover it with tests"));
+
+    await user.click(button("Adam: add the export job"));
+    await screen.findByRole("heading", { name: "Adam" });
+
+    // Non-modal by design — the board must stay reachable behind the panel.
+    await user.click(button("Dina: cover it with tests"));
+    expect(await screen.findByRole("heading", { name: "Dina" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Adam" })).toBeNull();
+  });
+
+  it("yields to an arriving decision", async () => {
+    const { server, user } = await launch();
+    // Same two-lane requirement as above, to force board mode.
+    server.emit(start("backend-developer", "t1", "add the export job"));
+    server.emit(start("qa-engineer", "t2", "cover it with tests"));
+    await user.click(button("Adam: add the export job"));
+    await screen.findByRole("heading", { name: "Adam" });
+
+    server.emit(approval("p1", "backend-developer"));
+
+    // The decision sheet opens; the panel steps aside so exactly one overlay
+    // ever owns the screen.
+    expect(await screen.findByText("Allow Bash?")).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.queryByRole("heading", { name: "Adam" })).toBeNull(),
+    );
   });
 });
 
@@ -411,8 +467,9 @@ describe("the coordinator on the board", () => {
     server.emit(start("delivery-coordinator", "t1", "drive the feature"));
     server.emit(start("backend-developer", "t2", "add the export job"));
 
+    // The panel now mounts in a portal, a tick after the click.
     await user.click(screen.getByRole("button", { name: /Emre/ }));
-    expect(screen.getByRole("heading", { name: "Emre" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Emre" })).toBeTruthy();
   });
 
   it("stays out of the Working column even when that column exists", async () => {

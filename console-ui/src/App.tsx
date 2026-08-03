@@ -7,10 +7,10 @@ import { ApprovalBar } from "@/components/ApprovalBar";
 import { Board } from "@/components/Board";
 import { DecisionSheet } from "@/components/DecisionSheet";
 import { FocusRun } from "@/components/FocusRun";
+import { LanePanel } from "@/components/LanePanel";
 import { Launcher, type LaunchSpec } from "@/components/Launcher";
 import { Markdown } from "@/components/Markdown";
 import { StatusChip } from "@/components/StatusChip";
-import { Transcript } from "@/components/Transcript";
 import * as api from "@/lib/api";
 import { fadeRise } from "@/lib/motion";
 import { formatRunLabel } from "@/lib/runLabel";
@@ -59,7 +59,10 @@ export default function App() {
   const onEvent = useCallback((event: GuildEvent) => {
     lastSeq.current = Math.max(lastSeq.current, event.seq);
     setView((current) => reduce(current, event));
-    if (event.type === "prompt") setSheetOpen(true);
+    if (event.type === "prompt") {
+      setSheetOpen(true);
+      setSelected(null);
+    }
     if (event.type === "prompt_resolved")
       setAnswering((ids) => ids.filter((id) => id !== event.prompt_id));
   }, []);
@@ -162,6 +165,14 @@ export default function App() {
   const live = runId !== null && !isRunOver(view) && !stopped;
   const agentLabel = head?.agent
     ? catalog.agents.find((agent) => agent.slug === head.agent)?.name ?? head.agent
+    : null;
+
+  // The lane behind `selected` re-derived from the live view every render, so
+  // the panel's transcript keeps growing with the same lane instead of
+  // freezing on the snapshot that was on screen the moment the card was
+  // clicked.
+  const selectedLane = selected
+    ? view.lanes.find((lane) => lane.toolUseId === selected.toolUseId) ?? null
     : null;
 
   const answer = async (payload: Record<string, unknown>) => {
@@ -353,13 +364,12 @@ export default function App() {
         <FocusRun view={view} catalog={catalog} />
       )}
 
-      {selected && (
-        <section className="mt-4 rounded-xl border p-3">
-          <h2 className="mb-2 text-sm font-medium">
-            {catalog.agents.find((a) => a.slug === selected.slug)?.name ?? selected.slug}
-          </h2>
-          <Transcript events={view.lanes.find((l) => l.toolUseId === selected.toolUseId)?.events ?? []} />
-        </section>
+      {selectedLane && (
+        <LanePanel
+          lane={selectedLane}
+          agent={catalog.agents.find((a) => a.slug === selectedLane.slug)}
+          onClose={() => setSelected(null)}
+        />
       )}
 
       <AnimatePresence>
