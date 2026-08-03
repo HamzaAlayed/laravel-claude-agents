@@ -348,6 +348,22 @@ describe("a queue of approvals", () => {
     await waitFor(() => expect(server.postsTo("/answer")).toHaveLength(2));
     expect(server.postsTo("/answer")[1].body).toMatchObject({ prompt_id: "p1" });
   });
+
+  it("tells the user where they are in the queue", async () => {
+    const { server } = await launch();
+    server.emit(approval("p1", "backend-developer"));
+    server.emit(approval("p2", "qa-engineer", "Write"));
+
+    expect(await screen.findByText("Decision 1 of 2")).toBeTruthy();
+  });
+
+  it("drops the counter when only one decision remains", async () => {
+    const { server } = await launch();
+    server.emit(approval("p1", "backend-developer"));
+
+    await screen.findByText("Allow Bash?");
+    expect(screen.queryByText(/Decision 1 of/)).toBeNull();
+  });
 });
 
 describe("a question prompt", () => {

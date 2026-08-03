@@ -428,6 +428,7 @@ export default function App() {
           // armed, so a click meant for the previous decision cannot commit this
           // one. Survives the remount above because the gate is App state.
           disabled={!canSubmit(gate, head.prompt_id)}
+          queueLength={queue.length}
           onClose={() => setSheetOpen(false)}
           onAnswer={answer}
         />

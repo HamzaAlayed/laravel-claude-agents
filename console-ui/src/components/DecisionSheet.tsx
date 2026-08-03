@@ -1,8 +1,16 @@
 import { useState } from "react";
+import { motion } from "motion/react";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
+import { fadeRise } from "@/lib/motion";
 import type { PendingPrompt } from "@/lib/types";
 
 export type Question = {
@@ -31,6 +39,16 @@ export function mergeFreeText(
   return merged;
 }
 
+/**
+ * `"key": value` → the key prefix and the rest, so the pre block can mute the
+ * keys without a highlighting library. Pure and exported for the same reason
+ * mergeFreeText is.
+ */
+export function splitJsonKey(line: string): { key: string | null; rest: string } {
+  const match = /^(\s*"[^"]+":)(.*)$/.exec(line);
+  return match ? { key: match[1], rest: match[2] } : { key: null, rest: line };
+}
+
 /** Answers map question text -> chosen label(s), or the user's own words. */
 export function buildAnswers(
   questions: Question[],
@@ -49,6 +67,7 @@ export function DecisionSheet({
   pending,
   open,
   disabled,
+  queueLength,
   onClose,
   onAnswer,
 }: {
@@ -61,6 +80,9 @@ export function DecisionSheet({
    * queue advances. See lib/submitGate.ts.
    */
   disabled: boolean;
+  /** How many decisions are waiting, including this one. Drives the "Decision
+   * 1 of N" counter — hidden when there is nothing else queued behind it. */
+  queueLength: number;
   onClose: () => void;
   onAnswer: (payload: Record<string, unknown>) => void;
 }) {
@@ -95,10 +117,13 @@ export function DecisionSheet({
           <SheetTitle>
             {pending.is_question ? "The Guild has questions" : `Allow ${pending.tool}?`}
           </SheetTitle>
+          {queueLength > 1 && (
+            <SheetDescription>Decision 1 of {queueLength}</SheetDescription>
+          )}
         </SheetHeader>
 
         {pending.is_question ? (
-          <div className="space-y-5 py-4">
+          <motion.div {...fadeRise} className="space-y-5 py-4">
             {questions.map((question) => (
               <fieldset key={question.question}>
                 <legend className="mb-2 text-sm font-medium">{question.question}</legend>
@@ -130,6 +155,14 @@ export function DecisionSheet({
                 />
               </fieldset>
             ))}
+            <Textarea
+              placeholder="…or write a freeform reply instead of choosing"
+              value={denyReason}
+              onChange={(e) => setDenyReason(e.target.value)}
+            />
+            <p className="text-xs text-muted-foreground">
+              A freeform reply here is sent by "Reply in my own words" instead of the options.
+            </p>
             <div className="flex gap-2">
               <Button disabled={disabled} onClick={submitQuestions}>
                 Send answers
@@ -149,17 +182,28 @@ export function DecisionSheet({
                 Reply in my own words
               </Button>
             </div>
+          </motion.div>
+        ) : (
+          <motion.div {...fadeRise} className="space-y-4 py-4">
+            <pre className="overflow-x-auto rounded-md border bg-muted/40 p-3 text-xs leading-relaxed">
+              {JSON.stringify(pending.input, null, 2).split("\n").map((line, index) => {
+                const { key, rest } = splitJsonKey(line);
+                return (
+                  <div key={index}>
+                    {key && <span className="text-muted-foreground">{key}</span>}
+                    {rest}
+                  </div>
+                );
+              })}
+            </pre>
             <Textarea
-              placeholder="…or write a freeform reply instead of choosing"
+              placeholder="Tell the agent why, or what to do instead"
               value={denyReason}
               onChange={(e) => setDenyReason(e.target.value)}
             />
-          </div>
-        ) : (
-          <div className="space-y-4 py-4">
-            <pre className="overflow-x-auto rounded-md border bg-muted/40 p-3 text-xs">
-              {JSON.stringify(pending.input, null, 2)}
-            </pre>
+            <p className="text-xs text-muted-foreground">
+              Sent to the agent with a denial — or use it to say what to do instead.
+            </p>
             <div className="flex flex-wrap gap-2">
               <Button
                 disabled={disabled}
@@ -196,12 +240,7 @@ export function DecisionSheet({
                 Deny
               </Button>
             </div>
-            <Textarea
-              placeholder="Tell the agent why, or what to do instead"
-              value={denyReason}
-              onChange={(e) => setDenyReason(e.target.value)}
-            />
-          </div>
+          </motion.div>
         )}
       </SheetContent>
     </Sheet>
