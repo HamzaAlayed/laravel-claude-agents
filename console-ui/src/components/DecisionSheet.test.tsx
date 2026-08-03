@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildAnswers, mergeFreeText } from "./DecisionSheet";
+import { buildAnswers, mergeFreeText, splitJsonKey } from "./DecisionSheet";
 
 const questions = [
   {
@@ -81,5 +81,19 @@ describe("mergeFreeText", () => {
       ),
     );
     expect(answers["How should I partition?"]).toBe("by tenant id, hashed");
+  });
+});
+
+describe("splitJsonKey", () => {
+  it("splits a key line into its key prefix and the rest", () => {
+    expect(splitJsonKey('  "command": "ls -la"')).toEqual({
+      key: '  "command":',
+      rest: ' "ls -la"',
+    });
+  });
+
+  it("leaves braces and bare lines untouched", () => {
+    expect(splitJsonKey("{")).toEqual({ key: null, rest: "{" });
+    expect(splitJsonKey("}")).toEqual({ key: null, rest: "}" });
   });
 });

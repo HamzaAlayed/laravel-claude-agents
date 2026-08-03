@@ -18,8 +18,12 @@ export function AgentCard({ lane, agent, parked, onSelect }: Props) {
       initial={{ opacity: 0, y: 8, scale: 0.97 }}
       animate={{ opacity: lane.status === "done" ? 0.7 : 1, y: 0, scale: 1 }}
       transition={{ type: "spring", stiffness: 380, damping: 30 }}
-      className="w-full rounded-lg border bg-card p-2.5 text-left focus-visible:ring-2"
-      style={{ borderColor: parked ? color : undefined, borderWidth: parked ? 2 : 1 }}
+      className={`w-full rounded-lg border bg-card p-2.5 text-left focus-visible:ring-2 ${parked ? "animate-attention" : ""}`}
+      style={{
+        ["--lane-color" as string]: color,
+        borderColor: parked ? color : undefined,
+        borderWidth: parked ? 2 : 1,
+      }}
       aria-label={`${agent?.name ?? lane.slug}: ${lane.task || "working"}`}
     >
       <div className="flex items-center gap-2">

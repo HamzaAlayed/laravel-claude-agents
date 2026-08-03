@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { AlertTriangle, Send, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -6,10 +7,13 @@ import { ApprovalBar } from "@/components/ApprovalBar";
 import { Board } from "@/components/Board";
 import { DecisionSheet } from "@/components/DecisionSheet";
 import { FocusRun } from "@/components/FocusRun";
+import { LanePanel } from "@/components/LanePanel";
 import { Launcher, type LaunchSpec } from "@/components/Launcher";
 import { Markdown } from "@/components/Markdown";
-import { Transcript } from "@/components/Transcript";
+import { StatusChip } from "@/components/StatusChip";
 import * as api from "@/lib/api";
+import { fadeRise } from "@/lib/motion";
+import { formatRunLabel } from "@/lib/runLabel";
 import { emptyRun, isRunOver, reduce } from "@/lib/reducer";
 import { armGate, canSubmit, settleSubmit, startSubmit } from "@/lib/submitGate";
 import type { Catalog, GuildEvent, Lane, RunView } from "@/lib/types";
@@ -39,6 +43,7 @@ export default function App() {
   // Recorded runs are strictly read-only: their approval futures died with the
   // process that held them, so there is nothing left to answer or interrupt.
   const [recorded, setRecorded] = useState<string | null>(null);
+  const [runStartedAt, setRunStartedAt] = useState(0);
   const lastSeq = useRef(0);
 
   useEffect(() => {
@@ -54,7 +59,10 @@ export default function App() {
   const onEvent = useCallback((event: GuildEvent) => {
     lastSeq.current = Math.max(lastSeq.current, event.seq);
     setView((current) => reduce(current, event));
-    if (event.type === "prompt") setSheetOpen(true);
+    if (event.type === "prompt") {
+      setSheetOpen(true);
+      setSelected(null);
+    }
     if (event.type === "prompt_resolved")
       setAnswering((ids) => ids.filter((id) => id !== event.prompt_id));
   }, []);
@@ -108,6 +116,7 @@ export default function App() {
     setStopped(false);
     setLiveMode(spec.mode);
     setRecorded(null);
+    setRunStartedAt(Date.now());
     try {
       const { run_id } = await api.createRun(spec);
       setRunId(run_id);
@@ -156,6 +165,14 @@ export default function App() {
   const live = runId !== null && !isRunOver(view) && !stopped;
   const agentLabel = head?.agent
     ? catalog.agents.find((agent) => agent.slug === head.agent)?.name ?? head.agent
+    : null;
+
+  // The lane behind `selected` re-derived from the live view every render, so
+  // the panel's transcript keeps growing with the same lane instead of
+  // freezing on the snapshot that was on screen the moment the card was
+  // clicked.
+  const selectedLane = selected
+    ? view.lanes.find((lane) => lane.toolUseId === selected.toolUseId) ?? null
     : null;
 
   const answer = async (payload: Record<string, unknown>) => {
@@ -229,6 +246,13 @@ export default function App() {
     <main className="mx-auto max-w-6xl p-4 md:p-6">
       <header className="mb-4 flex items-baseline gap-3">
         <h1 className="text-lg font-semibold">Laravel Guild Console</h1>
+        {runId && !recorded && (
+          <StatusChip
+            live={live}
+            startedAt={runStartedAt}
+            outcome={view.result ? "done" : view.failure ? "error" : stopped ? "stopped" : null}
+          />
+        )}
         <div className="ml-auto flex items-center gap-2">
           {runs.length > 0 && (
             <select
@@ -242,7 +266,7 @@ export default function App() {
               <option value="">Recorded runs…</option>
               {runs.map((row) => (
                 <option key={row.run_id} value={row.run_id}>
-                  {`${row.spec?.kind ?? "run"} · ${row.status} · ${row.run_id}`}
+                  {formatRunLabel(row)}
                 </option>
               ))}
             </select>
@@ -275,12 +299,17 @@ export default function App() {
       {/* Deliberately not "it has finished": GET /api/runs lists live runs too, so
           the one being replayed may still be running elsewhere. What is reliably
           true is that this view is a replay and cannot act on it. */}
-      {recorded && (
-        <p className="mb-3 rounded-lg border px-3 py-2 text-sm text-muted-foreground">
-          Viewing a recorded run — {recorded}. Read-only replay: approvals and
-          interrupts are not available here.
-        </p>
-      )}
+      <AnimatePresence>
+        {recorded && (
+          <motion.p
+            {...fadeRise}
+            className="mb-3 rounded-lg border px-3 py-2 text-sm text-muted-foreground"
+          >
+            Viewing a recorded run — {recorded}. Read-only replay: approvals and
+            interrupts are not available here.
+          </motion.p>
+        )}
+      </AnimatePresence>
 
       <Launcher
         catalog={catalog}
@@ -291,27 +320,50 @@ export default function App() {
         onLaunch={launch}
       />
 
-      {packBroken && (
-        <p role="alert" className="mb-3 flex items-center gap-2 rounded-lg border-2 border-destructive px-3 py-2 text-sm">
-          <AlertTriangle className="size-4" aria-hidden />
-          The Guild pack did not load cleanly — agents may be missing.
-        </p>
-      )}
-      {error && <p role="alert" className="mb-3 text-sm text-destructive">{error}</p>}
+      <AnimatePresence>
+        {packBroken && (
+          <motion.p
+            role="alert"
+            {...fadeRise}
+            className="mb-3 flex items-center gap-2 rounded-lg border-2 border-destructive px-3 py-2 text-sm"
+          >
+            <AlertTriangle className="size-4" aria-hidden />
+            The Guild pack did not load cleanly — agents may be missing.
+          </motion.p>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {error && (
+          <motion.p role="alert" {...fadeRise} className="mb-3 text-sm text-destructive">
+            {error}
+          </motion.p>
+        )}
+      </AnimatePresence>
       {/* The main thread has no card to carry this, and in a freeform run it is
           where most tool calls happen. */}
-      {view.unasked > 0 && (
-        <p className="mb-3 text-xs text-muted-foreground">
-          {`${view.unasked} ran unasked on the main thread`}
-        </p>
-      )}
-      {view.retry && (
-        <p className="mb-3 text-xs text-muted-foreground">
-          Retrying after {view.retry.error} — attempt {view.retry.attempt} of {view.retry.max_retries}
-        </p>
-      )}
+      <AnimatePresence>
+        {view.unasked > 0 && (
+          <motion.p {...fadeRise} className="mb-3 text-xs text-muted-foreground">
+            {`${view.unasked} ran unasked on the main thread`}
+          </motion.p>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {view.retry && (
+          <motion.p {...fadeRise} className="mb-3 text-xs text-muted-foreground">
+            Retrying after {view.retry.error} — attempt {view.retry.attempt} of {view.retry.max_retries}
+          </motion.p>
+        )}
+      </AnimatePresence>
 
-      <ApprovalBar pending={queue} agentLabel={agentLabel} onOpen={() => setSheetOpen(true)} />
+      <ApprovalBar
+        pending={queue}
+        agentLabel={agentLabel}
+        onOpen={() => {
+          setSheetOpen(true);
+          setSelected(null);
+        }}
+      />
 
       {view.mode === "board" ? (
         <Board view={view} catalog={catalog} onSelect={setSelected} />
@@ -319,33 +371,42 @@ export default function App() {
         <FocusRun view={view} catalog={catalog} />
       )}
 
-      {selected && (
-        <section className="mt-4 rounded-xl border p-3">
-          <h2 className="mb-2 text-sm font-medium">
-            {catalog.agents.find((a) => a.slug === selected.slug)?.name ?? selected.slug}
-          </h2>
-          <Transcript events={view.lanes.find((l) => l.toolUseId === selected.toolUseId)?.events ?? []} />
-        </section>
-      )}
+      <AnimatePresence>
+        {selectedLane && (
+          <LanePanel
+            lane={selectedLane}
+            agent={catalog.agents.find((a) => a.slug === selectedLane.slug)}
+            onClose={() => setSelected(null)}
+          />
+        )}
+      </AnimatePresence>
 
-      {view.result && (
-        <section className="mt-4 rounded-xl border bg-muted/30 p-3">
-          <h2 className="mb-1 text-sm font-medium">Final answer</h2>
-          {/* Agents answer in markdown — headings, bullets, fenced diffs. As
-              pre-wrapped text it read as a wall of asterisks and backticks. */}
-          <Markdown>{view.result.result}</Markdown>
-        </section>
-      )}
+      <AnimatePresence>
+        {view.result && (
+          <motion.section {...fadeRise} className="mt-4 rounded-xl border bg-muted/30 p-3">
+            <h2 className="mb-1 text-sm font-medium">Final answer</h2>
+            {/* Agents answer in markdown — headings, bullets, fenced diffs. As
+                pre-wrapped text it read as a wall of asterisks and backticks. */}
+            <Markdown>{view.result.result}</Markdown>
+          </motion.section>
+        )}
+      </AnimatePresence>
 
       {/* The run died without a result — say why instead of looking idle. */}
-      {view.failure && (
-        <section role="alert" className="mt-4 rounded-xl border-2 border-destructive p-3">
-          <h2 className="mb-1 flex items-center gap-2 text-sm font-medium">
-            <AlertTriangle className="size-4" aria-hidden /> The run ended with an error
-          </h2>
-          <p className="whitespace-pre-wrap text-sm">{view.failure.message}</p>
-        </section>
-      )}
+      <AnimatePresence>
+        {view.failure && (
+          <motion.section
+            role="alert"
+            {...fadeRise}
+            className="mt-4 rounded-xl border-2 border-destructive p-3"
+          >
+            <h2 className="mb-1 flex items-center gap-2 text-sm font-medium">
+              <AlertTriangle className="size-4" aria-hidden /> The run ended with an error
+            </h2>
+            <p className="whitespace-pre-wrap text-sm">{view.failure.message}</p>
+          </motion.section>
+        )}
+      </AnimatePresence>
 
       {/* Clarifications arrive as plain text; this is how the user replies. */}
       {live && (
@@ -374,6 +435,7 @@ export default function App() {
           // armed, so a click meant for the previous decision cannot commit this
           // one. Survives the remount above because the gate is App state.
           disabled={!canSubmit(gate, head.prompt_id)}
+          queueLength={queue.length}
           onClose={() => setSheetOpen(false)}
           onAnswer={answer}
         />

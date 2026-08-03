@@ -22,8 +22,9 @@ all confirmed by the user:
 4. **General polish** — state changes teleport instead of transitioning.
 
 Motion character: **calm and purposeful.** 150–300 ms micro-interactions,
-motion only where it carries state information, one looping animation in the
-whole UI (the parked pulse).
+motion only where it carries state information, one looping attention
+animation in the whole UI (the parked pulse; the header status dot is a
+passive liveness indicator).
 
 ## Constraints
 
@@ -52,7 +53,7 @@ improvising their own transitions:
 |---|---|---|
 | Status banners (error, pack-broken, retry, unasked, recorded-notice) | `AnimatePresence` fade/rise in and out | "something changed" |
 | Final answer / failure section | `fadeRise` on arrival | "the run concluded" |
-| Parked agent cards + header lane | 2 s CSS border-color pulse on the agent-colored border | "waiting on you" — the only looping animation |
+| Parked agent cards + header lane | 2 s CSS border-color pulse on the agent-colored border | "waiting on you" — the only looping attention animation (the header status dot is a passive liveness indicator) |
 | Approval bar count badge | scale pop (0.8→1) on count change | "the queue grew" |
 | Transcript rows | CSS-only fade-in on new rows | live feed feels live; no motion/react at row scale |
 | Buttons (Run, Review, sheet actions) | hover/active micro-scale | tactile feedback |

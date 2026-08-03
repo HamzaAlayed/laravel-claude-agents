@@ -186,8 +186,29 @@ describe("a parked approval", () => {
     ).toBeNull();
 
     // Selecting a card reveals that lane's transcript under its agent's name.
+    // The panel now mounts in a portal, a tick after the click.
     await user.click(parked);
-    expect(screen.getByRole("heading", { name: "Dina" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Dina" })).toBeTruthy();
+  });
+
+  it("pulses the parked card so it can be found without reading", async () => {
+    const { server, user } = await launch();
+    // Two lanes, not one: a single lane keeps the run in "focus" mode (see
+    // reducer.ts), which renders FocusRun instead of Board — there would be no
+    // card at all to assert on. The sibling test above needs the same thing.
+    server.emit({
+      type: "agent_start", agent: "backend-developer",
+      tool_use_id: "t1", task: "add the export job",
+    });
+    server.emit({
+      type: "agent_start", agent: "qa-engineer",
+      tool_use_id: "t2", task: "cover it with tests",
+    });
+    server.emit(approval("p1", "qa-engineer"));
+    await user.click(await screen.findByRole("button", { name: "Close" }));
+
+    // The class is the contract here: the animation itself is CSS.
+    expect(button("Dina: cover it with tests").className).toContain("animate-attention");
   });
 
   it("keeps the run live and the sheet shut once the engine resolves the prompt", async () => {
@@ -202,6 +223,61 @@ describe("a parked approval", () => {
       timeout: 3000,
     });
     expect(runButton().disabled).toBe(true);
+  });
+});
+
+describe("the transcript panel", () => {
+  const start = (agent: string, toolUseId: string, task: string) => ({
+    type: "agent_start", agent, tool_use_id: toolUseId, lane_id: toolUseId, task,
+  });
+
+  it("slides over the board and closes on Escape", async () => {
+    const { server, user } = await launch();
+    // Two lanes, not one: a single lane keeps the run in "focus" mode (see
+    // reducer.ts), which renders FocusRun instead of Board — there would be no
+    // card at all to click.
+    server.emit(start("backend-developer", "t1", "add the export job"));
+    server.emit(start("qa-engineer", "t2", "cover it with tests"));
+
+    await user.click(button("Adam: add the export job"));
+    expect(await screen.findByRole("heading", { name: "Adam" })).toBeTruthy();
+
+    await user.keyboard("{Escape}");
+    await waitFor(() =>
+      expect(screen.queryByRole("heading", { name: "Adam" })).toBeNull(),
+    );
+  });
+
+  it("keeps the board clickable: another card swaps the panel in place", async () => {
+    const { server, user } = await launch();
+    server.emit(start("backend-developer", "t1", "add the export job"));
+    server.emit(start("qa-engineer", "t2", "cover it with tests"));
+
+    await user.click(button("Adam: add the export job"));
+    await screen.findByRole("heading", { name: "Adam" });
+
+    // Non-modal by design — the board must stay reachable behind the panel.
+    await user.click(button("Dina: cover it with tests"));
+    expect(await screen.findByRole("heading", { name: "Dina" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Adam" })).toBeNull();
+  });
+
+  it("yields to an arriving decision", async () => {
+    const { server, user } = await launch();
+    // Same two-lane requirement as above, to force board mode.
+    server.emit(start("backend-developer", "t1", "add the export job"));
+    server.emit(start("qa-engineer", "t2", "cover it with tests"));
+    await user.click(button("Adam: add the export job"));
+    await screen.findByRole("heading", { name: "Adam" });
+
+    server.emit(approval("p1", "backend-developer"));
+
+    // The decision sheet opens; the panel steps aside so exactly one overlay
+    // ever owns the screen.
+    expect(await screen.findByText("Allow Bash?")).toBeTruthy();
+    await waitFor(() =>
+      expect(screen.queryByRole("heading", { name: "Adam" })).toBeNull(),
+    );
   });
 });
 
@@ -271,6 +347,22 @@ describe("a queue of approvals", () => {
     await user.click(button("Allow once"));
     await waitFor(() => expect(server.postsTo("/answer")).toHaveLength(2));
     expect(server.postsTo("/answer")[1].body).toMatchObject({ prompt_id: "p1" });
+  });
+
+  it("tells the user where they are in the queue", async () => {
+    const { server } = await launch();
+    server.emit(approval("p1", "backend-developer"));
+    server.emit(approval("p2", "qa-engineer", "Write"));
+
+    expect(await screen.findByText("Decision 1 of 2")).toBeTruthy();
+  });
+
+  it("drops the counter when only one decision remains", async () => {
+    const { server } = await launch();
+    server.emit(approval("p1", "backend-developer"));
+
+    await screen.findByText("Allow Bash?");
+    expect(screen.queryByText(/Decision 1 of/)).toBeNull();
   });
 });
 
@@ -391,8 +483,9 @@ describe("the coordinator on the board", () => {
     server.emit(start("delivery-coordinator", "t1", "drive the feature"));
     server.emit(start("backend-developer", "t2", "add the export job"));
 
+    // The panel now mounts in a portal, a tick after the click.
     await user.click(screen.getByRole("button", { name: /Emre/ }));
-    expect(screen.getByRole("heading", { name: "Emre" })).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "Emre" })).toBeTruthy();
   });
 
   it("stays out of the Working column even when that column exists", async () => {
@@ -681,5 +774,57 @@ describe("the follow-up composer", () => {
       "added the Action",
       "moved the mail fan-out",
     ]);
+  });
+});
+
+describe("the header status chip", () => {
+  it("ticks while the run is live", async () => {
+    await launch();
+    expect(screen.getByText(/running ·/)).toBeTruthy();
+  });
+
+  it("turns into done when the result lands", async () => {
+    const { server } = await launch();
+    server.emit({ type: "result", subtype: "success", result: "shipped", duration_ms: 10, total_cost_usd: 0 });
+
+    expect(screen.getByText("done")).toBeTruthy();
+    expect(screen.queryByText(/running ·/)).toBeNull();
+  });
+
+  it("says error when the run dies", async () => {
+    const { server } = await launch();
+    server.emit({ type: "error", message: "CLINotConnectedError: transport closed" });
+
+    // Scoped to the header: the main-thread transcript also renders a bare
+    // "error" row for the same event, and that row is not the chip.
+    const header = screen.getByText("Laravel Guild Console").closest("header") as HTMLElement;
+    expect(within(header).getByText("error")).toBeTruthy();
+  });
+
+  it("says stopped after an interrupt", async () => {
+    const { user } = await launch();
+    await user.click(button("Interrupt the running agent"));
+
+    expect(await screen.findByText("stopped")).toBeTruthy();
+  });
+
+  it("shows nothing for a recorded replay", async () => {
+    const opened = await open(testCatalog, (s) =>
+      s.addRecordedRun({ run_id: "run_old", spec: { kind: "prompt" } }, [
+        { type: "result", subtype: "success", result: "old news", duration_ms: 1, total_cost_usd: 0 },
+      ]),
+    );
+    await screen.findByLabelText("Run kind");
+    // The runs list lands async — every recorded-run test waits for the picker.
+    await waitFor(() =>
+      expect(screen.getByLabelText("Open a recorded run")).toBeTruthy(),
+    );
+    await opened.user.selectOptions(
+      screen.getByLabelText("Open a recorded run"), "run_old",
+    );
+    await screen.findByText(/Viewing a recorded run/);
+
+    expect(screen.queryByText(/running ·/)).toBeNull();
+    expect(screen.queryByText("done")).toBeNull();
   });
 });

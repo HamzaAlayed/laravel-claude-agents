@@ -139,6 +139,20 @@
     }
 }
 
+/*
+ * The one looping attention animation in the console: a parked lane breathing
+ * its own agent color. --lane-color is set inline by the card/header button.
+ * Under prefers-reduced-motion the global guard freezes this at the 0% frame —
+ * a static, fully colored 2px border.
+ */
+@keyframes attention-pulse {
+  0%, 100% { border-color: var(--lane-color); }
+  50% { border-color: color-mix(in oklab, var(--lane-color) 35%, transparent); }
+}
+.animate-attention {
+  animation: attention-pulse 2s ease-in-out infinite;
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

@@ -53,8 +53,9 @@ export function Board({ view, catalog, onSelect }: Props) {
               key={lane.toolUseId}
               onClick={() => onSelect(lane)}
               aria-label={`${agents[lane.slug]?.name ?? lane.slug}: ${lane.task || "coordinating"}`}
-              className="flex flex-1 items-center gap-2 rounded-xl border bg-card px-3 py-2 text-left focus-visible:ring-2"
+              className={`flex flex-1 items-center gap-2 rounded-xl border bg-card px-3 py-2 text-left focus-visible:ring-2${parkedLanes.has(lane.toolUseId) ? " animate-attention" : ""}`}
               style={{
+                ["--lane-color" as string]: agents[lane.slug]?.color ?? "#64748b",
                 borderColor: parkedLanes.has(lane.toolUseId)
                   ? agents[lane.slug]?.color
                   : undefined,
