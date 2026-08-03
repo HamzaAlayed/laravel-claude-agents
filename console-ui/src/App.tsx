@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { AlertTriangle, Send, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,6 +11,7 @@ import { Launcher, type LaunchSpec } from "@/components/Launcher";
 import { Markdown } from "@/components/Markdown";
 import { Transcript } from "@/components/Transcript";
 import * as api from "@/lib/api";
+import { fadeRise } from "@/lib/motion";
 import { emptyRun, isRunOver, reduce } from "@/lib/reducer";
 import { armGate, canSubmit, settleSubmit, startSubmit } from "@/lib/submitGate";
 import type { Catalog, GuildEvent, Lane, RunView } from "@/lib/types";
@@ -275,12 +277,17 @@ export default function App() {
       {/* Deliberately not "it has finished": GET /api/runs lists live runs too, so
           the one being replayed may still be running elsewhere. What is reliably
           true is that this view is a replay and cannot act on it. */}
-      {recorded && (
-        <p className="mb-3 rounded-lg border px-3 py-2 text-sm text-muted-foreground">
-          Viewing a recorded run — {recorded}. Read-only replay: approvals and
-          interrupts are not available here.
-        </p>
-      )}
+      <AnimatePresence>
+        {recorded && (
+          <motion.p
+            {...fadeRise}
+            className="mb-3 rounded-lg border px-3 py-2 text-sm text-muted-foreground"
+          >
+            Viewing a recorded run — {recorded}. Read-only replay: approvals and
+            interrupts are not available here.
+          </motion.p>
+        )}
+      </AnimatePresence>
 
       <Launcher
         catalog={catalog}
@@ -291,25 +298,41 @@ export default function App() {
         onLaunch={launch}
       />
 
-      {packBroken && (
-        <p role="alert" className="mb-3 flex items-center gap-2 rounded-lg border-2 border-destructive px-3 py-2 text-sm">
-          <AlertTriangle className="size-4" aria-hidden />
-          The Guild pack did not load cleanly — agents may be missing.
-        </p>
-      )}
-      {error && <p role="alert" className="mb-3 text-sm text-destructive">{error}</p>}
+      <AnimatePresence>
+        {packBroken && (
+          <motion.p
+            role="alert"
+            {...fadeRise}
+            className="mb-3 flex items-center gap-2 rounded-lg border-2 border-destructive px-3 py-2 text-sm"
+          >
+            <AlertTriangle className="size-4" aria-hidden />
+            The Guild pack did not load cleanly — agents may be missing.
+          </motion.p>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {error && (
+          <motion.p role="alert" {...fadeRise} className="mb-3 text-sm text-destructive">
+            {error}
+          </motion.p>
+        )}
+      </AnimatePresence>
       {/* The main thread has no card to carry this, and in a freeform run it is
           where most tool calls happen. */}
-      {view.unasked > 0 && (
-        <p className="mb-3 text-xs text-muted-foreground">
-          {`${view.unasked} ran unasked on the main thread`}
-        </p>
-      )}
-      {view.retry && (
-        <p className="mb-3 text-xs text-muted-foreground">
-          Retrying after {view.retry.error} — attempt {view.retry.attempt} of {view.retry.max_retries}
-        </p>
-      )}
+      <AnimatePresence>
+        {view.unasked > 0 && (
+          <motion.p {...fadeRise} className="mb-3 text-xs text-muted-foreground">
+            {`${view.unasked} ran unasked on the main thread`}
+          </motion.p>
+        )}
+      </AnimatePresence>
+      <AnimatePresence>
+        {view.retry && (
+          <motion.p {...fadeRise} className="mb-3 text-xs text-muted-foreground">
+            Retrying after {view.retry.error} — attempt {view.retry.attempt} of {view.retry.max_retries}
+          </motion.p>
+        )}
+      </AnimatePresence>
 
       <ApprovalBar pending={queue} agentLabel={agentLabel} onOpen={() => setSheetOpen(true)} />
 
@@ -328,24 +351,32 @@ export default function App() {
         </section>
       )}
 
-      {view.result && (
-        <section className="mt-4 rounded-xl border bg-muted/30 p-3">
-          <h2 className="mb-1 text-sm font-medium">Final answer</h2>
-          {/* Agents answer in markdown — headings, bullets, fenced diffs. As
-              pre-wrapped text it read as a wall of asterisks and backticks. */}
-          <Markdown>{view.result.result}</Markdown>
-        </section>
-      )}
+      <AnimatePresence>
+        {view.result && (
+          <motion.section {...fadeRise} className="mt-4 rounded-xl border bg-muted/30 p-3">
+            <h2 className="mb-1 text-sm font-medium">Final answer</h2>
+            {/* Agents answer in markdown — headings, bullets, fenced diffs. As
+                pre-wrapped text it read as a wall of asterisks and backticks. */}
+            <Markdown>{view.result.result}</Markdown>
+          </motion.section>
+        )}
+      </AnimatePresence>
 
       {/* The run died without a result — say why instead of looking idle. */}
-      {view.failure && (
-        <section role="alert" className="mt-4 rounded-xl border-2 border-destructive p-3">
-          <h2 className="mb-1 flex items-center gap-2 text-sm font-medium">
-            <AlertTriangle className="size-4" aria-hidden /> The run ended with an error
-          </h2>
-          <p className="whitespace-pre-wrap text-sm">{view.failure.message}</p>
-        </section>
-      )}
+      <AnimatePresence>
+        {view.failure && (
+          <motion.section
+            role="alert"
+            {...fadeRise}
+            className="mt-4 rounded-xl border-2 border-destructive p-3"
+          >
+            <h2 className="mb-1 flex items-center gap-2 text-sm font-medium">
+              <AlertTriangle className="size-4" aria-hidden /> The run ended with an error
+            </h2>
+            <p className="whitespace-pre-wrap text-sm">{view.failure.message}</p>
+          </motion.section>
+        )}
+      </AnimatePresence>
 
       {/* Clarifications arrive as plain text; this is how the user replies. */}
       {live && (
