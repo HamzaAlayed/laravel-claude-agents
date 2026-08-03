@@ -15,3 +15,6 @@ console-ui/.vite/
 console-ui/*.tsbuildinfo
 .playwright-mcp/
 .claude/agents-board.jsonl
+
+# Linked worktrees (EnterWorktree / git worktree add)
+.claude/worktrees/
