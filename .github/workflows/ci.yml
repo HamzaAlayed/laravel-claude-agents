@@ -152,6 +152,14 @@ jobs:
       - name: Run console unit tests (stdlib unittest, no SDK required)
         run: python3 -m unittest discover -s tests/console -t tests/console -v
 
+  eval-cost-python:
+    name: eval cost parser units
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run eval-cost unit tests (parses the recorded stream-json fixtures)
+        run: python3 -m unittest discover -s tests/eval -t tests/eval -p 'test_*.py' -v
+
   console-ui:
     name: console ui
     runs-on: ubuntu-latest
