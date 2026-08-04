@@ -98,6 +98,31 @@ class TestFinalText(unittest.TestCase):
     def test_returns_none_on_an_empty_transcript(self):
         self.assertIsNone(eval_cost.final_text([]))
 
+    def test_the_fallback_excludes_user_turn_text(self):
+        # Caught by running the harness against a result-less transcript: user
+        # lines carry the prompt and tool results as text blocks. Folding those
+        # into the rebuilt log lets an answer-key grep match the eval's own
+        # prompt and report a false PASS on a timed-out run.
+        user_line = json.dumps({
+            "type": "user",
+            "message": {"content": [{"type": "text", "text": "PROMPT-SENTINEL"}]},
+        })
+        lines = [user_line, assistant_line(10, 5)]
+        text = eval_cost.final_text(lines)
+        self.assertEqual(text, "ok")
+        self.assertNotIn("PROMPT-SENTINEL", text)
+
+    def test_the_fallback_excludes_tool_result_text_from_the_real_fixture(self):
+        # Same guard, against the recorded transcript rather than a synthetic one:
+        # the subagent probe's user turns carry the delegated prompt verbatim.
+        lines = [
+            l for l in (FIXTURES / "stream-json-subagent.jsonl").read_text().splitlines()
+            if l.strip() and json.loads(l).get("type") != "result"
+        ]
+        text = eval_cost.final_text(lines)
+        self.assertIsNotNone(text)
+        self.assertNotIn("Run pwd and report", text)
+
 
 class TestPricing(unittest.TestCase):
     def test_totals_all_four_token_classes_separately(self):

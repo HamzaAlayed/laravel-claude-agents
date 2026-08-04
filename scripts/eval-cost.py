@@ -137,6 +137,11 @@ def final_text(lines):
     key's greps reading exactly what they read before this change. A run that
     times out or is killed never emits a result line -- run 4 had a timeout --
     so fall back to the concatenated assistant text rather than nothing.
+
+    The fallback takes `assistant` lines ONLY. `user` lines carry the prompt and
+    tool results as text blocks, and folding those in would let an answer-key
+    grep match the eval's own prompt and report a false PASS on a timed-out run
+    -- which is the exact failure this whole capture path exists to prevent.
     """
     assistant_text = []
     for obj, ok in _iter_objects(lines):
@@ -144,7 +149,8 @@ def final_text(lines):
             continue
         if obj.get("type") == "result" and isinstance(obj.get("result"), str):
             return obj["result"]
-        assistant_text.append(_text_of(obj))
+        if obj.get("type") == "assistant":
+            assistant_text.append(_text_of(obj))
     return "".join(assistant_text) or None
 
 

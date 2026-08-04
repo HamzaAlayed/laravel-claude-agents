@@ -414,14 +414,42 @@ run_case() { # run_case <name> <results-dir>
   git -C "$WORK" -c user.email=eval@example.com -c user.name=eval add -A
   git -C "$WORK" -c user.email=eval@example.com -c user.name=eval commit -qm baseline
 
-  local -a cmd=("$CLAUDE_BIN" -p "$prompt" --dangerously-skip-permissions)
+  # stream-json (not plain text) so the transcript carries per-turn `usage` with
+  # the input/output/cache split -- the only way to price a run rather than guess
+  # at it. It does NOT go to $LOG: the answer key greps $LOG, and JSON there
+  # would silently start matching tool inputs and thinking text. $LOG is rebuilt
+  # below from the result field, which is exactly what plain `-p` prints.
+  local -a cmd=("$CLAUDE_BIN" -p "$prompt" --dangerously-skip-permissions
+                --output-format stream-json --verbose)
   if [ -n "${EVAL_MODEL:-}" ]; then
     cmd+=(--model "$EVAL_MODEL")
   fi
 
+  local stream="$results/$name.stream.jsonl"
   local start=$SECONDS rc=0
-  (cd "$WORK" && run_with_timeout "$EVAL_TIMEOUT" "${cmd[@]}") >"$LOG" 2>&1 || rc=$?
+  (cd "$WORK" && run_with_timeout "$EVAL_TIMEOUT" "${cmd[@]}") >"$stream" 2>&1 || rc=$?
   local dur=$((SECONDS - start))
+
+  # Rebuild the human-readable log that the checks and the findings doc both
+  # read. A timed-out run emits no result line, so eval-cost falls back to the
+  # concatenated assistant text; if even that is empty it exits 2 and we keep the
+  # raw stream as the only evidence rather than leaving an empty log unexplained.
+  if ! python3 "$ROOT/scripts/eval-cost.py" --transcript "$stream" \
+       --rates "$ROOT/tests/eval/model-rates.json" --text-only >"$LOG" 2>/dev/null; then
+    echo "   WARNING: no final text in the transcript — keeping $name.stream-kept.jsonl"
+    cp "$stream" "$results/$name.stream-kept.jsonl"
+  fi
+
+  # Per-agent input/output/cache tokens, tool-call counts, and the run's billed
+  # cost. Models come from the transcript (message.model), so a re-tiered agent
+  # is priced at what actually billed rather than what the pack declares.
+  python3 "$ROOT/scripts/eval-cost.py" --transcript "$stream" \
+    --rates "$ROOT/tests/eval/model-rates.json" >"$results/$name.cost.json" 2>/dev/null \
+    || echo "   WARNING: could not summarise cost for $name"
+
+  # Megabytes per case, and tests/eval/results/ is committed. The derived summary
+  # is the artifact; the raw stream is scaffolding.
+  rm -f "$stream"
 
   if [ "$dur" -ge "$EVAL_TIMEOUT" ]; then
     echo "   TIMED OUT after ${dur}s"
@@ -442,6 +470,31 @@ run_case() { # run_case <name> <results-dir>
   local verdict=PASS
   [ "$CHECK_FAIL" -gt 0 ] && verdict=FAIL
   echo "   $verdict — $CHECK_PASS/$((CHECK_PASS + CHECK_FAIL)) checks, ${dur}s"
+
+  if [ -s "$results/$name.cost.json" ] && command -v python3 >/dev/null 2>&1; then
+    python3 - "$results/$name.cost.json" <<'PY' || true
+import json, sys
+d = json.load(open(sys.argv[1]))
+billed, attr = d["billed"], d["attributed"]
+if billed["usd"] is not None:
+    check = billed["rate_table_check"]
+    stale = "" if check["agrees"] is not False else "  (RATE TABLE STALE — see model-rates.json)"
+    print(f"   cost: ${billed['usd']:.2f} billed{stale}")
+tok = attr["total"]
+share = f", {attr['coverage_of_billed']:.0%} of billed" if attr["coverage_of_billed"] else ""
+print(f"   attributed: {tok['tokens']:,} tokens "
+      f"({tok['input_tokens']:,} in / {tok['output_tokens']:,} out / "
+      f"{tok['cache_read_tokens'] + tok['cache_write_1h_tokens'] + tok['cache_write_5m_tokens']:,} cache)"
+      f"{share}")
+top = sorted(attr["agents"].items(), key=lambda kv: -kv[1]["tokens"])[:4]
+for agent, a in top:
+    calls = sum(a["tools"].values())
+    print(f"         {agent:22} {a['tokens']:>9,} tok  ${a['usd']:.2f}  "
+          f"{calls:>3} tool calls  {','.join(a['models']) or '-'}")
+if d["unpriced_models"]:
+    print(f"   WARNING: unpriced models: {', '.join(d['unpriced_models'])}")
+PY
+  fi
 
   JUDGE_CELL=""
   [ "$EVAL_JUDGE" = "1" ] && judge_case "$name" "$results" "$verdict"

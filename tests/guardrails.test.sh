@@ -402,6 +402,42 @@ expect "console still forces Bash through the browser" "1" \
 expect "the eval harness starts each feed empty" "1" \
   "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE ': >".*/\.claude/agents-board\.jsonl"')"
+# Cost was unmeasured: the harness timed runs and scored them and never priced
+# them. stream-json carries per-turn usage with the input/output/cache split,
+# which is the only way to price a run rather than guess at it.
+#
+# The load-bearing risk is $LOG. Every checks_* function greps it for answer-key
+# patterns, so if stream-json landed there directly the answer key would start
+# matching tool inputs and thinking text, and run 6 would stop being comparable
+# to run 5. The transcript goes to its own file; $LOG is rebuilt from the result
+# field, which is exactly what plain `claude -p` prints.
+expect "the eval harness requests stream-json" "1" \
+  "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE '\-\-output-format stream-json')"
+# The transcript's redirect target must be the dedicated stream file, never $LOG.
+expect "the transcript goes to its own file, not the log" "1" \
+  "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'run_with_timeout "\$EVAL_TIMEOUT" "\$\{cmd\[@\]\}"\) >"\$stream"')"
+expect "the stream file is named .stream.jsonl" "1" \
+  "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'local stream=.*\$name\.stream\.jsonl')"
+# $LOG must be produced by --text-only (the result field, i.e. what plain -p
+# prints) and by nothing else, or the answer key changes meaning.
+expect "the log is rebuilt from the transcript's result field" "1" \
+  "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE '\-\-text-only >"\$LOG"')"
+expect "the eval harness writes a per-case cost summary" "1" \
+  "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE '>"\$results/\$name\.cost\.json"')"
+# Megabytes per case, and tests/eval/results/ is committed. The derived summary
+# is the artifact; the raw stream is scaffolding.
+expect "the eval harness discards the raw transcript" "1" \
+  "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE '^ *rm -f "\$stream"')"
+# Checks must read the human-readable log, never the transcript.
+expect "no checks function reads the raw transcript" "0" \
+  "$(sed -n '/^checks_/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'stream\.jsonl' || true)"
 expect "console bundle is committed" "1" \
   "$([ -f "$SCRIPT_DIR/scripts/console/dist/index.html" ] && echo 1 || echo 0)"
 # The committed bundle needs ONE blessed toolchain. A hardcoded node-version in
