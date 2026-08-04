@@ -1,13 +1,49 @@
 {
-  "_source": "sequential run 5 (docs/evals/2026-07-31-run-5.md); parallel runs excluded — API contention inflates per-case durations 2-6x (run 3 finding)",
+  "_source": "sequential eval run 6 (docs/evals/2026-08-04-run-6.md), 5/5 cases, 19/19 checks; parallel runs excluded — API contention inflates per-case durations 2-6x (run 3 finding)",
   "_policy": "soft ceilings: run-evals.sh prints 'within'/'REGRESSED', never fails the case; update ceilings after each accepted sequential run",
-  "_tokens": "max_tokens is null until eval run 6. Every token figure from runs 1-5 is contaminated: three cases that delegated nothing each report an identical 48,895 qa-engineer tokens (run-5 finding 1, fixed for future runs in f12ad7c). A guessed ceiling would either always read REGRESSED or never fire; null means unseeded and the harness says so.",
-  "_tokens_metric": "The ceiling is on tokens, not dollars, deliberately: tokens measure the work done and are invariant to price changes, whereas a dollar ceiling would read as a regression the day Sonnet 5's introductory rate expires (2026-08-31) and as an improvement on any price cut. The harness prints the billed dollar figure beside the token comparison, so cost stays visible without being the thing that ratchets. Compared value is `attributed.total.tokens` from <case>.cost.json.",
+  "_metrics": "Three ceilings, because each catches a regression the others miss. max_seconds is wall clock. max_usd is the CLI's own total_cost_usd — the real cost, and the only one that catches a model-mix regression (a sonnet -> opus re-tier keeps token counts flat and triples the bill). max_tokens is attributed.total.tokens — a work-volume proxy that is invariant to pricing, which max_usd is not: Sonnet 5's introductory rate expires 2026-08-31, so a max_usd breach can mean a price change rather than a regression. The rate-table reconciliation in <case>.cost.json is what distinguishes the two.",
+  "_tokens_caveat": "Run 6 measured token totals as >99% cache-read tokens in all five cases (e.g. n-plus-one: 3,666,860 cache of 3,669,451 total). Cache reads bill at 0.1x input, so max_tokens tracks context volume x turns far more than it tracks spend. Read it as a work-volume signal and let max_usd speak for cost.",
+  "_bimodal_cases": "`policy` and `action` each run two ways: the coordinator fast path takes the case (fewer stages, much cheaper) or it delegates. Run 5 delegated `policy` (994s) and fast-pathed `action` (420s); run 6 did the exact opposite (`policy` 381s undelegated, `action` 1217s across 4 agents). Ceilings are seeded from run 6 with headroom, NOT inflated to cover both modes — so on a REGRESSED reading for either case, check <case>.cost.json's agent list for delegation before treating it as a regression.",
   "cases": {
-    "n-plus-one": { "max_seconds": 250, "basis": "run 5: 178s + headroom; creeping across runs (96 -> 157 -> 178)", "max_tokens": null, "tokens_basis": "unseeded — run 6 is the first clean measurement" },
-    "policy":     { "max_seconds": 1100, "basis": "run 5: 994s, identical to run 4 — a stable cost, not a fluke. Deliberately accepts a 46% regression vs run 2's 681s rather than leaving a ceiling that always reads REGRESSED; the driver (security-engineer, 526s of the 994s) is run-5 finding 2, kept on the record instead of hidden by this number", "max_tokens": null, "tokens_basis": "unseeded — decontaminated run 5 suggests ~183k (backend 41,495 + qa 52,959 + security 88,625), but that is a subtraction, not a measurement" },
-    "action":     { "max_seconds": 600, "basis": "run 5: 420s with NO delegation (the coordinator fast path took the case). The old 1200s was set when this case timed out. If the fast path stops taking it, this reads REGRESSED the first time it delegates again — that is the intended signal, not a false alarm", "max_tokens": null, "tokens_basis": "unseeded — run 5's figure for this case was entirely fixture debris (it delegated nothing)" },
-    "tests":      { "max_seconds": 950, "basis": "run 5: 806s and 4/4. The old 800s came from run 2's 681s, and run 4's 298s was a case that skipped the authorization work it now does", "max_tokens": null, "tokens_basis": "unseeded — decontaminated run 5 suggests ~138k in a single qa-engineer invocation, the largest single lane in the run and this milestone's headline measurement target" },
-    "hygiene":    { "max_seconds": 200, "basis": "run 5: 91s (scrum-master, read-only ledger scan) + headroom", "max_tokens": null, "tokens_basis": "unseeded — run 5's figure for this case was entirely fixture debris (it delegated nothing)" }
+    "n-plus-one": {
+      "max_seconds": 400,
+      "basis": "run 6: 302s + headroom. Creeping hard across runs (96 -> 157 -> 178 -> 302) and it breached the previous 250s ceiling — the ceiling is raised to keep carrying information, but the creep itself is run-6 finding 1 and is the thing to explain, not to absorb",
+      "max_tokens": 4800000,
+      "tokens_basis": "run 6: 3,669,451 (99.9% cache reads) + ~30%",
+      "max_usd": 2.4,
+      "usd_basis": "run 6: $1.82 billed + ~30%; no delegation, single opus-5 lane"
+    },
+    "policy": {
+      "max_seconds": 1100,
+      "basis": "unchanged from run 5's 994s. Run 6 took 381s because the case did NOT delegate — leaving the ceiling at 1100 keeps it valid for the delegating mode rather than making every delegating run read REGRESSED (see _bimodal_cases)",
+      "max_tokens": 5700000,
+      "tokens_basis": "run 6: 4,371,934 undelegated + ~30%. A delegating run will likely exceed this — check the agent list first",
+      "max_usd": 2.9,
+      "usd_basis": "run 6: $2.19 billed undelegated + ~30%"
+    },
+    "action": {
+      "max_seconds": 1400,
+      "basis": "run 6: 1217s across 4 agents (qa-engineer, main, tech-lead, backend-developer) + headroom. The previous 600s came from run 5's 420s fast-path run, and its basis note predicted exactly this: 'if the fast path stops taking it, this reads REGRESSED the first time it delegates again — that is the intended signal'. The signal fired as designed; the ceiling now covers the delegating mode",
+      "max_tokens": 12600000,
+      "tokens_basis": "run 6: 9,699,200 across 4 agents + ~30% — the most expensive case in the suite",
+      "max_usd": 6.75,
+      "usd_basis": "run 6: $5.16 billed + ~30%. 41% of the whole run's $12.50"
+    },
+    "tests": {
+      "max_seconds": 950,
+      "basis": "run 6: 633s, within the existing ceiling — unchanged",
+      "max_tokens": 4800000,
+      "tokens_basis": "run 6: 3,697,406 + ~30%, of which qa-engineer was 1,978,501 across 39 tool calls",
+      "max_usd": 3.6,
+      "usd_basis": "run 6: $2.76 billed + ~30%"
+    },
+    "hygiene": {
+      "max_seconds": 200,
+      "basis": "run 6: 106s (scrum-master, read-only ledger scan), within the existing ceiling — unchanged",
+      "max_tokens": 760000,
+      "tokens_basis": "run 6: 579,315 + ~30% — the cheapest case, and the only one on haiku",
+      "max_usd": 0.75,
+      "usd_basis": "run 6: $0.57 billed + ~30%"
+    }
   }
 }

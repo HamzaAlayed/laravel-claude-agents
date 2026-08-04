@@ -522,21 +522,35 @@ cap = (case or {}).get("max_seconds")
 if cap is not None:
     state = "within" if dur <= cap else "REGRESSED vs"
     print(f"   baseline: {state} {cap}s ceiling ({dur}s)")
-# Cost ratchet. Tokens, not dollars -- see baseline.json's _tokens_metric.
-tok_cap = (case or {}).get("max_tokens")
-actual = None
+# Cost ratchets: dollars AND tokens. Each catches a regression the other misses
+# -- a sonnet -> opus re-tier keeps tokens flat and triples the bill, while
+# dollars drift with published prices and tokens do not. See baseline.json's
+# _metrics. Token totals are >99% cache reads (run-6 finding), so read tokens as
+# work volume and let dollars speak for cost.
+summary = None
 if cost_path:
     try:
-        actual = json.load(open(cost_path))["attributed"]["total"]["tokens"]
+        summary = json.load(open(cost_path))
     except Exception:
-        actual = None
-if actual is None:
-    pass
-elif tok_cap is None:
-    print(f"   baseline: token ceiling unseeded ({actual:,} tokens this run)")
-else:
-    state = "within" if actual <= tok_cap else "REGRESSED vs"
-    print(f"   baseline: {state} {tok_cap:,}-token ceiling ({actual:,} tokens)")
+        summary = None
+if summary is not None:
+    usd_cap = (case or {}).get("max_usd")
+    billed = (summary.get("billed") or {}).get("usd")
+    if billed is None:
+        pass
+    elif usd_cap is None:
+        print(f"   baseline: cost ceiling unseeded (${billed:.2f} billed this run)")
+    else:
+        state = "within" if billed <= usd_cap else "REGRESSED vs"
+        print(f"   baseline: {state} ${usd_cap:.2f} cost ceiling (${billed:.2f} billed)")
+
+    tok_cap = (case or {}).get("max_tokens")
+    actual = summary["attributed"]["total"]["tokens"]
+    if tok_cap is None:
+        print(f"   baseline: token ceiling unseeded ({actual:,} tokens this run)")
+    else:
+        state = "within" if actual <= tok_cap else "REGRESSED vs"
+        print(f"   baseline: {state} {tok_cap:,}-token ceiling ({actual:,} tokens)")
 PY
   fi
   echo

@@ -5,6 +5,53 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.32.0] - 2026-08-04
+
+### Added
+
+- **`baseline.json` ratchets dollars as well as tokens and seconds.** Three
+  ceilings, because each catches a regression the others miss: a sonnet → opus
+  re-tier keeps token counts flat and triples the bill, while dollars drift with
+  published prices and tokens do not. [Eval run 6](docs/evals/2026-08-04-run-6.md)
+  made the case concrete — token totals came in at **>99% cache-read tokens** in
+  all five cases, and cache reads bill at a tenth of input, so a token-only
+  ceiling measures context volume far more than spend.
+- **All three ceilings are now seeded** for all five cases, from run 6 — the first
+  run in the project's history with a cost figure attached ($12.50 across five
+  cases). `max_tokens` had shipped `null` by design because every earlier figure
+  was contaminated; run 6 is the clean measurement it was waiting for.
+
+### Fixed
+
+- **Dated model ids are priced at their alias rate.** Transcripts report
+  `claude-haiku-4-5-20251001` where the rate table and agent frontmatter use
+  `claude-haiku-4-5`. The dated id missed the table, fell through to the default
+  Opus rate, and priced `scrum-master` five times too high. The rate-table
+  reconciliation caught it rather than reporting a wrong number quietly — the
+  implied cache-write multiplier came out at 0.99, below the cheapest real tier.
+  A test now asserts every model any agent pins is priceable, so a future re-tier
+  fails a test instead of silently billing at the default rate.
+- **No more phantom `unknown-agent` lane.** Any `task_started` line carrying a
+  `tool_use_id` was treated as an agent launch with a fallback name, so three run-6
+  cases that spawned no subagent at all still reported an `unknown-agent` — which
+  the harness then announced as "launched but unmeasured (async?)", inventing a
+  lane in the one report meant to be authoritative about lanes. A `task_started`
+  without a `subagent_type` is not an agent launch and is skipped.
+
+### Changed
+
+- **Eval run 6 reported: 5/5 cases, 19/19 checks, and 5/5 judged PASS** — the
+  first run with `EVAL_JUDGE=1` exercised against real output. It answers the
+  question run 5 left open: `qa-engineer` is the largest lane because of
+  **tool-call volume** — 73 calls in the `action` case, more than the other three
+  agents combined, and it costs less per token than `tech-lead` (Opus 4.8) which
+  used a fifth of the tokens for nearly the same dollars. The judge also found a
+  real hole the regex answer key cannot see: `checks_action` greps `git diff`, and
+  `git diff` does not show untracked files, so a case whose job is creating a new
+  Action class never verifies that file's contents. Full findings, including the
+  `n-plus-one` 3.1× latency creep and a run-7 checklist, are in
+  [docs/evals/2026-08-04-run-6.md](docs/evals/2026-08-04-run-6.md).
+
 ## [1.31.1] - 2026-08-04
 
 ### Fixed

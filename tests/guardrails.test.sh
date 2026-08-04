@@ -497,6 +497,32 @@ PY
 )"
 expect "the harness compares tokens against the ceiling" "1" \
   "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" | grep -cE 'max_tokens')"
+# Dollars ratchet too, because tokens alone cannot see a model-mix regression: a
+# sonnet -> opus re-tier keeps token counts flat and triples the bill. Run 6 also
+# measured token totals at >99% cache reads, so tokens track context volume far
+# more than spend -- dollars are the ceiling that speaks for cost.
+expect "every eval case has a cost-ceiling key" "" \
+  "$(python3 - "$SCRIPT_DIR/tests/eval/baseline.json" "$SCRIPT_DIR/tests/eval/run-evals.sh" <<'PY'
+import json, re, sys
+base = json.load(open(sys.argv[1]))
+cases = re.search(r"^ALL_CASES=\((.*)\)$", open(sys.argv[2]).read(), re.M).group(1).split()
+print(" ".join(c for c in cases if "max_usd" not in base["cases"].get(c, {})))
+PY
+)"
+expect "the harness compares billed dollars against the ceiling" "1" \
+  "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" | grep -cE 'max_usd')"
+# Seeded, not null: run 6 was accepted (5/5, 19/19), so leaving a ceiling
+# unseeded now would waste the only clean measurement the suite has.
+expect "no eval ceiling is left unseeded after run 6" "" \
+  "$(python3 - "$SCRIPT_DIR/tests/eval/baseline.json" <<'PY'
+import json, sys
+base = json.load(open(sys.argv[1]))["cases"]
+print(" ".join(
+    f"{name}.{key}" for name, case in sorted(base.items())
+    for key in ("max_seconds", "max_tokens", "max_usd") if case.get(key) is None
+))
+PY
+)"
 # Checks must read the human-readable log, never the transcript.
 expect "no checks function reads the raw transcript" "0" \
   "$(sed -n '/^checks_/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \

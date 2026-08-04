@@ -100,7 +100,7 @@ Every agent answers to a human name. Address them either way: `@backend-develope
 
 ## Proven against a planted-flaw app
 
-The pack is evaluated against a fixture Laravel app with documented planted flaws ([tests/eval/](tests/eval/)) — real headless `claude -p` runs scored by an answer key the agents can't read, with per-agent timing captured from the board event stream. Findings docs live in [docs/evals/](docs/evals/); soft per-case duration ceilings live in [tests/eval/baseline.json](tests/eval/baseline.json).
+The pack is evaluated against a fixture Laravel app with documented planted flaws ([tests/eval/](tests/eval/)) — real headless `claude -p` runs scored by an answer key the agents can't read, with per-agent tokens, tool-call counts and cost derived from each run's own transcript. Findings docs live in [docs/evals/](docs/evals/); soft per-case ceilings for duration, tokens and dollars live in [tests/eval/baseline.json](tests/eval/baseline.json).
 
 | Run | Cases | Checks | Findings |
 | --- | ----- | ------ | -------- |
@@ -109,6 +109,7 @@ The pack is evaluated against a fixture Laravel app with documented planted flaw
 | 3 · 2026-07-21 | 4/4 | 14/14 | first parallel run — pass/fail smoke only, timings excluded |
 | 4 · 2026-07-28 | 4/5 | 17/19 | first quality regression — caught `isolation: worktree` blinding agents to their own gates |
 | 5 · 2026-07-31 | 5/5 | 19/19 | first clean sweep; `tests` 2/4 → 4/4, `action` 1174s → 420s; found the per-case event feeds polluted by committed fixture telemetry |
+| 6 · 2026-08-04 | 5/5 | 19/19 | first priced run ($12.50) and first with the rubric judge — 5/5 judged PASS; answered the long-standing `qa-engineer` cost question (**73 tool calls**, the largest lane) and found the answer key can't see untracked files |
 
 Each run's misses become levers, ship in the next release, and get re-measured — the harness runs the 5 eval cases (the fifth, `hygiene`, ships unscored until run 4). Because grep is exact-match scoring of a nondeterministic output, `EVAL_JUDGE=1` adds an independent rubric judge per case and flags where it disagrees with the answer key — advisory only, so verdicts stay comparable across runs.
 

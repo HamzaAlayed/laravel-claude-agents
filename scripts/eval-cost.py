@@ -211,13 +211,23 @@ def _subagent_map(lines):
     This is the only place the transcript names an agent. The spawning Agent
     tool_use block carries the same pairing in its `input.subagent_type`, but
     task_started states it directly, so that second source stays unused.
+
+    A `task_started` that does NOT name a `subagent_type` is not an agent launch
+    and is skipped. Eval run 6 found this: three cases that spawned no subagent
+    at all (empty board feed) still reported a phantom `unknown-agent`, which the
+    harness then announced as "launched but unmeasured (async?)" -- inventing a
+    lane that never existed, in the one report meant to be trusted about lanes.
     """
     mapping = {}
     for obj, ok in _iter_objects(lines):
         if not ok or obj.get("type") != "system":
             continue
-        if obj.get("subtype") == "task_started" and obj.get("tool_use_id"):
-            mapping[obj["tool_use_id"]] = obj.get("subagent_type") or "unknown-agent"
+        if obj.get("subtype") != "task_started":
+            continue
+        tool_use_id = obj.get("tool_use_id")
+        subagent_type = obj.get("subagent_type")
+        if tool_use_id and subagent_type:
+            mapping[tool_use_id] = subagent_type
     return mapping
 
 

@@ -352,6 +352,32 @@ class TestAsyncAgentVisibility(unittest.TestCase):
             out["attributed"]["launched_without_measured_turns"], ["security-engineer"]
         )
 
+    def test_a_task_started_without_a_subagent_type_is_not_an_agent(self):
+        # Eval run 6: three cases spawned no subagent at all (board feed empty)
+        # yet reported a phantom `unknown-agent`, which the harness announced as
+        # "launched but unmeasured (async?)" -- inventing a lane in the one
+        # report that is supposed to be authoritative about lanes.
+        lines = [
+            json.dumps({"type": "system", "subtype": "task_started", "tool_use_id": "toolu_x"}),
+            assistant_line(input_tokens=10),
+            result_line("x"),
+        ]
+        out = eval_cost.summarize(lines, RATES)
+        self.assertEqual(sorted(out["attributed"]["agents"]), ["main"])
+        self.assertEqual(out["attributed"]["launched_without_measured_turns"], [])
+
+    def test_a_named_task_started_alongside_an_unnamed_one_still_counts(self):
+        lines = [
+            json.dumps({"type": "system", "subtype": "task_started", "tool_use_id": "toolu_x"}),
+            task_started_line("toolu_y", "qa-engineer"),
+            assistant_line(input_tokens=10),                      # main thread
+            assistant_line(input_tokens=20, parent="toolu_y"),     # the named subagent
+            result_line("x"),
+        ]
+        agents = eval_cost.summarize(lines, RATES)["attributed"]["agents"]
+        self.assertEqual(sorted(agents), ["main", "qa-engineer"])
+        self.assertEqual(agents["qa-engineer"]["input_tokens"], 20)
+
     def test_counts_turns_per_agent(self):
         lines = [
             task_started_line("toolu_1", "qa-engineer"),
