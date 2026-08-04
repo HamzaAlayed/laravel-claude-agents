@@ -364,6 +364,10 @@ expect "no haiku-pinned agent declares effort" "" \
 EVAL_SH="$SCRIPT_DIR/tests/eval/run-evals.sh"
 MISSING_RUBRIC=""
 read -r -a EVAL_CASE_LIST <<<"$(sed -n 's/^ALL_CASES=(\(.*\))$/\1/p' "$EVAL_SH")"
+# Opt-in cases count too: excluded from the default sweep is not excluded from
+# needing a rubric, and an unjudged case is exactly what this ratchet exists for.
+read -r -a EVAL_OPT_IN_LIST <<<"$(sed -n 's/^OPT_IN_CASES=(\(.*\))$/\1/p' "$EVAL_SH")"
+EVAL_CASE_LIST+=("${EVAL_OPT_IN_LIST[@]}")
 for c in "${EVAL_CASE_LIST[@]}"; do
   sed -n '/^case_rubric()/,/^}/p' "$EVAL_SH" | grep -qE "^ *$c\)" || MISSING_RUBRIC="$MISSING_RUBRIC $c"
 done
@@ -538,16 +542,40 @@ expect "the raw transcript can be preserved for diagnosis" "1" \
 expect "KEEP_TRANSCRIPT defaults to off" "1" \
   "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'KEEP_TRANSCRIPT="\$\{KEEP_TRANSCRIPT:-0\}"')"
-expect "no eval ceiling is left unseeded after run 6" "" \
-  "$(python3 - "$SCRIPT_DIR/tests/eval/baseline.json" <<'PY'
-import json, sys
+expect "no default-sweep ceiling is left unseeded after run 6" "" \
+  "$(python3 - "$SCRIPT_DIR/tests/eval/baseline.json" "$SCRIPT_DIR/tests/eval/run-evals.sh" <<'PY'
+import json, re, sys
 base = json.load(open(sys.argv[1]))["cases"]
+src = open(sys.argv[2]).read()
+sweep = re.search(r"^ALL_CASES=\((.*)\)$", src, re.M).group(1).split()
 print(" ".join(
-    f"{name}.{key}" for name, case in sorted(base.items())
-    for key in ("max_seconds", "max_tokens", "max_usd") if case.get(key) is None
+    f"{name}.{key}" for name in sweep
+    for key in ("max_seconds", "max_tokens", "max_usd")
+    if base.get(name, {}).get(key) is None
 ))
 PY
 )"
+# Opt-in cases still need their baseline entry present, so a first run has
+# somewhere to report against and somewhere to seed.
+expect "every opt-in case has a baseline entry" "" \
+  "$(python3 - "$SCRIPT_DIR/tests/eval/baseline.json" "$SCRIPT_DIR/tests/eval/run-evals.sh" <<'PY'
+import json, re, sys
+base = json.load(open(sys.argv[1]))["cases"]
+src = open(sys.argv[2]).read()
+m = re.search(r"^OPT_IN_CASES=\((.*)\)$", src, re.M)
+opt = m.group(1).split() if m else []
+print(" ".join(c for c in opt if c not in base))
+PY
+)"
+# The opt-in case exists to prove delegation happened. No other case asserts it,
+# and `policy`/`action` each ran both ways across runs 5 and 6 without the answer
+# key noticing which — so if this assertion goes, the case loses its whole point.
+expect "the opt-in case asserts that work was delegated" "1" \
+  "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'check_delegated')"
+expect "the opt-in case stays out of the default sweep" "0" \
+  "$(sed -n 's/^ALL_CASES=(\(.*\))$/\1/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | tr ' ' '\n' | grep -cx 'feature' || true)"
 # Checks must read the human-readable log, never the transcript.
 expect "no checks function reads the raw transcript" "0" \
   "$(sed -n '/^checks_/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \

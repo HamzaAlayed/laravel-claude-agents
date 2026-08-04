@@ -4,6 +4,7 @@
   "_metrics": "Three ceilings, because each catches a regression the others miss. max_seconds is wall clock. max_usd is the CLI's own total_cost_usd — the real cost, and the only one that catches a model-mix regression (a sonnet -> opus re-tier keeps token counts flat and triples the bill). max_tokens is attributed.total.tokens — a work-volume proxy that is invariant to pricing, which max_usd is not: Sonnet 5's introductory rate expires 2026-08-31, so a max_usd breach can mean a price change rather than a regression. The rate-table reconciliation in <case>.cost.json is what distinguishes the two.",
   "_tokens_caveat": "Run 6 measured token totals as >99% cache-read tokens in all five cases (e.g. n-plus-one: 3,666,860 cache of 3,669,451 total). Cache reads bill at 0.1x input, so max_tokens tracks context volume x turns far more than it tracks spend. Read it as a work-volume signal and let max_usd speak for cost.",
   "_bimodal_cases": "`policy` and `action` each run two ways: the coordinator fast path takes the case (fewer stages, much cheaper) or it delegates. Run 5 delegated `policy` (994s) and fast-pathed `action` (420s); run 6 did the exact opposite (`policy` 381s undelegated, `action` 1217s across 4 agents). Ceilings are seeded from run 6 with headroom, NOT inflated to cover both modes — so on a REGRESSED reading for either case, check <case>.cost.json's agent list for delegation before treating it as a regression.",
+  "_opt_in": "`feature` is registered but excluded from the default sweep (OPT_IN_CASES in run-evals.sh): it is the only case guaranteed to delegate, and also the most expensive, so it opts in when coordinator behaviour changes rather than costing every sweep. Its ceilings stay null until its first accepted run.",
   "cases": {
     "n-plus-one": {
       "max_seconds": 400,
@@ -44,6 +45,14 @@
       "tokens_basis": "run 6: 579,315 + ~30% — the cheapest case, and the only one on haiku",
       "max_usd": 0.75,
       "usd_basis": "run 6: $0.57 billed + ~30%"
+    },
+    "feature": {
+      "max_seconds": null,
+      "basis": "unseeded — opt-in case, never yet run. `action` is the closest comparable at 1217s in run 6",
+      "max_tokens": null,
+      "tokens_basis": "unseeded — expect the largest in the suite; it delegates across 3-4 specialists",
+      "max_usd": null,
+      "usd_basis": "unseeded — `action` billed $5.16 in run 6 for a comparable shape"
     }
   }
 }

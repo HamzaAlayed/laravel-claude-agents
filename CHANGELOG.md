@@ -5,6 +5,37 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.34.0] - 2026-08-04
+
+### Added
+
+- **An opt-in `feature` eval case — the only one that must delegate.** Nothing in
+  the suite proved delegation happened, and that made the coordinator's own rules
+  unmeasurable: `policy` and `action` each ran *both* ways across runs 5 and 6 —
+  one across four specialists, the other alone on the main thread via the fast
+  path — and the answer key could not tell the difference either time.
+  `/make-feature Tag --api` is parallel by construction, so it always delegates.
+  Run it by name: `./tests/eval/run-evals.sh feature`.
+- **A `check_delegated` assertion**, which reads the board feed and requires ≥2
+  distinct agents. It is negative-controlled: a stub that scaffolds a *correct*
+  Tag feature entirely inline passes five of six checks and fails exactly that
+  one, so the check can distinguish the thing it claims to measure.
+
+### Changed
+
+- **The new case stays out of the default sweep, deliberately.** `action` — the
+  closest comparable shape — billed $5.16 of run 6's $12.50, so adding a second
+  case that size would raise the standing cost of every sweep by roughly half for
+  a signal that only changes when coordinator behaviour changes. Keeping
+  `ALL_CASES` at five also keeps the public scorecard's denominator, and runs 1–6,
+  comparable with what follows. `--list` shows it under an opt-in heading so it is
+  discoverable rather than hidden.
+- The unseeded-ceiling ratchet now applies to the default sweep only — an opt-in
+  case is legitimately unseeded until its first accepted run, and seeding it from
+  a guess is what `baseline.json`'s own policy forbids. Rubric coverage, by
+  contrast, was widened to include opt-in cases: excluded from the sweep is not
+  excluded from needing a rubric.
+
 ## [1.33.0] - 2026-08-04
 
 ### Added

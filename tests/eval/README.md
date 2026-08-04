@@ -52,10 +52,41 @@ fixture**, so agents under evaluation can't read the answer key.
 | `action` | `/refactor-to-action PostController@store` | an `app/Actions/*.php` exists, controller delegates to it, mail fan-out left the controller, tests touched |
 | `tests` | `/add-test PostController` | test files added, update route covered, authorization failure (403) probed |
 | `hygiene` | `/team-hygiene` | proposal table classifies the duplicate + conflict, names the stale `LegacyPayments` fact, and applies **nothing** (headless = no approval) |
+| `feature` **(opt-in)** | `/make-feature Tag --api` | a tags migration, `Tag` model, registered route and a feature test exist; **the board feed shows ≥2 distinct agents**; and the printed board carries a `done when:` completion condition |
 
 A failing check is **signal, not necessarily a harness bug** — it becomes a
 line in the findings doc. Keep checks intent-level (did the flaw get found?)
 rather than wording-level, so phrasing changes don't flake.
+
+### The opt-in `feature` case
+
+`feature` is registered but **excluded from the default sweep** — run it by name:
+
+```sh
+./tests/eval/run-evals.sh feature
+```
+
+It exists because nothing else in the suite proves delegation happened. `policy`
+and `action` each ran *both* ways across runs 5 and 6 — one delegating across four
+specialists, the other finishing alone on the main thread via the coordinator's
+fast path — and the answer key could not tell the difference either time. That
+makes the coordinator's own rules (stage budget, `NOT-CHECKED` escalation, resume
+state at checkpoints) unmeasurable on a run that happens not to delegate.
+`/make-feature` is parallel by construction, so this case always delegates.
+
+Two reasons it stays out of the default sweep:
+
+- **Cost.** `action`, the closest comparable shape, billed $5.16 of run 6's
+  $12.50. Adding a second case of that size raises the standing price of every
+  sweep by roughly half, for a signal that only changes when coordinator
+  behaviour changes.
+- **Comparability.** `ALL_CASES` is what the public scorecard's denominator is
+  computed from, so leaving it at five keeps runs 1–6 comparable with what
+  follows.
+
+Its `check_delegated` assertion is the load-bearing one, and it is negative-
+controlled: a stub that scaffolds a *correct* Tag feature entirely inline passes
+five of six checks and fails exactly that one.
 
 ## Rubric judge — `EVAL_JUDGE=1`
 

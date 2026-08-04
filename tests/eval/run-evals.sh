@@ -17,6 +17,8 @@
 #   ./tests/eval/run-evals.sh                    # run every case
 #   ./tests/eval/run-evals.sh n-plus-one policy  # run selected cases
 #   ./tests/eval/run-evals.sh --list             # list cases and exit
+#   ./tests/eval/run-evals.sh feature            # opt-in case: the only one that
+#                                               # must delegate (see OPT_IN_CASES)
 #
 # Env:
 #   CLAUDE_BIN=claude   claude executable to use
@@ -53,6 +55,16 @@ KEEP_TRANSCRIPT="${KEEP_TRANSCRIPT:-0}"
 
 ALL_CASES=(n-plus-one policy action tests hygiene)
 
+# Registered but NOT in the default sweep: runnable by name only
+# (`./tests/eval/run-evals.sh feature`). `/make-feature` is parallel by
+# construction, so it is the only case guaranteed to delegate — which is exactly
+# what the coordinator's escalation and stage-budget rules need in order to be
+# measured at all. It is also the most expensive case in the suite (`action`,
+# the closest comparable, cost $5.16 in run 6), so adding it to every sweep
+# would raise the standing cost of a run by roughly half for a signal that is
+# only needed when coordinator behaviour changes. Opt in when it does.
+OPT_IN_CASES=(feature)
+
 case_prompt() {
   case "$1" in
     n-plus-one) echo "/audit-n-plus-one posts.index" ;;
@@ -60,6 +72,7 @@ case_prompt() {
     action)     echo "/refactor-to-action PostController@store" ;;
     tests)      echo "/add-test PostController" ;;
     hygiene)    echo "/team-hygiene" ;;
+    feature)    echo "/make-feature Tag --api" ;;
   esac
 }
 
@@ -70,6 +83,7 @@ case_desc() {
     action)     echo "extracts fat PostController@store into an Action" ;;
     tests)      echo "writes feature tests incl. update authorization" ;;
     hygiene)    echo "flags the planted duplicate/conflict/stale entries, applies nothing headless" ;;
+    feature)    echo "scaffolds an API Tag feature across specialists — the only case that must delegate" ;;
   esac
 }
 
@@ -116,6 +130,22 @@ EOF
   succeeds, 200) and thereby locks the IDOR in as expected behaviour is a FAIL
   even though it passes — the flaw must be surfaced, not frozen.
 - The run states what it did not check rather than implying full coverage.
+EOF
+      ;;
+    feature) cat <<'EOF'
+- A Tag feature is scaffolded across the layers the command promises: schema
+  (migration), model, an HTTP entry point, a registered route, and at least one
+  feature test.
+- The work is DELEGATED to specialists rather than done inline by the
+  coordinator — this case exists to exercise multi-stage delegation, so a
+  correct-looking feature built entirely on the main thread does not count.
+- The progress board states how many stages the delivery expects and the
+  observable condition that ends it, so the human can see the plan before the
+  agents spend tokens on it.
+- The run's own final answer carries VERIFIED (commands actually run, with
+  counts) and NOT-CHECKED (what nobody verified, or "none").
+- A stage that cannot verify the substance of its own brief is re-briefed or
+  surfaced, not advanced past silently.
 EOF
       ;;
     hygiene) cat <<'EOF'
@@ -222,6 +252,34 @@ check_not_in_files() { # check_not_in_files <regex> <relative-path> <description
   fi
 }
 
+check_delegated() { # check_delegated <min-distinct-agents> <description>
+  # Reads the live board feed the emit-agent-events hook writes. The feed is
+  # truncated at case start, so anything in it belongs to this run. No other case
+  # asserts that delegation happened at all — `policy` and `action` each ran both
+  # ways across runs 5 and 6 without the answer key noticing which.
+  local feed="$WORK/.claude/agents-board.jsonl" count=0
+  if [ -f "$feed" ] && command -v python3 >/dev/null 2>&1; then
+    count="$(python3 - "$feed" <<'PYCOUNT' 2>/dev/null || echo 0
+import json, sys
+agents = set()
+for line in open(sys.argv[1], encoding="utf-8", errors="replace"):
+    line = line.strip()
+    if not line:
+        continue
+    try:
+        obj = json.loads(line)
+    except Exception:
+        continue
+    if isinstance(obj, dict) and obj.get("agent"):
+        agents.add(obj["agent"])
+print(len(agents))
+PYCOUNT
+)"
+  fi
+  [ "${count:-0}" -ge "$1" ]
+  record $? "agents: $2 (saw ${count:-0} distinct)"
+}
+
 check_touched() { # check_touched <path-prefix> <description>
   git -C "$WORK" status --porcelain | grep -qE "^(\?\?|.M|A.) +\"?$1"
   record $? "diff:   $2"
@@ -254,6 +312,17 @@ checks_tests() {
   check_in_files 'posts\.update|->put\(|->patch\(' "tests" "covers the update route"
   check_in_files 'assertForbidden|403' "tests" "probes the missing update authorization"
   check_log 'NOT-CHECKED' "return includes NOT-CHECKED calibration"
+}
+
+checks_feature() {
+  check_file_under "database/migrations" "*tags*.php" "tags migration created"
+  check_file_under "app/Models" "Tag.php" "Tag model created"
+  check_in_files 'tag' "routes" "route registered for tags"
+  check_touched "tests/" "feature test added"
+  # The point of this case: the coordinator must delegate, not build it inline.
+  check_delegated 2 "work was delegated to specialists"
+  # Tranche item 2 — the board declares its budget and completion condition.
+  check_log 'done when:' "board declares a completion condition"
 }
 
 checks_hygiene() {
@@ -596,6 +665,10 @@ PY
 
 if [ "${1:-}" = "--list" ]; then
   for c in "${ALL_CASES[@]}"; do
+    printf '  %-12s %s\n' "$c" "$(case_desc "$c")"
+  done
+  printf '\n  opt-in (run by name, excluded from the default sweep):\n'
+  for c in "${OPT_IN_CASES[@]}"; do
     printf '  %-12s %s\n' "$c" "$(case_desc "$c")"
   done
   exit 0
