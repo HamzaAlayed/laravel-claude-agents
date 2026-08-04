@@ -5,6 +5,40 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.36.0] - 2026-08-04
+
+### Fixed
+
+- **The stage budget now actually binds — it never fired before.** v1.31.0 added
+  the tranche's stage-budget rule to `agents/delivery-coordinator.md`, and the
+  opt-in `feature` case's first billed run proved that put it somewhere it could
+  never take effect: `/make-feature` is driven by the main thread, so
+  `delivery-coordinator` is **never spawned** (the run's board feed names
+  database-developer, backend-developer, qa-engineer and tech-lead, and no
+  coordinator). A rule written into an agent body cannot govern work the main
+  thread does inline through a command.
+
+  The run scored 5/6, and the single miss was the stage-budget assertion — with
+  the rubric judge reaching the same conclusion independently while *disagreeing
+  with the regex verdict*: *"the stage table appears only as a closing summary —
+  evidence shows 6 owned stages but no up-front stage count or stated observable
+  end condition before the agents spent tokens."*
+
+  This is the v1.24.0 finding recurring, and it gets the v1.24.0 fix: the shared
+  `Interface` block — byte-identical across all 9 pipeline commands — now requires
+  the board's header to state the stage count and the observable completion
+  condition **before** any agent spends tokens, and to reprint it when the budget
+  grows. Ratcheted at 9.
+
+### Changed
+
+- **Run 6's finding 6 corrected.** "No case exceeded its stage budget" was true
+  only because no case was ever bound by one. The claim was vacuous, and is now
+  labelled as such.
+- **The opt-in `feature` case has ceilings**, seeded from its first accepted run:
+  1456s across four specialists, $6.55, 11.2M tokens — the most expensive case in
+  the suite, which is why it stays opt-in.
+
 ## [1.35.0] - 2026-08-04
 
 ### Fixed

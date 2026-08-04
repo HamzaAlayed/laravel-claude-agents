@@ -314,6 +314,14 @@ expect "Interface block is byte-identical across them" "1" \
   "$(grep -h '^> \*\*Interface:\*\*' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | sort -u | wc -l | tr -d ' ')"
 expect "Interface block binds the final answer to VERIFIED + NOT-CHECKED" "9" \
   "$(grep -l 'Your own final answer closes the same way' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# Tranche item 2 lived only in agents/delivery-coordinator.md, and eval run 6's
+# `feature` case proved it therefore never fired: /make-feature is driven by the
+# main thread, the coordinator is never spawned, and the board arrived as a closing
+# summary with no up-front count and no completion condition. Same shape as the
+# v1.24.0 finding, same fix — the contract belongs in the shared block, so a
+# headless command run is bound by it too.
+expect "Interface block requires an up-front stage budget" "9" \
+  "$(grep -l 'done when: <the observable' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # Literature-gap tranche (docs/plans/2026-07-29-literature-gap-tranche.md), gate
 # cleared by eval run 5. Escalation fired on category only; NOT-CHECKED was
 # collected by every stage return and consumed by nothing. Nothing bounded a
