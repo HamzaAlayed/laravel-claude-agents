@@ -1,17 +1,21 @@
-# Literature-gap tranche — staged for after eval run 5
+# Literature-gap tranche — ready to apply (gate cleared 2026-07-31)
 
 Three body-level fixes from the
 [2026-07-29 agent-literature audit](../research/2026-07-29-agent-literature-audit.md).
-All three edit agent bodies, which changes agent behaviour — so they are **held
-until eval run 5 reports**. Run 5 was deliberately left with an un-reseeded
-baseline so it isolates the 1.24.0 worktree and reachability levers; landing
-these first would confound it.
+All three edit agent bodies, which changes agent behaviour — so they were held
+until eval run 5 reported. Run 5 was deliberately left with an un-reseeded
+baseline so it isolated the 1.24.0 worktree and reachability levers; landing
+these first would have confounded it.
 
 The audit's fourth finding (rubric-judge eval scoring) already shipped in
-v1.26.0 — it touches only the measuring instrument, so it was safe to land now.
+v1.26.0 — it touches only the measuring instrument, so it was safe to land then.
 
-**Gate:** eval run 5 complete, findings doc written, baseline reseeded if
-accepted. Then apply items 1–3 as one release.
+**Gate: CLEARED.** [Eval run 5](../evals/2026-07-31-run-5.md) reported on
+2026-07-31 — 5/5 cases, 19/19 checks, baseline reseeded (`policy` raised to
+1100s deliberately, `action` lowered to 600s), and its finding 1 (per-case event
+feeds polluted by committed fixture telemetry) fixed in `f12ad7c`. Run 5's own
+run-6 checklist expects this tranche to land before run 6. Apply items 1–3 as
+one release.
 
 ---
 
@@ -125,6 +129,12 @@ Standard release checklist (`docs/authoring-agents.md` + the release conventions
 4. `tests/guardrails.test.sh` + `scripts/validate-frontmatter.py`.
 5. `scripts/check_inventory_sync.py` — counts do not change, so this should be a
    no-op; if it complains, a claim drifted independently.
-6. VERSION + the 3 versioned manifests, CHANGELOG in Keep-a-Changelog voice.
+6. VERSION + **all four hand-maintained manifests** (`.claude-plugin/{plugin,marketplace}.json`,
+   `.cursor-plugin/{plugin,marketplace}.json`); gemini's comes from the rebuild in
+   step 3, so bump VERSION *before* running it. Since v1.28.0
+   `check_inventory_sync.py` walks all five manifests for `version` at any depth
+   and fails if any differs from VERSION — that check is what caught
+   `.cursor-plugin/marketplace.json` sitting ten releases behind. CHANGELOG in
+   Keep-a-Changelog voice.
 7. Then **eval run 6** to measure the tranche: watch checkpoint-prompt count per
    delivery (item 1's over-trigger risk) and total stages per case (item 2).
