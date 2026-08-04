@@ -5,6 +5,64 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.31.0] - 2026-08-04
+
+### Added
+
+- **The eval harness can price a run.** It measured correctness and latency and
+  never cost, and the one cost signal it did emit carried no input/output split —
+  which matters because output costs five times input on every tier. Each case
+  now captures its full transcript, derives a per-agent summary (input, output
+  and cache tokens; tool-call counts; dollars at the model that actually billed
+  each turn), and discards the raw stream. `baseline.json` gains token ceilings
+  beside its duration ones, so a cost regression surfaces the way a latency one
+  already did. The ceilings start unseeded on purpose: every token figure from
+  runs 1–5 is contaminated by committed fixture telemetry, and eval run 6 is the
+  first honest measurement. The answer key is untouched — the transcript goes to
+  its own file and the human-readable log is rebuilt from its `result` field,
+  which is exactly what plain `claude -p` prints, so run 6 stays comparable to
+  run 5.
+- **Recording the wire format first paid for itself three times.** The parser was
+  written against two captured transcripts (`tests/eval/fixtures/`) rather than
+  an assumed shape, which is how 1.27.0 shipped a console that emitted zero
+  events with a green suite. What the recording caught: cache tokens dominate
+  input (4 raw tokens against 71k cached, so pricing input+output alone
+  undercounts a run ~26×); the two cache-write tiers differ and *both* occur in
+  one run, because the main thread writes 1-hour entries while subagents write
+  5-minute ones; and there is no `agent` field to attribute spend by — it is
+  `parent_tool_use_id` resolved through a `task_started` line. The rate table is
+  re-checked against the CLI's own `total_cost_usd` on every run, so a price
+  change fails a test instead of silently producing a wrong number.
+
+### Changed
+
+- **`NOT-CHECKED` now escalates.** Escalation fired on category alone — authn,
+  authz, billing, PII, money, tenant isolation — while every stage return
+  carried a `NOT-CHECKED` field that nothing consumed. A stage whose
+  `NOT-CHECKED` swallowed the substance of its own brief advanced exactly like a
+  verified one. It is now re-briefed once, then surfaced as a checkpoint; low
+  confidence is a stop trigger in its own right, scoped to the brief's own
+  substance so an honest disclaimer cannot stall a lane.
+- **The board declares a stage budget.** Both existing caps were local — lanes
+  ≤2–3, retries ≤1 — and nothing bounded a delivery's total stages. The board
+  now states the expected count and the observable condition that ends it, and
+  growing past it is a re-plan the human agrees to rather than a continuation.
+- **Checkpoints persist resume state.** A blocking checkpoint wrote nothing, so a
+  delivery resumed the next day rebuilt its board position, open lanes, and
+  pending question from a transcript the new session no longer had. It now
+  flushes that state to the delivery log first.
+- **Reasoning effort is now declared per agent, where the pack has an opinion.**
+  Verified against the Claude Code subagent docs: `effort` is a real frontmatter
+  field, it overrides the session effort level, and it is the only per-agent
+  depth control — subagents inherit the session's thinking configuration and no
+  per-subagent thinking setting exists. `security-engineer` and
+  `solution-architect` take `xhigh` (highest failure cost); `business-analyst`
+  and `product-owner` take `low` (summarising artifacts others produced). Every
+  other agent leaves it absent so your own `/effort` still governs the run.
+  `scrum-master` is excluded because effort is unsupported on Haiku 4.5, and
+  `technical-writer` because v1.23.0 chose docs quality over cost for it
+  deliberately.
+
 ## [1.30.0] - 2026-08-04
 
 ### Changed
