@@ -513,6 +513,31 @@ expect "the harness compares billed dollars against the ceiling" "1" \
   "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" | grep -cE 'max_usd')"
 # Seeded, not null: run 6 was accepted (5/5, 19/19), so leaving a ceiling
 # unseeded now would waste the only clean measurement the suite has.
+# `git diff` omits untracked files, so a case whose job is CREATING a class handed
+# the rubric judge an artifact with that class's body missing (run-6 finding 2).
+# intent-to-add fixes the artifact; it must stay AFTER the checks and after
+# status.txt so it changes no verdict and no other evidence.
+expect "the diff artifact records intent-to-add so new files appear" "1" \
+  "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" | grep -cE 'add -N \.')"
+# Order matters and is asserted directly by line number: status.txt must be
+# written BEFORE the intent-to-add (so it still reports new files as `??`), and
+# the diff AFTER it (so the diff includes them).
+expect "status is captured, then intent-to-add, then the diff" "ok" \
+  "$(awk '
+      /status --porcelain >"\$results\/\$name\.status\.txt"/ { st = NR }
+      /add -N \./                                              { add = NR }
+      /^ *git -C "\$WORK" diff >"\$results/                    { df = NR }
+      END { print (st && add && df && st < add && add < df) ? "ok" : "BAD st=" st " add=" add " diff=" df }
+    ' "$SCRIPT_DIR/tests/eval/run-evals.sh")"
+# <case>.cost.json counts tool calls by name only. Run 6 could not explain
+# n-plus-one's 25 Bash calls without the commands themselves, so the raw
+# transcript has to be preservable on demand.
+# shellcheck disable=SC2016 # literal $KEEP_TRANSCRIPT in the grep pattern
+expect "the raw transcript can be preserved for diagnosis" "1" \
+  "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" | grep -cE '\$KEEP_TRANSCRIPT" = "1"')"
+expect "KEEP_TRANSCRIPT defaults to off" "1" \
+  "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'KEEP_TRANSCRIPT="\$\{KEEP_TRANSCRIPT:-0\}"')"
 expect "no eval ceiling is left unseeded after run 6" "" \
   "$(python3 - "$SCRIPT_DIR/tests/eval/baseline.json" <<'PY'
 import json, sys

@@ -31,6 +31,10 @@
 #   EVAL_JUDGE_MODEL=   optional --model for the judge call
 #   EVAL_JUDGE_TIMEOUT=300  per-judge timeout in seconds
 #   KEEP_WORKDIR=1      keep throwaway workdirs for inspection
+#   KEEP_TRANSCRIPT=1   keep each case's raw stream-json transcript. Megabytes per
+#                       case, so off by default -- but <case>.cost.json counts tool
+#                       calls by NAME only, and run 6 could not explain why
+#                       n-plus-one spent 25 Bash calls without the commands themselves
 #
 # Headless runs use --dangerously-skip-permissions INSIDE the throwaway
 # workdir only. Real agent runs are billed — this is a manual harness, not CI.
@@ -45,6 +49,7 @@ EVAL_TIMEOUT="${EVAL_TIMEOUT:-1200}"
 EVAL_JUDGE="${EVAL_JUDGE:-0}"
 EVAL_JUDGE_TIMEOUT="${EVAL_JUDGE_TIMEOUT:-300}"
 KEEP_WORKDIR="${KEEP_WORKDIR:-0}"
+KEEP_TRANSCRIPT="${KEEP_TRANSCRIPT:-0}"
 
 ALL_CASES=(n-plus-one policy action tests hygiene)
 
@@ -448,8 +453,14 @@ run_case() { # run_case <name> <results-dir>
     || echo "   WARNING: could not summarise cost for $name"
 
   # Megabytes per case, and tests/eval/results/ is committed. The derived summary
-  # is the artifact; the raw stream is scaffolding.
-  rm -f "$stream"
+  # is the artifact; the raw stream is scaffolding -- unless you are diagnosing
+  # *why* an agent spent what it spent, which needs the tool inputs the summary
+  # does not keep (run-6 finding: 25 Bash calls, no way to see the commands).
+  if [ "$KEEP_TRANSCRIPT" = "1" ]; then
+    echo "   kept transcript: $name.stream.jsonl ($(wc -c <"$stream" | tr -d ' ') bytes)"
+  else
+    rm -f "$stream"
+  fi
 
   if [ "$dur" -ge "$EVAL_TIMEOUT" ]; then
     echo "   TIMED OUT after ${dur}s"
@@ -459,8 +470,18 @@ run_case() { # run_case <name> <results-dir>
 
   "checks_$(echo "$name" | tr '-' '_')"
 
-  # Evidence for the findings doc: what changed + per-agent event timing.
+  # Evidence for the findings doc + the rubric judge: what changed, and the
+  # per-agent event timing. Status is captured BEFORE the intent-to-add below, so
+  # it still reports new files as `??` rather than `A `.
   git -C "$WORK" status --porcelain >"$results/$name.status.txt" 2>/dev/null
+  # `git diff` does not show untracked files, so a case whose job is CREATING a
+  # file produced a diff with that file's body missing entirely. Run 6's judge
+  # caught it on `action`: the new Action class existed and passed its checks, but
+  # its body was absent from the evidence, so behaviour preservation could only be
+  # taken on trust. `add -N` records intent-to-add (contents unstaged) purely so
+  # the diff includes new files; it runs after the checks and after status, so it
+  # changes no verdict. Throwaway workdir, so staging state is irrelevant.
+  git -C "$WORK" add -N . >/dev/null 2>&1 || true
   git -C "$WORK" diff >"$results/$name.diff.patch" 2>/dev/null
   if [ -f "$WORK/.claude/agents-board.jsonl" ]; then
     cp "$WORK/.claude/agents-board.jsonl" "$results/$name.agent-events.jsonl"

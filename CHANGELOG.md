@@ -5,6 +5,38 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.33.0] - 2026-08-04
+
+### Added
+
+- **`KEEP_TRANSCRIPT=1` preserves an eval case's raw transcript.** Off by default
+  (megabytes per case), but `<case>.cost.json` counts tool calls by *name* only,
+  and [run 6](docs/evals/2026-08-04-run-6.md) could not explain why `n-plus-one`
+  spent **25 Bash calls** on a read-only audit without seeing the commands
+  themselves. Counting what an agent did turns out not to be enough to explain
+  why it cost what it cost.
+
+### Fixed
+
+- **The eval evidence artifact no longer hides newly created files.** `git diff`
+  omits untracked files, so `<case>.diff.patch` — the artifact the rubric judge is
+  handed as evidence — contained no trace of a file the run had just created. On
+  `action`, whose entire job is *creating* an Action class, the judge could confirm
+  the class existed but never see a line of its body, and marked behaviour
+  preservation unevidenced for exactly that reason. `run_case` now records
+  intent-to-add before diffing, after the checks and after `status.txt`, so no
+  verdict changes and `status.txt` still reports new files as `??` rather than `A`.
+
+### Changed
+
+- **Run 6's findings corrected on one point.** An earlier draft blamed
+  `checks_action` for the untracked-file blindness. That was wrong: the checks read
+  the filesystem directly (`find`, `grep`, and `git status --porcelain`, which does
+  list untracked files) and were never blind to a new file. The blindness was in
+  the diff artifact alone. The `n-plus-one` finding is likewise corrected —
+  per-agent `effort` cannot be its lever, because that case delegates nothing, so
+  no subagent frontmatter applies to it.
+
 ## [1.32.0] - 2026-08-04
 
 ### Added
