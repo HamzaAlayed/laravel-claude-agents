@@ -434,6 +434,20 @@ expect "the eval harness writes a per-case cost summary" "1" \
 expect "the eval harness discards the raw transcript" "1" \
   "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE '^ *rm -f "\$stream"')"
+# Cost had no ceiling at all, so a cost regression was invisible while a latency
+# one failed loudly. Token ceilings ride alongside the duration ones and start
+# null -- every token figure from runs 1-5 is contaminated (run-5 finding 1), so
+# there is nothing honest to seed with until run 6.
+expect "every eval case has a token-ceiling key" "" \
+  "$(python3 - "$SCRIPT_DIR/tests/eval/baseline.json" "$SCRIPT_DIR/tests/eval/run-evals.sh" <<'PY'
+import json, re, sys
+base = json.load(open(sys.argv[1]))
+cases = re.search(r"^ALL_CASES=\((.*)\)$", open(sys.argv[2]).read(), re.M).group(1).split()
+print(" ".join(c for c in cases if "max_tokens" not in base["cases"].get(c, {})))
+PY
+)"
+expect "the harness compares tokens against the ceiling" "1" \
+  "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" | grep -cE 'max_tokens')"
 # Checks must read the human-readable log, never the transcript.
 expect "no checks function reads the raw transcript" "0" \
   "$(sed -n '/^checks_/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \

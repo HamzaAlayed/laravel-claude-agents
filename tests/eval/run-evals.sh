@@ -504,9 +504,10 @@ PY
   # are machine- and API-load-dependent. Ceilings live in baseline.json.
   if [ "$MODE" = "sequential" ] && [ -f "$ROOT/tests/eval/baseline.json" ] \
      && command -v python3 >/dev/null 2>&1; then
-    python3 - "$name" "$dur" "$ROOT/tests/eval/baseline.json" <<'PY' || true
+    python3 - "$name" "$dur" "$ROOT/tests/eval/baseline.json" "$results/$name.cost.json" <<'PY' || true
 import json, sys
 name, dur, path = sys.argv[1], int(sys.argv[2]), sys.argv[3]
+cost_path = sys.argv[4] if len(sys.argv) > 4 else None
 try:
     case = json.load(open(path)).get("cases", {}).get(name)
 except Exception:
@@ -515,6 +516,21 @@ cap = (case or {}).get("max_seconds")
 if cap is not None:
     state = "within" if dur <= cap else "REGRESSED vs"
     print(f"   baseline: {state} {cap}s ceiling ({dur}s)")
+# Cost ratchet. Tokens, not dollars -- see baseline.json's _tokens_metric.
+tok_cap = (case or {}).get("max_tokens")
+actual = None
+if cost_path:
+    try:
+        actual = json.load(open(cost_path))["attributed"]["total"]["tokens"]
+    except Exception:
+        actual = None
+if actual is None:
+    pass
+elif tok_cap is None:
+    print(f"   baseline: token ceiling unseeded ({actual:,} tokens this run)")
+else:
+    state = "within" if actual <= tok_cap else "REGRESSED vs"
+    print(f"   baseline: {state} {tok_cap:,}-token ceiling ({actual:,} tokens)")
 PY
   fi
   echo
