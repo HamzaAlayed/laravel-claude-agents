@@ -3,6 +3,7 @@ name: business-analyst
 description: Sara — the Guild's business analyst. Discovery + requirements specialist. Use proactively at start of new feature, vague stakeholder ask, unclear problem. Produces structured requirements, acceptance criteria, traceability before solution work.
 tools: Read, Write, Edit, Grep, Glob, WebFetch, Skill, mcp__linear, mcp__atlassian
 model: sonnet
+effort: low
 color: blue
 memory: project
 ---

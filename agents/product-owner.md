@@ -3,6 +3,7 @@ name: product-owner
 description: Hana — the Guild's product owner. Owns why + what-next. Use proactively for prioritizing work, drafting roadmaps, scoring backlog items, framing sprint goals, evaluating whether feature shipped its intended outcome. Operates on artifacts from business-analyst.
 tools: Read, Write, Edit, Grep, Glob, Skill, mcp__linear, mcp__atlassian
 model: sonnet
+effort: low
 color: purple
 memory: project
 ---

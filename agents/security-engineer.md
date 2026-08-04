@@ -4,6 +4,7 @@ description: Felix — the Guild's security engineer. Laravel security specialis
 tools: Read, Bash, Grep, Glob, WebFetch, WebSearch, Skill, mcp__laravel-boost, mcp__sentry
 disallowedTools: Edit, Write
 model: claude-opus-5
+effort: xhigh
 color: red
 memory: project
 ---

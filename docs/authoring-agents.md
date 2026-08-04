@@ -20,6 +20,8 @@ model: sonnet                    # alias (opus | sonnet | haiku) or pinned ID �
                                  # claude-opus-4-8 for deep review/diagnosis
                                  # (tech-lead, performance-engineer)
 color: green                     # display color
+# effort: xhigh                  # OPTIONAL, and absent on purpose for most roles —
+#                                # see "Reasoning effort per agent" below
 # isolation: worktree           # NEVER in this pack — a worktree has no vendor/,
 #                                # so no agent can run its own verification gates
 # memory: project                # roles that accumulate project knowledge
@@ -94,6 +96,27 @@ Under Sail it fails harder still. The container mounts the main project director
 - `delivery-coordinator` caps parallel lanes at 2–3 and assigns each lane disjoint paths, so two writers never share a file.
 
 A collision is then a coordination bug with a named owner, which is easier to fix than a verification gate that silently cannot run.
+
+## Reasoning effort per agent
+
+Checked against [code.claude.com/docs/en/sub-agents.md](https://code.claude.com/docs/en/sub-agents.md) on 2026-08-04 (Claude Code 2.1.221). The frontmatter fields Claude Code accepts are: `name`, `description`, `tools`, `disallowedTools`, `model`, `permissionMode`, `maxTurns`, `skills`, `mcpServers`, `hooks`, `memory`, `background`, `effort`, `isolation`, `color`, and `initialPrompt` (plus `prompt` in the `--agents` JSON form, equivalent to the markdown body).
+
+**`effort` is real, and it is the pack's only per-agent depth control.** Levels are `low`, `medium`, `high`, `xhigh`, `max`; available levels depend on the model. It **overrides the session effort level** and defaults to inheriting it. There is deliberately no thinking counterpart: since Claude Code v2.1.198 a subagent inherits the main conversation's extended-thinking configuration and *there is no per-subagent thinking setting*, so `model:` and `effort:` are the whole toolkit.
+
+Because it overrides the session, this pack declares `effort` **only where it has an opinion**, and leaves it absent everywhere else so the human's own `/effort` still governs the run:
+
+| Agents | `effort` | Why |
+| --- | --- | --- |
+| `security-engineer`, `solution-architect` | `xhigh` | Highest failure cost in the pack — a missed authz flaw or a wrong three-year architecture call costs far more than the tokens. `xhigh` rather than `max`: it is the documented sweet spot for agentic work, while `max` shows diminishing returns and is prone to overthinking. |
+| `business-analyst`, `product-owner` | `low` | Summarising and scoring artifacts other roles produced. Low failure cost, cheap to redo. |
+| everyone else | *absent* | No evidence either direction. Writing a value here would silently override the human's session effort, which is worse than expressing no opinion. |
+
+Two roles are deliberately excluded even though they look like candidates:
+
+- **`scrum-master`** — the pack's only `haiku` agent, and effort is unsupported on Haiku 4.5, so declaring it would break the agent rather than tune it. It is already on the cheapest tier; there is nothing left to save. A guardrails test fails the build if any `haiku` agent declares `effort`.
+- **`technical-writer`** — v1.23.0 promoted it `haiku` → `sonnet` on an explicit human call of docs quality over cost. Lowering its effort would quietly re-litigate that decision.
+
+**Do not treat an accepted key as a working one.** An unrecognised frontmatter key is ignored, not rejected, so a misspelled field or an out-of-range level leaves the pack looking tuned while changing nothing. A guardrails test pins every declared level to the documented set. The `effort` key is Claude-only: `scripts/build-gemini-extension.py` whitelists `name`/`description`/`tools` when it writes mirror frontmatter, so nothing leaks to Gemini.
 
 ## `memory: project`
 

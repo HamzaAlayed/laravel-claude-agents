@@ -332,6 +332,32 @@ expect "checkpoints flush resume state" "1" \
 expect "the tranche touched no other agent body" "0" \
   "$(grep -l 'State the stage budget on the board' "$SCRIPT_DIR"/agents/*.md 2>/dev/null \
      | grep -cv 'delivery-coordinator.md' || true)"
+# Per-agent reasoning effort (verified as a real subagent frontmatter field
+# against code.claude.com/docs/en/sub-agents.md, 2026-08-04). It overrides the
+# session effort level, so it is declared ONLY where the pack has an opinion:
+# the two highest-failure-cost reviewers get depth, the two artifact-summarising
+# roles give it up, and everything else stays absent so the human's own /effort
+# still governs. An unrecognised frontmatter key is ignored rather than
+# rejected, so a typo'd level would look tuned while changing nothing.
+expect "the highest-failure-cost reviewers declare xhigh effort" "2" \
+  "$(grep -l '^effort: xhigh$' "$SCRIPT_DIR"/agents/security-engineer.md \
+     "$SCRIPT_DIR"/agents/solution-architect.md 2>/dev/null | wc -l | tr -d ' ')"
+# FNR==1 resets the frontmatter-fence counter per file: awk keeps one `c` across
+# the whole file list, so without the reset `c==1` only ever matches inside the
+# FIRST file and every later agent goes unchecked. Caught by mutation-testing
+# this very assertion — it passed a deliberately invalid level.
+expect "every declared effort level is one Claude Code accepts" "" \
+  "$(awk 'FNR==1{c=0} /^---$/{c++; next} c==1 && /^effort:/{print FILENAME": "$2}' \
+       "$SCRIPT_DIR"/agents/*.md | grep -vE ': (low|medium|high|xhigh|max)$' || true)"
+# Effort errors on Haiku 4.5, so declaring it on a haiku-pinned agent would break
+# that agent rather than tune it. scrum-master is the pack's only haiku agent and
+# is already at the cheapest tier — there is nothing to gain and a launch failure
+# to lose.
+expect "no haiku-pinned agent declares effort" "" \
+  "$(for f in "$SCRIPT_DIR"/agents/*.md; do \
+       awk '/^---$/{c++; next} c==1 && /^model: haiku$/{h=1} c==1 && /^effort:/{e=1} \
+            END{if (h && e) print FILENAME}' "$f"; \
+     done | tr -d ' ')"
 # Finding 3 (2026-07-29 literature audit): regex answer keys are exact-match
 # scoring of nondeterministic output. The rubric judge is the second opinion, so
 # a case registered without a rubric would be silently unjudged.
