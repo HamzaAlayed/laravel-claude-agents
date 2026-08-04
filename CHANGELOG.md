@@ -5,6 +5,31 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.35.0] - 2026-08-04
+
+### Fixed
+
+- **`qa-engineer` no longer contradicts itself on unauthorized endpoints.** Its
+  authorization rule prescribed marking the secure-outcome assertion `->todo()`,
+  while its own anti-patterns section three paragraphs later demanded that same
+  test "asserts the secure outcome **and fails loudly**". A `->todo()` does not
+  fail loudly, so the body asked for two incompatible things — and
+  [run 6](docs/evals/2026-08-04-run-6.md)'s rubric judge caught the consequence:
+  *"the IDOR is documented rather than demonstrated, and CI stays green with the
+  flaw live."*
+
+### Changed
+
+- **The run/don't-run choice on a known-vulnerable endpoint is now explicit, and
+  must be stated.** v1.24.0's actual point is kept — assert the *secure* outcome,
+  never pin the hole as expected behaviour — but the marking is no longer a
+  default. Leave the test **failing** when the flaw is in-scope work and CI should
+  block on it; mark it incomplete when the flaw is pre-existing and out of scope,
+  because a red pipeline you did not cause blocks everyone else too. Either way,
+  FLAGS must name the endpoint, say the vulnerability is live, and say the suite
+  will not catch it. "Loudly" is now defined as *the human hears it* — which a
+  marked test plus a FLAGS entry satisfies, and a marked test alone does not.
+
 ## [1.34.0] - 2026-08-04
 
 ### Added
