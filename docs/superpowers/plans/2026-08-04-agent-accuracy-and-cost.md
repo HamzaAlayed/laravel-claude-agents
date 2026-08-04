@@ -8,6 +8,48 @@
 
 **Tech Stack:** bash (the harness), python3 stdlib only (the parser — no pip installs; macOS ships python3 and CI has it), JSON for the rate table and baselines.
 
+## Execution record — completed 2026-08-04, shipped as v1.31.0 + v1.31.1 + 1.31.2
+
+All seven tasks executed. Every step below is ticked, but five landed differently
+than written, and Task 1 rewrote the design of Tasks 2–4. Read this before
+treating the step bodies below as the description of what exists.
+
+**Task 1 invalidated three of the plan's assumptions.** It was specified with one
+trivial probe; a trivial probe cannot answer its own "where is the acting agent
+identified" question, so a second *delegating* probe was captured too. Between
+them: (1) cache tokens dominate input — 4 raw tokens against 71k cached, so the
+plan's input/output-only rate table undercounts a run **~26×**; (2) the two
+cache-write tiers differ (1h = 2× input, 5m = 1.25×) and **both occur in a single
+run**, because the main thread writes 1h and subagents write 5m, so one
+multiplier on aggregate `cache_creation_input_tokens` is wrong for every case
+that delegates; (3) there is **no `agent` field** — attribution is
+`parent_tool_use_id` resolved through a `system` / `subtype: "task_started"` line
+carrying `subagent_type`. The plan's `_agent_of` reading `obj.get("agent")` would
+have silently collapsed every run into one `main` bucket while its tests passed.
+
+**Deviations from the step bodies as written:**
+
+| Where | Plan said | What shipped, and why |
+| --- | --- | --- |
+| Task 2 | One rate table, priced input + output | Cache-aware table with both write tiers, plus `billed` (the CLI's own `total_cost_usd`) reported separately from `attributed` (a per-agent share with `coverage_of_billed`). The two are not the same number and are no longer conflated. |
+| Task 2 | — | The rate table is re-checked against the CLI's ledger every run. It earned that immediately: run 6's first case exposed dated model ids (`claude-haiku-4-5-20251001`) missing from the table and pricing `scrum-master` 5× high. |
+| Task 3 | `agent_model_map()` bash helper reading `agents/*.md` frontmatter | Dropped. `message.model` in the transcript is the model that actually billed, so a mis-tiered agent shows as a cost anomaly instead of being priced at its intended rate. |
+| Task 5, Step 6 | `check_body_budget.py --reseed` (the body grows) | No reseed. The prose appends to existing lines, so the coordinator measures 136 against a 149 cap — nothing grew. Reseeding would also have swept an unrelated `qa-engineer` rounding delta (present on pristine `main`) into the release. |
+| Task 6 | Middle tier declares "the documented default" | Left absent. That default is *inherit from session*, so writing a literal value would strip the human's `/effort` control while expressing no opinion. |
+| Task 6 | Tiering table included `scrum-master` and `technical-writer` | Both excluded. Effort is unsupported on Haiku 4.5 (`scrum-master` is the only haiku agent — now ratcheted), and v1.23.0 chose docs quality over cost for `technical-writer` deliberately. |
+
+**Found only by running it, not by any ratchet:** on a run with no `result` line
+(run 4 timed out, so this path is real) the rebuilt `$LOG` was concatenating
+*user* turns, which carry the eval prompt and tool results verbatim — an
+answer-key grep could match the prompt and report a false PASS. Six grep-based
+ratchets passed while that was true.
+
+**Two defects shipped in v1.31.0 and were fixed in v1.31.1**, both found by an
+independent implementation of this same plan on `feat/agent-cost-instrument`: a
+valid-JSON-but-not-an-object line crashed the parser, and a background (async)
+subagent vanished from the summary entirely. See "The parallel implementation"
+at the bottom of this document for how that fork was resolved.
+
 ## Global Constraints
 
 - **Accuracy first, then cost, then speed.** Cost savings come from waste, never from less checking.
@@ -34,7 +76,7 @@
 
 **Why this is its own task.** In v1.27.0 this repo shipped a console where `events.normalize` was written against the CLI's stream-json format while the Python SDK actually yields typed dataclasses. 62/62 tests passed and the browser received zero events, because the fixtures were written from the spec instead of from the dependency. Do not write the parser from an assumed shape. Record the real thing first.
 
-- [ ] **Step 1: Capture a real transcript**
+- [x] **Step 1: Capture a real transcript**
 
 The prompt is deliberately trivial and read-only — this is a shape probe, not an eval. It should cost cents and finish in seconds.
 
@@ -49,7 +91,7 @@ wc -l /tmp/stream-probe.jsonl
 
 If `claude` is not on PATH, use the same override the harness uses: `CLAUDE_BIN`. If the command fails for auth reasons, STOP and report BLOCKED — every later task depends on this shape.
 
-- [ ] **Step 2: Inspect the shape and write down what you find**
+- [x] **Step 2: Inspect the shape and write down what you find**
 
 ```bash
 python3 -c "
@@ -81,7 +123,7 @@ for line in open('/tmp/stream-probe.jsonl'):
 "
 ```
 
-- [ ] **Step 3: Save the sample and document the shape**
+- [x] **Step 3: Save the sample and document the shape**
 
 Copy the probe to the fixtures directory. If it contains absolute paths from your machine, that is fine — it is a shape fixture, not an assertion fixture.
 
@@ -123,7 +165,7 @@ present — see Task 2's fallback">
 Re-capture with the command in the plan's Task 1 if the CLI's format changes.
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tests/eval/fixtures/
@@ -150,7 +192,7 @@ that emitted zero events with 62/62 green. The shape gets recorded first."
   - `summarize(lines: list[str], rates: dict, agent_models: dict) -> dict` returning `{"total": {...}, "agents": {...}, "tools": {...}, "final_text": str|None, "parse_errors": int}`.
   - `final_text(lines: list[str]) -> str | None` — the reconstituted answer text, used by Task 3.
 
-- [ ] **Step 1: Write the rate table**
+- [x] **Step 1: Write the rate table**
 
 `tests/eval/model-rates.json` — dollars per million tokens, with its source and date so a stale price is visible rather than silently wrong:
 
@@ -171,7 +213,7 @@ that emitted zero events with 62/62 green. The shape gets recorded first."
 }
 ```
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 `tests/eval/test_eval_cost.py`. These run under `python3 -m unittest` with no third-party imports. **Before writing the assertions about the real fixture, open `tests/eval/fixtures/README.md` and use the key paths it records** — the synthetic transcripts below must be built from those same paths, or the tests pass against a format the CLI does not emit.
 
@@ -326,12 +368,12 @@ if __name__ == "__main__":
     unittest.main()
 ```
 
-- [ ] **Step 3: Run the tests to verify they fail**
+- [x] **Step 3: Run the tests to verify they fail**
 
 Run: `python3 -m unittest discover -s tests/eval -t tests/eval -p 'test_*.py' -v`
 Expected: FAIL — `scripts/eval-cost.py` does not exist, so `spec_from_file_location` raises at import.
 
-- [ ] **Step 4: Implement the parser**
+- [x] **Step 4: Implement the parser**
 
 `scripts/eval-cost.py`. **Adjust the key paths in `_usage_of`, `_agent_of`, and `_tools_of` to match what `tests/eval/fixtures/README.md` recorded** — the bodies below encode the expected shape, and the real fixture test in Step 2 is what proves you got it right.
 
@@ -531,12 +573,12 @@ if __name__ == "__main__":
     sys.exit(main())
 ```
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `python3 -m unittest discover -s tests/eval -t tests/eval -p 'test_*.py' -v`
 Expected: PASS, all cases. If `TestRealFixture` fails, the key paths in `_usage_of` / `_agent_of` / `_tools_of` do not match what the CLI actually emits — fix them against `tests/eval/fixtures/README.md`, not by loosening the test.
 
-- [ ] **Step 6: Wire the new suite into CI**
+- [x] **Step 6: Wire the new suite into CI**
 
 `.github/workflows/ci.yml` already runs the console python units. Find that step and add a sibling step so the eval-cost suite runs too. Read the file first and match its existing style:
 
@@ -545,7 +587,7 @@ Expected: PASS, all cases. If `TestRealFixture` fails, the key paths in `_usage_
         run: python3 -m unittest discover -s tests/eval -t tests/eval -p 'test_*.py'
 ```
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add scripts/eval-cost.py tests/eval/model-rates.json tests/eval/test_eval_cost.py .github/workflows/ci.yml
@@ -570,7 +612,7 @@ landing mid-stream costs one line, not the run."
 
 **The load-bearing risk.** `--output-format stream-json` makes `claude -p` emit JSON lines instead of the answer text. Every `checks_*` function greps `$LOG` for answer-key patterns. If `$LOG` becomes JSON, the answer key silently starts matching against tool inputs and thinking text, and run 6 stops being comparable to run 5 — which the Global Constraints forbid. So: capture the stream to a separate file, rebuild `$LOG` from its `result` field (plain `-p` output *is* that field), and only then run the checks.
 
-- [ ] **Step 1: Write the failing ratchets**
+- [x] **Step 1: Write the failing ratchets**
 
 Append to `tests/guardrails.test.sh`, in the eval-harness section near the existing `"the eval harness starts each feed empty"` assertion:
 
@@ -598,12 +640,12 @@ expect "no checks function reads the raw transcript" "0" \
      | grep -cE 'stream\.jsonl' || true)"
 ```
 
-- [ ] **Step 2: Run the suite to verify the new ratchets fail**
+- [x] **Step 2: Run the suite to verify the new ratchets fail**
 
 Run: `bash tests/guardrails.test.sh`
 Expected: FAIL — 4 of the 5 new assertions report `0` where `1` is expected (the last one already passes trivially, which is correct: it is a regression guard, not a new feature).
 
-- [ ] **Step 3: Change the capture in `run_case`**
+- [x] **Step 3: Change the capture in `run_case`**
 
 In `tests/eval/run-evals.sh`, find this block inside `run_case` (currently around line 417):
 
@@ -661,7 +703,7 @@ Replace it with:
   rm -f "$stream"
 ```
 
-- [ ] **Step 4: Add the agent→model map helper**
+- [x] **Step 4: Add the agent→model map helper**
 
 The rate table needs to know each agent's pinned model. Read it from the bodies rather than duplicating it — a hardcoded copy drifts the moment someone re-tiers an agent. Add this function to `tests/eval/run-evals.sh` just above `run_case`:
 
@@ -683,7 +725,7 @@ PY
 }
 ```
 
-- [ ] **Step 5: Print the cost line in the per-case output**
+- [x] **Step 5: Print the cost line in the per-case output**
 
 Immediately after the existing verdict line in `run_case` (currently `echo "   $verdict — $CHECK_PASS/$((CHECK_PASS + CHECK_FAIL)) checks, ${dur}s"`), add:
 
@@ -701,12 +743,12 @@ PY
   fi
 ```
 
-- [ ] **Step 6: Run the guardrail suite to verify the ratchets pass**
+- [x] **Step 6: Run the guardrail suite to verify the ratchets pass**
 
 Run: `bash tests/guardrails.test.sh`
 Expected: PASS — `ALL GREEN`, with the total up by 5 from its previous value.
 
-- [ ] **Step 7: Verify the harness is still syntactically valid and shellcheck-clean**
+- [x] **Step 7: Verify the harness is still syntactically valid and shellcheck-clean**
 
 CI runs strict shellcheck where info-level findings fail the build.
 
@@ -717,7 +759,7 @@ shellcheck tests/eval/run-evals.sh && echo "SHELLCHECK CLEAN"
 
 If shellcheck flags the heredocs inside a function (SC2329/SC2317 are already suppressed elsewhere in this file for dynamically-dispatched functions — check how), follow the existing suppression style in the file rather than inventing a new one.
 
-- [ ] **Step 8: Commit**
+- [x] **Step 8: Commit**
 
 ```bash
 git add tests/eval/run-evals.sh tests/guardrails.test.sh
@@ -744,7 +786,7 @@ committed, so the derived summary is the artifact and the stream is discarded."
 
 **Why `null` and not a number.** Every token figure from runs 1–5 is contaminated by the fixture debris described in the spec, so there is no honest number to seed with. `null` means *unseeded*, the harness says so out loud, and run 6 fills it in. A guessed ceiling would be worse than none: it would either always read REGRESSED or never fire, and run 5 already established that a ceiling which always reads REGRESSED stops carrying information.
 
-- [ ] **Step 1: Write the failing ratchets**
+- [x] **Step 1: Write the failing ratchets**
 
 Append to the eval section of `tests/guardrails.test.sh`:
 
@@ -766,12 +808,12 @@ expect "the harness compares tokens against the ceiling" "1" \
   "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" | grep -cE 'max_tokens')"
 ```
 
-- [ ] **Step 2: Run the suite to verify they fail**
+- [x] **Step 2: Run the suite to verify they fail**
 
 Run: `bash tests/guardrails.test.sh`
 Expected: FAIL — the first prints all five case names, the second prints `0`.
 
-- [ ] **Step 3: Add the ceilings**
+- [x] **Step 3: Add the ceilings**
 
 Rewrite `tests/eval/baseline.json`, keeping every existing `max_seconds` and `basis` value byte-identical and adding `max_tokens` plus a token basis to each case:
 
@@ -790,7 +832,7 @@ Rewrite `tests/eval/baseline.json`, keeping every existing `max_seconds` and `ba
 }
 ```
 
-- [ ] **Step 4: Extend the ceiling comparison**
+- [x] **Step 4: Extend the ceiling comparison**
 
 In `tests/eval/run-evals.sh`, find the sequential-only baseline block (currently around line 451) and extend the inline python so it reports tokens too. Read the existing block first and keep its structure; the python body becomes:
 
@@ -827,7 +869,7 @@ Pass the cost file as a fourth argument at the call site, alongside the existing
 
 **One thing worth noticing while you are here.** The whole baseline block is gated on `[ "$MODE" = "sequential" ]`, because run 3 established that parallel API contention inflates per-case durations 2–6× — so parallel runs are documented as pass/fail smoke only. **Token counts do not inflate that way.** Contention costs wall-clock, not tokens: the same work bills the same either way. So the cost summary written in Step 3 of Task 3 is valid in parallel mode even though the duration ceiling is not, which makes a parallel run newly useful for cost measurement. Leave the gate as it is for now — moving the token comparison outside it is a judgment call for whoever reads run 6's numbers, and guessing at it here would be the blind tuning this milestone exists to avoid. Note it in the run-6 findings doc instead.
 
-- [ ] **Step 5: Run the guardrail suite and shellcheck**
+- [x] **Step 5: Run the guardrail suite and shellcheck**
 
 ```bash
 bash tests/guardrails.test.sh
@@ -835,7 +877,7 @@ bash -n tests/eval/run-evals.sh && shellcheck tests/eval/run-evals.sh && echo CL
 ```
 Expected: `ALL GREEN`, total up by 2 from Task 3's value, shellcheck clean.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add tests/eval/baseline.json tests/eval/run-evals.sh tests/guardrails.test.sh
@@ -863,7 +905,7 @@ fires."
 
 **Read first:** `docs/plans/2026-07-29-literature-gap-tranche.md` carries the full rationale and risk analysis for each item. The exact prose to insert is reproduced below so you do not have to cross-reference, but the risk notes there are worth reading before you touch the file.
 
-- [ ] **Step 1: Write the failing ratchets**
+- [x] **Step 1: Write the failing ratchets**
 
 Append to `tests/guardrails.test.sh`, near the other coordinator assertions:
 
@@ -887,12 +929,12 @@ expect "the tranche touched no other agent body" "0" \
      | grep -cv 'delivery-coordinator.md' || true)"
 ```
 
-- [ ] **Step 2: Run the suite to verify they fail**
+- [x] **Step 2: Run the suite to verify they fail**
 
 Run: `bash tests/guardrails.test.sh`
 Expected: FAIL — the first three print `0`.
 
-- [ ] **Step 3: Item 1 — `NOT-CHECKED` becomes an escalation trigger**
+- [x] **Step 3: Item 1 — `NOT-CHECKED` becomes an escalation trigger**
 
 Open `agents/delivery-coordinator.md` and find step 5 (integrate + persist). After its existing verification sentence, insert this paragraph verbatim:
 
@@ -913,7 +955,7 @@ Then find the closing **Human checkpoint required:** line and extend its preambl
 
 **The risk to be aware of:** over-triggering. A specialist that dumps every adjacent surface into `NOT-CHECKED` could stall a lane. The scoping words *the substance of its own brief* are load-bearing — do not broaden them to "any non-empty value".
 
-- [ ] **Step 4: Item 2 — a declared stage budget**
+- [x] **Step 4: Item 2 — a declared stage budget**
 
 Find step 3 (plan + print the board) and append this paragraph verbatim:
 
@@ -933,7 +975,7 @@ Then find the board example in the same body and add the budget to its header li
 ▶ invoices — make-feature · 4 stages · done when: subscription upgrade covered by green feature tests
 ```
 
-- [ ] **Step 5: Item 3 — resume state at a blocking checkpoint**
+- [x] **Step 5: Item 3 — resume state at a blocking checkpoint**
 
 Find step 7 (surface checkpoints) and append this paragraph verbatim:
 
@@ -946,7 +988,7 @@ reconstruct its own position from a transcript it no longer has replays work
 the human already paid for.
 ```
 
-- [ ] **Step 6: Reseed the body budget**
+- [x] **Step 6: Reseed the body budget**
 
 The coordinator body grew, and `scripts/check_body_budget.py` is a ratchet that fails when any body exceeds its recorded size. A deliberate, reviewed growth is exactly what `--reseed` is for, and the convention is that it lands in the same commit.
 
@@ -957,7 +999,7 @@ git diff --stat scripts/body_budget.json
 
 Expected: only `delivery-coordinator` grows. If any other agent's numbers move, you edited a file you should not have — revert it.
 
-- [ ] **Step 7: Regenerate the mirrors**
+- [x] **Step 7: Regenerate the mirrors**
 
 ```bash
 python3 scripts/build-gemini-extension.py
@@ -967,7 +1009,7 @@ git status --porcelain gemini/ codex/
 
 Expected: the gemini coordinator body changes. Never hand-edit either tree.
 
-- [ ] **Step 8: Run every gate**
+- [x] **Step 8: Run every gate**
 
 ```bash
 bash tests/guardrails.test.sh
@@ -985,7 +1027,7 @@ grep -l 'Your own final answer closes the same way' commands/*.md | wc -l
 ```
 Expected: `9`.
 
-- [ ] **Step 9: Commit**
+- [x] **Step 9: Commit**
 
 ```bash
 git add agents/delivery-coordinator.md scripts/body_budget.json gemini/ codex/ tests/guardrails.test.sh
@@ -1013,7 +1055,7 @@ the human already paid for. All three edit the coordinator alone."
 
 **The question.** Does Claude Code subagent frontmatter accept an effort or thinking-depth setting? Current frontmatter across all 17 agents uses exactly six keys — `color`, `description`, `memory`, `model`, `name`, `tools` — and `effort` appears nowhere in the pack. If supported, it is the largest cost lever available, because effort scales thinking depth *and* tool-call volume, and this pack's agents differ enormously in failure cost. If unsupported, it must be recorded as a non-option rather than left as folklore someone re-derives next quarter.
 
-- [ ] **Step 1: Check the official documentation**
+- [x] **Step 1: Check the official documentation**
 
 Do not guess and do not infer from the Agent SDK or the Messages API — subagent frontmatter is a Claude Code surface with its own schema. Fetch the current subagents reference:
 
@@ -1026,7 +1068,7 @@ WebFetch https://code.claude.com/docs/en/sub-agents.md
 
 If that URL 404s, find the current one from `https://code.claude.com/docs/en/` rather than assuming a path. Also check the settings reference for a global or per-agent effort setting.
 
-- [ ] **Step 2: Decide the branch and record the finding**
+- [x] **Step 2: Decide the branch and record the finding**
 
 Append to `docs/authoring-agents.md` under its frontmatter documentation. **Branch A** if a field exists, **Branch B** if not. Write the observed field list either way — that list is worth having recorded regardless of the outcome:
 
@@ -1047,7 +1089,7 @@ surface, and an unrecognised frontmatter key is silently ignored rather than
 rejected, which would leave the pack looking tuned while changing nothing.
 ```
 
-- [ ] **Step 3 (Branch A only): Apply the tiering**
+- [x] **Step 3 (Branch A only): Apply the tiering**
 
 If and only if Step 1 confirmed the field. Set it per agent by failure cost, not by convenience — the user's ruling was accuracy first, so the expensive reviewers keep their depth and the cheap reporters lose theirs:
 
@@ -1068,7 +1110,7 @@ bash tests/guardrails.test.sh
 python3 scripts/validate-frontmatter.py   # needs PyYAML; use a scratchpad venv
 ```
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 Branch A:
 
@@ -1107,7 +1149,7 @@ key is ignored, not rejected, which would look tuned while changing nothing."
 
 **Version:** 1.31.0 — new capability (cost measurement) plus agent-behavior changes, no breaking change.
 
-- [ ] **Step 1: Bump VERSION and the four hand-maintained manifests**
+- [x] **Step 1: Bump VERSION and the four hand-maintained manifests**
 
 Bump `VERSION` **before** running the gemini build, since the mirror's manifest is generated from it. Since v1.28.0 `check_inventory_sync.py` walks all five manifests for `version` at any depth and fails if any differs — that check is what caught `.cursor-plugin/marketplace.json` sitting ten releases behind.
 
@@ -1120,7 +1162,7 @@ done
 grep -rn '"version"' .claude-plugin/*.json .cursor-plugin/*.json
 ```
 
-- [ ] **Step 2: Regenerate the mirrors**
+- [x] **Step 2: Regenerate the mirrors**
 
 ```bash
 python3 scripts/build-gemini-extension.py
@@ -1128,7 +1170,7 @@ python3 scripts/build-codex-extension.py
 grep -n '"version"' gemini/gemini-extension.json
 ```
 
-- [ ] **Step 3: Write the changelog entry**
+- [x] **Step 3: Write the changelog entry**
 
 Add above the `## [1.30.0]` section in `CHANGELOG.md`, in the file's existing Keep-a-Changelog voice:
 
@@ -1169,7 +1211,7 @@ Add above the `## [1.30.0]` section in `CHANGELOG.md`, in the file's existing Ke
   flushes that state to the delivery log first.
 ```
 
-- [ ] **Step 4: Run every gate**
+- [x] **Step 4: Run every gate**
 
 ```bash
 python3 scripts/check_inventory_sync.py
@@ -1191,7 +1233,7 @@ python3 -m venv "$SP/venv" && "$SP/venv/bin/pip" install -q pyyaml
 
 The console bundle is untouched by this plan, so `git diff --exit-code -- scripts/console/dist` should already be clean — no rebuild needed.
 
-- [ ] **Step 5: Commit, tag, push**
+- [x] **Step 5: Commit, tag, push**
 
 ```bash
 git add VERSION CHANGELOG.md .claude-plugin/ .cursor-plugin/ gemini/ codex/
@@ -1201,7 +1243,7 @@ git push origin main && git push origin v1.31.0
 gh run watch "$(gh run list --limit 1 --json databaseId --jq '.[0].databaseId')" --exit-status
 ```
 
-- [ ] **Step 6: Create the GitHub release**
+- [x] **Step 6: Create the GitHub release**
 
 Tagging does not create a release, and this repo's "Latest" badge sat four versions stale because of exactly that.
 
@@ -1220,3 +1262,54 @@ gh release list --limit 2
 **Eval run 6** is the verification, and it is a human-run billed step outside this plan. When it runs: sequential, with `EVAL_JUDGE=1` set (the rubric judge shipped in v1.26.0 and has never been exercised against a real run). It measures the tranche's behavioral effect — watch `policy` and `tests`, the only two cases that delegate, for checkpoint over-triggering — and produces the first trustworthy cost baseline, from which `max_tokens` gets seeded and a findings doc written at `docs/evals/<date>-run-6.md`.
 
 **qa-engineer's ~138k tokens in a single invocation** is the headline number to explain. It already carries both rules meant to bound it, so the next milestone's question is *why* — and the per-tool call counts in `<case>.cost.json` are what this plan builds to answer it.
+
+---
+
+## The parallel implementation — resolved 2026-08-04
+
+This plan was implemented twice, independently. The second attempt lives in a
+worktree at `.claude/worktrees/agent-cost` on branch `feat/agent-cost-instrument`
+(5 commits, tip `63c1591`, plus uncommitted edits to `run-evals.sh` and
+`guardrails.test.sh`), and it **edited this document** — its `4c0599c` rewrote
+Tasks 2–4 under the title *"correct Tasks 2-4 after Task 1's probe killed the
+rate table"*. The version of this plan on `main` is therefore the pre-correction
+one, plus the execution record above.
+
+**Where the two agree.** Both concluded from a real probe that the plan's
+input/output rate table was unusable — it prices a run at roughly 4% of actual
+because the traffic is almost entirely cache reads and writes. Both take the
+CLI's `total_cost_usd` as the authoritative dollar figure.
+
+**Where they diverge, and why the shipped design won.** That branch concluded
+*"the transcript carries no agent identity at all, so per-agent cost cannot come
+from it — the board feed is the only source that names an agent"*, and moved
+per-agent reporting to the board feed, tokens-only. That conclusion is a
+**probe artifact**: its Task 1 captured only the trivial prompt, which spawns no
+subagent and therefore cannot show agent identity. A second delegating probe
+shows identity plainly — `task_started` carries `subagent_type`, and every turn
+inside that subagent carries the matching `parent_tool_use_id`. Eval run 6
+settled it on real data: the `hygiene` case attributed 96,470 tokens to
+`scrum-master` from the transcript alone, with the input/output/cache split the
+board feed does not carry, and correctly priced at haiku rates.
+
+So the shipped design is a superset: the same authoritative dollars, plus a
+per-agent split with the token classes the board feed lacks, from a source
+without the board feed's contamination history (run-5 finding 1).
+
+**What was taken from that branch.** Three things, all genuine:
+
+1. A valid-JSON-but-not-an-object transcript line crashed the parser (fixed in
+   v1.31.1).
+2. A background/async subagent vanished from the summary entirely — the exact
+   invisibility this instrument exists to end (fixed in v1.31.1).
+3. **Ratchet dollars as well as tokens.** Its reasoning — each catches a
+   regression the other misses — is correct and the shipped `max_tokens`-only
+   ceiling had a real blind spot: a re-tier from sonnet to opus keeps token
+   counts flat and triples cost. `baseline.json` now carries `max_usd` beside
+   `max_tokens`, with the caveat that a dollar breach can mean a price change
+   rather than a regression (Sonnet 5's introductory rate expires 2026-08-31) —
+   which the rate-table reconciliation is what distinguishes.
+
+**Status:** the branch is left in place as the record of the alternative. Nothing
+further is pending from it; its remaining commits are the superseded pricing
+approach. It is safe to delete when you want the worktree list clean.
