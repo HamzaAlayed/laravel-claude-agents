@@ -36,9 +36,15 @@ from __future__ import annotations
 import argparse
 import collections
 import json
+import re
 import sys
 
 PER_MILLION = 1_000_000
+# Real transcripts report the dated model ID (`claude-haiku-4-5-20251001`) where
+# the pack's frontmatter and the rate table use the alias (`claude-haiku-4-5`).
+# Eval run 6's first case caught this: the dated haiku id missed the table, fell
+# back to the default Opus rate, and priced scrum-master 5x too high.
+_DATE_SUFFIX = re.compile(r"-\d{8}$")
 # The CLI's own total_cost_usd is the oracle; agreement is checked to the cent.
 RECONCILE_TOLERANCE_USD = 0.005
 
@@ -176,6 +182,19 @@ def _price(counts, rate, multipliers):
     )
 
 
+def _resolve_rate(model, table, default_model):
+    """(rate, priced) for a model id, tolerating a dated full id.
+
+    Tries the id as given, then with a trailing `-YYYYMMDD` stripped, then the
+    table's default. `priced` is False only when nothing matched, so a genuinely
+    unknown model is reported rather than silently charged at the default rate.
+    """
+    for candidate in (model, _DATE_SUFFIX.sub("", model or "")):
+        if candidate in table:
+            return table[candidate], True
+    return table.get(default_model) or {"input": 0.0, "output": 0.0}, False
+
+
 def _empty_counts():
     return {
         "input_tokens": 0,
@@ -249,7 +268,7 @@ def _billed(lines, rates):
             totals[key] += counts.get(key, 0)
         totals["cache_write_5m_tokens"] += 0  # kept explicit: TTL unknown here
 
-        rate = table.get(model) or table.get(rates.get("_default", ""), {"input": 0.0, "output": 0.0})
+        rate, _ = _resolve_rate(model, table, rates.get("_default", ""))
         per_input = rate["input"] / PER_MILLION
         flat = _price(dict(counts, cache_write_5m_tokens=0, cache_write_1h_tokens=0), rate, multipliers)
         read_and_flat += flat
@@ -317,9 +336,9 @@ def summarize(lines, rates):
         usage = _usage_of(obj)
         if usage:
             model = _message(obj).get("model") or default_model
-            if model not in table:
+            rate, priced = _resolve_rate(model, table, default_model)
+            if not priced:
                 unpriced.add(model)
-            rate = table.get(model) or table.get(default_model) or {"input": 0.0, "output": 0.0}
             for key, value in usage.items():
                 per_agent[agent][key] += value
             per_agent_models[agent][model] += 1
@@ -334,9 +353,7 @@ def summarize(lines, rates):
     for agent in sorted(set(per_agent) | set(per_agent_tools)):
         counts = per_agent.get(agent, _empty_counts())
         models = per_agent_models.get(agent, collections.Counter())
-        rate_for = table.get(next(iter(models), default_model)) or table.get(default_model) or {
-            "input": 0.0, "output": 0.0
-        }
+        rate_for, _ = _resolve_rate(next(iter(models), default_model), table, default_model)
         agents[agent] = dict(
             counts,
             tokens=sum(counts.values()),

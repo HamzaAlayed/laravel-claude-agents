@@ -178,6 +178,43 @@ class TestPricing(unittest.TestCase):
         lines = [assistant_line(input_tokens=10, model="claude-opus-5"), result_line("x")]
         self.assertEqual(eval_cost.summarize(lines, RATES)["unpriced_models"], [])
 
+    def test_prices_a_dated_full_model_id_at_its_alias_rate(self):
+        # Eval run 6's first case: real transcripts report the dated full id
+        # (claude-haiku-4-5-20251001) while the rate table and agent frontmatter
+        # use the alias. The dated id missed the table, fell through to the
+        # default Opus rate, and priced scrum-master 5x too high.
+        dated = eval_cost.summarize(
+            [assistant_line(input_tokens=1_000_000, model="claude-haiku-4-5-20251001"),
+             result_line("x")], RATES)
+        alias = eval_cost.summarize(
+            [assistant_line(input_tokens=1_000_000, model="claude-haiku-4-5"),
+             result_line("x")], RATES)
+        self.assertAlmostEqual(dated["attributed"]["total"]["usd"], 1.0, places=4)
+        self.assertEqual(dated["attributed"]["total"]["usd"], alias["attributed"]["total"]["usd"])
+        self.assertEqual(dated["unpriced_models"], [])
+
+    def test_a_dated_id_with_no_alias_in_the_table_is_still_reported(self):
+        # Normalising must not paper over a genuinely unknown model.
+        out = eval_cost.summarize(
+            [assistant_line(input_tokens=10, model="claude-nonexistent-9-20260101"),
+             result_line("x")], RATES)
+        self.assertEqual(out["unpriced_models"], ["claude-nonexistent-9-20260101"])
+
+    def test_every_model_the_pack_pins_is_priceable(self):
+        # A re-tier that points an agent at a model the table lacks would price
+        # that agent at the default rate on every future run.
+        import pathlib as _p
+        pinned = set()
+        for path in sorted((ROOT / "agents").glob("*.md")):
+            block = path.read_text().split("---")[1]
+            for line in block.splitlines():
+                if line.startswith("model:"):
+                    pinned.add(line.split(":", 1)[1].strip())
+        self.assertTrue(pinned, "no pinned models found")
+        table = RATES["rates"]
+        missing = sorted(m for m in pinned if not eval_cost._resolve_rate(m, table, "")[1])
+        self.assertEqual(missing, [], f"agents pin models absent from model-rates.json: {missing}")
+
 
 class TestAttribution(unittest.TestCase):
     def test_attributes_turns_to_the_subagent_that_produced_them(self):
