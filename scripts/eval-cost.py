@@ -48,15 +48,25 @@ def _iter_objects(lines):
 
     The harness redirects stderr into the same stream, so a warning can land
     mid-transcript. One bad line must not cost the whole run's data.
+
+    A line can also be valid JSON without being an object -- a bare `42`, `null`,
+    `"text"`, or `[]`. Those reach `obj.get(...)` and raise, losing the whole
+    run's cost data, so a non-dict is treated as a parse error like any other
+    unusable line.
     """
     for line in lines:
         line = line.strip()
         if not line:
             continue
         try:
-            yield json.loads(line), True
+            obj = json.loads(line)
         except json.JSONDecodeError:
             yield None, False
+            continue
+        if not isinstance(obj, dict):
+            yield None, False
+            continue
+        yield obj, True
 
 
 def _int(value):
@@ -283,6 +293,15 @@ def summarize(lines, rates):
     per_agent = collections.defaultdict(_empty_counts)
     per_agent_models = collections.defaultdict(collections.Counter)
     per_agent_tools = collections.defaultdict(collections.Counter)
+    per_agent_turns = collections.Counter()
+    # Seed every agent the run launched, so one that produced no turns in this
+    # transcript still appears at zero rather than vanishing. A background
+    # (async) subagent is the case that matters: runs 3 and 5 both saw `policy`
+    # go fully async, and a summary that silently omits security-engineer reads
+    # as "main did all the work" -- the invisibility this instrument exists to
+    # end. Zero tokens against a named agent is a measurement; absence is not.
+    for agent_name in subagents.values():
+        _ = per_agent[agent_name]
     tools = collections.Counter()
     unpriced = set()
     attributed_usd = 0.0
@@ -304,6 +323,7 @@ def summarize(lines, rates):
             for key, value in usage.items():
                 per_agent[agent][key] += value
             per_agent_models[agent][model] += 1
+            per_agent_turns[agent] += 1
             attributed_usd += _price(usage, rate, multipliers)
 
         for name in _tools_of(obj):
@@ -323,9 +343,16 @@ def summarize(lines, rates):
             usd=round(_price(counts, rate_for, multipliers), 6),
             models=sorted(models),
             tools=dict(sorted(per_agent_tools.get(agent, {}).items())),
+            turns=per_agent_turns.get(agent, 0),
         )
         for key in totals:
             totals[key] += counts[key]
+    # Named by a task_started line but contributing no measured turn -- almost
+    # always a background/async subagent. Called out explicitly so a reader is
+    # never left inferring it from a zero.
+    launched_without_turns = sorted(
+        name for name in set(subagents.values()) if per_agent_turns.get(name, 0) == 0
+    )
 
     billed = _billed(lines, rates)
     coverage = None
@@ -338,6 +365,7 @@ def summarize(lines, rates):
             "total": dict(totals, tokens=sum(totals.values()), usd=round(attributed_usd, 6)),
             "agents": agents,
             "coverage_of_billed": coverage,
+            "launched_without_measured_turns": launched_without_turns,
             "_note": "Per-agent shares derived from per-turn usage. Excludes thinking "
                      "tokens and is scoped differently from the billed ledger, so this "
                      "does not equal `billed.usd`; coverage_of_billed reports the gap "

@@ -491,6 +491,12 @@ for agent, a in top:
     calls = sum(a["tools"].values())
     print(f"         {agent:22} {a['tokens']:>9,} tok  ${a['usd']:.2f}  "
           f"{calls:>3} tool calls  {','.join(a['models']) or '-'}")
+absent = attr.get("launched_without_measured_turns") or []
+if absent:
+    # Almost always background/async subagents: launched, but no turn of theirs
+    # landed in the transcript. They sort last by token count, so say it outright
+    # rather than leaving a zero at the bottom of the list to be noticed.
+    print(f"         launched but unmeasured (async?): {', '.join(absent)}")
 if d["unpriced_models"]:
     print(f"   WARNING: unpriced models: {', '.join(d['unpriced_models'])}")
 PY

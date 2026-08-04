@@ -5,6 +5,25 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.31.1] - 2026-08-04
+
+### Fixed
+
+- **A transcript line that is valid JSON but not an object no longer costs the
+  run its cost data.** A bare `42`, `null`, `"text"`, or `[]` reached
+  `obj.get(...)` and raised, so one such line lost the whole summary. It is now
+  treated as a parse error like any other unusable line. The 1.31.0 tests
+  covered *invalid* JSON but never *valid non-object* JSON, which is how this
+  shipped.
+- **An async subagent no longer vanishes from the cost summary.** A
+  background-launched subagent is named by a `task_started` line but contributes
+  no turns to the transcript, and it was being omitted entirely — so a run where
+  `policy` went fully async (runs 3 and 5 both did) reported as though the main
+  thread had done all the work, which is the exact invisibility this instrument
+  exists to end. Every launched agent now appears with its measured turn count,
+  and the ones with no measured turns are named outright in both the summary
+  (`launched_without_measured_turns`) and the harness's per-case output.
+
 ## [1.31.0] - 2026-08-04
 
 ### Added

@@ -267,6 +267,66 @@ class TestRobustness(unittest.TestCase):
         out = eval_cost.summarize([assistant_line(input_tokens=10)], RATES)
         self.assertIsNone(out["billed"]["usd"])
 
+    def test_treats_a_non_dict_json_value_as_a_parse_error(self):
+        # A line can be valid JSON without being an object. These reached
+        # obj.get(...) and raised AttributeError, losing the whole run's cost
+        # data -- the earlier tests only covered *invalid* JSON, which is why
+        # this survived to ship in 1.31.0.
+        for bad in ('"just a string"', "[1,2,3]", "42", "null", "true"):
+            with self.subTest(line=bad):
+                out = eval_cost.summarize(
+                    [bad, assistant_line(input_tokens=10), result_line("x")], RATES
+                )
+                self.assertEqual(out["parse_errors"], 1)
+                self.assertEqual(out["attributed"]["total"]["input_tokens"], 10)
+
+    def test_non_dict_json_does_not_break_final_text_either(self):
+        self.assertEqual(eval_cost.final_text(["42", result_line("the answer")]), "the answer")
+
+
+class TestAsyncAgentVisibility(unittest.TestCase):
+    """A launched subagent must never silently disappear from the summary."""
+
+    def test_an_async_only_agent_stays_visible_with_zero_tokens(self):
+        # Runs 3 and 5 both saw `policy` go fully async: the subagent is launched
+        # but its turns never land in the transcript. Omitting it makes the
+        # summary read "main did all the work", which is the exact invisibility
+        # this instrument exists to end.
+        lines = [
+            task_started_line("toolu_1", "security-engineer"),
+            assistant_line(input_tokens=10),
+            result_line("x", total_cost_usd=0.01),
+        ]
+        out = eval_cost.summarize(lines, RATES)
+        agents = out["attributed"]["agents"]
+        self.assertIn("security-engineer", agents)
+        self.assertEqual(agents["security-engineer"]["tokens"], 0)
+        self.assertEqual(agents["security-engineer"]["turns"], 0)
+
+    def test_names_launched_agents_that_produced_no_measured_turns(self):
+        lines = [
+            task_started_line("toolu_1", "security-engineer"),
+            task_started_line("toolu_2", "qa-engineer"),
+            assistant_line(input_tokens=10, parent="toolu_2"),
+            result_line("x"),
+        ]
+        out = eval_cost.summarize(lines, RATES)
+        self.assertEqual(
+            out["attributed"]["launched_without_measured_turns"], ["security-engineer"]
+        )
+
+    def test_counts_turns_per_agent(self):
+        lines = [
+            task_started_line("toolu_1", "qa-engineer"),
+            assistant_line(input_tokens=1, parent="toolu_1"),
+            assistant_line(input_tokens=1, parent="toolu_1"),
+            assistant_line(input_tokens=1),
+            result_line("x"),
+        ]
+        agents = eval_cost.summarize(lines, RATES)["attributed"]["agents"]
+        self.assertEqual(agents["qa-engineer"]["turns"], 2)
+        self.assertEqual(agents["main"]["turns"], 1)
+
 
 class TestRealFixture(unittest.TestCase):
     """The point of the fixtures: a real transcript parses, and the rate table
