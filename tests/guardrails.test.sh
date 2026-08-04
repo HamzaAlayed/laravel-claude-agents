@@ -459,22 +459,27 @@ expect "the eval harness requests stream-json" "1" \
   "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE '\-\-output-format stream-json')"
 # The transcript's redirect target must be the dedicated stream file, never $LOG.
+# shellcheck disable=SC2016 # literal \$vars in the grep pattern, not expansions
 expect "the transcript goes to its own file, not the log" "1" \
   "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'run_with_timeout "\$EVAL_TIMEOUT" "\$\{cmd\[@\]\}"\) >"\$stream"')"
+# shellcheck disable=SC2016 # literal \$vars in the grep pattern, not expansions
 expect "the stream file is named .stream.jsonl" "1" \
   "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'local stream=.*\$name\.stream\.jsonl')"
 # $LOG must be produced by --text-only (the result field, i.e. what plain -p
 # prints) and by nothing else, or the answer key changes meaning.
+# shellcheck disable=SC2016 # literal \$vars in the grep pattern, not expansions
 expect "the log is rebuilt from the transcript's result field" "1" \
   "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE '\-\-text-only >"\$LOG"')"
+# shellcheck disable=SC2016 # literal \$vars in the grep pattern, not expansions
 expect "the eval harness writes a per-case cost summary" "1" \
   "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE '>"\$results/\$name\.cost\.json"')"
 # Megabytes per case, and tests/eval/results/ is committed. The derived summary
 # is the artifact; the raw stream is scaffolding.
+# shellcheck disable=SC2016 # literal \$vars in the grep pattern, not expansions
 expect "the eval harness discards the raw transcript" "1" \
   "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE '^ *rm -f "\$stream"')"
