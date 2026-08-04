@@ -5,7 +5,7 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [1.30.0] - 2026-08-04
 
 ### Changed
 
@@ -14,13 +14,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   final answer fade-rise instead of teleporting, a parked lane breathes its
   agent's color (the only looping attention animation — and a static colored
   border under `prefers-reduced-motion`), and the approval-queue badge pops
-  when it grows.
+  when it grows. Reduced motion is honored end to end: the CSS guard covers
+  the keyframes, and `MotionConfig reducedMotion="user"` covers the
+  JavaScript-driven animations the CSS guard cannot reach.
 - **The launcher explains itself.** A segmented Freeform / Command /
   Specialist control with a live caption, specialists listed by name and
   role, permission modes captioned in plain words, and Cmd/Ctrl+Enter to run.
 - **The transcript is a slide-over, not a footnote.** Selecting a card opens
-  a non-modal right panel — the board stays clickable, Escape dismisses, and
-  an arriving decision sheet takes precedence.
+  a non-modal right panel — the board stays clickable, so another card swaps
+  the panel in place; Escape dismisses it; and a decision always wins the
+  screen, whether it arrives on its own or you press Review. One known edge,
+  written up in `docs/plans/2026-08-04-console-motion-followups.md`: while the
+  panel is open it covers the approval bar's Review button, and Escape is what
+  frees it.
 - **Smaller answers to constant questions.** A header chip answers "is it
   still running?" with a ticking elapsed time; the run picker says
   `make-feature · done · 12m ago` instead of a raw run id; the decision sheet
