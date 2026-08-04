@@ -314,6 +314,24 @@ expect "Interface block is byte-identical across them" "1" \
   "$(grep -h '^> \*\*Interface:\*\*' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | sort -u | wc -l | tr -d ' ')"
 expect "Interface block binds the final answer to VERIFIED + NOT-CHECKED" "9" \
   "$(grep -l 'Your own final answer closes the same way' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# Literature-gap tranche (docs/plans/2026-07-29-literature-gap-tranche.md), gate
+# cleared by eval run 5. Escalation fired on category only; NOT-CHECKED was
+# collected by every stage return and consumed by nothing. Nothing bounded a
+# run's total stages (only lane cap and per-stage retry). A checkpoint wrote no
+# resume state, so a delivery resumed tomorrow replayed work already paid for.
+COORD="$SCRIPT_DIR/agents/delivery-coordinator.md"
+expect "low confidence is its own stop trigger" "1" \
+  "$(grep -c 'Low confidence is a stop trigger in its own right' "$COORD")"
+expect "the board declares a stage budget" "1" \
+  "$(grep -c 'State the stage budget on the board' "$COORD")"
+expect "checkpoints flush resume state" "1" \
+  "$(grep -c 'flush the resume state' "$COORD")"
+# All three edit the coordinator ONLY. The 9 pipeline commands share a
+# byte-identical Interface block; a tranche edit that leaked into it would
+# diverge them and drift the delegation contract per command.
+expect "the tranche touched no other agent body" "0" \
+  "$(grep -l 'State the stage budget on the board' "$SCRIPT_DIR"/agents/*.md 2>/dev/null \
+     | grep -cv 'delivery-coordinator.md' || true)"
 # Finding 3 (2026-07-29 literature audit): regex answer keys are exact-match
 # scoring of nondeterministic output. The rubric judge is the second opinion, so
 # a case registered without a rubric would be silently unjudged.
