@@ -5,6 +5,52 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.38.0] - 2026-08-05
+
+### Added
+
+- **Every specialist in the console is now an animated actor.** The agent card's
+  24px avatar was two letters and a spinner: it told you which agent and that it
+  was busy, never what it was doing. It now holds a sprite posed from the events
+  the console already emits — reasoning bobs with its head tilted, a tool call
+  leans in and works, assistant text nods and reports, a failed tool result
+  flinches and slumps, a parked lane raises a hand, a finished one closes its
+  eyes. One rig serves all seventeen agents and colour is the only per-agent art,
+  so **no animation runtime ships for it**: every pose is CSS keyed off
+  `data-pose`, at a cost of +1.5 KB of JS and +3.4 KB of CSS. The Lottie question
+  that prompted this stays deliberately unopened, because at this fidelity CSS
+  answers it.
+- **A specialist's instrument, where there is room for it.** Optional per-agent
+  props — a padlock for the security engineer, a clipboard for QA, a stopwatch for
+  performance — drawn **only in the lane panel at 2×**. At card size they do not
+  read: a browser check against the built bundle found the author unable to tell
+  his own three drawings apart at nine pixels, with the propless cards beside them
+  looking cleaner. So the board stays dense and looking closer is what earns the
+  detail. A craft with no unmistakable silhouette gets no prop rather than a vague
+  one, which is what keeps a newly added agent from looking unfinished.
+- `docs/design/2026-08-05-actor-study.html` — the live study the design was chosen
+  from: three treatments (bespoke instruments, the character rig, a pulsing ring
+  around the existing chip) running the same event stream on the same clock, with
+  each one's cost and risk stated. Kept so the reasoning does not have to be
+  re-derived, and updated to record what actually shipped.
+
+### Changed
+
+- **A running lane no longer carries a spinner.** The actor is the running
+  indicator; two moving glyphs in one row both said "busy" while neither said
+  what. `Check`, `AlertTriangle` and `Pause` return for done, error and parked —
+  the states where the answer is settled.
+- **The board's parked-lane rule moved to `lib/parkedLanes.ts`** and gained its
+  first tests. It was written inside `Board`, and the lane panel needed the same
+  answer to pose its actor; a second copy of "a guessed attribution marks nothing"
+  is how the two surfaces would have drifted apart.
+
+### Fixed
+
+- `api_retry` deliberately gets no pose. The engine reports it on the run, not a
+  lane, so posing every lane as retrying would have claimed something false about
+  agents that were working fine.
+
 ## [1.37.0] - 2026-08-05
 
 ### Fixed
