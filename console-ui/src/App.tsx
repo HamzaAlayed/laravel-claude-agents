@@ -15,6 +15,7 @@ import * as api from "@/lib/api";
 import { fadeRise } from "@/lib/motion";
 import { formatRunLabel } from "@/lib/runLabel";
 import { emptyRun, isRunOver, reduce } from "@/lib/reducer";
+import { parkedLaneIds } from "@/lib/parkedLanes";
 import { armGate, canSubmit, settleSubmit, startSubmit } from "@/lib/submitGate";
 import type { Catalog, GuildEvent, Lane, RunView } from "@/lib/types";
 
@@ -376,6 +377,7 @@ export default function App() {
           <LanePanel
             lane={selectedLane}
             agent={catalog.agents.find((a) => a.slug === selectedLane.slug)}
+            parked={parkedLaneIds(view).has(selectedLane.toolUseId)}
             onClose={() => setSelected(null)}
           />
         )}

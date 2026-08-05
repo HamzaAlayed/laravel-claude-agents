@@ -153,6 +153,95 @@
   animation: attention-pulse 2s ease-in-out infinite;
 }
 
+/*
+ * The actor: one sprite rig, seventeen specialists. Poses are keyed off the
+ * [data-pose] the Actor component publishes, so nothing here needs an animation
+ * runtime — and --lane is the agent's own colour, set inline by the card.
+ *
+ * The guard below kills loops rather than replacing them, and a loop declares no
+ * fill mode, so a frozen actor reverts to its BASE style. That is why the rig's
+ * markup is drawn at rest and why the poses that must persist (closed eyes, x
+ * eyes, a raised hand) are set by static rules rather than by a keyframe.
+ */
+.sp-shadow { fill: var(--foreground); opacity: 0.09; }
+.sp-torso { fill: color-mix(in oklab, var(--lane) 52%, var(--card)); }
+.sp-head { fill: var(--lane); }
+.sp-eye { fill: var(--card); }
+.sp-xeye,
+.sp-lid { fill: none; stroke: var(--card); stroke-width: 1.3; stroke-linecap: round; opacity: 0; }
+.sp-mouth { fill: none; stroke: var(--card); stroke-width: 1.2; stroke-linecap: round; opacity: 0.35; }
+.sp-hand { fill: var(--lane); }
+.sp-think { fill: var(--lane); opacity: 0; }
+.sp-arm,
+.sp-raise {
+  fill: none;
+  stroke: var(--lane);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  transform-origin: 20.8px 19.8px;
+}
+.sp-raise { opacity: 0; }
+.sp-body { transform-origin: 16px 26px; }
+.sp-skull { transform-origin: 16px 17px; }
+.sp-eyes { transform-origin: 16px 11.6px; }
+
+/* Reasoning: a slow bob, head tilted off-axis, eyes drifting, one thought. */
+[data-pose="thinking"] .sp-body { animation: sp-bob 2.2s ease-in-out infinite; }
+[data-pose="thinking"] .sp-skull { animation: sp-tilt 2.2s ease-in-out infinite; }
+[data-pose="thinking"] .sp-eyes { animation: sp-glance 2.2s ease-in-out infinite; }
+[data-pose="thinking"] .sp-think { animation: sp-think 2.2s ease-in-out infinite; }
+@keyframes sp-bob { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-1.1px); } }
+@keyframes sp-tilt { 0%, 100% { transform: rotate(-9deg); } 50% { transform: rotate(-4deg); } }
+@keyframes sp-glance { 0%, 100% { transform: translate(1px, -0.5px); } 50% { transform: translate(1.4px, 0.2px); } }
+@keyframes sp-think { 0%, 100% { opacity: 0; transform: translateY(1px); } 45%, 60% { opacity: 0.85; transform: translateY(-1.5px); } }
+
+/* A tool call in flight: leaning in, eyes narrowed, arm working. */
+[data-pose="working"] .sp-body { animation: sp-work 0.46s ease-in-out infinite; }
+[data-pose="working"] .sp-skull { animation: sp-lean 0.46s ease-in-out infinite; }
+[data-pose="working"] .sp-eyes { animation: sp-squint 0.46s ease-in-out infinite; }
+[data-pose="working"] .sp-arm { animation: sp-hammer 0.46s cubic-bezier(0.4, 0, 0.5, 1) infinite; }
+@keyframes sp-work { 0%, 100% { transform: translateY(0) rotate(2deg); } 50% { transform: translateY(-0.7px) rotate(3deg); } }
+@keyframes sp-lean { 0%, 100% { transform: rotate(7deg); } 50% { transform: rotate(9deg); } }
+@keyframes sp-squint { 0%, 100% { transform: scaleY(0.62); } 50% { transform: scaleY(0.5); } }
+@keyframes sp-hammer { 0% { transform: rotate(-26deg); } 45% { transform: rotate(16deg); } 100% { transform: rotate(-26deg); } }
+
+/* Reporting back: a few nods and a mouth that moves. The nodding ends rather
+   than looping, because text arrives in bursts and a permanent talker reads as
+   stuck — but the body keeps breathing, so a lane that sits in this pose never
+   goes completely still while it is still live. */
+[data-pose="speaking"] .sp-body { animation: sp-bob 2.2s ease-in-out infinite; }
+[data-pose="speaking"] .sp-skull { animation: sp-nod 0.62s ease-in-out 4 both; }
+[data-pose="speaking"] .sp-mouth { animation: sp-talk 0.31s steps(1) 8 both; }
+@keyframes sp-nod { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(9deg); } }
+@keyframes sp-talk { 0% { opacity: 0.9; } 50%, 100% { opacity: 0.35; } }
+
+/* The tool came back an error: one flinch, then a held slump with x eyes. */
+[data-pose="stumble"] .sp-body { animation: sp-shake 0.4s ease-out both; }
+[data-pose="stumble"] .sp-skull,
+[data-pose="failed"] .sp-skull { transform: rotate(15deg) translateY(1px); }
+[data-pose="stumble"] .sp-eye,
+[data-pose="failed"] .sp-eye { opacity: 0; }
+[data-pose="stumble"] .sp-xeye,
+[data-pose="failed"] .sp-xeye { opacity: 1; }
+[data-pose="stumble"] .sp-arm,
+[data-pose="failed"] .sp-arm { transform: rotate(34deg); }
+@keyframes sp-shake { 0% { transform: translateX(0); } 25% { transform: translateX(-1.6px); } 60% { transform: translateX(1.2px); } 100% { transform: translateX(0); } }
+
+/* Blocked on the human — the only pose that may not be subtle. The working arm
+   hides and the dedicated raised limb waves clear of the head. */
+[data-pose="needs"] .sp-body { animation: sp-hop 1s ease-in-out infinite; }
+[data-pose="needs"] .sp-arm { opacity: 0; }
+[data-pose="needs"] .sp-raise { opacity: 1; animation: sp-wave 0.9s ease-in-out infinite; }
+[data-pose="needs"] .sp-eye { r: 1.8; }
+@keyframes sp-hop { 0%, 100% { transform: translateY(0); } 40% { transform: translateY(-1.6px); } }
+@keyframes sp-wave { 0%, 100% { transform: rotate(-11deg); } 50% { transform: rotate(9deg); } }
+
+/* Finished: one settle, then eyes closed and still. */
+[data-pose="done"] .sp-body { animation: sp-settle 0.5s cubic-bezier(0.3, 1.4, 0.5, 1) both; }
+[data-pose="done"] .sp-eye { opacity: 0; }
+[data-pose="done"] .sp-lid { opacity: 1; }
+@keyframes sp-settle { 0% { transform: translateY(-1.4px); } 100% { transform: translateY(0); } }
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

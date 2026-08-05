@@ -1,5 +1,8 @@
 import { LayoutGroup } from "motion/react";
 import { StageColumn } from "./StageColumn";
+import { Actor } from "./Actor";
+import { actorPose } from "@/lib/actorPose";
+import { parkedLaneIds } from "@/lib/parkedLanes";
 import type { Agent, Catalog, Lane, RunView } from "@/lib/types";
 
 type Props = {
@@ -27,20 +30,9 @@ export function Board({ view, catalog, onSelect }: Props) {
   const stages = catalog.stages.filter(
     (stage) => stage !== "Working" || columnLanes.some((lane) => stageOf(lane.slug) === "Working"),
   );
-  // Marked from the prompt's own `agent`, never guessed. A prompt with no agent
-  // came from the main thread — the coordinator is the board's header, not a
-  // card — so nothing is marked, rather than blaming whichever lane is first.
-  const parkedLanes = new Set(
-    view.pending.flatMap((prompt) => {
-      // A guessed attribution marks nothing: this promise is that a marked card
-      // is really the blocked one, and the bar hedges in words instead.
-      if (!prompt.agent || prompt.agentConfidence === "guess") return [];
-      const lane = view.lanes.find(
-        (candidate) => candidate.slug === prompt.agent && candidate.status === "running",
-      );
-      return lane ? [lane.toolUseId] : [];
-    }),
-  );
+  // Shared with App, which needs the same answer for the lane panel's actor —
+  // see parkedLaneIds for why a guessed attribution marks nothing.
+  const parkedLanes = parkedLaneIds(view);
 
   return (
     <LayoutGroup>
@@ -62,12 +54,10 @@ export function Board({ view, catalog, onSelect }: Props) {
                 borderWidth: parkedLanes.has(lane.toolUseId) ? 2 : 1,
               }}
             >
-              <span
-                className="grid size-6 shrink-0 place-items-center rounded text-[10px] font-bold text-white"
-                style={{ background: agents[lane.slug]?.color ?? "#64748b" }}
-              >
-                {(agents[lane.slug]?.name ?? lane.slug).slice(0, 2)}
-              </span>
+              <Actor
+                pose={actorPose(lane, parkedLanes.has(lane.toolUseId))}
+                color={agents[lane.slug]?.color ?? "#64748b"}
+              />
               <span className="text-sm font-medium">
                 {agents[lane.slug]?.name ?? lane.slug}
               </span>

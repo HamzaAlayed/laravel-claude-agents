@@ -4,6 +4,8 @@ import {
 } from "@/components/ui/sheet";
 import { fadeRise } from "@/lib/motion";
 import { Transcript } from "./Transcript";
+import { Actor } from "./Actor";
+import { actorPose } from "@/lib/actorPose";
 import type { Agent, Lane } from "@/lib/types";
 
 /**
@@ -15,10 +17,12 @@ import type { Agent, Lane } from "@/lib/types";
 export function LanePanel({
   lane,
   agent,
+  parked,
   onClose,
 }: {
   lane: Lane;
   agent?: Agent;
+  parked: boolean;
   onClose: () => void;
 }) {
   return (
@@ -31,13 +35,7 @@ export function LanePanel({
         <motion.div {...fadeRise} className="flex min-h-0 flex-1 flex-col">
           <SheetHeader>
             <SheetTitle className="flex items-center gap-2">
-              <span
-                aria-hidden="true"
-                className="grid size-6 shrink-0 place-items-center rounded text-[10px] font-bold text-white"
-                style={{ background: agent?.color ?? "#64748b" }}
-              >
-                {(agent?.name ?? lane.slug).slice(0, 2)}
-              </span>
+              <Actor pose={actorPose(lane, parked)} color={agent?.color ?? "#64748b"} />
               {agent?.name ?? lane.slug}
             </SheetTitle>
             <SheetDescription className="truncate">

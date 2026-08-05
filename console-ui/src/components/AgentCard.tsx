@@ -1,14 +1,29 @@
 import { motion } from "motion/react";
-import { AlertTriangle, Check, Loader2, Pause } from "lucide-react";
+import { AlertTriangle, Check, Pause } from "lucide-react";
 import { useElapsed } from "@/lib/useElapsed";
+import { actorPose } from "@/lib/actorPose";
+import { Actor } from "./Actor";
 import type { Agent, Lane } from "@/lib/types";
 
 type Props = { lane: Lane; agent?: Agent; parked: boolean; onSelect: () => void };
 
+/**
+ * The lane's outcome, or null while it still has none. A running lane used to
+ * carry a spinning loader, which said "busy" next to an actor already saying it
+ * — and said nothing the actor did not. The icon now marks only the states where
+ * the answer is settled.
+ */
+const outcomeOf = (lane: Lane, parked: boolean) => {
+  if (parked) return { key: "parked", Icon: Pause } as const;
+  if (lane.status === "error") return { key: "error", Icon: AlertTriangle } as const;
+  if (lane.status === "done") return { key: "done", Icon: Check } as const;
+  return null;
+};
+
 export function AgentCard({ lane, agent, parked, onSelect }: Props) {
   const elapsed = useElapsed(lane.startedAt, lane.endedAt);
   const color = agent?.color ?? "#64748b";
-  const Icon = parked ? Pause : lane.status === "running" ? Loader2 : lane.status === "error" ? AlertTriangle : Check;
+  const outcome = outcomeOf(lane, parked);
 
   return (
     <motion.button
@@ -27,17 +42,11 @@ export function AgentCard({ lane, agent, parked, onSelect }: Props) {
       aria-label={`${agent?.name ?? lane.slug}: ${lane.task || "working"}`}
     >
       <div className="flex items-center gap-2">
-        <span
-          className="grid size-6 shrink-0 place-items-center rounded text-[10px] font-bold text-white"
-          style={{ background: color }}
-        >
-          {(agent?.name ?? lane.slug).slice(0, 2)}
-        </span>
+        <Actor pose={actorPose(lane, parked)} color={color} />
         <span className="truncate text-sm font-medium">{agent?.name ?? lane.slug}</span>
-        <Icon
-          className={`ml-auto size-3.5 shrink-0 ${lane.status === "running" && !parked ? "animate-spin" : ""}`}
-          aria-hidden
-        />
+        {outcome && (
+          <outcome.Icon data-outcome={outcome.key} className="ml-auto size-3.5 shrink-0" aria-hidden />
+        )}
       </div>
       <p className="mt-1 truncate text-xs text-muted-foreground">{lane.task || "working…"}</p>
       <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
