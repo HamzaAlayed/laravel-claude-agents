@@ -495,3 +495,46 @@ class TestCLI(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestModelIdVariants(unittest.TestCase):
+    """Both variants below were found in real transcripts, not imagined."""
+
+    def test_prices_a_bracketed_context_variant_at_its_base_rate(self):
+        # `claude-opus-4-8[1m]` appears only in the result line's modelUsage ledger.
+        # It missed the table and fell back to the default Opus rate, which happened
+        # to be correct because Opus 4.8 and Opus 5 share $5/$25 — so a real
+        # long-context premium would have been absorbed in silence.
+        rate, priced = eval_cost._resolve_rate(
+            "claude-opus-4-8[1m]", RATES["rates"], RATES["_default"])
+        self.assertTrue(priced)
+        self.assertEqual(rate, RATES["rates"]["claude-opus-4-8"])
+
+    def test_prices_a_bracketed_sonnet_variant(self):
+        rate, priced = eval_cost._resolve_rate(
+            "claude-sonnet-5[1m]", RATES["rates"], RATES["_default"])
+        self.assertTrue(priced)
+        self.assertEqual(rate, RATES["rates"]["claude-sonnet-5"])
+
+    def test_an_unknown_bracketed_model_is_still_reported(self):
+        _, priced = eval_cost._resolve_rate(
+            "claude-nonexistent-9[1m]", RATES["rates"], RATES["_default"])
+        self.assertFalse(priced)
+
+    def test_an_unpriceable_ledger_model_blocks_a_clean_agreement(self):
+        # The repriced bracket would be built on a defaulted guess, so `agrees`
+        # must not read as a pass.
+        lines = [
+            assistant_line(input_tokens=10, output_tokens=1),
+            json.dumps({
+                "type": "result", "subtype": "success", "result": "x",
+                "total_cost_usd": 0.5,
+                "modelUsage": {"totally-unknown-model": {
+                    "inputTokens": 1_000_000, "outputTokens": 0,
+                    "cacheReadInputTokens": 0, "cacheCreationInputTokens": 0,
+                    "costUSD": 0.5}},
+            }),
+        ]
+        out = eval_cost.summarize(lines, RATES)
+        self.assertEqual(out["billed"]["unpriced_in_ledger"], ["totally-unknown-model"])
+        self.assertFalse(out["billed"]["rate_table_check"]["agrees"])

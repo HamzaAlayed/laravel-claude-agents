@@ -252,6 +252,55 @@ check_not_in_files() { # check_not_in_files <regex> <relative-path> <description
   fi
 }
 
+check_update_guarded() { # check_update_guarded <description>
+  # Planted flaw 2 is that PostController@update has no authorization. Asserting
+  # that it is closed used to be `check_log 'update'` -- a grep for one word in the
+  # final answer, which the 2026-07-29 literature audit named as an antipattern
+  # citing this exact check. It then failed both ways for real: it passes on any
+  # stray "update", and on 2026-08-05 it failed a run that closed the hole
+  # correctly and simply never used the word (the rubric judge scored that run 5/5
+  # and disagreed with the key).
+  #
+  # So assert the artifact instead, accepting either placement Laravel makes
+  # idiomatic: the guard inline in the controller's update(), or in the
+  # authorize() of the Form Request that update() type-hints.
+  python3 - "$WORK" <<'PYGUARD' >/dev/null 2>&1
+import pathlib, re, sys
+
+work = pathlib.Path(sys.argv[1])
+controller = work / "app/Http/Controllers/PostController.php"
+if not controller.is_file():
+    sys.exit(1)
+src = controller.read_text(encoding="utf-8", errors="replace")
+
+GUARD = re.compile(r"authorize\s*\(|Gate::|->can\s*\(|->cannot\s*\(")
+
+# The update method: signature through the next method or end of class.
+m = re.search(r"function\s+update\s*\((?P<sig>[^)]*)\)(?P<body>.*?)"
+              r"(?=\n\s*(?:public|protected|private)\s+function|\n\}\s*$)",
+              src, re.S)
+if not m:
+    sys.exit(1)
+
+# (a) guard inline in the controller.
+if GUARD.search(m.group("body")):
+    sys.exit(0)
+
+# (b) guard in the Form Request that update() type-hints.
+for cls in re.findall(r"([A-Z]\w*Request)\s+\$", m.group("sig")):
+    for candidate in work.glob(f"app/Http/Requests/{cls}.php"):
+        text = candidate.read_text(encoding="utf-8", errors="replace")
+        auth = re.search(r"function\s+authorize\s*\([^)]*\)(?P<body>.*?)"
+                         r"(?=\n\s*(?:public|protected|private)\s+function|\n\}\s*$)",
+                         text, re.S)
+        if auth and GUARD.search(auth.group("body")):
+            sys.exit(0)
+
+sys.exit(1)
+PYGUARD
+  record $? "code:   $1"
+}
+
 check_delegated() { # check_delegated <min-distinct-agents> <description>
   # Reads the live board feed the emit-agent-events hook writes. The feed is
   # truncated at case start, so anything in it belongs to this run. No other case
@@ -297,7 +346,7 @@ checks_n_plus_one() {
 checks_policy() {
   check_file "app/Policies/PostPolicy.php" "PostPolicy.php created"
   check_in_files 'authorize|Gate::|->can\(|can:' "app/Http/Controllers/PostController.php" "controller enforces the policy"
-  check_log 'update' "covers the unguarded update route"
+  check_update_guarded "the unguarded update route is closed"
 }
 
 checks_action() {

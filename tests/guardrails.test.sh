@@ -578,6 +578,23 @@ PY
 # The opt-in case exists to prove delegation happened. No other case asserts it,
 # and `policy`/`action` each ran both ways across runs 5 and 6 without the answer
 # key noticing which — so if this assertion goes, the case loses its whole point.
+# The 2026-07-29 literature audit named exact-match grep scoring as an antipattern
+# and cited `check_log 'update'` by name. It then failed both ways for real: it
+# passes on any stray "update", and on 2026-08-05 it failed a run that closed the
+# hole correctly via a Form Request and never used the word — the rubric judge
+# scored that run 5/5 and disagreed with the key. The assertion is now
+# artifact-level, and must not regress to wording.
+expect "the policy case asserts the guard, not a word in the prose" "1" \
+  "$(sed -n '/^checks_policy()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'check_update_guarded')"
+expect "the policy case no longer greps the log for 'update'" "0" \
+  "$(sed -n '/^checks_policy()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE "check_log 'update'" || true)"
+# A guard that authorizes everything is not a guard: the checker must reject a Form
+# Request whose authorize() just returns true.
+expect "the guard checker inspects the authorize body, not just its presence" "1" \
+  "$(sed -n '/^check_update_guarded()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'GUARD\.search\(auth\.group')"
 expect "the opt-in case asserts that work was delegated" "1" \
   "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'check_delegated')"

@@ -5,6 +5,50 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.37.0] - 2026-08-05
+
+### Fixed
+
+- **The `policy` case no longer scores a correct run as a failure.** Its
+  authorization assertion was `check_log 'update'` — a grep for one word in the
+  final answer. A targeted delegating run closed the hole properly (`PostPolicy`
+  ownership check, the update path guarded by `UpdatePostRequest::authorize()`
+  calling `can('update', …)`, and a feature test asserting a non-owner PUT gets
+  403) and simply never used the word "update" in its closing prose. The rubric
+  judge scored that run 5/5 and **disagreed with the key** — correctly. This is
+  the exact antipattern the 2026-07-29 literature audit named, citing this exact
+  check. Replaced with `check_update_guarded`, which inspects the code and accepts
+  either idiomatic placement: inline in the controller's `update()`, or in the
+  `authorize()` of the Form Request that `update()` type-hints. It also rejects a
+  Form Request whose `authorize()` just `return true`, because a guard that
+  authorizes everything is not a guard.
+- **`claude-opus-4-8[1m]` is now priced explicitly.** The bracketed 1M-context
+  variant appears only in the result line's `modelUsage` ledger, missed the rate
+  table, and defaulted to Opus 5's rate — correct purely because both are $5/$25,
+  so a real long-context premium would have been absorbed in silence. An
+  unpriceable model in the ledger now also blocks a clean `agrees`, so the
+  reconciliation can no longer pass on a defaulted guess.
+
+### Changed
+
+- **`policy`'s security-engineer stage is intended cost, not a lever** — the last
+  question open since run 5, now answered. A targeted run caught the case
+  delegating (1560s, $7.18, 4 agents) and priced the stage: `security-engineer` is
+  1,330,714 tokens across 25 tool calls, the **smallest lane by tokens** and ~17%
+  of attributed spend, against `main`'s 55%. Run 5 read its 526s of 994s as the
+  driver; it is 53% of the wall clock and a sixth of the bill, because it runs Opus
+  5 where the builders run Sonnet. Time and money point at different lanes.
+- **Both bimodal cases now cover their delegating mode.** `policy` runs 3.3× more
+  expensive delegating ($7.18) than fast-pathed ($2.19) on an identical prompt, so
+  `policy` is reseeded to 1900s / $9.00 / 14.5M and `feature` seeded to
+  1900s / $8.50 / 14.5M. The agent list in `<case>.cost.json` — not the ceiling —
+  is what tells you which mode ran.
+- **Sonnet 5's 2026-08-31 introductory-rate expiry is retired as a risk.** Solving
+  the CLI's own per-model `costUSD` for the implied input rate lands on exactly
+  $3.00/MTok at the 5m cache tier in three independent cases, and the $2/$10 intro
+  rate would require a cache-write multiplier of 3.8–4.1 when only 1.25 and 2.0
+  exist. Billing is at list price, so the expiry moves nothing here.
+
 ## [1.36.0] - 2026-08-04
 
 ### Fixed

@@ -1,9 +1,9 @@
 {
   "_source": "sequential eval run 6 (docs/evals/2026-08-04-run-6.md), 5/5 cases, 19/19 checks; parallel runs excluded — API contention inflates per-case durations 2-6x (run 3 finding)",
   "_policy": "soft ceilings: run-evals.sh prints 'within'/'REGRESSED', never fails the case; update ceilings after each accepted sequential run",
-  "_metrics": "Three ceilings, because each catches a regression the others miss. max_seconds is wall clock. max_usd is the CLI's own total_cost_usd — the real cost, and the only one that catches a model-mix regression (a sonnet -> opus re-tier keeps token counts flat and triples the bill). max_tokens is attributed.total.tokens — a work-volume proxy that is invariant to pricing, which max_usd is not: Sonnet 5's introductory rate expires 2026-08-31, so a max_usd breach can mean a price change rather than a regression. The rate-table reconciliation in <case>.cost.json is what distinguishes the two.",
+  "_metrics": "Three ceilings, because each catches a regression the others miss. max_seconds is wall clock. max_usd is the CLI's own total_cost_usd — the real cost, and the only one that catches a model-mix regression (a sonnet -> opus re-tier keeps token counts flat and triples the bill). max_tokens is attributed.total.tokens — a work-volume proxy that is invariant to pricing, which max_usd is not — so on a max_usd breach, check the rate-table reconciliation in <case>.cost.json before assuming a regression. The one dated price risk is now RETIRED: Sonnet 5's introductory rate expiring 2026-08-31 does not affect these ceilings, because billing was shown to be at list price already (see model-rates.json's _source for the arithmetic).",
   "_tokens_caveat": "Run 6 measured token totals as >99% cache-read tokens in all five cases (e.g. n-plus-one: 3,666,860 cache of 3,669,451 total). Cache reads bill at 0.1x input, so max_tokens tracks context volume x turns far more than it tracks spend. Read it as a work-volume signal and let max_usd speak for cost.",
-  "_bimodal_cases": "`policy` and `action` each run two ways: the coordinator fast path takes the case (fewer stages, much cheaper) or it delegates. Run 5 delegated `policy` (994s) and fast-pathed `action` (420s); run 6 did the exact opposite (`policy` 381s undelegated, `action` 1217s across 4 agents). Ceilings are seeded from run 6 with headroom, NOT inflated to cover both modes — so on a REGRESSED reading for either case, check <case>.cost.json's agent list for delegation before treating it as a regression.",
+  "_bimodal_cases": "`policy` and `action` each run two ways: the coordinator fast path takes the case (fewer stages, much cheaper) or it delegates. Run 5 delegated `policy` (994s) and fast-pathed `action` (420s); run 6 did the exact opposite (`policy` 381s undelegated, `action` 1217s across 4 agents); a targeted 2026-08-05 run caught `policy` delegating again (1560s, $7.18, 4 agents). The spread on one case is 3.3x in dollars, so BOTH cases' ceilings are seeded to cover the delegating mode — an undelegated run then reads comfortably inside them, and the agent list in <case>.cost.json is what tells you which mode ran. Check that list before treating any REGRESSED reading on these two as a regression.",
   "_opt_in": "`feature` is registered but excluded from the default sweep (OPT_IN_CASES in run-evals.sh): it is the only case guaranteed to delegate, and also the most expensive, so it opts in when coordinator behaviour changes rather than costing every sweep. Ceilings seeded from its first run (2026-08-04): 1456s, $6.55, 11.2M tokens — 5/6 checks, the miss being the stage-budget assertion that exposed tranche item 2 as inert for command-driven runs (fixed in v1.36.0).",
   "cases": {
     "n-plus-one": {
@@ -15,12 +15,12 @@
       "usd_basis": "run 6: $1.82 billed + ~30%; no delegation, single opus-5 lane"
     },
     "policy": {
-      "max_seconds": 1100,
-      "basis": "unchanged from run 5's 994s. Run 6 took 381s because the case did NOT delegate — leaving the ceiling at 1100 keeps it valid for the delegating mode rather than making every delegating run read REGRESSED (see _bimodal_cases)",
-      "max_tokens": 5700000,
-      "tokens_basis": "run 6: 4,371,934 undelegated + ~30%. A delegating run will likely exceed this — check the agent list first",
-      "max_usd": 2.9,
-      "usd_basis": "run 6: $2.19 billed undelegated + ~30%"
+      "max_seconds": 1900,
+      "basis": "both modes now measured: 381s undelegated (run 6) and 1560s delegating across 4 agents (2026-08-05). Seeded to cover the delegating mode, so an undelegated run reads far inside it — the agent list in <case>.cost.json, not this ceiling, is what tells you which mode ran",
+      "max_tokens": 14500000,
+      "tokens_basis": "delegating run: 11,362,290 + ~28%. The undelegated run was 4,371,934",
+      "max_usd": 9.0,
+      "usd_basis": "delegating run: $7.18 billed + ~25%. The undelegated run was $2.19 — a 3.3x spread between modes on the same case, which is why the mode matters more than the ceiling"
     },
     "action": {
       "max_seconds": 1400,

@@ -1,5 +1,5 @@
 {
-  "_source": "Anthropic model catalog via the claude-api skill, checked 2026-08-04. Sonnet 5 list price; the $2/$10 introductory rate through 2026-08-31 is deliberately NOT used — a baseline built on a promo price silently regresses on 2026-09-01.",
+  "_source": "Anthropic model catalog via the claude-api skill, checked 2026-08-04. Sonnet 5 list price. The $2/$10 introductory rate through 2026-08-31 is deliberately NOT used, and this is now EMPIRICALLY CONFIRMED rather than a precaution: solving the CLI's own per-model costUSD for the implied input rate across three independent run-6/feature cases lands on exactly $3.00/MTok at the 5m cache tier every time, and the $2.00 intro rate would require a cache-write multiplier of 3.8-4.1 when only 1.25 and 2.0 exist. So billing is at list, and the 2026-08-31 expiry moves nothing here. Do not 'correct' Sonnet to $2/$10.",
   "_unit": "USD per 1,000,000 tokens",
   "_multipliers_note": "Cache tokens dominate input on every real run — the recorded probe has 4 raw input tokens against 71k cache tokens (tests/eval/fixtures/README.md). Pricing input+output alone undercounts a run ~26x. The two cache-write tiers are NOT interchangeable: Claude Code writes 1h entries on the main thread and 5m entries inside subagents, so a single multiplier on the aggregate is wrong for every case that delegates. Verified: with this split, the derived cost reproduces the CLI's own total_cost_usd exactly on both recorded fixtures.",
   "multipliers": {
@@ -8,15 +8,40 @@
     "cache_read": 0.1
   },
   "rates": {
-    "claude-fable-5":   { "input": 10.0, "output": 50.0 },
-    "claude-opus-5":    { "input": 5.0,  "output": 25.0 },
-    "claude-opus-4-8":  { "input": 5.0,  "output": 25.0 },
-    "claude-opus-4-7":  { "input": 5.0,  "output": 25.0 },
-    "claude-sonnet-5":  { "input": 3.0,  "output": 15.0 },
-    "sonnet":           { "input": 3.0,  "output": 15.0 },
-    "claude-haiku-4-5": { "input": 1.0,  "output": 5.0 },
-    "haiku":            { "input": 1.0,  "output": 5.0 }
+    "claude-fable-5": {
+      "input": 10.0,
+      "output": 50.0
+    },
+    "claude-opus-5": {
+      "input": 5.0,
+      "output": 25.0
+    },
+    "claude-opus-4-8": {
+      "input": 5.0,
+      "output": 25.0
+    },
+    "claude-opus-4-7": {
+      "input": 5.0,
+      "output": 25.0
+    },
+    "claude-sonnet-5": {
+      "input": 3.0,
+      "output": 15.0
+    },
+    "sonnet": {
+      "input": 3.0,
+      "output": 15.0
+    },
+    "claude-haiku-4-5": {
+      "input": 1.0,
+      "output": 5.0
+    },
+    "haiku": {
+      "input": 1.0,
+      "output": 5.0
+    }
   },
   "_default": "claude-opus-5",
-  "_default_note": "Used only when a turn names a model absent from `rates`. Set to the pack's top tier rather than a builder tier because understating cost is the worse failure for a cost instrument. Unknown models are never priced silently — eval-cost.py lists them under `unpriced_models`, and the reconciliation against the CLI's total_cost_usd drifts and says so."
+  "_default_note": "Used only when a turn names a model absent from `rates`. Set to the pack's top tier rather than a builder tier because understating cost is the worse failure for a cost instrument. Unknown models are never priced silently — eval-cost.py lists them under `unpriced_models`, and the reconciliation against the CLI's total_cost_usd drifts and says so.",
+  "_variants": "Model ids in transcripts do not always match these keys, and both known variants came from real runs: a dated full id (`claude-haiku-4-5-20251001`) and a bracketed context variant (`claude-opus-4-8[1m]`, which appears only in the result line's modelUsage ledger). eval-cost.py strips both to find the alias; unresolvable ids are reported, never silently charged at the default rate."
 }

@@ -40,11 +40,16 @@ import re
 import sys
 
 PER_MILLION = 1_000_000
-# Real transcripts report the dated model ID (`claude-haiku-4-5-20251001`) where
-# the pack's frontmatter and the rate table use the alias (`claude-haiku-4-5`).
-# Eval run 6's first case caught this: the dated haiku id missed the table, fell
-# back to the default Opus rate, and priced scrum-master 5x too high.
-_DATE_SUFFIX = re.compile(r"-\d{8}$")
+# Real transcripts report model ids the rate table does not spell the same way, and
+# both variants were found in real runs rather than imagined:
+#   `claude-haiku-4-5-20251001` -- the dated full id, where frontmatter uses the
+#     alias. It missed the table, fell back to the default Opus rate, and priced
+#     scrum-master 5x too high (eval run 6, first case).
+#   `claude-opus-4-8[1m]`       -- the 1M-context variant, which appears ONLY in the
+#     result line's modelUsage ledger. It also missed the table; the number came out
+#     right purely because Opus 4.8 and Opus 5 share $5/$25, so a real long-context
+#     premium would have been absorbed silently.
+_MODEL_SUFFIXES = (re.compile(r"-\d{8}$"), re.compile(r"\[[^\]]*\]$"))
 # The CLI's own total_cost_usd is the oracle; agreement is checked to the cent.
 RECONCILE_TOLERANCE_USD = 0.005
 
@@ -189,9 +194,17 @@ def _resolve_rate(model, table, default_model):
     table's default. `priced` is False only when nothing matched, so a genuinely
     unknown model is reported rather than silently charged at the default rate.
     """
-    for candidate in (model, _DATE_SUFFIX.sub("", model or "")):
-        if candidate in table:
-            return table[candidate], True
+    candidate = model or ""
+    seen = [candidate]
+    # Strip repeatedly: `claude-opus-4-8[1m]` and a hypothetical dated+bracketed id
+    # both have to reduce to an alias the table actually holds.
+    for _ in range(len(_MODEL_SUFFIXES)):
+        for pattern in _MODEL_SUFFIXES:
+            candidate = pattern.sub("", candidate)
+        seen.append(candidate)
+    for name in seen:
+        if name in table:
+            return table[name], True
     return table.get(default_model) or {"input": 0.0, "output": 0.0}, False
 
 
@@ -250,7 +263,8 @@ def _billed(lines, rates):
         if ok and obj.get("type") == "result":
             result = obj
     if result is None:
-        return {"usd": None, "models": {}, "tokens": None, "rate_table_check": {
+        return {"usd": None, "models": {}, "tokens": None, "unpriced_in_ledger": [],
+                "rate_table_check": {
             "billed_usd": None, "repriced_usd_min": None, "repriced_usd_max": None,
             "implied_cache_write_multiplier": None, "agrees": None,
         }}
@@ -260,6 +274,7 @@ def _billed(lines, rates):
     model_usage = model_usage if isinstance(model_usage, dict) else {}
 
     models, totals = {}, _empty_counts()
+    unpriced_in_ledger = set()
     low = high = 0.0
     read_and_flat = 0.0
     write_tokens_at_input_rate = 0.0
@@ -278,7 +293,9 @@ def _billed(lines, rates):
             totals[key] += counts.get(key, 0)
         totals["cache_write_5m_tokens"] += 0  # kept explicit: TTL unknown here
 
-        rate, _ = _resolve_rate(model, table, rates.get("_default", ""))
+        rate, priced = _resolve_rate(model, table, rates.get("_default", ""))
+        if not priced:
+            unpriced_in_ledger.add(model)
         per_input = rate["input"] / PER_MILLION
         flat = _price(dict(counts, cache_write_5m_tokens=0, cache_write_1h_tokens=0), rate, multipliers)
         read_and_flat += flat
@@ -296,12 +313,13 @@ def _billed(lines, rates):
         multiplier_real = implied is None or (
             multipliers["cache_write_5m"] - 0.01 <= implied <= multipliers["cache_write_1h"] + 0.01
         )
-        agrees = bool(in_bracket and multiplier_real)
+        agrees = bool(in_bracket and multiplier_real and not unpriced_in_ledger)
 
     return {
         "usd": billed_usd,
         "models": models,
         "tokens": totals,
+        "unpriced_in_ledger": sorted(unpriced_in_ledger),
         "rate_table_check": {
             "billed_usd": billed_usd,
             "repriced_usd_min": round(low, 6) if model_usage else None,
