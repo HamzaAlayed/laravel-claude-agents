@@ -33,4 +33,61 @@ describe("Actor", () => {
     const { container } = render(<Actor pose="needs" color="#22c55e" />);
     expect(container.querySelector(".sp-raise")).not.toBeNull();
   });
+
+  /**
+   * The instrument is gated on size, and the gate is the whole finding.
+   *
+   * Drawn on the card it occupies about nine pixels, and at nine pixels a padlock,
+   * a clipboard and a stopwatch are the same grey lump — verified in a browser
+   * against the built bundle, at which size the author could not tell his own
+   * three drawings apart. It reads from about 2× up, so it appears where there is
+   * room for it: the lane panel, which is where you go to find out what an agent
+   * is actually doing. The board stays dense and clean.
+   */
+  it("draws no instrument at card size, however famous the craft", () => {
+    const { container } = render(
+      <Actor pose="working" color="#b91c1c" slug="security-engineer" />,
+    );
+    expect(container.querySelector(".sp-prop")).toBeNull();
+  });
+
+  it("draws the instrument at panel size", () => {
+    const { container } = render(
+      <Actor pose="working" color="#b91c1c" slug="security-engineer" size="lg" />,
+    );
+    expect(container.querySelector(".sp-prop")?.getAttribute("data-prop")).toBe("padlock");
+  });
+
+  // Drawn before the body, so the working hand passes over the tool it is using.
+  it("draws the instrument behind the sprite's limbs", () => {
+    const { container } = render(
+      <Actor pose="working" color="#b91c1c" slug="qa-engineer" size="lg" />,
+    );
+    const nodes = [...container.querySelectorAll(".sp-prop, .sp-body")];
+    expect(nodes[0]?.classList.contains("sp-prop")).toBe(true);
+  });
+
+  it("gives a craft with no readable object nothing, even where there is room", () => {
+    const { container } = render(
+      <Actor pose="working" color="#3b82f6" slug="solution-architect" size="lg" />,
+    );
+    expect(container.querySelector(".sp-prop")).toBeNull();
+  });
+
+  it("draws no instrument when no agent is named at all", () => {
+    const { container } = render(<Actor pose="working" color="#3b82f6" size="lg" />);
+    expect(container.querySelector(".sp-prop")).toBeNull();
+  });
+
+  it("draws each specialist their own object", () => {
+    const held = (slug: string) => {
+      const { container } = render(
+        <Actor pose="thinking" color="#000" slug={slug} size="lg" />,
+      );
+      return container.querySelector(".sp-prop")?.getAttribute("data-prop");
+    };
+    expect(held("security-engineer")).toBe("padlock");
+    expect(held("qa-engineer")).toBe("clipboard");
+    expect(held("performance-engineer")).toBe("stopwatch");
+  });
 });

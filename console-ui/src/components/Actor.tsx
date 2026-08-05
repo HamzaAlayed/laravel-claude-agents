@@ -1,4 +1,39 @@
+import { propFor, type PropKey } from "@/lib/agentProp";
 import type { ActorPose } from "@/lib/actorPose";
+
+/**
+ * The instruments, drawn on the bench beside the sprite: x 23.5–30.5, y 18.5–27.5.
+ *
+ * They are neutral rather than lane-coloured on purpose — the colour is the
+ * agent's identity and the object is what it works on, so a lane-coloured tool
+ * read as another limb. Each one has to survive being nine pixels wide, which is
+ * why they are silhouettes with one detail each and no interior line work.
+ */
+const INSTRUMENTS: Record<PropKey, React.ReactNode> = {
+  padlock: (
+    <>
+      <path d="M25.4 22.6v-1.7a1.6 1.6 0 0 1 3.2 0v1.7" />
+      <rect className="sp-prop-fill" x="23.6" y="22.6" width="6.8" height="5.2" rx="1.4" />
+      <rect x="23.6" y="22.6" width="6.8" height="5.2" rx="1.4" />
+    </>
+  ),
+  clipboard: (
+    <>
+      <rect className="sp-prop-fill" x="23.6" y="19.6" width="6.8" height="8.2" rx="1.2" />
+      <rect x="23.6" y="19.6" width="6.8" height="8.2" rx="1.2" />
+      <path d="M25.6 19.6v-1.1h2.8v1.1" />
+      <path d="M25.4 22.6h3.2M25.4 25h3.2" />
+    </>
+  ),
+  stopwatch: (
+    <>
+      <circle className="sp-prop-fill" cx="27" cy="24" r="3.6" />
+      <circle cx="27" cy="24" r="3.6" />
+      <path d="M26.2 19.9h1.6" />
+      <path d="M27 24v-2" />
+    </>
+  ),
+};
 
 /**
  * The specialist, animated. One rig serves all seventeen agents — colour is the
@@ -13,15 +48,40 @@ import type { ActorPose } from "@/lib/actorPose";
  * It takes the card's 24px avatar slot without moving anything else in the row:
  * a 32px box with -4px margin gives the extra eight pixels back to the layout.
  */
-export function Actor({ pose, color }: { pose: ActorPose; color: string }) {
+export function Actor({
+  pose,
+  color,
+  slug,
+  size = "sm",
+}: {
+  pose: ActorPose;
+  color: string;
+  /** Which specialist this is, so it can be given its instrument at `lg`. */
+  slug?: string;
+  /**
+   * `sm` is the card's 24px slot; `lg` is the lane panel, at twice that.
+   *
+   * The instrument only appears at `lg`, and that gate is a finding rather than a
+   * preference: at card size a padlock, a clipboard and a stopwatch are the same
+   * grey lump. Drawing one there costs legibility and buys nothing.
+   */
+  size?: "sm" | "lg";
+}) {
+  const prop = size === "lg" && slug ? propFor(slug) : null;
+
   return (
     <span
-      className="-m-1 block size-8 shrink-0"
+      className={size === "lg" ? "block size-16 shrink-0" : "-m-1 block size-8 shrink-0"}
       data-pose={pose}
       style={{ ["--lane" as string]: color }}
     >
-      <svg className="block size-8 overflow-hidden" viewBox="0 0 32 32" aria-hidden="true">
+      <svg className="block size-full overflow-hidden" viewBox="0 0 32 32" aria-hidden="true">
         <ellipse className="sp-shadow" cx="16" cy="27.4" rx="6.6" ry="1.1" />
+        {prop && (
+          <g className="sp-prop" data-prop={prop}>
+            {INSTRUMENTS[prop]}
+          </g>
+        )}
         <g className="sp-body">
           <rect className="sp-torso" x="10.9" y="17.6" width="10.2" height="8.8" rx="3.4" />
           <g className="sp-skull">

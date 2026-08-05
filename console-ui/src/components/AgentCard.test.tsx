@@ -55,6 +55,13 @@ describe("AgentCard", () => {
     expect(actor.style.getPropertyValue("--lane")).toBe("#c2410c");
   });
 
+  // Deliberately no instrument here. At the card's size Dina's clipboard, Felix's
+  // padlock and Omar's stopwatch are one indistinguishable grey lump; the panel
+  // draws them at twice the size, where they read.
+  it("draws no instrument at card size", () => {
+    expect(show(lane("running")).querySelector("[data-prop]")).toBeNull();
+  });
+
   it("marks no outcome while the lane is running", () => {
     expect(show(lane("running")).querySelector("[data-outcome]")).toBeNull();
   });
