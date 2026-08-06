@@ -54,5 +54,11 @@
       "max_usd": 8.5,
       "usd_basis": "first run: $6.55 billed + ~30%"
     }
+  },
+  "coordinator_hash": {
+    "sha256": "82ca1d00b0956a8757feb05a70f75d871d752c3578204729fe6779ec079614cb",
+    "as_of": "2026-08-06",
+    "note": "Seeded at current content, NOT verified by a billed run: the 2026-08-04 feature run predates the v1.36.0 Interface stage-budget edit, so no billed run has measured exactly this content. The 1.40 re-run replaces this note with its record.",
+    "waivers": []
   }
 }

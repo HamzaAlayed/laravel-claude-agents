@@ -11,6 +11,7 @@ Exit 1 on any mismatch, or when a claim phrase disappears entirely (a reworded
 claim must update this checker in the same change). Stdlib only.
 """
 
+import hashlib
 import json
 import re
 import sys
@@ -124,10 +125,61 @@ def check_versions(expected: str) -> int:
     return fail
 
 
+def coordinator_hash(root: Path) -> str:
+    """sha256 over the surfaces that steer delegation: the coordinator body,
+    plus each distinct `> **Interface:**` line from commands/*.md (sorted).
+
+    Whole-command hashing would fire on prose edits that change no behaviour;
+    the Interface line is the only part of a command the eval `feature` case's
+    checks depend on, and a guardrails ratchet already pins it byte-identical
+    across all nine commands.
+    """
+    parts = [(root / "agents" / "delivery-coordinator.md").read_bytes()]
+    lines = set()
+    for path in sorted((root / "commands").glob("*.md")):
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.startswith("> **Interface:**"):
+                lines.add(line)
+    parts.extend(line.encode("utf-8") for line in sorted(lines))
+    return hashlib.sha256(b"\n".join(parts)).hexdigest()
+
+
+def check_coordinator_hash(root: Path) -> int:
+    """The `feature` eval case's trigger, made deterministic.
+
+    'Run it when coordinator behaviour changes' had no named judge and would
+    silently never fire (2026-08-05 review, gap: feature-case trigger). CI
+    cannot run billed evals; it can refuse to let delegation-steering surfaces
+    ship changed unless a human records a re-run (update sha256/as_of) or a
+    dated waiver in tests/eval/baseline.json.
+    """
+    baseline = json.loads(
+        (root / "tests" / "eval" / "baseline.json").read_text(encoding="utf-8"))
+    pinned = baseline.get("coordinator_hash")
+    if not pinned:
+        print("::error file=tests/eval/baseline.json::coordinator_hash pin is "
+              "missing — seed it from scripts/check_inventory_sync.py "
+              "coordinator_hash() and record as_of + note")
+        return 1
+    current = coordinator_hash(root)
+    accepted = {pinned.get("sha256")}
+    accepted.update(w.get("sha256") for w in pinned.get("waivers", []))
+    if current in accepted:
+        return 0
+    print(f"::error file=agents/delivery-coordinator.md::delegation-steering "
+          f"surfaces changed since the feature case last ran (hash "
+          f"{current[:12]}… is neither pinned nor waived) — run "
+          f"./tests/eval/run-evals.sh feature and update coordinator_hash in "
+          f"tests/eval/baseline.json, or add a dated waiver with a reason")
+    return 1
+
+
 def main() -> int:
     counts = actuals()
     version = (ROOT / "VERSION").read_text(encoding="utf-8").strip()
     fail = check_versions(version)
+    if check_coordinator_hash(ROOT):
+        fail = 1
     for rel, label, pattern, key in CLAIMS:
         text = (ROOT / rel).read_text(encoding="utf-8")
         matches = re.findall(pattern, text)
