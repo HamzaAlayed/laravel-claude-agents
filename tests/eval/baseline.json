@@ -53,6 +53,14 @@
       "tokens_basis": "first run: 11,189,642 + ~30% — the largest in the suite",
       "max_usd": 8.5,
       "usd_basis": "first run: $6.55 billed + ~30%"
+    },
+    "teach": {
+      "max_seconds": 150,
+      "basis": "unseeded estimate: a report-only case on a read-only ledger, lighter than hygiene (106s with full context). Placeholder to unblock the sweep; replace with first run data (Task 3)",
+      "max_tokens": 600000,
+      "tokens_basis": "unseeded estimate: lighter than hygiene (579,315 tokens). Placeholder; replace with first run data (Task 3)",
+      "max_usd": 0.5,
+      "usd_basis": "unseeded estimate: lighter than hygiene ($0.57). Placeholder; replace with first run data (Task 3)"
     }
   },
   "coordinator_hash": {

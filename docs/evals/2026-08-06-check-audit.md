@@ -55,9 +55,14 @@ answers that, check by check, so the classification is never re-derived.
 | hygiene | `check_log 'conflict'` | **free-prose → hardened-prose** | **FRAGILE — fixed this release.** "Contradicts" fails the key. Now `'conflict\|contradict\|disagree\|mutually exclusive'`. |
 | hygiene | `check_log 'LegacyPayments'` | fixture-noun | sound |
 | hygiene | inline `git diff --quiet -- docs/team/conventions.md` | artifact | sound — headless run must propose, not apply |
+| teach | `check_file docs/team/conventions.md` | artifact | sound |
+| teach | `check_in_files '\*\*Rule:\*\*'` (ledger) | artifact | sound — the ledger contract is on-disk |
+| teach | `check_in_files '\*\*Why:\*\*'` (ledger) | artifact | sound |
+| teach | `check_in_files '\*\*Scope:\*\*'` (ledger) | artifact | sound |
+| teach | `check_in_files '\*\*Source:\*\* user'` (ledger) | artifact | sound |
+| teach | `check_in_files 'ulid'` (ledger) | artifact | sound — the taught content, not a wording choice |
 
-Tally: 25 checks — 16 artifact, 5 fixture-noun, 2 format-contract, **2
-hardened-prose (formerly free-prose; 0 free-prose remain)**. The rubric judge
+Tally: 31 checks — 22 artifact, 5 fixture-noun, 2 format-contract, 2 hardened-prose (formerly free-prose; 0 free-prose remain). The rubric judge
 (`EVAL_JUDGE=1`) stays on as the independent dissenter for the transcript-based
 checks; it has been right both times it disagreed with the key.
 

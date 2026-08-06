@@ -63,7 +63,10 @@ ALL_CASES=(n-plus-one policy action tests hygiene)
 # the closest comparable, cost $5.16 in run 6), so adding it to every sweep
 # would raise the standing cost of a run by roughly half for a signal that is
 # only needed when coordinator behaviour changes. Opt in when it does.
-OPT_IN_CASES=(feature)
+# teach + teach-delivery: run 7's split hypothesis (docs/evals/2026-08-06-run-7-scope.md).
+# Opt-in like feature: they measure coordinator/team-memory behaviour, which only
+# needs re-measuring when that behaviour changes — the hash gate says when.
+OPT_IN_CASES=(feature teach)
 
 case_prompt() {
   case "$1" in
@@ -73,6 +76,7 @@ case_prompt() {
     tests)      echo "/add-test PostController" ;;
     hygiene)    echo "/team-hygiene" ;;
     feature)    echo "/make-feature Tag --api" ;;
+    teach)      echo "/teach New tables use ULID primary keys, never auto-increment integers — sortable and non-enumerable" ;;
   esac
 }
 
@@ -84,6 +88,7 @@ case_desc() {
     tests)      echo "writes feature tests incl. update authorization" ;;
     hygiene)    echo "flags the planted duplicate/conflict/stale entries, applies nothing headless" ;;
     feature)    echo "scaffolds an API Tag feature across specialists — the only case that must delegate" ;;
+    teach)      echo "records a taught rule in docs/team/conventions.md in the Rule/Why/Scope/Source contract" ;;
   esac
 }
 
@@ -154,6 +159,17 @@ EOF
 - Names the LegacyPayments fact whose Verify command fails as stale.
 - Applies NO edits to docs/team/conventions.md — a headless run has no human
   approval, and the sweep proposes only.
+EOF
+      ;;
+    teach) cat <<'EOF'
+- docs/team/conventions.md exists after the run and contains one new entry
+  capturing the user's rule (ULID primary keys, not auto-increment).
+- The entry follows the ledger contract: Rule, Why, Scope, Source lines. The
+  wording is the user's, tightened — not reinterpreted into something else.
+- Scope names the agents the rule binds (database/backend), not "all agents"
+  boilerplate.
+- Nothing else is created or edited — /teach writes the ledger and only the
+  ledger.
 EOF
       ;;
   esac
@@ -385,6 +401,17 @@ checks_hygiene() {
   # Headless = no approval: the ledger must be untouched (proposal only).
   git -C "$WORK" diff --quiet -- docs/team/conventions.md
   record $? "diff:   applies nothing without approval"
+}
+
+checks_teach() {
+  # All artifact: /teach's deliverable IS the ledger file, so the transcript
+  # proves nothing the file doesn't prove better.
+  check_file "docs/team/conventions.md" "conventions ledger exists"
+  check_in_files '\*\*Rule:\*\*' "docs/team/conventions.md" "entry carries a Rule line"
+  check_in_files '\*\*Why:\*\*' "docs/team/conventions.md" "entry carries a Why line"
+  check_in_files '\*\*Scope:\*\*' "docs/team/conventions.md" "entry carries a Scope line"
+  check_in_files '\*\*Source:\*\* user' "docs/team/conventions.md" "entry attributed to the user"
+  check_in_files 'ulid' "docs/team/conventions.md" "the taught rule's content landed"
 }
 
 # ---------------------------------------------------------------- plumbing ---
