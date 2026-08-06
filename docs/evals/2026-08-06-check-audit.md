@@ -63,7 +63,7 @@ answers that, check by check, so the classification is never re-derived.
 | teach | `check_in_files 'ulid'` (ledger) | artifact | sound — the taught content, not a wording choice |
 | teach-delivery | `check_file_under database/migrations *donations*.php` | artifact | sound |
 | teach-delivery | `check_in_files 'cents'` (migrations) | artifact | sound — taught rule 1, observable in schema |
-| teach-delivery | `check_not_in_files "(decimal\|float\|double)\('amount"` (migrations) | artifact | sound — the default the rule overrides |
+| teach-delivery | inline no `(decimal\|float\|double)\(` in `*donations*.php` | artifact | sound — name-agnostic, migration-scoped (replaced from column-name anchor pre-run) |
 | teach-delivery | inline `HasUlids` (models) OR `ulid\(` (migrations) | artifact | sound — either idiomatic placement |
 | teach-delivery | `check_file docs/team/stack.md` | artifact | sound — the unprompted-harvest promise; a FAIL is a run-7 finding |
 | teach-delivery | `check_file_under docs/delivery log.md` | artifact | sound |

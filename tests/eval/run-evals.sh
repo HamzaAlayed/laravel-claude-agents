@@ -464,7 +464,17 @@ checks_teach_delivery() {
   # ledger produces decimal('amount') and $table->id(), and fails here.
   check_file_under "database/migrations" "*donations*.php" "donations migration created"
   check_in_files 'cents' "database/migrations" "money lands as integer cents (taught rule 1)"
-  check_not_in_files "(decimal|float|double)\('amount" "database/migrations" "no float/decimal money column"
+  # Any decimal/float/double column in the donations migration fails the money
+  # rule — anchoring on the column NAME ('amount…) let decimal('price_cents')
+  # slip by, and the migration this case scaffolds has no legitimate float
+  # column. Scoped to the donations migration so unrelated fixture migrations
+  # cannot trip it.
+  if ls "$WORK"/database/migrations/*donations*.php >/dev/null 2>&1 \
+     && ! grep -qiE '(decimal|float|double)\(' "$WORK"/database/migrations/*donations*.php 2>/dev/null; then
+    record 0 "code:   no float/decimal column in the donations migration"
+  else
+    record 1 "code:   no float/decimal column in the donations migration"
+  fi
   # ULID accepted in either idiomatic placement: HasUlids on the model, or
   # ulid('id') in the migration. One check, inline OR (hygiene precedent).
   if grep -qriE 'HasUlids' "$WORK/app/Models" 2>/dev/null \
