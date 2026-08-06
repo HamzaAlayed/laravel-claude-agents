@@ -50,7 +50,7 @@ answers that, check by check, so the classification is never re-derived.
 | feature | `check_in_files 'tag' routes` | artifact | sound |
 | feature | `check_touched tests/` | artifact | sound |
 | feature | `check_delegated 2` | artifact (board feed) | sound — negative-controlled at introduction (v1.34.0) |
-| feature | `check_log_anywhere 'done when:'` | format-contract | sound — Interface-mandated header string; reads FULL_LOG (every turn), not LOG (closing turn only) since 1.40 — run 7 found LOG-scoping scored two false negatives on a phrase the Interface mandates EARLY (docs/evals/2026-08-06-run-7.md finding 3) |
+| feature | `check_log_anywhere 'done when:'` | format-contract | sound — Interface-mandated header string; reads FULL_LOG (every main-thread turn, not subagent turns), not LOG (closing turn only) since 1.40 — run 7 found LOG-scoping scored two false negatives on a phrase the Interface mandates EARLY (docs/evals/2026-08-06-run-7.md finding 3) |
 | hygiene | `check_log 'duplicate'` | **free-prose → hardened-prose** | **FRAGILE — fixed this release.** A run classifying the UUID twins as "identical"/"redundant" fails the key while being right. Now `'duplicat\|identical\|redundan\|twin'` (stems cover duplicate/duplicated/duplication, redundant/redundancy). |
 | hygiene | `check_log 'conflict'` | **free-prose → hardened-prose** | **FRAGILE — fixed this release.** "Contradicts" fails the key. Now `'conflict\|contradict\|disagree\|mutually exclusive'`. |
 | hygiene | `check_log 'LegacyPayments'` | fixture-noun | sound |
@@ -63,7 +63,7 @@ answers that, check by check, so the classification is never re-derived.
 | teach | `check_in_files 'ulid'` (ledger) | artifact | sound — the taught content, not a wording choice |
 | teach-delivery | `check_file_under database/migrations *donations*.php` | artifact | sound |
 | teach-delivery | `check_in_files 'cents'` (migrations) | artifact | sound — taught rule 1, observable in schema |
-| teach-delivery | inline no `(decimal\|float\|double)\(` in `*donations*.php` | artifact | sound — name-agnostic, migration-scoped (replaced from column-name anchor pre-run) |
+| teach-delivery | inline no `(decimal\|float\|double)\(` in `*donations*.php` | artifact | sound — name-agnostic, migration-scoped (replaced from column-name anchor pre-run); also requires the migration to exist, so a run producing none fails this AND the file-exists check above, by design |
 | teach-delivery | inline `HasUlids` (models) OR `ulid\(` (migrations) | artifact | sound — either idiomatic placement |
 | teach-delivery | `check_file docs/team/stack.md` | artifact | sound — the unprompted-harvest promise; a FAIL is a run-7 finding |
 | teach-delivery | `check_file_under docs/delivery log.md` | artifact | sound |

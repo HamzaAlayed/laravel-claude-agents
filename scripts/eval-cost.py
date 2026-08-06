@@ -190,11 +190,17 @@ def full_text(lines):
     Same `user`-line exclusion as `final_text`'s fallback, and for the same
     reason: folding tool-result or prompt text in would let a grep match the
     eval's own inputs rather than what the run said.
+
+    Main-thread turns only (`parent_tool_use_id is None`). Subagent turns are
+    `assistant`-type lines too; without this filter a specialist's own text
+    could satisfy an Interface contract that only binds the orchestrator --
+    e.g. `check_log_anywhere 'done when:'` asserts on the board header the
+    orchestrator alone prints, not on any agent saying those words anywhere.
     """
     assistant_text = [
         _text_of(obj)
         for obj, ok in _iter_objects(lines)
-        if ok and obj.get("type") == "assistant"
+        if ok and obj.get("type") == "assistant" and obj.get("parent_tool_use_id") is None
     ]
     return "".join(assistant_text) or None
 
@@ -452,12 +458,13 @@ def main(argv=None):
     ap = argparse.ArgumentParser(description="Price one eval run from its transcript.")
     ap.add_argument("--transcript", required=True)
     ap.add_argument("--rates", required=True)
-    ap.add_argument(
+    text_mode = ap.add_mutually_exclusive_group()
+    text_mode.add_argument(
         "--text-only",
         action="store_true",
         help="print only the reconstituted final answer text (for rebuilding the log)",
     )
-    ap.add_argument(
+    text_mode.add_argument(
         "--full-text",
         action="store_true",
         help="print every assistant turn's text concatenated, not just the closing "

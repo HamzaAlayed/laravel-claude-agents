@@ -7,9 +7,10 @@ here is hand-written except this page — every other file is copied verbatim
 out of the `teach-delivery` case's throwaway workdir.
 
 **This example is honestly partial: 2 of the loop's 3 steps happened, and 1
-did not.** Run 7's own findings doc explains why (finding 2) — the coordinator
-ended its turn on backgrounded specialist work before reaching its own
-end-of-delivery harvest step. A future run that fixes this should replace
+did not.** Run 7's own findings doc explains why (finding 2) — `/make-feature`
+runs on the main thread and never loads `agents/delivery-coordinator.md`, the
+only file that promises harvest, so the step was never in a position to run
+at all on this command. A future release that fixes this should replace
 this page's harvest section rather than paper over today's gap.
 
 ## What happened
@@ -46,21 +47,26 @@ this page's harvest section rather than paper over today's gap.
    > finish (both running in the background). I'll follow up once they
    > complete.
 
-   The coordinator's turn ended there — before the delivery-end steps
-   (`agents/delivery-coordinator.md:112-113`) that would have appended to the
-   ledger and written a delivery log. **This is the loop's third step not
+   That final message is the coordinator narrating an intention to follow
+   up on backgrounded specialists — but that framing turned out to be a
+   symptom, not the cause: the delivery-end steps that would have appended
+   to the ledger and written a delivery log
+   (`agents/delivery-coordinator.md:104,113`) live in a file `/make-feature`
+   never loads in the first place. **This is the loop's third step not
    happening**, and there is nothing to show for it because nothing was
-   produced. See run 7's finding 2 for the structural reason (a headless
-   one-shot invocation has no later turn to "follow up" in).
+   produced.
 
-   **Update, same day:** the coordinator was patched to close this exact
-   gap (parallel lanes are now awaited, never backgrounded), and a
-   human-approved re-run confirmed the patch works — no more "I'll follow
-   up" narration. But the re-run then hit a *different* wall: waiting
-   synchronously made the delivery slower, and it ran past the harness's
-   1200s timeout before reaching harvest anyway. Harvest is still
-   unproven — for a new reason. See run 7's addendum for the full account;
-   this page's captured artifacts are still from the original run.
+   **Update, same day:** a fix was attempted on the original (wrong)
+   diagnosis — the coordinator was patched so parallel lanes are always
+   awaited, never backgrounded — and human-approved re-run to validate it.
+   The patch is real and ships as good guidance for interactive coordinator
+   sessions, but since `/make-feature` never loads that file, the re-run
+   could not have tested it either way; its different outcome (a timeout,
+   this time) is best read as ordinary run-to-run variance. Harvest remains
+   unproven, and the actual fix — moving the harvest requirement somewhere
+   `/make-feature` can see — is scoped for a future release. See run 7's
+   finding 2 and its addendum for the full, corrected account; this page's
+   captured artifacts are still from the original run.
 
 ## What to look at
 

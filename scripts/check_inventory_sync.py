@@ -209,7 +209,11 @@ def check_coordinator_hash(root: Path) -> int:
     for waiver in pinned.get("waivers", []):
         # The message below promises "a dated waiver with a reason"; enforce it,
         # or the audit trail the waiver shape exists for is honor-system.
-        if waiver.get("date") and waiver.get("reason"):
+        # .strip() closes a whitespace-only escape hatch: "reason": " " is
+        # truthy in Python but names nothing (final-review finding, 1.40).
+        date = (waiver.get("date") or "").strip()
+        reason = (waiver.get("reason") or "").strip()
+        if date and reason:
             accepted.add(waiver.get("sha256"))
     if current in accepted:
         return 0

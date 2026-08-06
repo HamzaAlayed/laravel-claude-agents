@@ -688,9 +688,12 @@ run_case() { # run_case <name> <results-dir>
 
   # Every assistant turn, concatenated -- for checks (check_log_anywhere) that
   # assert on something said EARLY, which $LOG's closing-only text cannot show.
+  # `>"$FULL_LOG"` already creates an empty file before eval-cost.py runs, even
+  # on failure (no assistant text found) -- leave it empty rather than rm it,
+  # so check_log_anywhere's later grep sees an empty file (a clean FAIL), not
+  # a "No such file or directory" error.
   python3 "$ROOT/scripts/eval-cost.py" --transcript "$stream" \
-    --rates "$ROOT/tests/eval/model-rates.json" --full-text >"$FULL_LOG" 2>/dev/null \
-    || rm -f "$FULL_LOG"
+    --rates "$ROOT/tests/eval/model-rates.json" --full-text >"$FULL_LOG" 2>/dev/null || true
 
   # Per-agent input/output/cache tokens, tool-call counts, and the run's billed
   # cost. Models come from the transcript (message.model), so a re-tiered agent

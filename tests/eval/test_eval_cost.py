@@ -164,6 +164,37 @@ class TestFullText(unittest.TestCase):
         text = eval_cost.full_text([user_line, assistant_line(10, 5)])
         self.assertNotIn("PROMPT-SENTINEL", text)
 
+    def test_excludes_subagent_turn_text(self):
+        # check_log_anywhere asserts on something the ORCHESTRATOR says (a
+        # board header it alone prints). Subagent turns are `assistant`-type
+        # lines too, distinguished only by `parent_tool_use_id` -- folding
+        # them in would let a specialist's own text satisfy an Interface
+        # contract that only binds the orchestrator (final review finding 4).
+        main_line = json.dumps({
+            "type": "assistant",
+            "parent_tool_use_id": None,
+            "message": {"content": [{"type": "text", "text": "MAIN-THREAD-TEXT"}]},
+        })
+        subagent_line = json.dumps({
+            "type": "assistant",
+            "parent_tool_use_id": "toolu_subagent_1",
+            "message": {"content": [{"type": "text", "text": "SUBAGENT-SENTINEL"}]},
+        })
+        text = eval_cost.full_text([main_line, subagent_line])
+        self.assertIn("MAIN-THREAD-TEXT", text)
+        self.assertNotIn("SUBAGENT-SENTINEL", text)
+
+    def test_matches_final_text_on_a_timed_out_transcript(self):
+        # A timed-out run never emits a `result` line: final_text() falls
+        # back to concatenating assistant text, and (per this same finding)
+        # that fallback must be indistinguishable from full_text()'s result
+        # here -- otherwise a timed-out run's $LOG and $FULL_LOG would
+        # silently diverge in a way no check could catch. This is the
+        # equivalence run 7's addendum relies on to say a timed-out
+        # teach-delivery re-run cannot confirm the check_log_anywhere fix.
+        lines = [assistant_line(10, 5), assistant_line(3, 2)]
+        self.assertEqual(eval_cost.final_text(lines), eval_cost.full_text(lines))
+
 
 class TestPricing(unittest.TestCase):
     def test_totals_all_four_token_classes_separately(self):
@@ -561,6 +592,12 @@ class TestCLI(unittest.TestCase):
             self.assertEqual(proc.returncode, 2)
         finally:
             empty.unlink()
+
+    def test_text_only_and_full_text_are_mutually_exclusive(self):
+        proc = self._run("--transcript", str(FIXTURES / "stream-json-sample.jsonl"),
+                         "--rates", str(RATES_PATH), "--text-only", "--full-text")
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("not allowed with argument", proc.stderr)
 
 
 if __name__ == "__main__":

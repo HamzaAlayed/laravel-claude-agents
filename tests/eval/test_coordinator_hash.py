@@ -126,6 +126,20 @@ class TestCoordinatorHash(unittest.TestCase):
                 self.assertEqual(inv.check_coordinator_hash(root), 1)
             self.assertIn("::error", buf.getvalue())
 
+    def test_whitespace_only_date_or_reason_is_rejected(self):
+        # `if waiver.get("date") and waiver.get("reason")` treats " " as truthy
+        # -- exactly the escape hatch "a dated waiver with a reason" is meant
+        # to close. A reason of pure whitespace names nothing.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = make_tree(pathlib.Path(tmp))
+            current = inv.coordinator_hash(root)
+            pin(root, "0" * 64, waivers=[
+                {"date": "2026-08-06", "sha256": current, "reason": "   "}])
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                self.assertEqual(inv.check_coordinator_hash(root), 1)
+            self.assertIn("::error", buf.getvalue())
+
     def test_fully_formed_waiver_still_accepts(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = make_tree(pathlib.Path(tmp))
