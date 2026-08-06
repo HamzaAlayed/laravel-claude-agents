@@ -114,6 +114,26 @@ class TestCoordinatorHash(unittest.TestCase):
             out = buf.getvalue()
             self.assertIn("::error file=tests/eval/baseline.json::", out)
 
+    def test_waiver_missing_date_or_reason_is_rejected(self):
+        # The error message promises "a dated waiver with a reason" — make the
+        # promise structural: a waiver without both fields must not be counted.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = make_tree(pathlib.Path(tmp))
+            current = inv.coordinator_hash(root)
+            pin(root, "0" * 64, waivers=[{"sha256": current}])  # no date, no reason
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                self.assertEqual(inv.check_coordinator_hash(root), 1)
+            self.assertIn("::error", buf.getvalue())
+
+    def test_fully_formed_waiver_still_accepts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = make_tree(pathlib.Path(tmp))
+            current = inv.coordinator_hash(root)
+            pin(root, "0" * 64, waivers=[
+                {"date": "2026-08-06", "sha256": current, "reason": "test"}])
+            self.assertEqual(inv.check_coordinator_hash(root), 0)
+
 
 if __name__ == "__main__":
     unittest.main()

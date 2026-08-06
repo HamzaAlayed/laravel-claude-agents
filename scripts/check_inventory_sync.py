@@ -39,7 +39,8 @@ def actuals() -> dict:
     hooked = set(re.findall(r'"[^"]*/([\w.-]+\.sh)"', (ROOT / "hooks/hooks.json").read_text()))
     guardrails = len(hooked - OBSERVER_HOOKS)
     codex_hooks = len(list((ROOT / "codex/.codex/hooks").glob("*.sh")))
-    m = re.search(r"^ALL_CASES=\(([^)]*)\)", (ROOT / "tests/eval/run-evals.sh").read_text(), re.M)
+    evals_src = (ROOT / "tests/eval/run-evals.sh").read_text()
+    m = re.search(r"^ALL_CASES=\(([^)]*)\)", evals_src, re.M)
     eval_cases = len(m.group(1).split()) if m else 0
     return {
         "agents": agents,
@@ -49,7 +50,42 @@ def actuals() -> dict:
         "gemini_commands": commands - len(GEMINI_SKIPPED_COMMANDS),
         "codex_hooks": codex_hooks,
         "eval_cases": eval_cases,
+        "eval_answer_checks": count_eval_answer_checks(evals_src),
     }
+
+
+def count_eval_answer_checks(evals_src: str) -> int:
+    """Count the individual CHECKs the answer key dispatches, one per logical
+    check — matched against docs/evals/2026-08-06-check-audit.md's own
+    "Tally: N checks" sentence via the CLAIMS table below.
+
+    Restricted to the section after the answer-key marker (checks_* function
+    definitions only) so a `check_*` mention in a helper's own comment or an
+    unrelated `record` call above it can't inflate the count. Three line
+    shapes cover every check in the current file, and each contributes
+    exactly one count per logical check:
+      - `check_<name> ...`  — the ordinary call-site style (one line, one check).
+      - `record $? ...`     — hygiene's inline non-if/else style (one line, one check).
+      - `record 0 ...`      — the PASS branch of an if/else inline check
+        (teach_delivery's style). Counting only the `record 0` line — never
+        `record 1` too — is deliberate: each if/else pair emits BOTH a
+        `record 0` and a `record 1` line for the SAME logical check, so
+        counting both would double-count it.
+    A check written in any other shape (a loop, a case statement, a helper
+    that calls `record` conditionally without either literal) will not match
+    any of the three and silently falls out of this count — but it can't fall
+    out silently for long: the CLAIMS row below binds this number to the audit
+    doc's own tally sentence, so the two drifting apart fails CI, mentioning
+    the audit doc, until one of them is corrected in the same commit.
+    """
+    marker = "# ------------------------------------------------------------- answer key ----"
+    if marker not in evals_src:
+        return 0
+    section = evals_src[evals_src.index(marker):]
+    calls = re.findall(r"^[ \t]+check_[a-z_]+ ", section, re.M)
+    inline_single = re.findall(r"^[ \t]+record \$\? ", section, re.M)
+    inline_if_else = re.findall(r"^[ \t]+record 0 ", section, re.M)
+    return len(calls) + len(inline_single) + len(inline_if_else)
 
 
 # (file, human label, regex template with one NUM capture, actuals key)
@@ -77,6 +113,8 @@ CLAIMS = [
     ("README.md", "gemini command count", r"the " + NUM + r" commands as slash commands", "gemini_commands"),
     ("README.md", "codex hook count", r"the " + NUM + r" guardrail hooks as `PreToolUse`", "codex_hooks"),
     ("README.md", "eval case count", r"the " + NUM + r" eval cases", "eval_cases"),
+    ("docs/evals/2026-08-06-check-audit.md", "audit tally",
+     r"Tally: " + NUM + r" checks", "eval_answer_checks"),
 ]
 
 
@@ -168,7 +206,11 @@ def check_coordinator_hash(root: Path) -> int:
         return 1
     current = coordinator_hash(root)
     accepted = {pinned.get("sha256")}
-    accepted.update(w.get("sha256") for w in pinned.get("waivers", []))
+    for waiver in pinned.get("waivers", []):
+        # The message below promises "a dated waiver with a reason"; enforce it,
+        # or the audit trail the waiver shape exists for is honor-system.
+        if waiver.get("date") and waiver.get("reason"):
+            accepted.add(waiver.get("sha256"))
     if current in accepted:
         return 0
     print(f"::error file=agents/delivery-coordinator.md::delegation-steering "
