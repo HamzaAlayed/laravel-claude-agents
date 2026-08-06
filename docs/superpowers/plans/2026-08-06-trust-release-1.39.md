@@ -12,7 +12,7 @@
 
 - **No agent-body changes.** Nothing under `agents/` is edited in this release. Nothing in `commands/` is edited either (the hash rule *reads* them).
 - **Answer-key intent is frozen.** A check's meaning may not change; only its evidence source or vocabulary coverage may. Every check edit is documented in the audit doc in the same commit.
-- **Guardrails stay zero-dependency** — pure bash + coreutils, no jq/python3 inside `tests/guardrails.test.sh` assertions (the file's own header states this contract).
+- **Guardrails assertions added by this plan stay pure bash + coreutils.** (Correction from the final review: the file's header states "pure bash + coreutils" as the rationale for avoiding bats, and four existing baseline assertions already use python3 heredocs — so this constraint binds THIS plan's additions, not the whole file.)
 - **Python is stdlib-only**, matching every other script in `scripts/`.
 - **House voice in comments:** every non-obvious block explains *why*, in the terse style of the surrounding file.
 - Repo root is `/Users/developer/Projects/Personal/laravel-claude-agents`; all paths below are relative to it. Run commands from the root unless stated.
@@ -669,8 +669,10 @@ Insert above the `## [1.38.1]` heading in `CHANGELOG.md`:
   run retires the note.
 - **`docs/evals/2026-08-06-check-audit.md`** — all 25 answer-key checks
   classified by evidence source (16 artifact, 5 fixture-noun, 2
-  format-contract, 2 free-prose). The sound greps are documented as sound so
-  nobody "fixes" them; the classification rules bind future checks.
+  format-contract, and 2 formerly free-prose — now **hardened-prose**:
+  synonym-widened and ratchet-pinned, the class reserved for report-only
+  cases with no artifact to inspect). The sound greps are documented as sound
+  so nobody "fixes" them; the classification rules bind future checks.
 - **`docs/evals/2026-08-06-run-7-scope.md`** — run 7 named a question before
   being run: does teach → override → harvest work end to end on the fixture
   app? Scope, composition, spend, and what is deliberately not re-tested.
@@ -701,7 +703,7 @@ python3 -m unittest discover -s tests/eval -t tests/eval -p 'test_*.py' 2>&1 | t
 python3 scripts/check_body_budget.py
 python3 scripts/check_inventory_sync.py
 python3 scripts/check-hook-sync.py
-shellcheck --severity=error install.sh && echo "shellcheck ok"
+shellcheck scripts/*.sh tests/*.sh tests/eval/*.sh gemini/scripts/*.sh codex/install-codex.sh codex/.codex/hooks/*.sh && shellcheck --severity=error install.sh && echo "shellcheck ok"
 python3 scripts/build-gemini-extension.py >/dev/null && git diff --exit-code -- gemini/ && echo "gemini ok"
 python3 scripts/build-codex-extension.py >/dev/null && git diff --exit-code -- codex/ && echo "codex ok"
 git diff --exit-code -- scripts/console/dist && echo "dist untouched ok"
