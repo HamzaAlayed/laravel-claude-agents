@@ -18,3 +18,8 @@ console-ui/*.tsbuildinfo
 
 # Linked worktrees (EnterWorktree / git worktree add)
 .claude/worktrees/
+
+# Per-agent scratch memory written by subagents mid-run. Local like the rest of
+# .claude/ runtime state: nothing prunes it, so in git it would accumulate and go
+# stale. Findings worth keeping become artifacts under docs/ instead.
+.claude/agent-memory/
