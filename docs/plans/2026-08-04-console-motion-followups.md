@@ -7,6 +7,16 @@ was held so the next person does not re-derive the reasoning.
 
 ## Found by driving a real browser, not by the suite
 
+> **Fixed 2026-08-06 (v1.38.1).** The bar now reserves the panel's width on its
+> own trailing edge (`insetEnd`, sm-only — below `sm` the panel is full-width and
+> nothing can be kept clear), so Review stays reachable without moving the board
+> or narrowing the panel. None of the three options below was taken: padding the
+> bar leaves the panel's proportions and the board's clickability alone. Proven in
+> a browser in the exact order below — with the panel open, `elementFromPoint` at
+> Review's centre returns Review, and a real pointer click opens the decision
+> sheet. `App.test.tsx` locks the reservation; jsdom performs no layout, so it
+> cannot assert un-occlusion itself.
+
 **The approval bar's Review button is occluded while a transcript panel is
 open.** `LanePanel` is pinned right at `sm:max-w-md` (448 px, full height,
 `z-50`); the approval bar is `sticky top-0 z-30` with Review right-aligned,

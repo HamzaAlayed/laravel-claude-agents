@@ -262,6 +262,38 @@ describe("the transcript panel", () => {
     expect(screen.queryByRole("heading", { name: "Adam" })).toBeNull();
   });
 
+  /**
+   * The panel is pinned right at 28rem, full height, z-50; the approval bar is
+   * sticky z-30 with Review right-aligned — so an open panel covered exactly that
+   * button. Reproduced in a browser in this order: park a decision, dismiss the
+   * sheet, open a card, then try to click Review.
+   *
+   * The bar now reserves the panel's width on its own trailing edge, which keeps
+   * Review clear without moving the board (still clickable behind the panel) or
+   * narrowing the panel itself. jsdom performs no layout, so this asserts the
+   * reservation; that it un-occludes the button was verified in a real browser.
+   */
+  it("keeps Review reachable while a transcript panel covers the bar's edge", async () => {
+    const { server, user } = await launch();
+    server.emit(start("backend-developer", "t1", "add the export job"));
+    server.emit(start("qa-engineer", "t2", "cover it with tests"));
+    server.emit(approval("p1", "backend-developer"));
+
+    // The sheet opens itself on arrival; dismissing it is what leaves the bar as
+    // the only way back to the decision.
+    await user.keyboard("{Escape}");
+    const bar = await screen.findByRole("alert");
+    expect(bar.dataset.insetEnd).toBe("false");
+
+    await user.click(button("Dina: cover it with tests"));
+    await screen.findByRole("heading", { name: "Dina" });
+    expect(bar.dataset.insetEnd).toBe("true");
+
+    // And it is still a working button, not just an unobscured one.
+    await user.click(button("Review"));
+    expect(await screen.findByRole("dialog")).toBeTruthy();
+  });
+
   it("yields to an arriving decision", async () => {
     const { server, user } = await launch();
     // Same two-lane requirement as above, to force board mode.

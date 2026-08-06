@@ -360,6 +360,7 @@ export default function App() {
       <ApprovalBar
         pending={queue}
         agentLabel={agentLabel}
+        insetEnd={selectedLane !== null}
         onOpen={() => {
           setSheetOpen(true);
           setSelected(null);
