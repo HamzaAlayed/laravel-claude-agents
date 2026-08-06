@@ -21,6 +21,10 @@ answers that, check by check, so the classification is never re-derived.
 - **free-prose** — greps for an ordinary English word the model may synonymise.
   This is the `check_log 'update'` disease. Two instances found; both fixed
   in this release.
+- **hardened-prose** — a former free-prose grep whose vocabulary was widened to
+  the model's synonyms and ratchet-pinned additive-only. Acceptable ONLY for a
+  report-only case with no artifact to inspect; the rubric judge stays on as
+  the dissenter for exactly these.
 
 ## The table
 
@@ -47,21 +51,23 @@ answers that, check by check, so the classification is never re-derived.
 | feature | `check_touched tests/` | artifact | sound |
 | feature | `check_delegated 2` | artifact (board feed) | sound — negative-controlled at introduction (v1.34.0) |
 | feature | `check_log 'done when:'` | format-contract | sound — Interface-mandated header string |
-| hygiene | `check_log 'duplicate'` | **free-prose** | **FRAGILE — fixed this release.** A run classifying the UUID twins as "identical"/"redundant" fails the key while being right. Now `'duplicat\|identical\|redundan\|twin'` (stems cover duplicate/duplicated/duplication, redundant/redundancy). |
-| hygiene | `check_log 'conflict'` | **free-prose** | **FRAGILE — fixed this release.** "Contradicts" fails the key. Now `'conflict\|contradict\|disagree\|mutually exclusive'`. |
+| hygiene | `check_log 'duplicate'` | **free-prose → hardened-prose** | **FRAGILE — fixed this release.** A run classifying the UUID twins as "identical"/"redundant" fails the key while being right. Now `'duplicat\|identical\|redundan\|twin'` (stems cover duplicate/duplicated/duplication, redundant/redundancy). |
+| hygiene | `check_log 'conflict'` | **free-prose → hardened-prose** | **FRAGILE — fixed this release.** "Contradicts" fails the key. Now `'conflict\|contradict\|disagree\|mutually exclusive'`. |
 | hygiene | `check_log 'LegacyPayments'` | fixture-noun | sound |
 | hygiene | inline `git diff --quiet -- docs/team/conventions.md` | artifact | sound — headless run must propose, not apply |
 
-Tally: 25 checks — 16 artifact, 5 fixture-noun, 2 format-contract, **2 free-prose
-(previously; 0 after this release)**. The rubric judge (`EVAL_JUDGE=1`) stays on
-as the independent dissenter for the transcript-based checks; it has been right
-both times it disagreed with the key.
+Tally: 25 checks — 16 artifact, 5 fixture-noun, 2 format-contract, **2
+hardened-prose (formerly free-prose; 0 free-prose remain)**. The rubric judge
+(`EVAL_JUDGE=1`) stays on as the independent dissenter for the transcript-based
+checks; it has been right both times it disagreed with the key.
 
 ## Rules this audit sets
 
 1. **New checks prefer artifact evidence.** A transcript grep is acceptable
    only as fixture-noun or format-contract — never for an ordinary English
-   word. Guardrail ratchets pin the two hardened vocabularies.
+   word — except as **hardened-prose** in a report-only case with no artifact
+   to inspect, synonym-widened and ratchet-pinned. Guardrail ratchets pin the
+   two hardened vocabularies.
 2. **A conversion documents itself here, in the same commit.** Old form, new
    form, and why the intent is unchanged.
 3. **The synonym lists are additive-only** without a documented reason — a

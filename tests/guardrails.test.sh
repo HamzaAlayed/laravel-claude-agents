@@ -392,6 +392,11 @@ expect "hygiene duplicate check accepts synonyms (2026-08-06 audit)" "1" \
   "$(grep -cF "check_log 'duplicat|identical|redundan|twin'" "$SCRIPT_DIR/tests/eval/run-evals.sh")"
 expect "hygiene conflict check accepts synonyms (2026-08-06 audit)" "1" \
   "$(grep -cF "check_log 'conflict|contradict|disagree|mutually exclusive'" "$SCRIPT_DIR/tests/eval/run-evals.sh")"
+# The gate exists AND main() consults it — unit tests call the functions
+# directly, so deleting the wiring would disarm the trigger with everything
+# still green. The stage budget lived exactly this failure until v1.36.0.
+expect "coordinator hash gate is wired into check_inventory_sync main()" "1" \
+  "$(grep -c 'if check_coordinator_hash(ROOT):' "$SCRIPT_DIR/scripts/check_inventory_sync.py")"
 
 echo "console (static ratchets)"
 
