@@ -375,8 +375,12 @@ checks_feature() {
 }
 
 checks_hygiene() {
-  check_log 'duplicate' "classifies the UUID twin entries as duplicate"
-  check_log 'conflict' "classifies the Pest-vs-PHPUnit pair as conflict"
+  # Free-prose greps hardened 2026-08-06 (docs/evals/2026-08-06-check-audit.md):
+  # a run that says "identical"/"redundant" or "contradicts" is right and used
+  # to fail the key — the same disease check_update_guarded fixed in v1.37.0.
+  # Stems on purpose: duplicat~ covers duplicate/duplicated/duplication.
+  check_log 'duplicat|identical|redundan|twin' "classifies the UUID twin entries as duplicate"
+  check_log 'conflict|contradict|disagree|mutually exclusive' "classifies the Pest-vs-PHPUnit pair as conflict"
   check_log 'LegacyPayments' "names the stale-Verify payments fact"
   # Headless = no approval: the ledger must be untouched (proposal only).
   git -C "$WORK" diff --quiet -- docs/team/conventions.md

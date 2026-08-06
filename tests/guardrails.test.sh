@@ -384,6 +384,14 @@ expect "every eval case has a judge rubric" "" "$MISSING_RUBRIC"
 expect "the rubric judge never alters the case verdict" "0" \
   "$(sed -n '/^judge_case()/,/^}/p' "$EVAL_SH" \
      | grep -cE '(^|[^_[:alnum:]])(CHECK_PASS|CHECK_FAIL|verdict)=')"
+# 2026-08-06 check audit: hygiene's two free-prose greps were the last instances
+# of the check_log-'update' disease (an English word the model may synonymise —
+# see docs/evals/2026-08-06-check-audit.md). The hardened vocabularies are
+# additive-only; narrowing one back to a single word is how the disease returns.
+expect "hygiene duplicate check accepts synonyms (2026-08-06 audit)" "1" \
+  "$(grep -cF "check_log 'duplicat|identical|redundan|twin'" "$SCRIPT_DIR/tests/eval/run-evals.sh")"
+expect "hygiene conflict check accepts synonyms (2026-08-06 audit)" "1" \
+  "$(grep -cF "check_log 'conflict|contradict|disagree|mutually exclusive'" "$SCRIPT_DIR/tests/eval/run-evals.sh")"
 
 echo "console (static ratchets)"
 
