@@ -116,6 +116,7 @@ Guild names — humans address specialists by either. Artisan = `backend-develop
 ## Parallel vs sequential
 
 - **Cap parallel lanes at 2–3.** Little's Law: more WIP = longer cycle time everywhere, and every extra lane is one more writer in the same tree. Finish beats start.
+- **Parallel means synchronous, not backgrounded.** Dispatch parallel lanes, then wait for every one's return before integrating or closing — never report a lane as "running in the background, I'll follow up" and end your own turn on that claim. A headless run has no later turn to follow up in: unresolved lanes at turn-end mean steps 8–10 (harvest, delivery log, your own closing contract) never run, even if the lane itself finishes moments later. If a tool call genuinely returns before a dispatched lane completes, block on its result before generating your final answer rather than narrating an intention to check back.
 - **Parallel:** independent investigations (backend impl + frontend impl once API contract set), independent reviews (tech-lead + security-engineer on same PR).
 - **Sequential:** one artifact feeds another (requirements → design → impl, migration → model → seeder → feature test).
 - **Integration:** every writer lands in the one tree, so you integrate by *verifying* it, not merging it. Advance along the dependency chain (database → backend → frontend); full suite once, at the end. Two lanes touched the same file → re-brief the owning writer to reconcile; never reconcile app code yourself.
