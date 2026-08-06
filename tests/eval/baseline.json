@@ -4,7 +4,7 @@
   "_metrics": "Three ceilings, because each catches a regression the others miss. max_seconds is wall clock. max_usd is the CLI's own total_cost_usd — the real cost, and the only one that catches a model-mix regression (a sonnet -> opus re-tier keeps token counts flat and triples the bill). max_tokens is attributed.total.tokens — a work-volume proxy that is invariant to pricing, which max_usd is not — so on a max_usd breach, check the rate-table reconciliation in <case>.cost.json before assuming a regression. The one dated price risk is now RETIRED: Sonnet 5's introductory rate expiring 2026-08-31 does not affect these ceilings, because billing was shown to be at list price already (see model-rates.json's _source for the arithmetic). TIE-BREAK (2026-08-06): max_usd is the cost metric of record. When the ceilings disagree, dollars win — token totals are >99% cache reads (they measure conversation shape, not spend) and wall clock measures the experience, not the bill (run 6: security-engineer was 53% of policy's wall clock and a sixth of its bill). Seconds and tokens remain as ceilings because each catches regressions dollars miss; they just do not outvote it. Bimodal exception unchanged: check _bimodal_cases before calling any policy/action number a regression.",
   "_tokens_caveat": "Run 6 measured token totals as >99% cache-read tokens in all five cases (e.g. n-plus-one: 3,666,860 cache of 3,669,451 total). Cache reads bill at 0.1x input, so max_tokens tracks context volume x turns far more than it tracks spend. Read it as a work-volume signal and let max_usd speak for cost.",
   "_bimodal_cases": "`policy` and `action` each run two ways: the coordinator fast path takes the case (fewer stages, much cheaper) or it delegates. Run 5 delegated `policy` (994s) and fast-pathed `action` (420s); run 6 did the exact opposite (`policy` 381s undelegated, `action` 1217s across 4 agents); a targeted 2026-08-05 run caught `policy` delegating again (1560s, $7.18, 4 agents). The spread on one case is 3.3x in dollars, so BOTH cases' ceilings are seeded to cover the delegating mode — an undelegated run then reads comfortably inside them, and the agent list in <case>.cost.json is what tells you which mode ran. Check that list before treating any REGRESSED reading on these two as a regression.",
-  "_opt_in": "`feature` is registered but excluded from the default sweep (OPT_IN_CASES in run-evals.sh): it is the only case guaranteed to delegate, and also the most expensive, so it opts in when coordinator behaviour changes rather than costing every sweep. Ceilings seeded from its first run (2026-08-04): 1456s, $6.55, 11.2M tokens — 5/6 checks, the miss being the stage-budget assertion that exposed tranche item 2 as inert for command-driven runs (fixed in v1.36.0).",
+  "_opt_in": "Three cases are registered but excluded from the default sweep (OPT_IN_CASES in run-evals.sh) because each is expensive and only needs re-measuring when coordinator/team-memory behaviour changes — the coordinator_hash gate below is the trigger that says when. `feature`: the only case guaranteed to delegate, seeded from its first run (2026-08-04): 1456s, $6.55, 11.2M tokens — 5/6 checks; the miss was the stage-budget assertion, later shown in run 7 to be a stale check reading a real pass as a fail (docs/evals/2026-08-06-run-7.md finding 3), so its true score is 6/6. `teach` and `teach-delivery`: run 7's split hypothesis (docs/evals/2026-08-06-run-7-scope.md) — teach/override hold, harvest does not yet (run-7.md finding 2).",
   "cases": {
     "n-plus-one": {
       "max_seconds": 400,
@@ -55,26 +55,26 @@
       "usd_basis": "first run: $6.55 billed + ~30%"
     },
     "teach": {
-      "max_seconds": null,
-      "basis": "unseeded — Task 5 seeds all three from run 7's first accepted measurement",
-      "max_tokens": null,
-      "tokens_basis": "unseeded — Task 5 seeds from run 7",
-      "max_usd": null,
-      "usd_basis": "unseeded — Task 5 seeds from run 7"
+      "max_seconds": 40,
+      "basis": "run 7 (2026-08-06, docs/evals/2026-08-06-run-7.md): 29s + ~30%",
+      "max_tokens": 500000,
+      "tokens_basis": "run 7: 386,545 + ~30%",
+      "max_usd": 0.35,
+      "usd_basis": "run 7: $0.26 billed + ~30% — the cheapest opt-in case, a single-turn artifact write"
     },
     "teach-delivery": {
-      "max_seconds": null,
-      "basis": "unseeded — Task 5 seeds all three from run 7's first accepted measurement",
-      "max_tokens": null,
-      "tokens_basis": "unseeded — Task 5 seeds from run 7",
-      "max_usd": null,
-      "usd_basis": "unseeded — Task 5 seeds from run 7"
+      "max_seconds": 1250,
+      "basis": "run 7 (2026-08-06, docs/evals/2026-08-06-run-7.md): 962s across 4 specialists (main, qa-engineer, database-developer, backend-developer) + ~30%. Run 7's finding 2: this run ended before the coordinator's own delivery-end steps (harvest) fired — a future run that fixes that will very likely run longer, since it adds turns rather than removes them; reseed then rather than pad now for a behaviour that has not been observed yet",
+      "max_tokens": 17000000,
+      "tokens_basis": "run 7: 13,058,635 + ~30%",
+      "max_usd": 6.05,
+      "usd_basis": "run 7: $4.65 billed + ~30%"
     }
   },
   "coordinator_hash": {
     "sha256": "82ca1d00b0956a8757feb05a70f75d871d752c3578204729fe6779ec079614cb",
     "as_of": "2026-08-06",
-    "note": "Seeded at current content, NOT verified by a billed run: the 2026-08-04 feature run predates the v1.36.0 Interface stage-budget edit, so no billed run has measured exactly this content. The 1.40 re-run replaces this note with its record.",
+    "note": "Verified by eval run 7 (2026-08-06, docs/evals/2026-08-06-run-7.md): the feature and teach-delivery cases (both /make-feature-driven) ran billed at exactly this content, recomputed and confirmed equal to the pin before this note was written. The seeding note this replaces is retired.",
     "waivers": []
   }
 }
