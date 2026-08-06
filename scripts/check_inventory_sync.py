@@ -131,8 +131,13 @@ def coordinator_hash(root: Path) -> str:
 
     Whole-command hashing would fire on prose edits that change no behaviour;
     the Interface line is the only part of a command the eval `feature` case's
-    checks depend on, and a guardrails ratchet already pins it byte-identical
-    across all nine commands.
+    checks depend on. Dropping a command's Interface block entirely would not
+    move this hash (set of distinct lines, not per-file), but that blind spot
+    is covered by two guardrails ratchets, not this one: `tests/guardrails.
+    test.sh` pins the carrier count ("all 9 pipeline commands carry the
+    Interface block" == 9, so a drop trips 9->8) and the block's byte-identity
+    across all nine commands ("Interface block is byte-identical across them"
+    == 1).
     """
     parts = [(root / "agents" / "delivery-coordinator.md").read_bytes()]
     lines = set()

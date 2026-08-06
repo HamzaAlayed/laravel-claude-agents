@@ -6,7 +6,9 @@ case. CI cannot run billed evals; it CAN refuse to let those surfaces ship
 changed without a human recording either a re-run or a dated waiver.
 """
 
+import contextlib
 import importlib.util
+import io
 import json
 import pathlib
 import sys
@@ -78,7 +80,12 @@ class TestCoordinatorHash(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             root = make_tree(pathlib.Path(tmp))
             pin(root, "0" * 64)
-            self.assertEqual(inv.check_coordinator_hash(root), 1)
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                self.assertEqual(inv.check_coordinator_hash(root), 1)
+            out = buf.getvalue()
+            self.assertIn("::error file=agents/delivery-coordinator.md::", out)
+            self.assertIn("./tests/eval/run-evals.sh feature", out)
 
     def test_waiver_accepts_the_drift_it_names(self):
         with tempfile.TemporaryDirectory() as tmp:
@@ -88,11 +95,24 @@ class TestCoordinatorHash(unittest.TestCase):
                 {"date": "2026-08-06", "sha256": current, "reason": "test waiver"}])
             self.assertEqual(inv.check_coordinator_hash(root), 0)
 
+    def test_waiver_for_a_different_hash_does_not_accept_this_drift(self):
+        # A stale waiver must not blanket-accept unrelated drift.
+        with tempfile.TemporaryDirectory() as tmp:
+            root = make_tree(pathlib.Path(tmp))
+            pin(root, "0" * 64, waivers=[
+                {"date": "2026-08-06", "sha256": "1" * 64, "reason": "some other change"}])
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(inv.check_coordinator_hash(root), 1)
+
     def test_check_fails_when_pin_is_missing(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = make_tree(pathlib.Path(tmp))
             (root / "tests" / "eval" / "baseline.json").write_text("{}", encoding="utf-8")
-            self.assertEqual(inv.check_coordinator_hash(root), 1)
+            buf = io.StringIO()
+            with contextlib.redirect_stdout(buf):
+                self.assertEqual(inv.check_coordinator_hash(root), 1)
+            out = buf.getvalue()
+            self.assertIn("::error file=tests/eval/baseline.json::", out)
 
 
 if __name__ == "__main__":
