@@ -5,6 +5,34 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.38.1] - 2026-08-06
+
+### Fixed
+
+- **The approval bar's Review button is reachable while a transcript panel is
+  open.** The bar is sticky at `z-30` with Review right-aligned; the lane panel is
+  pinned right at 28rem, full height, `z-50` — so an open panel covered exactly
+  that button, in this order only: park a decision, dismiss the sheet, open a card,
+  reach for Review. Escape always recovered it, and the bar's text stayed visible
+  throughout, so a run never looked silent — but the button was unreachable by
+  mouse. Known and held since 2026-08-04 because every candidate fix was a layout
+  judgment; the bar now reserves the panel's width on its own trailing edge, which
+  leaves the panel's proportions and the board's clickability behind it alone. It
+  is `sm`-only, because below that the panel is full-width and nothing can be kept
+  clear. Verified in a browser against the built bundle by driving the exact repro:
+  `elementFromPoint` at Review's centre returns Review, and a real pointer click —
+  the one that used to time out on the panel intercepting it — opens the decision
+  sheet.
+
+### Changed
+
+- `docs/evals/2026-08-04-run-6.md` corrects a stale line that called the opt-in
+  `feature` case's ceilings null. They were seeded the same day (1900s / $8.50 /
+  14.5M from 1456s, $6.55, 11.2M measured). The correction is marked rather than
+  edited away, because the line read as a to-do and nearly bought a $6.55
+  re-measurement of behaviour that had not changed — `git log v1.36.0..HEAD --
+  agents/ commands/ skills/` is empty.
+
 ## [1.38.0] - 2026-08-05
 
 ### Added
