@@ -708,7 +708,7 @@ python3 scripts/build-gemini-extension.py >/dev/null && git diff --exit-code -- 
 python3 scripts/build-codex-extension.py >/dev/null && git diff --exit-code -- codex/ && echo "codex ok"
 git diff --exit-code -- scripts/console/dist && echo "dist untouched ok"
 ```
-Expected: guardrails `140 passed`, both unittest suites `OK`, every gate `ok`. `dist untouched ok` **must** print — this release has no console changes.
+Expected: guardrails `141 passed` (140 from the tasks + the final-review wiring ratchet), both unittest suites `OK`, every gate `ok`. `dist untouched ok` **must** print — this release has no console changes.
 
 - [ ] **Step 4: Commit, tag, push**
 
