@@ -184,16 +184,38 @@ class TestFullText(unittest.TestCase):
         self.assertIn("MAIN-THREAD-TEXT", text)
         self.assertNotIn("SUBAGENT-SENTINEL", text)
 
-    def test_matches_final_text_on_a_timed_out_transcript(self):
+    def test_matches_final_text_on_a_timed_out_transcript_with_no_subagent_text(self):
         # A timed-out run never emits a `result` line: final_text() falls
-        # back to concatenating assistant text, and (per this same finding)
-        # that fallback must be indistinguishable from full_text()'s result
-        # here -- otherwise a timed-out run's $LOG and $FULL_LOG would
-        # silently diverge in a way no check could catch. This is the
-        # equivalence run 7's addendum relies on to say a timed-out
-        # teach-delivery re-run cannot confirm the check_log_anywhere fix.
+        # back to concatenating ALL assistant text (deliberately unfiltered
+        # -- see final_text's docstring; check_log's other callers are
+        # outcome checks that don't care which agent said it), while
+        # full_text() filters to main-thread turns only. The two coincide
+        # ONLY when no subagent turn is present -- exactly the shape run 7's
+        # teach-delivery re-run had (qa-engineer/tech-lead started but never
+        # returned any text before the timeout killed the process), which is
+        # why $LOG and $FULL_LOG were byte-identical for THAT run. This is
+        # not a general guarantee -- see the next test for the boundary.
         lines = [assistant_line(10, 5), assistant_line(3, 2)]
         self.assertEqual(eval_cost.final_text(lines), eval_cost.full_text(lines))
+
+    def test_diverges_from_final_text_when_a_subagent_turn_has_text(self):
+        # The boundary the previous test's docstring names: once a subagent
+        # DOES produce text before a timeout, final_text()'s fallback (no
+        # parent filter, by design) and full_text() (main-thread only, by
+        # design) genuinely differ. A check_log_anywhere caller must never
+        # assume these interchangeable in general.
+        main_line = json.dumps({
+            "type": "assistant", "parent_tool_use_id": None,
+            "message": {"content": [{"type": "text", "text": "MAIN "}]},
+        })
+        subagent_line = json.dumps({
+            "type": "assistant", "parent_tool_use_id": "toolu_subagent_1",
+            "message": {"content": [{"type": "text", "text": "SUB "}]},
+        })
+        lines = [main_line, subagent_line]
+        self.assertEqual(eval_cost.final_text(lines), "MAIN SUB ")
+        self.assertEqual(eval_cost.full_text(lines), "MAIN ")
+        self.assertNotEqual(eval_cost.final_text(lines), eval_cost.full_text(lines))
 
 
 class TestPricing(unittest.TestCase):

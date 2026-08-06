@@ -47,7 +47,7 @@ this page's harvest section rather than paper over today's gap.
    > finish (both running in the background). I'll follow up once they
    > complete.
 
-   That final message is the coordinator narrating an intention to follow
+   That final message is the main thread narrating an intention to follow
    up on backgrounded specialists — but that framing turned out to be a
    symptom, not the cause: the delivery-end steps that would have appended
    to the ledger and written a delivery log
@@ -57,16 +57,18 @@ this page's harvest section rather than paper over today's gap.
    produced.
 
    **Update, same day:** a fix was attempted on the original (wrong)
-   diagnosis — the coordinator was patched so parallel lanes are always
-   awaited, never backgrounded — and human-approved re-run to validate it.
-   The patch is real and ships as good guidance for interactive coordinator
-   sessions, but since `/make-feature` never loads that file, the re-run
-   could not have tested it either way; its different outcome (a timeout,
-   this time) is best read as ordinary run-to-run variance. Harvest remains
-   unproven, and the actual fix — moving the harvest requirement somewhere
-   `/make-feature` can see — is scoped for a future release. See run 7's
-   finding 2 and its addendum for the full, corrected account; this page's
-   captured artifacts are still from the original run.
+   diagnosis — the `delivery-coordinator` agent body was patched so
+   parallel lanes are always awaited, never backgrounded — and a
+   human-approved re-run was spent validating it. The patch is real and
+   ships as good guidance for interactive `delivery-coordinator` sessions,
+   but since `/make-feature` never loads that file, the re-run could not
+   have tested it either way; its different outcome (a timeout, this time)
+   is best read as ordinary run-to-run variance on the main thread, not
+   evidence about the patch. Harvest remains unproven, and the actual
+   fix — moving the harvest requirement somewhere `/make-feature` can
+   see — is scoped for a future release. See run 7's finding 2 and its
+   addendum for the full, corrected account; this page's captured
+   artifacts are still from the original run.
 
 ## What to look at
 
