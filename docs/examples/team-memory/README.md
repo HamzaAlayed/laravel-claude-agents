@@ -51,8 +51,16 @@ this page's harvest section rather than paper over today's gap.
    ledger and written a delivery log. **This is the loop's third step not
    happening**, and there is nothing to show for it because nothing was
    produced. See run 7's finding 2 for the structural reason (a headless
-   one-shot invocation has no later turn to "follow up" in) and the fix this
-   milestone parked pending a human-approved re-run.
+   one-shot invocation has no later turn to "follow up" in).
+
+   **Update, same day:** the coordinator was patched to close this exact
+   gap (parallel lanes are now awaited, never backgrounded), and a
+   human-approved re-run confirmed the patch works — no more "I'll follow
+   up" narration. But the re-run then hit a *different* wall: waiting
+   synchronously made the delivery slower, and it ran past the harness's
+   1200s timeout before reaching harvest anyway. Harvest is still
+   unproven — for a new reason. See run 7's addendum for the full account;
+   this page's captured artifacts are still from the original run.
 
 ## What to look at
 

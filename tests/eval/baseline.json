@@ -72,9 +72,9 @@
     }
   },
   "coordinator_hash": {
-    "sha256": "82ca1d00b0956a8757feb05a70f75d871d752c3578204729fe6779ec079614cb",
+    "sha256": "2d9f28f55042068af5475200e1653c214c0fa67b1ca0a5008380b447c9ccc089",
     "as_of": "2026-08-06",
-    "note": "Verified by eval run 7 (2026-08-06, docs/evals/2026-08-06-run-7.md): the feature and teach-delivery cases (both /make-feature-driven) ran billed at exactly this content, recomputed and confirmed equal to the pin before this note was written. The seeding note this replaces is retired.",
+    "note": "Content changed same day, after the prior pin (82ca1d0...) was verified: agents/delivery-coordinator.md's \"Parallel vs sequential\" section now requires parallel lanes to be awaited, not backgrounded (run 7's finding 2 fix, commit 6f73682). A human-approved re-run of teach-delivery (docs/evals/2026-08-06-run-7.md addendum) confirmed the fix itself works — no more premature turn-ending — but the run then timed out (EVAL_TIMEOUT=1200s) before reaching harvest, for an unrelated reason. This pin is honestly a re-seed at the new content, not a full re-verification of the case passing end to end; see the addendum before treating a future run's failure here as a coordinator regression.",
     "waivers": []
   }
 }
