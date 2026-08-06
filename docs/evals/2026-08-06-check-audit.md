@@ -52,7 +52,7 @@ answers that, check by check, so the classification is never re-derived.
 | hygiene | `check_log 'LegacyPayments'` | fixture-noun | sound |
 | hygiene | inline `git diff --quiet -- docs/team/conventions.md` | artifact | sound — headless run must propose, not apply |
 
-Tally: 24 checks — 16 artifact, 5 fixture-noun, 2 format-contract, **2 free-prose
+Tally: 25 checks — 16 artifact, 5 fixture-noun, 2 format-contract, **2 free-prose
 (previously; 0 after this release)**. The rubric judge (`EVAL_JUDGE=1`) stays on
 as the independent dissenter for the transcript-based checks; it has been right
 both times it disagreed with the key.
