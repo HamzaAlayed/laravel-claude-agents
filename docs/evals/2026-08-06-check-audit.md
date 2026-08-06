@@ -61,8 +61,16 @@ answers that, check by check, so the classification is never re-derived.
 | teach | `check_in_files '\*\*Scope:\*\*'` (ledger) | artifact | sound |
 | teach | `check_in_files '\*\*Source:\*\* user'` (ledger) | artifact | sound |
 | teach | `check_in_files 'ulid'` (ledger) | artifact | sound — the taught content, not a wording choice |
+| teach-delivery | `check_file_under database/migrations *donations*.php` | artifact | sound |
+| teach-delivery | `check_in_files 'cents'` (migrations) | artifact | sound — taught rule 1, observable in schema |
+| teach-delivery | `check_not_in_files "(decimal\|float\|double)\('amount"` (migrations) | artifact | sound — the default the rule overrides |
+| teach-delivery | inline `HasUlids` (models) OR `ulid\(` (migrations) | artifact | sound — either idiomatic placement |
+| teach-delivery | `check_file docs/team/stack.md` | artifact | sound — the unprompted-harvest promise; a FAIL is a run-7 finding |
+| teach-delivery | `check_file_under docs/delivery log.md` | artifact | sound |
+| teach-delivery | `check_touched tests/` | artifact | sound |
+| teach-delivery | `check_log 'done when:'` | format-contract | sound — Interface-mandated header string |
 
-Tally: 31 checks — 22 artifact, 5 fixture-noun, 2 format-contract, 2 hardened-prose (formerly free-prose; 0 free-prose remain). The rubric judge
+Tally: 39 checks — 29 artifact, 5 fixture-noun, 3 format-contract, **2 hardened-prose (formerly free-prose; 0 free-prose remain)**. The rubric judge
 (`EVAL_JUDGE=1`) stays on as the independent dissenter for the transcript-based
 checks; it has been right both times it disagreed with the key.
 

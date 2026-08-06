@@ -61,6 +61,14 @@
       "tokens_basis": "unseeded — Task 5 seeds from run 7",
       "max_usd": null,
       "usd_basis": "unseeded — Task 5 seeds from run 7"
+    },
+    "teach-delivery": {
+      "max_seconds": null,
+      "basis": "unseeded — Task 5 seeds all three from run 7's first accepted measurement",
+      "max_tokens": null,
+      "tokens_basis": "unseeded — Task 5 seeds from run 7",
+      "max_usd": null,
+      "usd_basis": "unseeded — Task 5 seeds from run 7"
     }
   },
   "coordinator_hash": {

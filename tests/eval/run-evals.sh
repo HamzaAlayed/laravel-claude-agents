@@ -66,7 +66,7 @@ ALL_CASES=(n-plus-one policy action tests hygiene)
 # teach + teach-delivery: run 7's split hypothesis (docs/evals/2026-08-06-run-7-scope.md).
 # Opt-in like feature: they measure coordinator/team-memory behaviour, which only
 # needs re-measuring when that behaviour changes — the hash gate says when.
-OPT_IN_CASES=(feature teach)
+OPT_IN_CASES=(feature teach teach-delivery)
 
 case_prompt() {
   case "$1" in
@@ -77,6 +77,7 @@ case_prompt() {
     hygiene)    echo "/team-hygiene" ;;
     feature)    echo "/make-feature Tag --api" ;;
     teach)      echo "/teach New tables use ULID primary keys, never auto-increment integers — sortable and non-enumerable" ;;
+    teach-delivery) echo "/make-feature Donation --api" ;;
   esac
 }
 
@@ -89,6 +90,7 @@ case_desc() {
     hygiene)    echo "flags the planted duplicate/conflict/stale entries, applies nothing headless" ;;
     feature)    echo "scaffolds an API Tag feature across specialists — the only case that must delegate" ;;
     teach)      echo "records a taught rule in docs/team/conventions.md in the Rule/Why/Scope/Source contract" ;;
+    teach-delivery) echo "delivers a feature that must OBEY two seeded taught rules where defaults differ, and harvest without being asked" ;;
   esac
 }
 
@@ -172,6 +174,21 @@ EOF
   ledger.
 EOF
       ;;
+    teach-delivery) cat <<'EOF'
+- The Donation feature obeys both taught rules where the default would differ:
+  money lands as integer cents (no float/decimal amount column), and the new
+  table uses ULID primary keys (not auto-increment).
+- The taught rules were CONSULTED, not coincidental: briefs or returns
+  reference the ledger, or the produced code matches the rules exactly where
+  Laravel's own defaults point the other way.
+- The coordinator harvested without being asked: docs/team/stack.md persisted
+  (the stack snapshot), and the delivery log exists under docs/delivery/.
+- The feature is real: migration, model, HTTP entry point, and at least one
+  feature test.
+- A correct-looking feature that ignores the ledger (float money or
+  auto-increment ids) is a FAIL even if it works.
+EOF
+      ;;
   esac
 }
 
@@ -219,6 +236,33 @@ seed_hygiene_fixture() { # seed_hygiene_fixture <workdir>
 - **Why:** Float drift is unacceptable in invoicing.
 - **Scope:** all agents
 - **Source:** user, 2026-01-15
+EOF
+}
+
+# teach-delivery case: a CLEAN two-rule ledger in /teach's exact entry shape —
+# no planted conflicts (that is hygiene's job). Both rules are chosen so the
+# Laravel default visibly differs: money defaults to decimal, ids to
+# auto-increment. Obedience is therefore observable in the migration itself.
+seed_taught_fixture() { # seed_taught_fixture <workdir>
+  mkdir -p "$1/docs/team"
+  cat >"$1/docs/team/conventions.md" <<'EOF'
+# Team conventions — taught rules
+
+Rules the user taught the agent team. Every agent reads this file before
+starting work; entries here override agent defaults. Maintain via /teach
+(or edit by hand — the shape below is the contract).
+
+## Money is integer cents
+- **Rule:** Store and compute money as integer cents (`*_cents` integer columns) — never float or decimal columns.
+- **Why:** Float drift is unacceptable in billing; integer math is exact.
+- **Scope:** database-developer + backend-developer (migrations, models, calculations)
+- **Source:** user, 2026-08-06
+
+## New tables use ULID primary keys
+- **Rule:** New tables use ULID primary keys (`$table->ulid('id')->primary()` + `HasUlids` on the model), never auto-increment integers.
+- **Why:** Sortable, non-enumerable identifiers.
+- **Scope:** database-developer + backend-developer
+- **Source:** user, 2026-08-06
 EOF
 }
 
@@ -414,6 +458,30 @@ checks_teach() {
   check_in_files 'ulid' "docs/team/conventions.md" "the taught rule's content landed"
 }
 
+checks_teach_delivery() {
+  # Obedience: both taught rules land where Laravel's default points the other
+  # way. Artifact checks on the migration/model — a delivery that ignores the
+  # ledger produces decimal('amount') and $table->id(), and fails here.
+  check_file_under "database/migrations" "*donations*.php" "donations migration created"
+  check_in_files 'cents' "database/migrations" "money lands as integer cents (taught rule 1)"
+  check_not_in_files "(decimal|float|double)\('amount" "database/migrations" "no float/decimal money column"
+  # ULID accepted in either idiomatic placement: HasUlids on the model, or
+  # ulid('id') in the migration. One check, inline OR (hygiene precedent).
+  if grep -qriE 'HasUlids' "$WORK/app/Models" 2>/dev/null \
+     || grep -qriE "ulid\(" "$WORK/database/migrations" 2>/dev/null; then
+    record 0 "code:   ULID primary keys (taught rule 2)"
+  else
+    record 1 "code:   ULID primary keys (taught rule 2)"
+  fi
+  # Harvest: the promises the coordinator makes unprompted — stack snapshot
+  # (step 4) and the delivery log (step 9). THIS is hypothesis part 3; a FAIL
+  # here is run 7 doing its job, not a broken key.
+  check_file "docs/team/stack.md" "harvest persisted the stack snapshot"
+  check_file_under "docs/delivery" "log.md" "delivery log written"
+  check_touched "tests/" "feature test added"
+  check_log 'done when:' "board declares a completion condition"
+}
+
 # ---------------------------------------------------------------- plumbing ---
 
 run_with_timeout() { # run_with_timeout <seconds> <cmd...>
@@ -563,6 +631,7 @@ run_case() { # run_case <name> <results-dir>
   fi
 
   [ "$name" = "hygiene" ] && seed_hygiene_fixture "$WORK"
+  [ "$name" = "teach-delivery" ] && seed_taught_fixture "$WORK"
 
   git -C "$WORK" init -q
   git -C "$WORK" -c user.email=eval@example.com -c user.name=eval add -A
