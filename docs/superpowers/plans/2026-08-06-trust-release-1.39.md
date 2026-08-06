@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Harden the eval instrument — audit all 23 answer-key checks for prose-grep fragility, fix the two genuinely fragile ones, declare `max_usd` the cost metric of record, make the `feature`-case trigger deterministic via a coordinator content hash, and scope eval run 7 — with zero agent-body changes.
+**Goal:** Harden the eval instrument — audit all 25 answer-key checks for prose-grep fragility, fix the two genuinely fragile ones, declare `max_usd` the cost metric of record, make the `feature`-case trigger deterministic via a coordinator content hash, and scope eval run 7 — with zero agent-body changes.
 
 **Architecture:** Release 1 of 3 in the [Prove-it milestone spec](../specs/2026-08-06-prove-it-milestone-design.md). Everything here touches the measuring instrument or docs, never `agents/` or the behavioural half of `commands/` — that is what keeps run 7 comparable to runs 1–6. The hash rule lives in `scripts/check_inventory_sync.py` (already a CI gate, already Python, already the "claims match disk" checker); the vocabulary ratchets live in `tests/guardrails.test.sh` (zero-dependency bash, the pack's ratchet home).
 
@@ -89,7 +89,7 @@ answers that, check by check, so the classification is never re-derived.
 | hygiene | `check_log 'LegacyPayments'` | fixture-noun | sound |
 | hygiene | inline `git diff --quiet -- docs/team/conventions.md` | artifact | sound — headless run must propose, not apply |
 
-Tally: 24 checks — 16 artifact, 5 fixture-noun, 2 format-contract, **2 free-prose
+Tally: 25 checks — 16 artifact, 5 fixture-noun, 2 format-contract, **2 free-prose
 (previously; 0 after this release)**. The rubric judge (`EVAL_JUDGE=1`) stays on
 as the independent dissenter for the transcript-based checks; it has been right
 both times it disagreed with the key.
@@ -107,13 +107,13 @@ both times it disagreed with the key.
 
 - [ ] **Step 2: Verify the table against the source**
 
-Run: `grep -n "check_log\|check_file\|check_in_files\|check_not_in_files\|check_touched\|check_delegated\|check_update_guarded\|git -C" tests/eval/run-evals.sh | sed -n '/checks_n_plus_one/,$p'` — cross-check every row's regex is verbatim. Expected: every check in `checks_*` functions appears in the table; no extras. (The count is 24 including hygiene's inline diff check.)
+Run: `grep -n "check_log\|check_file\|check_in_files\|check_not_in_files\|check_touched\|check_delegated\|check_update_guarded\|git -C" tests/eval/run-evals.sh | sed -n '/checks_n_plus_one/,$p'` — cross-check every row's regex is verbatim. Expected: every check in `checks_*` functions appears in the table; no extras. (The count is 25 including hygiene's inline diff check.)
 
 - [ ] **Step 3: Commit**
 
 ```bash
 git add docs/evals/2026-08-06-check-audit.md
-git commit -m "docs(evals): audit all 24 answer-key checks for prose-grep fragility
+git commit -m "docs(evals): audit all 25 answer-key checks for prose-grep fragility
 
 16 artifact, 5 fixture-noun, 2 format-contract, 2 free-prose. The two
 free-prose greps (hygiene's 'duplicate' and 'conflict') are the same
@@ -667,7 +667,7 @@ Insert above the `## [1.38.1]` heading in `CHANGELOG.md`:
   human records a re-run or a dated waiver. Seeded honestly: the pin notes that
   no billed run has measured exactly the current content, and the next billed
   run retires the note.
-- **`docs/evals/2026-08-06-check-audit.md`** — all 24 answer-key checks
+- **`docs/evals/2026-08-06-check-audit.md`** — all 25 answer-key checks
   classified by evidence source (16 artifact, 5 fixture-noun, 2
   format-contract, 2 free-prose). The sound greps are documented as sound so
   nobody "fixes" them; the classification rules bind future checks.
@@ -714,7 +714,7 @@ Expected: guardrails `140 passed`, both unittest suites `OK`, every gate `ok`. `
 git add -A VERSION CHANGELOG.md .claude-plugin .cursor-plugin gemini
 git commit -m "release: 1.39.0 — the instrument stops taking the model's word for it
 
-The trust release of the prove-it milestone: all 24 answer-key checks
+The trust release of the prove-it milestone: all 25 answer-key checks
 audited (the last two free-prose greps hardened), max_usd declared the
 cost metric of record, the feature-case trigger made deterministic via a
 pinned coordinator hash, and run 7 scoped before being run.
@@ -754,4 +754,4 @@ If CI fails: fix forward on main before the `gh release create` — the tag may 
 - **Spec coverage:** 1.39's four spec deliverables → Tasks 1–2 (audit + conversions), Task 3 (metric-of-record), Task 4 (hash trigger + seeding note), Task 5 (run-7 stub). Verification bullets → negative controls in Task 2 Step 5, Task 4 Steps 5 & 7; "hash rule has a test proving it fires on a coordinator edit and stays quiet otherwise" → Task 4 tests 2–4 + Step 7. Release mechanics → Task 6.
 - **Placeholder scan:** none — every step carries exact content or exact commands.
 - **Type consistency:** `coordinator_hash(root: Path) -> str` and `check_coordinator_hash(root: Path) -> int` used identically in Task 4's tests, implementation, and seeding script; baseline key shape identical in tests' `pin()`, the implementation's reads, and the seeding script.
-- **Spec deviation, recorded:** the spec says checks convert prose→artifact; the audit found only 2 of 24 checks fragile and both are in a report-only case with no artifact to inspect, so the honest fix is synonym-hardening + ratchets, not conversion. The audit doc documents this reasoning — it satisfies the spec's intent (no check can fail a right answer over wording) by the means the evidence supports.
+- **Spec deviation, recorded:** the spec says checks convert prose→artifact; the audit found only 2 of 25 checks fragile and both are in a report-only case with no artifact to inspect, so the honest fix is synonym-hardening + ratchets, not conversion. The audit doc documents this reasoning — it satisfies the spec's intent (no check can fail a right answer over wording) by the means the evidence supports.
