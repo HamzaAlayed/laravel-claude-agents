@@ -749,6 +749,21 @@ If CI fails: fix forward on main before the `gh release create` — the tag may 
 
 ---
 
+## Execution amendments (2026-08-06, fix rounds)
+
+The code blocks above are the plan as dispatched; two review rounds amended
+what shipped. The shipped form governs:
+
+- **Task 1:** the tally is **25**, not 24 (implementer caught the plan's
+  arithmetic; corrected everywhere).
+- **Task 4:** `coordinator_hash()`'s docstring cites **both** guardrails
+  ratchets (carrier count = 9 and byte-identity = 1) that cover the recipe's
+  dedup blind spot; the test file has **9** tests, not 8 (added: a waiver
+  naming a different sha must NOT accept the drift); the three failure-path
+  tests capture stdout via `contextlib.redirect_stdout` and assert the
+  `::error` message content — otherwise every green CI run of the eval-units
+  job would emit false GitHub Actions file annotations.
+
 ## Self-review record (2026-08-06)
 
 - **Spec coverage:** 1.39's four spec deliverables → Tasks 1–2 (audit + conversions), Task 3 (metric-of-record), Task 4 (hash trigger + seeding note), Task 5 (run-7 stub). Verification bullets → negative controls in Task 2 Step 5, Task 4 Steps 5 & 7; "hash rule has a test proving it fires on a coordinator edit and stays quiet otherwise" → Task 4 tests 2–4 + Step 7. Release mechanics → Task 6.
