@@ -5,6 +5,44 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.39.0] - 2026-08-06
+
+### Added
+
+- **A deterministic trigger for the opt-in `feature` eval case.** "Run it when
+  coordinator behaviour changes" had no named judge and would silently never
+  fire. A sha256 over the delegation-steering surfaces — the coordinator body
+  plus the nine commands' shared Interface line — is now pinned in
+  `tests/eval/baseline.json`; `check_inventory_sync` fails CI on drift until a
+  human records a re-run or a dated waiver. Seeded honestly: the pin notes that
+  no billed run has measured exactly the current content, and the next billed
+  run retires the note.
+- **`docs/evals/2026-08-06-check-audit.md`** — all 25 answer-key checks
+  classified by evidence source (16 artifact, 5 fixture-noun, 2
+  format-contract, and 2 formerly free-prose — now **hardened-prose**:
+  synonym-widened and ratchet-pinned, the class reserved for report-only
+  cases with no artifact to inspect). The sound greps are documented as sound
+  so nobody "fixes" them; the classification rules bind future checks.
+- **`docs/evals/2026-08-06-run-7-scope.md`** — run 7 named a question before
+  being run: does teach → override → harvest work end to end on the fixture
+  app? Scope, composition, spend, and what is deliberately not re-tested.
+
+### Fixed
+
+- **The answer key's last two free-prose greps.** `hygiene`'s
+  `check_log 'duplicate'` and `check_log 'conflict'` failed runs that
+  classified the planted items correctly in different words ("identical",
+  "contradicts") — the same disease `check_update_guarded` fixed in v1.37.0.
+  Both now accept the model's synonyms; the vocabularies are additive-only and
+  ratchet-pinned.
+
+### Changed
+
+- **`max_usd` is the cost metric of record.** When the three ceilings disagree,
+  dollars win: token totals are >99% cache reads and wall clock measures the
+  experience, not the bill. Documented in `baseline.json`'s `_metrics` and the
+  README's eval section; the bimodal `policy`/`action` exception is unchanged.
+
 ## [1.38.1] - 2026-08-06
 
 ### Fixed
