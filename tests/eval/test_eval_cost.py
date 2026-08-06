@@ -124,6 +124,47 @@ class TestFinalText(unittest.TestCase):
         self.assertNotIn("Run pwd and report", text)
 
 
+class TestFullText(unittest.TestCase):
+    """full_text() backs checks that assert on something the run says EARLY
+    (e.g. a board header printed before any agent spends tokens) -- which
+    `final_text`'s `result`-line shortcut structurally cannot see, because
+    `result` is only ever the CLOSING turn. Run 7 (docs/evals/2026-08-06-run-7.md
+    finding 3) found two checks scoring false negatives for exactly this reason.
+    """
+
+    def test_concatenates_every_assistant_turn_not_just_the_last(self):
+        lines = [assistant_line(10, 5), result_line("closing summary")]
+        # final_text short-circuits to the result line; full_text must not.
+        self.assertEqual(eval_cost.final_text(lines), "closing summary")
+        self.assertEqual(eval_cost.full_text(lines), "ok")
+
+    def test_multiple_assistant_turns_all_appear_in_order(self):
+        first = json.dumps({
+            "type": "assistant",
+            "message": {"content": [{"type": "text", "text": "4 stages, done when: X"}]},
+        })
+        second = json.dumps({
+            "type": "assistant",
+            "message": {"content": [{"type": "text", "text": "closing summary"}]},
+        })
+        text = eval_cost.full_text([first, second, result_line("closing summary")])
+        self.assertIn("done when: X", text)
+        self.assertIn("closing summary", text)
+
+    def test_returns_none_on_an_empty_transcript(self):
+        self.assertIsNone(eval_cost.full_text([]))
+
+    def test_excludes_user_turn_text(self):
+        # Same false-PASS risk final_text's fallback guards against: a user
+        # turn's tool-result text must not leak into an answer-key grep.
+        user_line = json.dumps({
+            "type": "user",
+            "message": {"content": [{"type": "text", "text": "PROMPT-SENTINEL"}]},
+        })
+        text = eval_cost.full_text([user_line, assistant_line(10, 5)])
+        self.assertNotIn("PROMPT-SENTINEL", text)
+
+
 class TestPricing(unittest.TestCase):
     def test_totals_all_four_token_classes_separately(self):
         lines = [
@@ -488,6 +529,35 @@ class TestCLI(unittest.TestCase):
         empty.write_text("")
         try:
             proc = self._run("--transcript", str(empty), "--rates", str(RATES_PATH), "--text-only")
+            self.assertEqual(proc.returncode, 2)
+        finally:
+            empty.unlink()
+
+    def test_full_text_includes_an_earlier_turn_text_only_would_drop(self):
+        multi = FIXTURES / "multi-turn-for-test.jsonl"
+        multi.write_text("\n".join([
+            json.dumps({"type": "assistant",
+                        "message": {"content": [{"type": "text", "text": "4 stages, done when: X"}]}}),
+            json.dumps({"type": "assistant",
+                        "message": {"content": [{"type": "text", "text": "closing summary"}]}}),
+            json.dumps({"type": "result", "subtype": "success", "result": "closing summary"}),
+        ]))
+        try:
+            text_only = self._run("--transcript", str(multi), "--rates", str(RATES_PATH), "--text-only")
+            full_text = self._run("--transcript", str(multi), "--rates", str(RATES_PATH), "--full-text")
+            self.assertEqual(text_only.returncode, 0, text_only.stderr)
+            self.assertEqual(full_text.returncode, 0, full_text.stderr)
+            self.assertNotIn("done when: X", text_only.stdout)
+            self.assertIn("done when: X", full_text.stdout)
+            self.assertIn("closing summary", full_text.stdout)
+        finally:
+            multi.unlink()
+
+    def test_exits_two_when_full_text_finds_no_text(self):
+        empty = FIXTURES / "empty-for-full-text-test.jsonl"
+        empty.write_text("")
+        try:
+            proc = self._run("--transcript", str(empty), "--rates", str(RATES_PATH), "--full-text")
             self.assertEqual(proc.returncode, 2)
         finally:
             empty.unlink()

@@ -270,6 +270,7 @@ EOF
 
 WORK=""
 LOG=""
+FULL_LOG=""
 CHECK_PASS=0
 CHECK_FAIL=0
 CHECK_LINES=()
@@ -286,6 +287,17 @@ record() { # record <exit-code> <description>
 
 check_log() { # check_log <regex> <description>
   grep -qiE "$1" "$LOG"
+  record $? "output: $2"
+}
+
+check_log_anywhere() { # check_log_anywhere <regex> <description>
+  # Like check_log, but greps $FULL_LOG -- every assistant turn concatenated,
+  # not just $LOG's closing-summary-only text. For assertions on something the
+  # Interface mandates EARLY (a board header, printed before any agent spends
+  # tokens): run 7 (docs/evals/2026-08-06-run-7.md, finding 3) found check_log
+  # scoring two false negatives here, because $LOG structurally cannot show a
+  # turn earlier than the CLI's own closing `result` line.
+  grep -qiE "$1" "$FULL_LOG"
   record $? "output: $2"
 }
 
@@ -431,7 +443,7 @@ checks_feature() {
   # The point of this case: the coordinator must delegate, not build it inline.
   check_delegated 2 "work was delegated to specialists"
   # Tranche item 2 — the board declares its budget and completion condition.
-  check_log 'done when:' "board declares a completion condition"
+  check_log_anywhere 'done when:' "board declares a completion condition"
 }
 
 checks_hygiene() {
@@ -489,7 +501,7 @@ checks_teach_delivery() {
   check_file "docs/team/stack.md" "harvest persisted the stack snapshot"
   check_file_under "docs/delivery" "log.md" "delivery log written"
   check_touched "tests/" "feature test added"
-  check_log 'done when:' "board declares a completion condition"
+  check_log_anywhere 'done when:' "board declares a completion condition"
 }
 
 # ---------------------------------------------------------------- plumbing ---
@@ -619,6 +631,7 @@ run_case() { # run_case <name> <results-dir>
 
   WORK="$(mktemp -d -t "laravel-agents-eval-$name.XXXXXX")"
   LOG="$results/$name.log"
+  FULL_LOG="$results/$name.full-text.log"
   CHECK_PASS=0
   CHECK_FAIL=0
   CHECK_LINES=()
@@ -672,6 +685,12 @@ run_case() { # run_case <name> <results-dir>
     echo "   WARNING: no final text in the transcript — keeping $name.stream-kept.jsonl"
     cp "$stream" "$results/$name.stream-kept.jsonl"
   fi
+
+  # Every assistant turn, concatenated -- for checks (check_log_anywhere) that
+  # assert on something said EARLY, which $LOG's closing-only text cannot show.
+  python3 "$ROOT/scripts/eval-cost.py" --transcript "$stream" \
+    --rates "$ROOT/tests/eval/model-rates.json" --full-text >"$FULL_LOG" 2>/dev/null \
+    || rm -f "$FULL_LOG"
 
   # Per-agent input/output/cache tokens, tool-call counts, and the run's billed
   # cost. Models come from the transcript (message.model), so a re-tiered agent

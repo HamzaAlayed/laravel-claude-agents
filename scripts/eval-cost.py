@@ -175,6 +175,30 @@ def final_text(lines):
     return "".join(assistant_text) or None
 
 
+def full_text(lines):
+    """Every assistant turn's text, concatenated in order -- not just the
+    closing turn `final_text` returns.
+
+    Some answer-key checks assert on something the Interface mandates EARLY
+    (e.g. a progress board's stage-budget header, printed before any agent
+    spends tokens) rather than in the closing summary. `final_text`'s
+    `result`-line shortcut is exactly the closing turn, so it structurally
+    cannot see an earlier one -- run 7 (docs/evals/2026-08-06-run-7.md,
+    finding 3) found two checks scoring false negatives for this reason on
+    runs that had, in fact, said the required thing early and correctly.
+
+    Same `user`-line exclusion as `final_text`'s fallback, and for the same
+    reason: folding tool-result or prompt text in would let a grep match the
+    eval's own inputs rather than what the run said.
+    """
+    assistant_text = [
+        _text_of(obj)
+        for obj, ok in _iter_objects(lines)
+        if ok and obj.get("type") == "assistant"
+    ]
+    return "".join(assistant_text) or None
+
+
 def _price(counts, rate, multipliers):
     """Cost of one bundle of token counts at one model's rates."""
     per_input = rate["input"] / PER_MILLION
@@ -433,6 +457,12 @@ def main(argv=None):
         action="store_true",
         help="print only the reconstituted final answer text (for rebuilding the log)",
     )
+    ap.add_argument(
+        "--full-text",
+        action="store_true",
+        help="print every assistant turn's text concatenated, not just the closing "
+             "answer (for checks that assert on something said early, e.g. a board header)",
+    )
     args = ap.parse_args(argv)
 
     try:
@@ -446,6 +476,14 @@ def main(argv=None):
         text = final_text(lines)
         if text is None:
             print("eval-cost: no final text in transcript", file=sys.stderr)
+            return 2
+        print(text)
+        return 0
+
+    if args.full_text:
+        text = full_text(lines)
+        if text is None:
+            print("eval-cost: no assistant text in transcript", file=sys.stderr)
             return 2
         print(text)
         return 0

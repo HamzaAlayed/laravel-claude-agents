@@ -50,7 +50,7 @@ answers that, check by check, so the classification is never re-derived.
 | feature | `check_in_files 'tag' routes` | artifact | sound |
 | feature | `check_touched tests/` | artifact | sound |
 | feature | `check_delegated 2` | artifact (board feed) | sound — negative-controlled at introduction (v1.34.0) |
-| feature | `check_log 'done when:'` | format-contract | sound — Interface-mandated header string |
+| feature | `check_log_anywhere 'done when:'` | format-contract | sound — Interface-mandated header string; reads FULL_LOG (every turn), not LOG (closing turn only) since 1.40 — run 7 found LOG-scoping scored two false negatives on a phrase the Interface mandates EARLY (docs/evals/2026-08-06-run-7.md finding 3) |
 | hygiene | `check_log 'duplicate'` | **free-prose → hardened-prose** | **FRAGILE — fixed this release.** A run classifying the UUID twins as "identical"/"redundant" fails the key while being right. Now `'duplicat\|identical\|redundan\|twin'` (stems cover duplicate/duplicated/duplication, redundant/redundancy). |
 | hygiene | `check_log 'conflict'` | **free-prose → hardened-prose** | **FRAGILE — fixed this release.** "Contradicts" fails the key. Now `'conflict\|contradict\|disagree\|mutually exclusive'`. |
 | hygiene | `check_log 'LegacyPayments'` | fixture-noun | sound |
@@ -68,7 +68,7 @@ answers that, check by check, so the classification is never re-derived.
 | teach-delivery | `check_file docs/team/stack.md` | artifact | sound — the unprompted-harvest promise; a FAIL is a run-7 finding |
 | teach-delivery | `check_file_under docs/delivery log.md` | artifact | sound |
 | teach-delivery | `check_touched tests/` | artifact | sound |
-| teach-delivery | `check_log 'done when:'` | format-contract | sound — Interface-mandated header string |
+| teach-delivery | `check_log_anywhere 'done when:'` | format-contract | sound — same FULL_LOG fix as the feature row above |
 
 Tally: 39 checks — 29 artifact, 5 fixture-noun, 3 format-contract, **2 hardened-prose (formerly free-prose; 0 free-prose remain)**. The rubric judge
 (`EVAL_JUDGE=1`) stays on as the independent dissenter for the transcript-based
