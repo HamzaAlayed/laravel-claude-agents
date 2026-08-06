@@ -5,6 +5,57 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.40.0] - 2026-08-06
+
+### Added
+
+- **Eval run 7 — the teach delivery.** Tested the pack's "team memory" claim
+  (taught rules land in a ledger, a later delivery obeys them, the
+  coordinator harvests without being asked) end to end for the first time.
+  Two of three hold: `/teach` writes the ledger correctly, and a delivery
+  visibly obeys taught rules where Laravel's own defaults point the other
+  way (integer-cents money, ULID keys — confirmed by reading the produced
+  migration, not the transcript's claim about it). Harvest does not: a
+  billed re-run and a whole-branch review together traced this to
+  `/make-feature` never loading `agents/delivery-coordinator.md`, the only
+  file that promises harvest — the same command/agent-body scoping gap
+  [run 6](docs/evals/2026-08-04-run-6.md) diagnosed for the stage-budget
+  rule, recurring unrecognized. Total spend: $20.31 of the milestone's $30
+  ceiling. Record: `docs/evals/2026-08-06-run-7.md`.
+- **Two opt-in eval cases split the team-memory hypothesis** at the harness's
+  one-prompt-per-case seam: `teach` (six artifact checks on the ledger
+  contract `/teach` writes) and `teach-delivery` (a seeded two-rule ledger
+  the delivery must obey where Laravel's defaults differ, plus the
+  unprompted harvest: stack snapshot and delivery log). The audit tally
+  moves 25 → 39, and is now a CLAIMS row counted from `run-evals.sh` rather
+  than a hand-maintained number.
+- **`docs/examples/team-memory/`** — the example instance the README claimed
+  without evidence (2026-08-05 review, gap 4): the seeded ledger and the
+  code that obeyed it, captured verbatim from run 7's workdir. Labeled
+  honestly as partial — harvest isn't there, and the page says so.
+- **`check_log_anywhere`**, a harness fix: a check asserting on the
+  progress board's stage-budget header (printed early, before any agent
+  spends tokens) was reading `$LOG`, which the harness rebuilds from only
+  the closing turn — structurally unable to see an earlier one. Two cases
+  scored false negatives on a header they had, in fact, printed correctly.
+  Fixed by persisting every main-thread turn to a new `$FULL_LOG` artifact.
+
+### Changed
+
+- **Waivers on the coordinator-hash gate must carry a date and a reason** —
+  the error message always promised both; now a bare-sha waiver doesn't
+  count, and one consisting only of whitespace doesn't either.
+- **`agents/delivery-coordinator.md`** now requires parallel lanes to be
+  awaited together, never narrated as backgrounded for a later turn — good
+  guidance for interactive `claude --agent delivery-coordinator` sessions.
+  Note precisely what this is: it shipped from a mis-diagnosis of run 7's
+  harvest failure (caught and corrected by this release's own final
+  review) and is unvalidated by anything in the current eval suite, since
+  none of the commands that exercise it actually load this file. The real
+  fix — moving the harvest requirement where the commands can see it,
+  matching the precedent this same file's stage-budget rule set in
+  v1.24.0/v1.36.0 — is scoped for 1.41.
+
 ## [1.39.0] - 2026-08-06
 
 ### Added
