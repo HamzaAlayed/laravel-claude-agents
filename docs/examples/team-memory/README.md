@@ -73,11 +73,17 @@ because the gap they show is still open.
    but since `/make-feature` never loads that file, the re-run could not
    have tested it either way; its different outcome (a timeout, this time)
    is best read as ordinary run-to-run variance on the main thread, not
-   evidence about the patch. Harvest remains unproven, and the actual
-   fix — moving the harvest requirement somewhere `/make-feature` can
-   see — is scoped for a future release. See run 7's finding 2 and its
-   addendum for the full, corrected account; this page's captured
-   artifacts are still from the original run.
+   evidence about the patch. At this point, harvest was still unproven.
+
+   **Update, v1.41.0 (also same day):** the actual fix landed — the harvest
+   requirement moved into the shared `Interface` block `/make-feature`
+   reads directly. A billed re-run confirmed harvest genuinely fires:
+   `docs/team/stack.md` and a phase-by-phase delivery log were both
+   written with real, run-specific content, verified against the
+   filesystem. See run 7's finding 2 and its two addenda for the full,
+   corrected account — this page's captured artifacts above are still from
+   the original run (that's what "as captured" in the title means), not
+   because harvest is still broken.
 
 ## What to look at
 
@@ -86,5 +92,7 @@ subagent, briefed with the ledger, produced a schema that visibly diverges
 from Laravel's idioms in exactly the two places the ledger dictated, and
 said so in its own comments. That is the pack's "team memory changes
 behaviour" claim, demonstrated rather than described — for the override
-half of the claim. The harvest half remains an open problem, not a
-documented feature yet.
+half of the claim. The harvest half is now a documented, working feature
+as of v1.41.0 (see the update above) — this page just doesn't carry its
+own artifacts yet, since the run that proved it wasn't the run captured
+here.

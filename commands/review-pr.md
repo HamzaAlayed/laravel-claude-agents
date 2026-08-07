@@ -1,7 +1,7 @@
 ---
 description: Run a layered review of the current branch diff — correctness, security, test coverage, performance — and aggregate into one verdict.
 argument-hint: [base-branch]
-allowed-tools: Agent, Read, Bash, Grep, Glob, AskUserQuestion
+allowed-tools: Agent, Read, Write, Edit, Bash, Grep, Glob, AskUserQuestion
 ---
 
 # Review PR — diff against `{{args}}`

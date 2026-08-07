@@ -1,7 +1,7 @@
 ---
 description: Refactor a fat controller method (or Livewire action) into a single-responsibility Action class, with tests.
 argument-hint: <Controller@method>  or  <LivewireComponent::action>
-allowed-tools: Agent, Read, Bash, Grep, Glob, AskUserQuestion
+allowed-tools: Agent, Read, Write, Edit, Bash, Grep, Glob, AskUserQuestion
 ---
 
 # Refactor to Action — `{{args}}`

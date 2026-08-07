@@ -1,7 +1,7 @@
 ---
 description: Scaffold a full Laravel feature end-to-end — migration, model, factory, Form Request, Resource, controller/action, route, Policy, and feature test — by delegating to the right specialists.
 argument-hint: <feature-name> [--inertia|--livewire|--api|--blade]
-allowed-tools: Agent, Read, Bash, Grep, Glob, AskUserQuestion
+allowed-tools: Agent, Read, Write, Edit, Bash, Grep, Glob, AskUserQuestion
 ---
 
 # Make feature — `{{args}}`

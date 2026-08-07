@@ -329,6 +329,16 @@ expect "Interface block requires an up-front stage budget" "9" \
 # the shared block, so a headless command run is bound by it too.
 expect "Interface block requires harvest once specialists report" "9" \
   "$(grep -l 'this delivery harvests too' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# Final review of the harvest fix caught this: the clause above requires the
+# command's OWN main thread to write two files, but all 9 commands' frontmatter
+# still declared only read/delegate tools. The billed re-run that validated the
+# clause used --dangerously-skip-permissions, which bypasses tool permission
+# checks entirely -- it proved the model complies, not that harvest is reachable
+# under a real user's default permissions. Every command carrying the harvest
+# clause must also declare Write and Edit.
+expect "every command with the harvest clause also grants Write + Edit" "9" \
+  "$(grep -l 'this delivery harvests too' "$SCRIPT_DIR"/commands/*.md 2>/dev/null \
+     | xargs grep -l '^allowed-tools:.*\bWrite\b.*\bEdit\b' 2>/dev/null | wc -l | tr -d ' ')"
 # Literature-gap tranche (docs/plans/2026-07-29-literature-gap-tranche.md), gate
 # cleared by eval run 5. Escalation fired on category only; NOT-CHECKED was
 # collected by every stage return and consumed by nothing. Nothing bounded a

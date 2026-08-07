@@ -1,7 +1,7 @@
 ---
 description: Optimize a slow query or endpoint — capture, EXPLAIN, diagnose, produce a fix plan, hand to database/backend developer.
 argument-hint: <route, query, or model method>
-allowed-tools: Agent, Read, Bash, Grep, Glob, AskUserQuestion
+allowed-tools: Agent, Read, Write, Edit, Bash, Grep, Glob, AskUserQuestion
 ---
 
 # Optimize query — `{{args}}`

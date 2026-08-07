@@ -1,7 +1,7 @@
 ---
 description: Audit a route, Inertia page, or Livewire component for N+1 queries and report the fixes.
 argument-hint: <route-or-component-name>
-allowed-tools: Agent, Read, Bash, Grep, Glob, AskUserQuestion
+allowed-tools: Agent, Read, Write, Edit, Bash, Grep, Glob, AskUserQuestion
 ---
 
 # Audit N+1 — `{{args}}`

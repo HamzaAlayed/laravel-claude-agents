@@ -1,7 +1,7 @@
 ---
 description: Run the pre-release ship checklist for a Laravel app — quality gates, migrations, queues, env, security, docs — and produce a go/no-go report.
 argument-hint: [version-tag]
-allowed-tools: Agent, Read, Bash, Grep, Glob, AskUserQuestion
+allowed-tools: Agent, Read, Write, Edit, Bash, Grep, Glob, AskUserQuestion
 ---
 
 # Ship checklist — `{{args}}`

@@ -1,7 +1,7 @@
 ---
 description: Plan and stage a Laravel framework version upgrade — detect current, inventory breaking changes, check first-party packages, produce a staged migration plan.
 argument-hint: <target-version e.g. 11 or 12>
-allowed-tools: Agent, Read, Bash, Grep, Glob, AskUserQuestion
+allowed-tools: Agent, Read, Write, Edit, Bash, Grep, Glob, AskUserQuestion
 ---
 
 # Upgrade Laravel — to `{{args}}`

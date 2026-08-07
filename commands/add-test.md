@@ -1,7 +1,7 @@
 ---
 description: Plan tests for a class, route, or component — happy path, failure modes, authorization — then hand to qa-engineer to implement.
 argument-hint: <Class, route, or component>
-allowed-tools: Agent, Read, Bash, Grep, Glob, AskUserQuestion
+allowed-tools: Agent, Read, Write, Edit, Bash, Grep, Glob, AskUserQuestion
 ---
 
 # Add tests — `{{args}}`

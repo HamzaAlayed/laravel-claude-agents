@@ -1,7 +1,7 @@
 ---
 description: Add (or audit) a Policy for an Eloquent model — generate the Policy class, wire it, and patch all controllers/Livewire components/routes to use it.
 argument-hint: <ModelName>
-allowed-tools: Agent, Read, Bash, Grep, Glob, AskUserQuestion
+allowed-tools: Agent, Read, Write, Edit, Bash, Grep, Glob, AskUserQuestion
 ---
 
 # Add Policy — `{{args}}`
