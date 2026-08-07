@@ -322,6 +322,13 @@ expect "Interface block binds the final answer to VERIFIED + NOT-CHECKED" "9" \
 # headless command run is bound by it too.
 expect "Interface block requires an up-front stage budget" "9" \
   "$(grep -l 'done when: <the observable' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# Run 7 (docs/evals/2026-08-06-run-7.md) proved harvest never fires for
+# command-driven deliveries: agents/delivery-coordinator.md promises it, but
+# /make-feature and its 8 siblings never load that file. Same shape as the
+# stage-budget finding two lines above, same fix — the contract belongs in
+# the shared block, so a headless command run is bound by it too.
+expect "Interface block requires harvest once specialists report" "9" \
+  "$(grep -l 'this delivery harvests too' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # Literature-gap tranche (docs/plans/2026-07-29-literature-gap-tranche.md), gate
 # cleared by eval run 5. Escalation fired on category only; NOT-CHECKED was
 # collected by every stage return and consumed by nothing. Nothing bounded a
