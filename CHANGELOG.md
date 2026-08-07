@@ -5,6 +5,39 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.41.0] - 2026-08-07
+
+### Added
+
+- **Harvest moves into the shared Interface block, and now genuinely
+  fires.** v1.40.0's eval run 7 found that `/make-feature` and its 8
+  sibling commands never load `agents/delivery-coordinator.md`, so the
+  harvest steps promised there — persisting `docs/team/stack.md` and
+  `docs/delivery/<name>/log.md` — never fired for any command-driven
+  delivery. Same fix shape as v1.24.0 (`NOT-CHECKED`) and v1.36.0 (the
+  stage-budget header): the requirement now lives in the shared,
+  byte-identical Interface block all 9 commands carry, firing once a
+  delivery has delegated to ≥2 specialists. A billed re-run confirmed it:
+  `teach-delivery` scored 8/8, and `docs/team/stack.md` +
+  `docs/delivery/donation/log.md` both exist with real, run-specific
+  content, verified directly against the filesystem. Record:
+  `docs/evals/2026-08-06-run-7.md`'s second addendum.
+- **A guardrail ratchet, mutation-tested against the exact regression it
+  guards.** All 9 commands' `allowed-tools` now grant `Write`/`Edit` —
+  the harvest clause requires the command's own main thread to write two
+  files, and the billed re-run that validated it ran under
+  `--dangerously-skip-permissions`, which bypasses tool permission checks
+  entirely. It proved the model complies; it could not prove harvest is
+  reachable under a real user's default permissions. Caught by this
+  release's own final whole-branch review before merge.
+
+### Changed
+
+- **The milestone's originally-planned Adoption release is renumbered
+  v1.42.0.** This release took the v1.41.0 slot instead, since it fixes a
+  real gap the milestone's own verification run exposed. Adoption's
+  content (README quickstart, docs index, onboarding guide) is unchanged.
+
 ## [1.40.0] - 2026-08-06
 
 ### Added
