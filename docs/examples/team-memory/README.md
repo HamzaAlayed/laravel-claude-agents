@@ -1,4 +1,4 @@
-# Team memory, captured live — partial, and labeled as such
+# Team memory, captured live — partial as captured, fixed since
 
 A real instance of the teach → override → harvest loop, captured from eval
 run 7 (2026-08-06, pack v1.39.0 → released as v1.40.0; record:
@@ -6,12 +6,21 @@ run 7 (2026-08-06, pack v1.39.0 → released as v1.40.0; record:
 here is hand-written except this page — every other file is copied verbatim
 out of the `teach-delivery` case's throwaway workdir.
 
-**This example is honestly partial: 2 of the loop's 3 steps happened, and 1
-did not.** Run 7's own findings doc explains why (finding 2) — `/make-feature`
-runs on the main thread and never loads `agents/delivery-coordinator.md`, the
-only file that promises harvest, so the step was never in a position to run
-at all on this command. A future release that fixes this should replace
-this page's harvest section rather than paper over today's gap.
+**As captured, this example is honestly partial: 2 of the loop's 3 steps
+happened, and 1 did not.** Run 7's own findings doc explains why (finding 2)
+— `/make-feature` runs on the main thread and never loads
+`agents/delivery-coordinator.md`, the only file that promised harvest, so
+the step was never in a position to run at all on this command.
+
+**Fixed in v1.41.0, same day as this page's original capture** — the
+harvest requirement moved into the shared `Interface` block `/make-feature`
+actually reads. A billed re-run confirmed harvest now genuinely fires
+(`docs/team/stack.md` + a delivery log both written with real content,
+verified directly against the filesystem): see the "Second addendum"
+section of [run 7's findings](../../evals/2026-08-06-run-7.md).
+The artifacts on this page are still from the original, partial run — left
+as-is because they're an honest record of what that run produced, not
+because the gap they show is still open.
 
 ## What happened
 

@@ -63,18 +63,18 @@
       "usd_basis": "run 7: $0.26 billed + ~30% — the cheapest opt-in case, a single-turn artifact write"
     },
     "teach-delivery": {
-      "max_seconds": 1250,
-      "basis": "run 7 (2026-08-06, docs/evals/2026-08-06-run-7.md): 962s, main thread + 4 specialists (database-developer, backend-developer, qa-engineer, tech-lead) + ~30%. Run 7's finding 2 (corrected post-review): harvest never fires because /make-feature never loads agents/delivery-coordinator.md, the only file that promises it — not a timing issue. A future run that actually exercises the fix (moving the harvest requirement where /make-feature can see it, scoped for 1.41) may run a different duration than this one; reseed then rather than guess now",
-      "max_tokens": 17000000,
-      "tokens_basis": "run 7: 13,058,635 + ~30%",
-      "max_usd": 6.05,
-      "usd_basis": "run 7: $4.65 billed + ~30%"
+      "max_seconds": 1220,
+      "basis": "v1.41.0 re-run (2026-08-07, docs/evals/2026-08-06-run-7.md second addendum): 939s, main thread + 3 specialists (database-developer, backend-developer, qa-engineer) + a parallel tech-lead pass + ~30%. This is the first CLEAN measurement of the real fix — harvest requirement moved into the shared Interface block all 9 commands carry, confirmed by reading docs/team/stack.md and docs/delivery/donation/log.md directly, not by the check's word. Supersedes run 7's basis, which measured a run where harvest was structurally unable to fire",
+      "max_tokens": 10100000,
+      "tokens_basis": "v1.41.0 re-run: 7,772,021 + ~30%",
+      "max_usd": 5.8,
+      "usd_basis": "v1.41.0 re-run: $4.45 billed + ~30%"
     }
   },
   "coordinator_hash": {
-    "sha256": "2d9f28f55042068af5475200e1653c214c0fa67b1ca0a5008380b447c9ccc089",
-    "as_of": "2026-08-06",
-    "note": "Content changed same day, after the prior pin (82ca1d0...) was verified: agents/delivery-coordinator.md's \"Parallel vs sequential\" section now requires parallel lanes to be awaited, not backgrounded (commit 6f73682, originally attributed to run 7's finding 2 — that attribution was wrong and corrected post-review: teach-delivery's /make-feature never loads this file, so nothing about it could have been tested by that case). The edit ships as real, defensible guidance for interactive `claude --agent delivery-coordinator` sessions, unvalidated by anything in run 7. This pin is honestly a re-seed at the new content, not a verification the edit does anything for any case currently in the eval suite; see docs/evals/2026-08-06-run-7.md's addendum for the full account.",
+    "sha256": "3d7b873c5110f8bf329622055caa4214819e7a256aeac9255d74e19717d07fb7",
+    "as_of": "2026-08-07",
+    "note": "Verified by the v1.41.0 billed re-run of teach-delivery (2026-08-07, docs/evals/2026-08-06-run-7.md second addendum): the Interface-block edit that changed this hash (all 9 commands, the harvest clause) ran billed at exactly this content, and harvest genuinely fired — docs/team/stack.md and docs/delivery/donation/log.md both exist with real content, confirmed by reading them, not by the check's word. This is a genuine end-to-end verification, unlike the prior pin (2d9f28f5...), which was honestly a re-seed with no case in the suite actually exercising the edited content.",
     "waivers": []
   }
 }
