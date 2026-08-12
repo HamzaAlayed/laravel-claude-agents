@@ -399,14 +399,14 @@ check_stage_return_shape() { # check_stage_return_shape <description>
   # Same LOG-vs-FULL_LOG lesson as check_log_anywhere (run 7, finding 3): a
   # stage return happens mid-run, structurally before $LOG's closing-summary
   # text exists, so this must read $FULL_LOG.
-  local label ok=0
+  local label
   for label in 'STATUS:' 'DID:' 'VERIFIED:' 'NOT-CHECKED:' 'FLAGS:' 'NEXT:'; do
     if ! grep -qiE "$label" "$FULL_LOG"; then
-      ok=1
-      break
+      record 1 "output: $1"
+      return
     fi
   done
-  record $ok "output: $1"
+  record 0 "output: $1"
 }
 ```
 
