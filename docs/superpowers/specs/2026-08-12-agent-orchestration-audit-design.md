@@ -104,6 +104,14 @@ New `commands/audit-agents.md`, modeled on `review-pr.md`:
   (after editing any agent/command file, and as a step worth adding to
   `/ship-checklist` later, though that wiring is a follow-up, not part of
   this project).
+- **Interface block:** unlike the other 9 fan-out commands, `audit-agents.md`
+  deliberately omits the shared `> **Interface:**` progress-board/harvest
+  block — it has no target-project stack facts or delivery artifact to
+  harvest, since it reviews the pack's own prompt files rather than
+  application code. It carries one short note stating this explicitly, so a
+  later audit run's dimension-3 check treats the documented note as
+  satisfying the consistency check rather than flagging the omission as
+  drift.
 
 ## 3. Repeatable layer B — eval-harness extension
 
