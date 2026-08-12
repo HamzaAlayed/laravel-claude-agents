@@ -51,6 +51,10 @@ answers that, check by check, so the classification is never re-derived.
 | feature | `check_touched tests/` | artifact | sound |
 | feature | `check_delegated 2` | artifact (board feed) | sound — negative-controlled at introduction (v1.34.0) |
 | feature | `check_log_anywhere 'done when:'` | format-contract | sound — Interface-mandated header string; reads FULL_LOG (every main-thread turn, not subagent turns), not LOG (closing turn only) since 1.40 — run 7 found LOG-scoping scored two false negatives on a phrase the Interface mandates EARLY (docs/evals/2026-08-06-run-7.md finding 3) |
+| feature | `check_log 'VERIFIED'` | format-contract | sound — Interface block's closing-answer contract, verbatim string; replaces the removed `check_stage_return_shape`, which asserted on FULL_LOG fields (`STATUS`/`DID`/`FLAGS`/`NEXT`) that a per-stage subagent return can never surface there (run 8 finding, docs/evals/2026-08-12-run-8.md) |
+| feature | `check_log 'NOT-CHECKED'` | format-contract | sound — same closing-answer contract, same fix (run 8) |
+| feature | `check_file docs/team/stack.md` | artifact | sound — harvest persisted the stack snapshot |
+| feature | `check_file_under docs/delivery log.md` | artifact | sound — harvest persisted the delivery log |
 | hygiene | `check_log 'duplicate'` | **free-prose → hardened-prose** | **FRAGILE — fixed this release.** A run classifying the UUID twins as "identical"/"redundant" fails the key while being right. Now `'duplicat\|identical\|redundan\|twin'` (stems cover duplicate/duplicated/duplication, redundant/redundancy). |
 | hygiene | `check_log 'conflict'` | **free-prose → hardened-prose** | **FRAGILE — fixed this release.** "Contradicts" fails the key. Now `'conflict\|contradict\|disagree\|mutually exclusive'`. |
 | hygiene | `check_log 'LegacyPayments'` | fixture-noun | sound |
@@ -70,7 +74,7 @@ answers that, check by check, so the classification is never re-derived.
 | teach-delivery | `check_touched tests/` | artifact | sound |
 | teach-delivery | `check_log_anywhere 'done when:'` | format-contract | sound — same FULL_LOG fix as the feature row above |
 
-Tally: 39 checks — 29 artifact, 5 fixture-noun, 3 format-contract, **2 hardened-prose (formerly free-prose; 0 free-prose remain)**. The rubric judge
+Tally: 43 checks — 31 artifact, 5 fixture-noun, 5 format-contract, **2 hardened-prose (formerly free-prose; 0 free-prose remain)**. The rubric judge
 (`EVAL_JUDGE=1`) stays on as the independent dissenter for the transcript-based
 checks; it has been right both times it disagreed with the key.
 

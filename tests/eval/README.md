@@ -52,7 +52,7 @@ fixture**, so agents under evaluation can't read the answer key.
 | `action` | `/refactor-to-action PostController@store` | an `app/Actions/*.php` exists, controller delegates to it, mail fan-out left the controller, tests touched |
 | `tests` | `/add-test PostController` | test files added, update route covered, authorization failure (403) probed |
 | `hygiene` | `/team-hygiene` | proposal table classifies the duplicate + conflict, names the stale `LegacyPayments` fact, and applies **nothing** (headless = no approval) |
-| `feature` **(opt-in)** | `/make-feature Tag --api` | a tags migration, `Tag` model, registered route and a feature test exist; **the board feed shows ≥2 distinct agents**; and the printed board carries a `done when:` completion condition |
+| `feature` **(opt-in)** | `/make-feature Tag --api` | a tags migration, `Tag` model, registered route and a feature test exist; **the board feed shows ≥2 distinct agents**; the printed board carries a `done when:` completion condition; the coordinator's closing answer carries `VERIFIED`/`NOT-CHECKED`, and it persisted `docs/team/stack.md` + a `docs/delivery/*/log.md` entry (harvest) |
 
 A failing check is **signal, not necessarily a harness bug** — it becomes a
 line in the findings doc. Keep checks intent-level (did the flaw get found?)
@@ -86,7 +86,7 @@ Two reasons it stays out of the default sweep:
 
 Its `check_delegated` assertion is the load-bearing one, and it is negative-
 controlled: a stub that scaffolds a *correct* Tag feature entirely inline passes
-five of six checks and fails exactly that one.
+nine of ten checks and fails exactly that one.
 
 ## Rubric judge — `EVAL_JUDGE=1`
 

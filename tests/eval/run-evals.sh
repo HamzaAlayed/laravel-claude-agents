@@ -301,20 +301,6 @@ check_log_anywhere() { # check_log_anywhere <regex> <description>
   record $? "output: $2"
 }
 
-check_stage_return_shape() { # check_stage_return_shape <description>
-  # Same LOG-vs-FULL_LOG lesson as check_log_anywhere (run 7, finding 3): a
-  # stage return happens mid-run, structurally before $LOG's closing-summary
-  # text exists, so this must read $FULL_LOG.
-  local label
-  for label in 'STATUS:' 'DID:' 'VERIFIED:' 'NOT-CHECKED:' 'FLAGS:' 'NEXT:'; do
-    if ! grep -qiE "$label" "$FULL_LOG"; then
-      record 1 "output: $1"
-      return
-    fi
-  done
-  record 0 "output: $1"
-}
-
 check_file() { # check_file <glob-relative-to-workdir> <description>
   compgen -G "$WORK/$1" >/dev/null
   record $? "file:   $2"
@@ -460,7 +446,12 @@ checks_feature() {
   check_log_anywhere 'done when:' "board declares a completion condition"
   # Orchestration-audit layer B (docs/superpowers/specs/2026-08-12-agent-orchestration-audit-design.md §3):
   # static file review can't prove the contract is followed at runtime, only declared on paper.
-  check_stage_return_shape "every delegated stage returns the full STATUS/DID/VERIFIED/NOT-CHECKED/FLAGS/NEXT shape"
+  # $FULL_LOG is main-thread turns only (scripts/eval-cost.py's full_text()) --
+  # a per-stage specialist return is a subagent turn and structurally never
+  # shows up here, so only the coordinator's own closing-answer contract
+  # (Interface block's last sentence) can be asserted against this stream.
+  check_log 'VERIFIED' "final answer carries VERIFIED"
+  check_log 'NOT-CHECKED' "final answer carries NOT-CHECKED"
   check_file "docs/team/stack.md" "harvest persisted the stack snapshot (routing-table artifact)"
   check_file_under "docs/delivery" "log.md" "harvest persisted the delivery log (routing-table artifact)"
 }
