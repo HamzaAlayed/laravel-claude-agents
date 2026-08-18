@@ -1,12 +1,10 @@
-# "Prove it" milestone — trust, capability, adoption (v1.39 → v1.42)
+# "Prove it" milestone — trust, capability, adoption (v1.39 → v1.43)
 
-**Renumbered 2026-08-07:** what this doc calls "Release 1.41.0 — Adoption"
-below actually ships as **v1.42.0**. v1.41.0 went to an unplanned fix run 7
-exposed — moving team-memory harvest into the shared Interface block
-(`docs/superpowers/specs/2026-08-07-harvest-interface-fix-design.md`) — not
-described anywhere in this document, because it wasn't part of the original
-milestone. Adoption's own content is unchanged; only its version number
-moved.
+**Renumbered 2026-08-18:** what this doc calls "Release 1.41.0 — Adoption"
+below actually ships as **v1.43.0**. v1.41.0 went to the harvest Interface
+fix; v1.42.0 went to the orchestration-audit contract repair
+(`docs/superpowers/specs/2026-08-18-orchestration-contract-fix-design.md`).
+Adoption's own content is unchanged; only its version number moved (twice).
 
 Design approved 2026-08-06. Sequenced from the
 [2026-08-05 project-state review](../../requirements/2026-08-05-project-state-review.md),

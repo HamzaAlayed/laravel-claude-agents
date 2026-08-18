@@ -5,6 +5,44 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.42.0] - 2026-08-18
+
+### Added
+
+- **`/audit-agents`** — a free, repeatable static check of the pack's own
+  orchestration contract (Interface placement, tool-grant coverage,
+  stage-return consistency, artifact routing, read-only enforcement).
+  Diff-scoped against a base branch, or a full scan. Verdict is CLEAN or
+  DRIFT-FOUND. Report-only; it never edits files.
+
+### Fixed
+
+- **Command-driven runs now refuse to build or patch, and they verify
+  before marking a stage done.** The 2026-08-12 orchestration audit found
+  three rules that bound only `delivery-coordinator.md` — a file
+  `/make-feature` and its 8 siblings never load. Same shape as the harvest
+  miss in v1.41.0. The shared Interface block now says: Write/Edit only
+  under `docs/**`; never edit a specialist's files to "just fix it";
+  re-run the brief's success criteria yourself — a specialist's
+  `STATUS: done` is a claim, not a `✔`. A billed `feature` run
+  (2026-08-18, $9.00, 1203s, timed out at EVAL_TIMEOUT) scored 10/10
+  including harvest on disk. The run hit the timeout before a coordinator
+  closing answer; cost and tokens exceeded the 2026-08-04 ceilings
+  ($8.50 / 14.5M). Those ceilings were not raised in this release.
+
+- **Coordinator routing table names the four specialist docs/ paths it
+  was missing** (`docs/tech-debt.md`, `docs/db/<migration>.md`,
+  `docs/design/system.md`, `docs/backlog/backlog.md`), and Working
+  interface now states it is a deliberate superset of the shared
+  Interface contract.
+
+### Changed
+
+- **The milestone's originally-planned Adoption release is renumbered
+  v1.43.0.** v1.41.0 took the first slide (harvest); this release takes
+  the second (audit contract repair). Adoption's content (README
+  quickstart, docs index, onboarding guide) is unchanged.
+
 ## [1.41.0] - 2026-08-07
 
 ### Added
