@@ -339,6 +339,15 @@ expect "Interface block requires harvest once specialists report" "9" \
 expect "every command with the harvest clause also grants Write + Edit" "9" \
   "$(grep -l 'this delivery harvests too' "$SCRIPT_DIR"/commands/*.md 2>/dev/null \
      | xargs grep -l '^allowed-tools:.*\bWrite\b.*\bEdit\b' 2>/dev/null | wc -l | tr -d ' ')"
+# Orchestration-audit Blocking findings (docs/evals/2026-08-12-orchestration-audit.md):
+# write-scope, never-patch, and verify-before-advancing lived only in
+# agents/delivery-coordinator.md, which command-driven runs never load.
+# Same shape as harvest (v1.41.0). The compact clause lives in the shared
+# Interface block.
+expect "Interface block refuses to build or patch specialist files" "9" \
+  "$(grep -l 'You do not build and you do not patch' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block requires verify-before-advancing" "9" \
+  "$(grep -l 'Verify before advancing' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # Literature-gap tranche (docs/plans/2026-07-29-literature-gap-tranche.md), gate
 # cleared by eval run 5. Escalation fired on category only; NOT-CHECKED was
 # collected by every stage return and consumed by nothing. Nothing bounded a
