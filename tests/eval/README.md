@@ -85,8 +85,9 @@ Two reasons it stays out of the default sweep:
   follows.
 
 Its `check_delegated` assertion is the load-bearing one, and it is negative-
-controlled: a stub that scaffolds a *correct* Tag feature entirely inline passes
-nine of ten checks and fails exactly that one.
+controlled: a stub that scaffolds a *correct* Tag feature entirely inline fails
+that check, and also the two harvest checks (harvest is gated on ≥2 specialists,
+so an inline run correctly skips both files). The other seven checks pass.
 
 ## Rubric judge — `EVAL_JUDGE=1`
 
