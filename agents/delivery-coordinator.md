@@ -24,6 +24,8 @@ Delivery coordinator. Conductor of Laravel-aware specialist team. Decide which s
 
 ## Working interface
 
+This section is delivery-coordinator's own superset of the shared Interface contract the 9 pipeline commands carry. Omitting that blockquote here is deliberate: a command-driven run never loads this file, and this section binds the coordinator agent when it is spawned.
+
 The human sees three shapes from you, and only these:
 
 **Progress board** — print after the plan (step 3) and again after every stage completes or fails. One line per stage; never make the human ask "what's running?".
@@ -67,16 +69,17 @@ Default routing map:
 | Phase             | Owner                | Artifact                                                |
 | ----------------- | -------------------- | ------------------------------------------------------- |
 | Discovery         | `business-analyst`   | `docs/requirements/<slug>.md`                           |
-| Prioritization    | `product-owner`      | `docs/backlog/<story-id>.md`, roadmap entry             |
+| Prioritization    | `product-owner`      | `docs/backlog/<story-id>.md`, `docs/backlog/backlog.md`, roadmap entry |
 | Architecture      | `solution-architect` | `docs/adr/NNNN-*.md`, `docs/architecture/<system>/*`    |
-| Design            | `ui-ux-designer`     | `docs/design/<feature>/*`                               |
+| Design            | `ui-ux-designer`     | `docs/design/<feature>/*`, `docs/design/system.md`      |
 | Breakdown         | `tech-lead`          | `docs/breakdowns/<epic>.md`                             |
 | Backend impl      | `backend-developer`  | Controllers, Form Requests, Resources, Actions, jobs, tests |
-| Database impl     | `database-developer` | Migrations, models, factories, seeders                  |
+| Database impl     | `database-developer` | Migrations, models, factories, seeders, `docs/db/<migration>.md` |
 | Frontend impl     | `frontend-developer` | Blade / Livewire / Inertia / Filament + tests           |
 | Mobile impl       | `mobile-developer`   | iOS / Android / RN + tests                              |
 | Package dev       | `package-developer`  | Composer package, tests, README, changelog              |
 | Code review       | `tech-lead`          | Review findings (no code edits)                         |
+| Tech debt         | `tech-lead`          | `docs/tech-debt.md`                                     |
 | Security review   | `security-engineer`  | `docs/security/<feature>.md` (no code edits)            |
 | Performance       | `performance-engineer` | Profile + benchmark + fix plan, routed to owner (no code edits) |
 | Test design + run | `qa-engineer`        | Pest / PHPUnit / Dusk suite + `docs/qa/release-*.md`    |

@@ -354,6 +354,19 @@ expect "Interface block requires verify-before-advancing" "9" \
 # run's total stages (only lane cap and per-stage retry). A checkpoint wrote no
 # resume state, so a delivery resumed tomorrow replayed work already paid for.
 COORD="$SCRIPT_DIR/agents/delivery-coordinator.md"
+# Orchestration-audit Should-fix (docs/evals/2026-08-12-orchestration-audit.md):
+# Dimension 3 — Working interface is a deliberate Interface-contract superset.
+# Dimension 4 — four specialist docs/ paths missing from the routing table.
+expect "coordinator Working interface documents itself as an Interface-contract superset" "1" \
+  "$(grep -c 'own superset of the shared Interface contract' "$COORD")"
+expect "routing table names tech-lead tech-debt artifact" "1" \
+  "$(grep -c 'docs/tech-debt.md' "$COORD")"
+expect "routing table names product-owner backlog.md" "1" \
+  "$(grep -c 'docs/backlog/backlog.md' "$COORD")"
+expect "routing table names design system.md" "1" \
+  "$(grep -c 'docs/design/system.md' "$COORD")"
+expect "routing table names database-developer migration docs" "1" \
+  "$(grep -c 'docs/db/<migration>.md' "$COORD")"
 expect "low confidence is its own stop trigger" "1" \
   "$(grep -c 'Low confidence is a stop trigger in its own right' "$COORD")"
 expect "the board declares a stage budget" "1" \
