@@ -72,9 +72,9 @@
     }
   },
   "coordinator_hash": {
-    "sha256": "3d7b873c5110f8bf329622055caa4214819e7a256aeac9255d74e19717d07fb7",
-    "as_of": "2026-08-07",
-    "note": "Verified by the v1.41.0 billed re-run of teach-delivery (2026-08-07, docs/evals/2026-08-06-run-7.md second addendum): the Interface-block edit that changed this hash (all 9 commands, the harvest clause) ran billed at exactly this content, and harvest genuinely fired — docs/team/stack.md and docs/delivery/donation/log.md both exist with real content, confirmed by reading them, not by the check's word. This is a genuine end-to-end verification, unlike the prior pin (2d9f28f5...), which was honestly a re-seed with no case in the suite actually exercising the edited content.",
+    "sha256": "a4c1bce301aef50337c3002bb29ee0d5653c2504175239d36511fdffc22e224f",
+    "as_of": "2026-08-18",
+    "note": "Verified by the v1.42.0 billed feature run (2026-08-18, docs/evals/2026-08-18-run-9.md): Interface-block edit (build/patch refusal + verify-before-advancing) plus coordinator routing-table/Working-interface note. Harvest still fired (docs/team/stack.md + a docs/delivery/*/log.md), confirmed by reading the files. Score: 10/10.",
     "waivers": []
   }
 }
