@@ -6,6 +6,57 @@ Installable as a **Claude Code plugin** (one command), a **Cursor plugin**, a **
 
 Every agent now knows what "good" looks like in a Laravel codebase. Reviewers refuse antipatterns (`env()` outside config, N+1, mass-assignment gaps, missing Policies, `migrate:fresh` anywhere near production). Builders default to idiomatic Laravel.
 
+Adopting a team? [Run your first delivery](docs/onboarding.md). Mapping `docs/`? [Where does each document live?](docs/README.md).
+
+---
+
+## Five-minute quickstart
+
+Install the plugin, run one command, watch the team work. Every install flavour and the design notes sit [below](#install).
+
+### 1. Install
+
+In Claude Code, from a Laravel project:
+
+```
+/plugin marketplace add HamzaAlayed/laravel-claude-agents
+/plugin install laravel-team@laravel-claude-agents
+```
+
+That is the recommended path. Cursor, Gemini, Codex, `install.sh`, and skills-only installs are under [Install](#install).
+
+### 2. First command
+
+```
+/make-feature Donation --api
+```
+
+`--api` skips the frontend stage. Or open the browser board first:
+
+```
+/console
+```
+
+`/console` starts `scripts/console/serve.py` (Python 3.10+, default port 8378) and prints a tokenized URL. A URL without the token will not work.
+
+### 3. What you see
+
+A progress board after the plan and after every stage — header first, so you can still act. Format is the Interface block in `commands/make-feature.md`:
+
+```
+N stages · done when: POST /api/donations creates a Donation
+▶ a  database-developer   writing the migration
+· b  backend-developer
+· d  qa-engineer
+·    tech-lead
+```
+
+Statuses are `✔ done / ▶ running / · queued / ✖ failed`. Each specialist returns `STATUS / DID / VERIFIED / NOT-CHECKED / FLAGS / NEXT`. After two or more specialists report, `docs/team/stack.md` and `docs/delivery/<name>/log.md` exist before the closing answer.
+
+In `/console`, named cards (Adam, Elena, Dina, …) fill the pipeline as they start. An amber bar means the run is parked on an approval. Every Bash call asks you.
+
+Screenshots of a live mid-run board are pending a live console capture.
+
 ---
 
 ## What's in here
@@ -497,7 +548,7 @@ The guardrail scripts are covered by a zero-dependency test harness — no `bats
 
 CI (`.github/workflows/ci.yml`) runs `shellcheck`, the harness (with and without `jq`), JSON manifest validation, and agent/command frontmatter linting on every PR.
 
-Adding an agent or command? See [CONTRIBUTING.md](CONTRIBUTING.md) and the deeper [docs/authoring-agents.md](docs/authoring-agents.md). Changes are tracked in [CHANGELOG.md](CHANGELOG.md).
+Adding an agent or command? See [CONTRIBUTING.md](CONTRIBUTING.md) and the deeper [docs/authoring-agents.md](docs/authoring-agents.md). The docs corpus is indexed in [docs/README.md](docs/README.md). Changes are tracked in [CHANGELOG.md](CHANGELOG.md).
 
 ## License
 

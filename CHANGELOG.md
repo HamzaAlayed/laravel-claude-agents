@@ -5,6 +5,31 @@ All notable changes to this project are documented here.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+Adoption content for the coming v1.43.0 tag. `VERSION` and the plugin
+manifests stay at 1.42.0 until that release slice.
+
+### Added
+
+- **A five-minute quickstart at the top of the README** — install, first
+  command (`/make-feature` or `/console`), and what the progress board
+  looks like. The rest of the README still explains the design; the new
+  top shows the product.
+- **`docs/README.md`** — one-page map of the corpus: spec vs plan vs eval
+  record, what is closed vs still open. The next project-state review
+  should start there.
+- **`docs/onboarding.md`** — adopting-team path: first delivery, teaching
+  the first rule via `/teach`, reading an eval scorecard. The five-minute
+  path is a link to the README; this page adds specialist order, harvest
+  history, `/teach`, and how to read a scorecard.
+
+### Changed
+
+- **The README now leads with the product, then the design.** Install
+  flavours, inventory counts, and the eval history are unchanged and
+  still below the quickstart.
+
 ## [1.42.0] - 2026-08-18
 
 ### Added
