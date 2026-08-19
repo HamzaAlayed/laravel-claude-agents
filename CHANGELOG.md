@@ -35,8 +35,8 @@ held hover and CAN-RIDE console work.
   the card stays one button. Lane-panel `lg` sprites do not hover.
 - **Eval `$SUBAGENT_LOG` / `--subagent-text`** — a dedicated extract of
   nested-agent text, exclusive of the main-thread `--text-only` /
-  `--full-text` paths. Feature `check_subagent_log` calls stay commented
-  until a billed transcript is inspected.
+  `--full-text` paths. A billed run 10 transcript was inspected: nested
+  turns were `tool_use` only, so `check_subagent_log` stays commented.
 
 ### Changed
 
