@@ -4,8 +4,9 @@
  * moving glyph in a 24px row was two things saying "busy" and neither saying
  * what. The icon returns for the states that have an outcome to mark.
  */
-import { describe, expect, it } from "vitest";
-import { render } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { AgentCard } from "./AgentCard";
 import type { Agent, GuildEvent, Lane, LaneStatus } from "@/lib/types";
 
@@ -82,5 +83,35 @@ describe("AgentCard", () => {
     expect(
       show(lane("running"), true).querySelector("[data-outcome]")?.getAttribute("data-outcome"),
     ).toBe("parked");
+  });
+
+  it("selects the card when the sprite itself is clicked", async () => {
+    const onSelect = vi.fn();
+    const user = userEvent.setup();
+    const { container } = render(
+      <AgentCard
+        lane={lane("running", [ev({ type: "tool_use", tool: "Bash" })])}
+        agent={agent}
+        parked={false}
+        onSelect={onSelect}
+      />,
+    );
+    await user.click(container.querySelector("[data-pose]") as HTMLElement);
+    expect(onSelect).toHaveBeenCalledTimes(1);
+  });
+
+  it("names the current tool in the sprite tooltip", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <AgentCard
+        lane={lane("done", [ev({ type: "tool_use", tool: "Bash" })])}
+        agent={agent}
+        parked={false}
+        onSelect={() => {}}
+      />,
+    );
+    await user.hover(container.querySelector("[data-pose]") as HTMLElement);
+    const popup = await screen.findByText("Bash");
+    expect(popup.closest("[data-slot='tooltip-content']")?.textContent).toContain("8.0s");
   });
 });

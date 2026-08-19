@@ -96,4 +96,12 @@ describe("splitJsonKey", () => {
     expect(splitJsonKey("{")).toEqual({ key: null, rest: "{" });
     expect(splitJsonKey("}")).toEqual({ key: null, rest: "}" });
   });
+
+  it("keeps a key that contains an escaped quote as one key", () => {
+    const line = JSON.stringify({ 'my"key': 1 }, null, 2).split("\n")[1] ?? "";
+    expect(splitJsonKey(line)).toEqual({
+      key: '  "my\\"key":',
+      rest: " 1",
+    });
+  });
 });

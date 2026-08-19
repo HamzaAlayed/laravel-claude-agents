@@ -251,6 +251,24 @@ class TestServer(unittest.TestCase):
         self.assertIn("no-such-model", json.loads(ctx.exception.read())["error"])
 
 
+class TestWriteOrDrop(unittest.TestCase):
+    def test_swallows_broken_pipe(self):
+        wfile = mock.Mock()
+        wfile.write.side_effect = BrokenPipeError()
+        self.assertFalse(server.write_or_drop(wfile, b"hi"))
+
+    def test_swallows_connection_reset(self):
+        wfile = mock.Mock()
+        wfile.flush.side_effect = ConnectionResetError()
+        self.assertFalse(server.write_or_drop(wfile, b"hi"))
+
+    def test_writes_when_the_client_is_still_there(self):
+        wfile = mock.Mock()
+        self.assertTrue(server.write_or_drop(wfile, b"hi"))
+        wfile.write.assert_called_once_with(b"hi")
+        wfile.flush.assert_called_once()
+
+
 class TestServerBind(unittest.TestCase):
     def test_bind_does_not_reverse_resolve_the_host(self):
         """HTTPServer.server_bind calls socket.getfqdn purely to fill in

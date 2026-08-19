@@ -19,6 +19,16 @@ import { parkedLaneIds } from "@/lib/parkedLanes";
 import { armGate, canSubmit, settleSubmit, startSubmit } from "@/lib/submitGate";
 import type { Catalog, GuildEvent, Lane, RunView } from "@/lib/types";
 
+/**
+ * Neither overlay has a dedicated trigger to return to: any card opens the
+ * panel, and a `prompt` event can open the sheet by itself. Best-effort restore
+ * is the launcher form (`#guild-launcher`, tabindex -1 so it is not in the tab
+ * order). Do not invent a fake trigger.
+ */
+function restoreConsoleFocus() {
+  document.getElementById("guild-launcher")?.focus({ preventScroll: true });
+}
+
 export default function App() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
@@ -46,6 +56,9 @@ export default function App() {
   const [recorded, setRecorded] = useState<string | null>(null);
   const [runStartedAt, setRunStartedAt] = useState(0);
   const lastSeq = useRef(0);
+  // Survives close so LanePanel can animate out; written only while a lane is
+  // selected. Declared with the other hooks — selectedLane is derived later.
+  const lastSelectedLane = useRef<Lane | null>(null);
 
   useEffect(() => {
     api.fetchCatalog().then(setCatalog).catch((e) => setError(String(e.message ?? e)));
@@ -118,6 +131,7 @@ export default function App() {
     setLiveMode(spec.mode);
     setRecorded(null);
     setRunStartedAt(Date.now());
+    lastSelectedLane.current = null;
     try {
       const { run_id } = await api.createRun(spec);
       setRunId(run_id);
@@ -138,6 +152,7 @@ export default function App() {
       setRunId(null);
       setSelected(null);
       setSheetOpen(false);
+      lastSelectedLane.current = null;
       setView(events.reduce(reduce, emptyRun(kind)));
       setRecorded(id);
     } catch (e) {
@@ -175,6 +190,12 @@ export default function App() {
   const selectedLane = selected
     ? view.lanes.find((lane) => lane.toolUseId === selected.toolUseId) ?? null
     : null;
+  // Keep the last open lane mounted after close so the Sheet can run its
+  // `data-ending-style` slide-out. Swapping cards keeps `open` true and only
+  // replaces `lane` — the panel does not remount, which is the non-modal
+  // "click another card" behaviour.
+  if (selectedLane) lastSelectedLane.current = selectedLane;
+  const panelLane = selectedLane ?? lastSelectedLane.current;
 
   const answer = async (payload: Record<string, unknown>) => {
     if (!runId) return;
@@ -374,12 +395,16 @@ export default function App() {
       )}
 
       <AnimatePresence>
-        {selectedLane && (
+        {panelLane && (
           <LanePanel
-            lane={selectedLane}
-            agent={catalog.agents.find((a) => a.slug === selectedLane.slug)}
-            parked={parkedLaneIds(view).has(selectedLane.toolUseId)}
-            onClose={() => setSelected(null)}
+            open={selectedLane !== null}
+            lane={panelLane}
+            agent={catalog.agents.find((a) => a.slug === panelLane.slug)}
+            parked={parkedLaneIds(view).has(panelLane.toolUseId)}
+            onClose={() => {
+              setSelected(null);
+              restoreConsoleFocus();
+            }}
           />
         )}
       </AnimatePresence>
@@ -439,7 +464,10 @@ export default function App() {
           // one. Survives the remount above because the gate is App state.
           disabled={!canSubmit(gate, head.prompt_id)}
           queueLength={queue.length}
-          onClose={() => setSheetOpen(false)}
+          onClose={() => {
+            setSheetOpen(false);
+            restoreConsoleFocus();
+          }}
           onAnswer={answer}
         />
       )}

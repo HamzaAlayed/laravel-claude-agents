@@ -1,5 +1,11 @@
 import { propFor, type PropKey } from "@/lib/agentProp";
 import type { ActorPose } from "@/lib/actorPose";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 /**
  * The instruments, drawn on the bench beside the sprite: x 23.5–30.5, y 18.5–27.5.
@@ -53,6 +59,8 @@ export function Actor({
   color,
   slug,
   size = "sm",
+  elapsed,
+  tool,
 }: {
   pose: ActorPose;
   color: string;
@@ -66,15 +74,18 @@ export function Actor({
    * grey lump. Drawing one there costs legibility and buys nothing.
    */
   size?: "sm" | "lg";
+  /**
+   * Card-size hover tooltip: elapsed time and the current tool. Omitted at `lg`
+   * (the lane panel already is the "more detail" surface) and when the parent
+   * has nothing to pass.
+   */
+  elapsed?: string;
+  tool?: string | null;
 }) {
   const prop = size === "lg" && slug ? propFor(slug) : null;
-
-  return (
-    <span
-      className={size === "lg" ? "block size-16 shrink-0" : "-m-1 block size-8 shrink-0"}
-      data-pose={pose}
-      style={{ ["--lane" as string]: color }}
-    >
+  const hoverable = size === "sm" && elapsed !== undefined;
+  const sprite = (
+    <>
       <svg className="block size-full overflow-hidden" viewBox="0 0 32 32" aria-hidden="true">
         <ellipse className="sp-shadow" cx="16" cy="27.4" rx="6.6" ry="1.1" />
         {prop && (
@@ -110,6 +121,47 @@ export function Actor({
         </g>
         <circle className="sp-think" cx="24.6" cy="7.2" r="1.6" />
       </svg>
-    </span>
+    </>
+  );
+  const box = {
+    className: size === "lg" ? "block size-16 shrink-0" : "-m-1 block size-8 shrink-0",
+    "data-pose": pose,
+    style: { ["--lane" as string]: color },
+  } as const;
+
+  if (!hoverable) {
+    return (
+      <span className={box.className} data-pose={box["data-pose"]} style={box.style}>
+        {sprite}
+      </span>
+    );
+  }
+
+  // Trigger MUST be a span: this sprite lives inside AgentCard's <motion.button>,
+  // and a nested button (TooltipTrigger's default) is invalid HTML that browsers
+  // "fix" by breaking the card's click handler.
+  return (
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger
+          render={
+            <span
+              className={box.className}
+              data-pose={box["data-pose"]}
+              data-hover=""
+              style={box.style}
+            />
+          }
+        >
+          {sprite}
+        </TooltipTrigger>
+        <TooltipContent>
+          <span className="flex flex-col gap-0.5">
+            <span>{elapsed}</span>
+            <span>{tool ?? "starting…"}</span>
+          </span>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
