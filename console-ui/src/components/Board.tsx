@@ -9,9 +9,11 @@ type Props = {
   view: RunView;
   catalog: Catalog;
   onSelect: (lane: Lane) => void;
+  /** Recorded replays pass an empty set — pending on disk is not answerable. */
+  parkedLanes?: Set<string>;
 };
 
-export function Board({ view, catalog, onSelect }: Props) {
+export function Board({ view, catalog, onSelect, parkedLanes }: Props) {
   const agents: Record<string, Agent> = Object.fromEntries(
     catalog.agents.map((agent) => [agent.slug, agent]),
   );
@@ -32,7 +34,7 @@ export function Board({ view, catalog, onSelect }: Props) {
   );
   // Shared with App, which needs the same answer for the lane panel's actor —
   // see parkedLaneIds for why a guessed attribution marks nothing.
-  const parkedLanes = parkedLaneIds(view);
+  const parked = parkedLanes ?? parkedLaneIds(view);
 
   return (
     <div data-floor="" className="bg-[var(--floor)] text-[var(--paper)]">
@@ -42,7 +44,7 @@ export function Board({ view, catalog, onSelect }: Props) {
         {headerLanes.length > 0 && (
           <div className="mb-2 flex flex-wrap gap-2">
             {headerLanes.map((lane) => {
-              const parked = parkedLanes.has(lane.toolUseId);
+              const waiting = parked.has(lane.toolUseId);
               return (
                 <button
                   key={lane.toolUseId}
@@ -50,7 +52,7 @@ export function Board({ view, catalog, onSelect }: Props) {
                   onClick={() => onSelect(lane)}
                   aria-label={`${agents[lane.slug]?.name ?? lane.slug}: ${lane.task || "coordinating"}`}
                   className={`flex flex-1 items-center gap-2 px-3 py-2 text-left text-[var(--paper)] focus-visible:ring-2 focus-visible:ring-[var(--paper)] ${
-                    parked
+                    waiting
                       ? "animate-attention border-2 shadow-[inset_0_-3px_0_0_var(--cue)]"
                       : "border-2 border-transparent"
                   }`}
@@ -59,7 +61,7 @@ export function Board({ view, catalog, onSelect }: Props) {
                   }}
                 >
                   <Actor
-                    pose={actorPose(lane, parked)}
+                    pose={actorPose(lane, waiting)}
                     color={agents[lane.slug]?.color ?? "#64748b"}
                   />
                   <span className="text-sm font-medium">
@@ -68,7 +70,7 @@ export function Board({ view, catalog, onSelect }: Props) {
                   <span className="min-w-0 truncate text-xs text-[color-mix(in_oklab,var(--paper)_70%,transparent)]">
                     {lane.task || "coordinating…"}
                   </span>
-                  {parked && (
+                  {waiting && (
                     <span className="ml-auto shrink-0 text-[11px] font-semibold text-[var(--paper)]">
                       needs you
                     </span>
@@ -85,7 +87,7 @@ export function Board({ view, catalog, onSelect }: Props) {
               stage={stage}
               lanes={columnLanes.filter((lane) => stageOf(lane.slug) === stage)}
               agents={agents}
-              parkedLanes={parkedLanes}
+              parkedLanes={parked}
               onSelect={onSelect}
             />
           ))}

@@ -5,6 +5,9 @@ import { StatusChip, type RunOutcome } from "@/components/StatusChip";
 const headerActionClass =
   "border-[color-mix(in_oklab,var(--paper)_24%,transparent)] bg-transparent text-[var(--paper)] hover:bg-[color-mix(in_oklab,var(--paper)_10%,transparent)] hover:text-[var(--paper)]";
 
+const cueActionClass =
+  "border-[color-mix(in_oklab,var(--cue)_50%,transparent)] bg-[color-mix(in_oklab,var(--cue)_22%,transparent)] text-[var(--paper)] hover:bg-[color-mix(in_oklab,var(--cue)_32%,transparent)] hover:text-[var(--paper)]";
+
 export function ShowHeader({
   title,
   live,
@@ -12,6 +15,8 @@ export function ShowHeader({
   outcome,
   onStop,
   onBack,
+  onCue,
+  cueTool,
 }: {
   title: string;
   live: boolean;
@@ -21,6 +26,10 @@ export function ShowHeader({
   onStop?: () => void;
   /** Omit unless a recording is open — returns to the call sheet. */
   onBack?: () => void;
+  /** Floor-only return to Spotlight when a prompt is waiting. */
+  onCue?: () => void;
+  /** Tool name on the waiting prompt — part of the accessible name. */
+  cueTool?: string;
 }) {
   return (
     <div className="contents">
@@ -31,6 +40,17 @@ export function ShowHeader({
         {title}
       </h1>
       <StatusChip live={live} startedAt={startedAt} outcome={outcome} />
+      {onCue && (
+        <Button
+          size="sm"
+          variant="outline"
+          className={cueActionClass}
+          aria-label={cueTool ? `Needs you — ${cueTool}` : "Needs you"}
+          onClick={onCue}
+        >
+          Needs you
+        </Button>
+      )}
       {onStop && (
         <Button
           size="sm"
@@ -47,7 +67,7 @@ export function ShowHeader({
           size="sm"
           variant="outline"
           className={headerActionClass}
-          aria-label="Close recording"
+          aria-label="Back — close recording"
           onClick={onBack}
         >
           Back

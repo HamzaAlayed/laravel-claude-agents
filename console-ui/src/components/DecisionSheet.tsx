@@ -1,6 +1,3 @@
-import { Spotlight } from "@/components/Spotlight";
-import type { PendingPrompt } from "@/lib/types";
-
 export type Question = {
   question: string;
   header: string;
@@ -52,41 +49,4 @@ export function buildAnswers(
     answers[question.question] = question.multiSelect ? chosen : chosen[0];
   }
   return answers;
-}
-
-/**
- * Helpers (`buildAnswers`, `mergeFreeText`, `splitJsonKey`) stay here for
- * Spotlight. This wrapper is unused by App — scenes mount Spotlight directly.
- */
-export function DecisionSheet({
-  pending,
-  open,
-  disabled,
-  queueLength,
-  onClose,
-  onAnswer,
-}: {
-  pending: PendingPrompt;
-  open: boolean;
-  disabled: boolean;
-  queueLength: number;
-  onClose: () => void;
-  onAnswer: (payload: Record<string, unknown>) => void;
-}) {
-  if (!open) return null;
-  return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      aria-label={pending.is_question ? "The Guild has questions" : `Allow ${pending.tool}?`}
-    >
-      <Spotlight
-        pending={pending}
-        disabled={disabled}
-        queueLength={queueLength}
-        onClose={onClose}
-        onAnswer={onAnswer}
-      />
-    </div>
-  );
 }

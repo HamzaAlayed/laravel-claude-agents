@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,7 +39,12 @@ export function Spotlight({
   const [selections, setSelections] = useState<Record<string, string[]>>({});
   const [other, setOther] = useState<Record<string, string>>({});
   const [denyReason, setDenyReason] = useState("");
+  const closeRef = useRef<HTMLButtonElement>(null);
   const questions = (pending.input.questions as Question[]) ?? [];
+
+  useEffect(() => {
+    closeRef.current?.focus();
+  }, []);
 
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -71,6 +76,7 @@ export function Spotlight({
   return (
     <section className="relative flex min-h-dvh flex-col bg-[var(--paper)] px-8 py-10 text-[var(--ink)]">
       <Button
+        ref={closeRef}
         type="button"
         variant="ghost"
         size="icon-sm"

@@ -162,6 +162,10 @@ export default function App() {
   const launch = async (spec: LaunchSpec) => {
     setError(null);
     lastSeq.current = 0;
+    // Drop the previous run id first so `live` cannot flip true on the stale
+    // id while createRun is in flight — that left the user on an empty floor
+    // if the POST failed.
+    setRunId(null);
     setView(emptyRun(spec.kind));
     setSelected(null);
     setAnswering([]);
@@ -308,8 +312,10 @@ export default function App() {
     }
   };
 
+  const answerableParked = recorded ? new Set<string>() : parkedLaneIds(view);
+
   const onSelect = (lane: Lane) => {
-    if (parkedLaneIds(view).has(lane.toolUseId)) {
+    if (!recorded && answerableParked.has(lane.toolUseId)) {
       setSpotlightOpen(true);
       setSelected(null);
       return;
@@ -370,7 +376,12 @@ export default function App() {
   }
 
   return (
-    <main className="min-h-dvh bg-[var(--floor)]" data-floor="">
+    <main className="min-h-dvh bg-[var(--floor)]">
+      <div
+        data-floor=""
+        inert={scene === "spotlight" ? true : undefined}
+        aria-hidden={scene === "spotlight" || undefined}
+      >
       <header className="mb-4 flex items-baseline gap-3 bg-[var(--floor)] px-4 pt-4 md:px-6">
         <ShowHeader
           title={showTitle}
@@ -389,6 +400,10 @@ export default function App() {
           }
           onStop={live ? interrupt : undefined}
           onBack={recorded ? closeRecorded : undefined}
+          onCue={
+            scene === "floor" && head ? () => setSpotlightOpen(true) : undefined
+          }
+          cueTool={head?.tool}
         />
         {live && (
           <div className="ml-auto flex items-center gap-2">
@@ -458,7 +473,12 @@ export default function App() {
       </AnimatePresence>
 
       {view.mode === "board" ? (
-        <Board view={view} catalog={catalog} onSelect={onSelect} />
+        <Board
+          view={view}
+          catalog={catalog}
+          onSelect={onSelect}
+          parkedLanes={answerableParked}
+        />
       ) : (
         <FocusRun view={view} catalog={catalog} />
       )}
@@ -469,7 +489,7 @@ export default function App() {
             open={selectedLane !== null}
             lane={panelLane}
             agent={catalog.agents.find((a) => a.slug === panelLane.slug)}
-            parked={parkedLaneIds(view).has(panelLane.toolUseId)}
+            parked={answerableParked.has(panelLane.toolUseId)}
             onClose={() => {
               setSelected(null);
               restoreConsoleFocus();
@@ -531,9 +551,12 @@ export default function App() {
         </form>
       )}
 
+      </div>
+
       {scene === "spotlight" && head && (
         // key: per-prompt local state (selections, the Other fields, the deny
-        // reason) must not leak from one prompt into the next.
+        // reason) must not leak from one prompt into the next. Outside the
+        // floor wrapper so inert/aria-hidden do not hide the canvas.
         <div className="fixed inset-0 z-50 overflow-auto">
           <Spotlight
             key={head.prompt_id}

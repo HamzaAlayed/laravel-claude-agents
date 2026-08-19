@@ -37,7 +37,15 @@ describe("ShowHeader", () => {
   it("Back calls onBack when a recording is open", async () => {
     const onBack = vi.fn();
     const { user } = mount({ live: false, onStop: undefined, onBack });
-    await user.click(screen.getByRole("button", { name: "Close recording" }));
+    await user.click(screen.getByRole("button", { name: "Back — close recording" }));
     expect(onBack).toHaveBeenCalledTimes(1);
+  });
+
+  it("Needs you calls onCue", async () => {
+    const onCue = vi.fn();
+    const { user } = mount({ onCue, cueTool: "Bash" });
+    await user.click(screen.getByRole("button", { name: "Needs you — Bash" }));
+    expect(onCue).toHaveBeenCalledTimes(1);
+    expect(screen.getByText("Needs you")).toBeTruthy();
   });
 });

@@ -113,6 +113,49 @@ describe("the run is launched", () => {
     expect(document.getElementById("guild-call-sheet")).toBeNull();
     expect(server.postsTo("/api/runs")).toHaveLength(1);
   });
+
+  it("stays on the call sheet until the next run id arrives", async () => {
+    const { server, user } = await launch();
+    server.emit({
+      type: "result",
+      subtype: "success",
+      result: "shipped",
+      duration_ms: 1,
+      total_cost_usd: 0,
+    });
+    await screen.findByLabelText("Run kind");
+
+    const release = server.hold("/api/runs");
+    await user.type(screen.getByPlaceholderText("describe the task"), "another export");
+    await user.click(runButton());
+
+    expect(document.getElementById("guild-call-sheet")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "another export" })).toBeNull();
+
+    release();
+    await waitFor(() => expect(document.getElementById("guild-call-sheet")).toBeNull());
+    expect(screen.getByRole("heading", { name: "another export" })).toBeTruthy();
+  });
+
+  it("stays on the call sheet if the next launch fails", async () => {
+    const { server, user } = await launch();
+    server.emit({
+      type: "result",
+      subtype: "success",
+      result: "shipped",
+      duration_ms: 1,
+      total_cost_usd: 0,
+    });
+    await screen.findByLabelText("Run kind");
+    server.failNext("/api/runs", "could not start");
+
+    await user.type(screen.getByPlaceholderText("describe the task"), "another export");
+    await user.click(runButton());
+
+    expect(await screen.findByText(/could not start/)).toBeTruthy();
+    expect(document.getElementById("guild-call-sheet")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "another export" })).toBeNull();
+  });
 });
 
 describe("two-act scenes", () => {
@@ -157,6 +200,57 @@ describe("two-act scenes", () => {
     await user.click(parked);
     expect(await screen.findByText("Allow Bash?")).toBeTruthy();
     expect(screen.queryByRole("heading", { name: "Dina" })).toBeNull();
+  });
+
+  it("returns to Spotlight from Needs you after dismiss on a focus run", async () => {
+    const { server, user } = await launch();
+    server.emit(approval("p1", "backend-developer"));
+    expect(await screen.findByText("Allow Bash?")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: /Needs you/ })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByText("Allow Bash?")).toBeNull());
+
+    await user.click(screen.getByRole("button", { name: /Needs you/ }));
+    expect(await screen.findByText("Allow Bash?")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Allow once" })).toBeTruthy();
+  });
+
+  it("moves focus into Spotlight and marks the floor inert", async () => {
+    const { server } = await launch();
+    server.emit(approval("p1", "backend-developer"));
+    expect(await screen.findByText("Allow Bash?")).toBeTruthy();
+
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Close" }));
+    expect(document.querySelector("[data-floor]")?.hasAttribute("inert")).toBe(true);
+    expect(document.querySelector("[data-floor]")?.getAttribute("aria-hidden")).toBe("true");
+  });
+
+  it("still offers Needs you after dismiss when attribution is only a guess", async () => {
+    const { server, user } = await launch();
+    server.emit({
+      type: "agent_start",
+      agent: "backend-developer",
+      tool_use_id: "t1",
+      task: "add the export job",
+    });
+    server.emit({
+      type: "agent_start",
+      agent: "qa-engineer",
+      tool_use_id: "t2",
+      task: "cover it with tests",
+    });
+    server.emit({ ...approval("p1", "qa-engineer"), agent_confidence: "guess" });
+    expect(await screen.findByText("Allow Bash?")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByText("Allow Bash?")).toBeNull());
+
+    expect(
+      within(button("Dina: cover it with tests")).queryByText("needs you"),
+    ).toBeNull();
+    await user.click(screen.getByRole("button", { name: /Needs you/ }));
+    expect(await screen.findByText("Allow Bash?")).toBeTruthy();
   });
 
   it("never offers Allow on a recorded run", async () => {
@@ -754,9 +848,51 @@ describe("recorded runs", () => {
     await opened.user.selectOptions(picker(), "run_old");
     await screen.findByText("old news");
 
-    await opened.user.click(screen.getByRole("button", { name: "Close recording" }));
+    await opened.user.click(screen.getByRole("button", { name: "Back — close recording" }));
     expect(document.getElementById("guild-call-sheet")).toBeTruthy();
     expect(screen.queryByText(/Viewing a recorded run/)).toBeNull();
+  });
+
+  it("does not mark recorded stations as answerable", async () => {
+    const opened = await open(testCatalog, (s) =>
+      s.addRecordedRun({ run_id: "run_parked", spec: { kind: "prompt" } }, [
+        {
+          type: "agent_start",
+          agent: "backend-developer",
+          tool_use_id: "t1",
+          lane_id: "t1",
+          task: "add the export job",
+        },
+        {
+          type: "agent_start",
+          agent: "qa-engineer",
+          tool_use_id: "t2",
+          lane_id: "t2",
+          task: "cover it with tests",
+        },
+        {
+          type: "prompt",
+          prompt_id: "p1",
+          agent: "qa-engineer",
+          tool: "Bash",
+          input: { command: "ls" },
+          is_question: false,
+          suggestions: [],
+        },
+      ]),
+    );
+    await screen.findByLabelText("Run kind");
+    await waitFor(() => expect(picker()).toBeTruthy());
+    await opened.user.selectOptions(picker(), "run_parked");
+    await screen.findByText(/Viewing a recorded run/);
+
+    expect(screen.queryByText("needs you")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Needs you/ })).toBeNull();
+    expect(screen.queryByText("Allow Bash?")).toBeNull();
+
+    await opened.user.click(button("Dina: cover it with tests"));
+    expect(await screen.findByRole("heading", { name: "Dina" })).toBeTruthy();
+    expect(screen.queryByText("Allow Bash?")).toBeNull();
   });
 
   it("is replaced by a new launch", async () => {
@@ -770,7 +906,7 @@ describe("recorded runs", () => {
     await opened.user.selectOptions(picker(), "run_old");
     await screen.findByText("old news");
 
-    await opened.user.click(screen.getByRole("button", { name: "Close recording" }));
+    await opened.user.click(screen.getByRole("button", { name: "Back — close recording" }));
     await screen.findByLabelText("Run kind");
     await opened.user.type(screen.getByPlaceholderText("describe the task"), "something new");
     await opened.user.click(runButton());

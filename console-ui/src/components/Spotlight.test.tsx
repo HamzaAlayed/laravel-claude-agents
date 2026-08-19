@@ -58,6 +58,11 @@ describe("the canvas is not a sheet", () => {
     mount();
     expect(screen.queryByRole("dialog")).toBeNull();
   });
+
+  it("focuses Close when it opens", () => {
+    mount();
+    expect(document.activeElement).toBe(screen.getByRole("button", { name: "Close" }));
+  });
 });
 
 describe("the decision", () => {
