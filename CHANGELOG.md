@@ -7,8 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Adoption content for the coming v1.43.0 tag. `VERSION` and the plugin
-manifests stay at 1.42.0 until that release slice.
+## [1.43.0] - 2026-08-19
+
+Prove-it **Adoption**. The README leads with a five-minute path, the docs
+corpus has an index, and `/console` has a real board screenshot plus the
+held hover and CAN-RIDE console work.
 
 ### Added
 
@@ -16,6 +19,10 @@ manifests stay at 1.42.0 until that release slice.
   command (`/make-feature` or `/console`), and what the progress board
   looks like. The rest of the README still explains the design; the new
   top shows the product.
+- **A fixture-driven PNG of the Guild console pipeline board** — Adam +
+  Dina, parked on a Bash approval. Caption says it is not a billed live
+  `/console` run. Recapture harness lives under `console-ui/src/dev/` and
+  is not the production Vite entry.
 - **`docs/README.md`** — one-page map of the corpus: spec vs plan vs eval
   record, what is closed vs still open. The next project-state review
   should start there.
@@ -23,12 +30,26 @@ manifests stay at 1.42.0 until that release slice.
   the first rule via `/teach`, reading an eval scorecard. The five-minute
   path is a link to the README; this page adds specialist order, harvest
   history, `/teach`, and how to read a scorecard.
+- **Card-sprite hover** — elapsed time and the current tool (or
+  `starting…`) on `sm` actors only. Nested tooltip trigger is a `span` so
+  the card stays one button. Lane-panel `lg` sprites do not hover.
+- **Eval `$SUBAGENT_LOG` / `--subagent-text`** — a dedicated extract of
+  nested-agent text, exclusive of the main-thread `--text-only` /
+  `--full-text` paths. Feature `check_subagent_log` calls stay commented
+  until a billed transcript is inspected.
 
 ### Changed
 
 - **The README now leads with the product, then the design.** Install
   flavours, inventory counts, and the eval history are unchanged and
   still below the quickstart.
+- **Console CAN-RIDE riders** — last selected lane stays mounted so the
+  sheet can exit; `splitJsonKey` consumes escaped quotes; decision label
+  is `{n} remaining` (hidden at 1); Target visible name matches
+  `aria-label`; kind and mode are separate captions; dismiss restores
+  focus to `#guild-launcher`; `ago()` clamps future timestamps; every
+  `wfile` write uses `write_or_drop` so a dead SSE client does not
+  traceback-and-die.
 
 ## [1.42.0] - 2026-08-18
 

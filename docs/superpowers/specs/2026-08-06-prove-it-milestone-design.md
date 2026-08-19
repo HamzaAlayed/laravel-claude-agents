@@ -1,10 +1,11 @@
 # "Prove it" milestone — trust, capability, adoption (v1.39 → v1.43)
 
-**Renumbered 2026-08-18:** what this doc calls "Release 1.41.0 — Adoption"
-below actually ships as **v1.43.0**. v1.41.0 went to the harvest Interface
-fix; v1.42.0 went to the orchestration-audit contract repair
+**Shipped 2026-08-19 as v1.43.0.** What this doc calls "Release 1.41.0 —
+Adoption" below is that tag. v1.41.0 went to the harvest Interface fix;
+v1.42.0 went to the orchestration-audit contract repair
 (`docs/superpowers/specs/2026-08-18-orchestration-contract-fix-design.md`).
-Adoption's own content is unchanged; only its version number moved (twice).
+The version number moved twice; the content (quickstart, docs index,
+onboarding, console board screenshot) landed in 1.43.0.
 
 Design approved 2026-08-06. Sequenced from the
 [2026-08-05 project-state review](../../requirements/2026-08-05-project-state-review.md),
