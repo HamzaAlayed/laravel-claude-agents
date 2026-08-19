@@ -21,11 +21,13 @@ Estimated spend: **$8–10**. Same order as run 9 if the 419/500 loop recurs; cl
 
 ## What would falsify the write-up's hypothesis
 
-| Outcome | Reads as |
-| --- | --- |
-| Finishes with no 419/500 re-brief loop (`SendMessage` not used for HTTP-kernel retries) and bills **≤ $8.50** | Finding 1 holds. Ceiling stays. The $9.00 was the loop + 1200s kill, not "1.42's new happy path." |
-| Finishes with no 419/500 loop and bills **> $8.50** | Verify-before-advancing *alone* is the new shape. Then — and only then — a `max_usd` reseed is an argument, written into `baseline.json`'s `usd_basis`, not an absorption of run 9. |
-| Still loops 419/500 after 1900s, or still has no orchestrator close at 1900s | The missing close is not the 1200s kill; the loop is not timeout-shaped. Stop and re-open Phase 1 before touching ceilings. |
+Filled by [run 10](../evals/2026-08-19-run-10.md) (`20260819T093031Z`, pack v1.43.0, 10/10, $6.70, 1387s, no `TIMED OUT`).
+
+| Outcome | Reads as | This run |
+| --- | --- | --- |
+| Finishes with no 419/500 re-brief loop (`SendMessage` not used for HTTP-kernel retries) and bills **≤ $8.50** | Finding 1 holds. Ceiling stays. The $9.00 was the loop + 1200s kill, not "1.42's new happy path." | **Ticked.** Main tools: `Agent` ×6, `Bash` ×27. No `SendMessage`. Orchestrator closed on `$FULL_LOG`. |
+| Finishes with no 419/500 loop and bills **> $8.50** | Verify-before-advancing *alone* is the new shape. Then — and only then — a `max_usd` reseed is an argument, written into `baseline.json`'s `usd_basis`, not an absorption of run 9. | Not this run. |
+| Still loops 419/500 after 1900s, or still has no orchestrator close at 1900s | The missing close is not the 1200s kill; the loop is not timeout-shaped. Stop and re-open Phase 1 before touching ceilings. | Not this run. |
 
 A guest-500 disappearing because someone added `route('login')` to the fixture is **not** this experiment. That change is out of bounds here; it would also fail to explain CSRF 419.
 
@@ -34,4 +36,4 @@ A guest-500 disappearing because someone added `route('login')` to the fixture i
 - Raising `EVAL_TIMEOUT`'s default for every case (this experiment is per-invocation).
 - Raising `max_usd` / `max_tokens` before the outcome table above is filled.
 - Model-tier changes, body slimming, qa-engineer tuning (Prove-it non-goals).
-- Implementing a subagent-inclusive log (run 8's filed gap; own plan).
+- Implementing a subagent-inclusive log (run 8's filed gap; own plan). Extractor shipped in 1.43.0; [run 10](../evals/2026-08-19-run-10.md) found `$SUBAGENT_LOG` empty because nested turns were `tool_use` only — greps stay commented.

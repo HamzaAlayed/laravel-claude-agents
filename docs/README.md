@@ -54,7 +54,8 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 | Prove-it **Adoption** (v1.43.0) | [adoption plan](plans/2026-08-19-adoption-1.43.md); README quickstart; [onboarding](onboarding.md); [this index](README.md) |
 | Console board screenshot | [docs/images/console-board-mid-run.png](images/console-board-mid-run.png) — fixture-driven, not a billed live `/console` run. Optional GIF not taken. |
 | CAN-RIDE console minors + actor-sprite hover (v1.43.0) | [motion follow-ups](plans/2026-08-04-console-motion-followups.md); [hover spec](superpowers/specs/2026-08-07-actor-sprite-hover-design.md) |
-| Eval `$SUBAGENT_LOG` extractor | [subagent-log write-up](evals/2026-08-19-subagent-log.md). Feature greps stay commented until a billed transcript is inspected. |
+| Eval `$SUBAGENT_LOG` extractor | [subagent-log write-up](evals/2026-08-19-subagent-log.md). [Run 10](evals/2026-08-19-run-10.md) inspected a billed transcript: 125 nested turns, all `tool_use` only, log empty. Feature greps stay commented. |
+| Run 9 cost / `EVAL_TIMEOUT` split | [run 9 cost](evals/2026-08-19-run-9-cost.md); [run 10](evals/2026-08-19-run-10.md) ticks row 1 — $6.70, 1387s, no `SendMessage` loop, orchestrator close. `max_usd` stays $8.50. |
 | Eval runs 1–6, 8 | [evals/](evals/) dated `2026-07-20` through `2026-08-12` |
 | Console v1 + follow-ups | [console spec](superpowers/specs/2026-07-29-guild-web-console-design.md); [follow-ups — closed](plans/2026-07-30-console-followups.md); [smoke](evals/2026-07-30-console-smoke.md) |
 | Approval-bar occlusion | Fixed v1.38.1 — note at the top of [motion follow-ups](plans/2026-08-04-console-motion-followups.md) |
@@ -67,8 +68,7 @@ Still true as of 2026-08-19. A new review starts here.
 
 | Item | Where | Notes |
 | --- | --- | --- |
-| **Per-stage specialist returns unmeasured** | [run 8](evals/2026-08-12-run-8.md); [subagent-log](evals/2026-08-19-subagent-log.md) | Extractor shipped in v1.43.0 (`$SUBAGENT_LOG`). Feature `check_subagent_log` greps stay commented until a billed transcript is inspected. |
-| **Run 9 cost / `EVAL_TIMEOUT` split** | [run 9 cost](evals/2026-08-19-run-9-cost.md); [next experiment](plans/2026-08-19-run-9-cost-next.md) | $9.00 vs $8.50 is three 419/500 re-briefs under the 1.42 verify-and-don't-patch clause, plus a 1200s kill that cannot observe the 1456s seed. Do not raise `max_usd`. After 1.43.0: one billed `feature` with `EVAL_TIMEOUT=1900`. |
+| **Per-stage specialist returns unmeasured** | [run 8](evals/2026-08-12-run-8.md); [subagent-log](evals/2026-08-19-subagent-log.md); [run 10](evals/2026-08-19-run-10.md) | Extractor shipped in v1.43.0. Run 10's `$SUBAGENT_LOG` is empty: 125 nested assistant turns, every one `tool_use` only. Do not uncomment `check_subagent_log` on that shape. |
 
 ## How a new review should start
 
