@@ -663,6 +663,7 @@ expect "no checks function reads the raw transcript" "0" \
 expect "check_subagent_log does not read the raw transcript" "0" \
   "$(sed -n '/^check_subagent_log()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'stream\.jsonl' || true)"
+# shellcheck disable=SC2016 # literal $SUBAGENT_LOG in the grep pattern
 expect "check_subagent_log greps the derived subagent log" "1" \
   "$(sed -n '/^check_subagent_log()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE '\$SUBAGENT_LOG' || true)"
