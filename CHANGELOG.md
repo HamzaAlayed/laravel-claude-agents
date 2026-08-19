@@ -7,6 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **A two-act company floor for `/console`** — call sheet, theater, and
+  spotlight. Same Python server, same events. Act I is the start screen;
+  a live run fills the house; a parked Bash prompt takes the stage.
+
+### Changed
+
+- **The approval bar is gone.** Decisions live in Spotlight on the main
+  canvas; dismiss keeps a parked card so you can reopen.
+- **Geist is out.** Display is Syne, body is Source Sans 3, mono is IBM
+  Plex Mono.
+- **The console board screenshot was recaptured** as the company floor
+  (still fixture-driven, not a billed live `/console` run).
+
 ## [1.43.0] - 2026-08-19
 
 Prove-it **Adoption**. The README leads with a five-minute path, the docs

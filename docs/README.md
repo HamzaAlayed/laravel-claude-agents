@@ -61,6 +61,7 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 | Approval-bar occlusion | Fixed v1.38.1 — note at the top of [motion follow-ups](plans/2026-08-04-console-motion-followups.md) |
 | Literature-gap tranche | [plan — gate cleared](plans/2026-07-29-literature-gap-tranche.md); [audit](research/2026-07-29-agent-literature-audit.md) |
 | Accuracy / cost instrument | [spec](superpowers/specs/2026-08-04-agent-accuracy-and-cost-design.md); shipped across v1.34–v1.38 |
+| **Console company-theater redesign** | [design](plans/2026-08-19-console-company-theater-design.md); [plan](plans/2026-08-19-console-company-theater.md); this branch's `console-ui/` + committed `scripts/console/dist`. Implemented; pending VERSION bump. |
 
 ## Open
 
@@ -69,7 +70,6 @@ Still true as of 2026-08-19. A new review starts here.
 | Item | Where | Notes |
 | --- | --- | --- |
 | **Per-stage specialist returns unmeasured** | [run 8](evals/2026-08-12-run-8.md); [subagent-log](evals/2026-08-19-subagent-log.md); [run 10](evals/2026-08-19-run-10.md) | Extractor shipped in v1.43.0. Run 10's `$SUBAGENT_LOG` is empty: 125 nested assistant turns, every one `tool_use` only. Do not uncomment `check_subagent_log` on that shape. |
-| **Console company-theater redesign** | [design](plans/2026-08-19-console-company-theater-design.md); [plan](plans/2026-08-19-console-company-theater.md) | Two-act floor (call sheet → theater → spotlight). Same server. Not started. |
 
 ## How a new review should start
 
