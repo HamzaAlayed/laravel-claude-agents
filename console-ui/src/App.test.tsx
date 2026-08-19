@@ -21,7 +21,7 @@ afterEach(() => {
   server = null;
 });
 
-const runButton = () => screen.getByRole("button", { name: "Run" }) as HTMLButtonElement;
+const runButton = () => screen.getByRole("button", { name: "Start" }) as HTMLButtonElement;
 
 const button = (name: string) => screen.getByRole("button", { name }) as HTMLButtonElement;
 

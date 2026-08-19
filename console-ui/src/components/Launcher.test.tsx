@@ -18,6 +18,13 @@ describe("roleOf", () => {
   });
 });
 
+describe("the call sheet", () => {
+  it("is the form later acts retarget", () => {
+    mount();
+    expect(document.getElementById("guild-call-sheet")).toBeTruthy();
+  });
+});
+
 describe("the launcher explains itself", () => {
   it("captions the selected kind, and follows a switch", async () => {
     const { user } = mount();

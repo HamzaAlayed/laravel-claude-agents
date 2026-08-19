@@ -18,6 +18,11 @@ const MODES = [
   { value: "plan", label: "Plan only", caption: "Plans only, changes nothing." },
 ] as const;
 
+const fieldClass =
+  "h-9 w-full rounded-md border border-[color-mix(in_oklab,var(--ink)_18%,transparent)] bg-[var(--paper)] px-2 text-sm text-[var(--ink)]";
+
+const captionClass = "text-xs text-[color-mix(in_oklab,var(--ink)_58%,transparent)]";
+
 /** "backend-developer" → "backend developer" — the catalog's slug IS the role. */
 export const roleOf = (slug: string) => slug.replace(/-/g, " ");
 
@@ -29,7 +34,7 @@ export function Launcher({
 }: {
   catalog: Catalog;
   busy: boolean;
-  /** Shown next to the disabled Run button — never refuse a press silently. */
+  /** Shown when Start is disabled — never refuse a press silently. */
   busyReason: string | null;
   onLaunch: (spec: LaunchSpec) => void;
 }) {
@@ -53,10 +58,10 @@ export function Launcher({
 
   return (
     <form
-      id="guild-launcher"
+      id="guild-call-sheet"
       tabIndex={-1}
       // Focus target when an overlay closes: no dedicated trigger exists.
-      className="mb-4 space-y-2 rounded-xl border p-3"
+      className="flex min-h-dvh flex-col items-center justify-center bg-background px-4 py-10"
       onSubmit={(event) => {
         event.preventDefault();
         if (busy) return; // implicit submission must not sneak past the disabled button
@@ -71,31 +76,48 @@ export function Launcher({
         }
       }}
     >
-      <div className="flex flex-wrap items-center gap-2">
-        <div role="group" aria-label="Run kind" className="flex gap-0.5 rounded-lg border p-0.5">
-          {KINDS.map((entry) => (
-            <Button
-              key={entry.value}
-              type="button"
-              size="sm"
-              variant={kind === entry.value ? "default" : "ghost"}
-              aria-pressed={kind === entry.value}
-              onClick={() => {
-                setKind(entry.value);
-                setTarget("");
-              }}
-            >
-              {entry.label}
-            </Button>
-          ))}
+      <div className="w-full max-w-lg space-y-6 bg-[var(--paper)] px-8 py-10 text-[var(--ink)] shadow-[0_18px_40px_color-mix(in_oklab,var(--floor)_18%,transparent)]">
+        <header className="space-y-1">
+          <h1 className="font-heading text-4xl font-extrabold tracking-tight">The Guild</h1>
+          <p className={captionClass}>Call sheet — start a production</p>
+        </header>
+
+        <div className="space-y-2">
+          <div
+            role="group"
+            aria-label="Run kind"
+            className="flex flex-wrap gap-1 border border-[color-mix(in_oklab,var(--ink)_14%,transparent)] p-1"
+          >
+            {KINDS.map((entry) => (
+              <Button
+                key={entry.value}
+                type="button"
+                size="sm"
+                variant="ghost"
+                aria-pressed={kind === entry.value}
+                className={
+                  kind === entry.value
+                    ? "bg-[var(--ink)] text-[var(--paper)] hover:bg-[var(--ink)] hover:text-[var(--paper)]"
+                    : "text-[var(--ink)]"
+                }
+                onClick={() => {
+                  setKind(entry.value);
+                  setTarget("");
+                }}
+              >
+                {entry.label}
+              </Button>
+            ))}
+          </div>
+          <p className={captionClass}>{kindCaption}</p>
         </div>
 
         {targets.length > 0 && (
-          <label className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground">{targetLabel}</span>
+          <label className="flex flex-col gap-1.5">
+            <span className="text-xs">{targetLabel}</span>
             <select
               aria-label={targetLabel}
-              className="h-9 max-w-56 rounded-md border bg-background px-2 text-sm"
+              className={fieldClass}
               value={target}
               onChange={(event) => setTarget(event.target.value)}
               required
@@ -110,39 +132,49 @@ export function Launcher({
           </label>
         )}
 
-        <select
-          aria-label="Permission mode"
-          className="ml-auto h-9 rounded-md border bg-background px-2 text-sm"
-          value={mode}
-          onChange={(event) => setMode(event.target.value)}
-        >
-          {MODES.map((entry) => (
-            <option key={entry.value} value={entry.value}>
-              {entry.label}
-            </option>
-          ))}
-        </select>
+        <label className="flex flex-col gap-1.5">
+          <span className="text-xs">Permission mode</span>
+          <select
+            aria-label="Permission mode"
+            className={fieldClass}
+            value={mode}
+            onChange={(event) => setMode(event.target.value)}
+          >
+            {MODES.map((entry) => (
+              <option key={entry.value} value={entry.value}>
+                {entry.label}
+              </option>
+            ))}
+          </select>
+        </label>
 
-        <Button type="submit" disabled={busy} title={busy ? (busyReason ?? undefined) : undefined}>
-          <Play className="mr-1 size-4" aria-hidden /> Run
-        </Button>
+        <Input
+          className={`${fieldClass} h-10`}
+          placeholder={kind === "command" ? "arguments (optional)" : "describe the task"}
+          value={text}
+          onChange={(event) => setText(event.target.value)}
+        />
+
+        <p className={captionClass}>
+          {modeCaption}{" "}
+          <kbd className="rounded border border-[color-mix(in_oklab,var(--ink)_18%,transparent)] px-1 font-mono">
+            ⌘/Ctrl ↵
+          </kbd>{" "}
+          to start.
+        </p>
+
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            type="submit"
+            size="lg"
+            disabled={busy}
+            title={busy ? (busyReason ?? undefined) : undefined}
+          >
+            <Play className="mr-1 size-4" aria-hidden /> Start
+          </Button>
+          {busy && busyReason && <p className={captionClass}>{busyReason}</p>}
+        </div>
       </div>
-
-      <Input
-        className="w-full"
-        placeholder={kind === "command" ? "arguments (optional)" : "describe the task"}
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-      />
-
-      <p className="text-xs text-muted-foreground">{kindCaption}</p>
-      <p className="text-xs text-muted-foreground">
-        {modeCaption} <kbd className="rounded border px-1">⌘/Ctrl ↵</kbd> to run.
-      </p>
-
-      {busy && busyReason && (
-        <p className="text-xs text-muted-foreground">{busyReason}</p>
-      )}
     </form>
   );
 }
