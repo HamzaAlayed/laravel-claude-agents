@@ -55,6 +55,9 @@ export default function App() {
   const [view, setView] = useState<RunView>(() => emptyRun("prompt"));
   const [selected, setSelected] = useState<Lane | null>(null);
   const [spotlightOpen, setSpotlightOpen] = useState(false);
+  // Set on Spotlight dismiss; consumed after the floor leaves inert so
+  // #cue-line.focus() is not a no-op on a still-inert wrapper.
+  const [restoreFocus, setRestoreFocus] = useState(false);
   // prompt_ids whose answer is in flight: dropped from the queue optimistically
   // so the spotlight advances to the next decision without waiting for the round
   // trip, and restored if the POST fails (the agent is still parked).
@@ -146,6 +149,12 @@ export default function App() {
       delete document.documentElement.dataset.scene;
     };
   }, [scene]);
+
+  useEffect(() => {
+    if (!restoreFocus || scene !== "floor") return;
+    restoreConsoleFocus();
+    setRestoreFocus(false);
+  }, [restoreFocus, scene]);
 
   // Arming is deliberately an effect: it costs a render cycle AFTER the queue
   // advanced and the spotlight remounted for the next prompt, so the second click
@@ -566,7 +575,7 @@ export default function App() {
             agent={catalog.agents.find((agent) => agent.slug === head.agent)}
             onClose={() => {
               setSpotlightOpen(false);
-              restoreConsoleFocus();
+              setRestoreFocus(true);
             }}
             onAnswer={answer}
           />

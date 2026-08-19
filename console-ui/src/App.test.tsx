@@ -202,6 +202,30 @@ describe("two-act scenes", () => {
     expect(screen.queryByRole("heading", { name: "Dina" })).toBeNull();
   });
 
+  it("restores cue-line focus after Spotlight closes", async () => {
+    const { server, user } = await launch();
+    server.emit({
+      type: "agent_start",
+      agent: "backend-developer",
+      tool_use_id: "t1",
+      task: "add the export job",
+    });
+    server.emit({
+      type: "agent_start",
+      agent: "qa-engineer",
+      tool_use_id: "t2",
+      task: "cover it with tests",
+    });
+    server.emit(approval("p1", "qa-engineer"));
+    expect(await screen.findByText("Allow Bash?")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByText("Allow Bash?")).toBeNull());
+
+    expect(document.activeElement?.id).toBe("cue-line");
+    expect(within(button("Dina: cover it with tests")).getByText("needs you")).toBeTruthy();
+  });
+
   it("returns to Spotlight from Needs you after dismiss on a focus run", async () => {
     const { server, user } = await launch();
     server.emit(approval("p1", "backend-developer"));
