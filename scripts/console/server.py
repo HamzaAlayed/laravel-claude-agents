@@ -30,6 +30,20 @@ RUN_ROUTE = re.compile(r"^/api/runs/(?P<run_id>[A-Za-z0-9_]+)(?P<rest>/[a-z]+)?$
 TIMEOUTS = (TimeoutError, concurrent.futures.TimeoutError)
 
 
+def write_or_drop(wfile, data: bytes) -> bool:
+    """Write bytes to a client. A disconnect is not a server error.
+
+    Catch at the write/flush site so a non-keep-alive client that closes early
+    does not produce a BrokenPipeError traceback from handle_error.
+    """
+    try:
+        wfile.write(data)
+        wfile.flush()
+    except (BrokenPipeError, ConnectionResetError):
+        return False
+    return True
+
+
 class _Server(ThreadingHTTPServer):
     """ThreadingHTTPServer without HTTPServer.server_bind's reverse-DNS lookup.
 
@@ -101,7 +115,7 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
             self.send_header("Content-Type", "application/json")
             self.send_header("Content-Length", str(len(body)))
             self.end_headers()
-            self.wfile.write(body)
+            write_or_drop(self.wfile, body)
 
         def _read_body(self) -> dict:
             length = self._content_length()
@@ -164,10 +178,8 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
             try:
                 for event in manager.subscribe(run_id, since_seq=since_seq):
                     chunk = f"id: {event['seq']}\ndata: {json.dumps(event)}\n\n"
-                    self.wfile.write(chunk.encode())
-                    self.wfile.flush()
-            except (BrokenPipeError, ConnectionResetError):
-                return
+                    if not write_or_drop(self.wfile, chunk.encode()):
+                        return
             except KeyError:
                 return
 
@@ -249,6 +261,6 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
             self.send_header("Content-Type", ctype)
             self.send_header("Content-Length", str(len(data)))
             self.end_headers()
-            self.wfile.write(data)
+            write_or_drop(self.wfile, data)
 
     return _Server((host, port), Handler)

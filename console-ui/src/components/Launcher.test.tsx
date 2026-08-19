@@ -46,6 +46,27 @@ describe("the launcher explains itself", () => {
     await user.selectOptions(screen.getByLabelText("Permission mode"), "plan");
     expect(screen.getByText(/changes nothing/)).toBeTruthy();
   });
+
+  it("names the target select with the same word the user sees", async () => {
+    const { user } = mount();
+    await user.click(screen.getByRole("button", { name: "Command" }));
+    expect(screen.getByRole("combobox", { name: "Command" })).toBeTruthy();
+    expect(screen.queryByRole("combobox", { name: "Target" })).toBeNull();
+  });
+
+  it("resets the target when the kind changes", async () => {
+    const { user } = mount();
+    await user.click(screen.getByRole("button", { name: "Command" }));
+    await user.selectOptions(screen.getByRole("combobox", { name: "Command" }), "review-pr");
+    expect((screen.getByRole("combobox", { name: "Command" }) as HTMLSelectElement).value).toBe(
+      "review-pr",
+    );
+
+    await user.click(screen.getByRole("button", { name: "Specialist" }));
+    expect((screen.getByRole("combobox", { name: "Specialist" }) as HTMLSelectElement).value).toBe(
+      "",
+    );
+  });
 });
 
 describe("Cmd/Ctrl+Enter", () => {

@@ -45,7 +45,10 @@ export function mergeFreeText(
  * mergeFreeText is.
  */
 export function splitJsonKey(line: string): { key: string | null; rest: string } {
-  const match = /^(\s*"[^"]+":)(.*)$/.exec(line);
+  // `(?:\\.|[^"\\])*` keeps going through `\"` so `"my\"key":` is one key.
+  // JSON.stringify emits exactly that form; this is a cosmetic tint and must
+  // not false-positive on its output.
+  const match = /^(\s*"(?:\\.|[^"\\])*":)(.*)$/.exec(line);
   return match ? { key: match[1], rest: match[2] } : { key: null, rest: line };
 }
 
@@ -80,8 +83,8 @@ export function DecisionSheet({
    * queue advances. See lib/submitGate.ts.
    */
   disabled: boolean;
-  /** How many decisions are waiting, including this one. Drives the "Decision
-   * 1 of N" counter — hidden when there is nothing else queued behind it. */
+  /** How many decisions are waiting, including this one. Drives the
+   * "{n} remaining" counter — hidden when this is the only one. */
   queueLength: number;
   onClose: () => void;
   onAnswer: (payload: Record<string, unknown>) => void;
@@ -118,7 +121,7 @@ export function DecisionSheet({
             {pending.is_question ? "The Guild has questions" : `Allow ${pending.tool}?`}
           </SheetTitle>
           {queueLength > 1 && (
-            <SheetDescription>Decision 1 of {queueLength}</SheetDescription>
+            <SheetDescription>{queueLength} remaining</SheetDescription>
           )}
         </SheetHeader>
 

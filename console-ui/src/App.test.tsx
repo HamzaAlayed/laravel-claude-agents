@@ -386,7 +386,7 @@ describe("a queue of approvals", () => {
     server.emit(approval("p1", "backend-developer"));
     server.emit(approval("p2", "qa-engineer", "Write"));
 
-    expect(await screen.findByText("Decision 1 of 2")).toBeTruthy();
+    expect(await screen.findByText("2 remaining")).toBeTruthy();
   });
 
   it("drops the counter when only one decision remains", async () => {
@@ -394,7 +394,7 @@ describe("a queue of approvals", () => {
     server.emit(approval("p1", "backend-developer"));
 
     await screen.findByText("Allow Bash?");
-    expect(screen.queryByText(/Decision 1 of/)).toBeNull();
+    expect(screen.queryByText(/remaining/)).toBeNull();
   });
 });
 

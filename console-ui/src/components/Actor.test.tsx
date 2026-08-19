@@ -5,10 +5,13 @@
  * every word it could say is already in the card's own label and status line.
  */
 import { describe, expect, it } from "vitest";
-import { render } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { Actor } from "./Actor";
 
 const actor = (container: HTMLElement) => container.querySelector("[data-pose]") as HTMLElement;
+// Base UI's tooltip popup is not role="tooltip"; the shadcn wrapper marks it.
+const tip = () => document.querySelector("[data-slot='tooltip-content']") as HTMLElement | null;
 
 describe("Actor", () => {
   it("publishes its pose for the stylesheet to animate", () => {
@@ -77,6 +80,43 @@ describe("Actor", () => {
   it("draws no instrument when no agent is named at all", () => {
     const { container } = render(<Actor pose="working" color="#3b82f6" size="lg" />);
     expect(container.querySelector(".sp-prop")).toBeNull();
+  });
+
+  it("shows elapsed time and the current tool on hover at card size", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <Actor pose="working" color="#c2410c" elapsed="8.0s" tool="Read" />,
+    );
+    await user.hover(actor(container));
+    const popup = await screen.findByText("Read");
+    expect(popup.closest("[data-slot='tooltip-content']")?.textContent).toContain("8.0s");
+    expect(tip()?.textContent).not.toMatch(/token/i);
+  });
+
+  it("says starting… when no tool has been called yet, so the tooltip does not jump", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <Actor pose="thinking" color="#c2410c" elapsed="0.4s" tool={null} />,
+    );
+    await user.hover(actor(container));
+    expect((await screen.findByText("starting…")).textContent).toContain("starting…");
+  });
+
+  it("does not hover-scale or tooltip at lane-panel size", async () => {
+    const user = userEvent.setup();
+    const { container } = render(
+      <Actor
+        pose="working"
+        color="#c2410c"
+        slug="qa-engineer"
+        size="lg"
+        elapsed="8.0s"
+        tool="Read"
+      />,
+    );
+    expect(actor(container).hasAttribute("data-hover")).toBe(false);
+    await user.hover(actor(container));
+    expect(tip()).toBeNull();
   });
 
   it("draws each specialist their own object", () => {

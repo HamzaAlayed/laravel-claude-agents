@@ -1,5 +1,6 @@
 import { motion } from "motion/react";
 import { AlertTriangle, Check, Pause } from "lucide-react";
+import { currentTool } from "@/lib/currentTool";
 import { useElapsed } from "@/lib/useElapsed";
 import { actorPose } from "@/lib/actorPose";
 import { Actor } from "./Actor";
@@ -42,7 +43,12 @@ export function AgentCard({ lane, agent, parked, onSelect }: Props) {
       aria-label={`${agent?.name ?? lane.slug}: ${lane.task || "working"}`}
     >
       <div className="flex items-center gap-2">
-        <Actor pose={actorPose(lane, parked)} color={color} />
+        <Actor
+          pose={actorPose(lane, parked)}
+          color={color}
+          elapsed={elapsed}
+          tool={currentTool(lane)}
+        />
         <span className="truncate text-sm font-medium">{agent?.name ?? lane.slug}</span>
         {outcome && (
           <outcome.Icon data-outcome={outcome.key} className="ml-auto size-3.5 shrink-0" aria-hidden />

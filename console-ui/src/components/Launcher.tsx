@@ -49,9 +49,13 @@ export function Launcher({
 
   const kindCaption = KINDS.find((entry) => entry.value === kind)?.caption ?? "";
   const modeCaption = MODES.find((entry) => entry.value === mode)?.caption ?? "";
+  const targetLabel = kind === "command" ? "Command" : "Specialist";
 
   return (
     <form
+      id="guild-launcher"
+      tabIndex={-1}
+      // Focus target when an overlay closes: no dedicated trigger exists.
       className="mb-4 space-y-2 rounded-xl border p-3"
       onSubmit={(event) => {
         event.preventDefault();
@@ -88,11 +92,9 @@ export function Launcher({
 
         {targets.length > 0 && (
           <label className="flex items-center gap-1.5">
-            <span className="text-xs text-muted-foreground">
-              {kind === "command" ? "Command" : "Specialist"}
-            </span>
+            <span className="text-xs text-muted-foreground">{targetLabel}</span>
             <select
-              aria-label="Target"
+              aria-label={targetLabel}
               className="h-9 max-w-56 rounded-md border bg-background px-2 text-sm"
               value={target}
               onChange={(event) => setTarget(event.target.value)}
@@ -133,8 +135,9 @@ export function Launcher({
         onChange={(event) => setText(event.target.value)}
       />
 
+      <p className="text-xs text-muted-foreground">{kindCaption}</p>
       <p className="text-xs text-muted-foreground">
-        {kindCaption} {modeCaption} <kbd className="rounded border px-1">⌘/Ctrl ↵</kbd> to run.
+        {modeCaption} <kbd className="rounded border px-1">⌘/Ctrl ↵</kbd> to run.
       </p>
 
       {busy && busyReason && (

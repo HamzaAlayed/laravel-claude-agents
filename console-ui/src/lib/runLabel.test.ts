@@ -42,4 +42,10 @@ describe("formatRunLabel", () => {
   it("omits the time segment when started_at is missing", () => {
     expect(formatRunLabel(row(), NOW)).toBe("make-feature · done");
   });
+
+  it("treats a future started_at as clock skew, not a negative age", () => {
+    expect(formatRunLabel(row({ started_at: NOW + 30_000 }), NOW)).toBe(
+      "make-feature · done · just now",
+    );
+  });
 });

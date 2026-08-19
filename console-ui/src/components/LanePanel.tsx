@@ -18,15 +18,21 @@ export function LanePanel({
   lane,
   agent,
   parked,
+  open,
   onClose,
 }: {
   lane: Lane;
   agent?: Agent;
   parked: boolean;
+  /**
+   * Controlled so Base UI can run `data-ending-style` on close. Hardcoding
+   * `true` mounted the frame already-open and popped it off on unmount.
+   */
+  open: boolean;
   onClose: () => void;
 }) {
   return (
-    <Sheet open modal={false} onOpenChange={(next) => !next && onClose()}>
+    <Sheet open={open} modal={false} onOpenChange={(next) => !next && onClose()}>
       <SheetContent
         side="right"
         showOverlay={false}

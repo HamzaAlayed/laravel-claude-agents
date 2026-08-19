@@ -264,3 +264,19 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/*
+ * Card-size sprite hover only (`data-hover` is set by Actor at `sm`). Plain CSS
+ * rather than Framer whileHover, so the sprite stays a zero-runtime-animation
+ * component. The scale is gated on prefers-reduced-motion: no-preference — under
+ * reduce it does not fire at all (not even an instant snap).
+ */
+@media (prefers-reduced-motion: no-preference) {
+  [data-pose][data-hover] {
+    transition: transform 180ms ease;
+    transform-origin: center bottom;
+  }
+  [data-pose][data-hover]:hover {
+    transform: scale(1.12);
+  }
+}
