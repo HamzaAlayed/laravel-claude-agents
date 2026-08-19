@@ -69,7 +69,7 @@ export function Board({ view, catalog, onSelect }: Props) {
                     {lane.task || "coordinating…"}
                   </span>
                   {parked && (
-                    <span className="ml-auto shrink-0 text-[11px] font-semibold text-[var(--cue)]">
+                    <span className="ml-auto shrink-0 text-[11px] font-semibold text-[var(--paper)]">
                       needs you
                     </span>
                   )}

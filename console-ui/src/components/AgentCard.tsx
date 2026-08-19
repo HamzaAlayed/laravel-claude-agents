@@ -58,14 +58,14 @@ export function AgentCard({ lane, agent, parked, onSelect }: Props) {
         {outcome && (
           <outcome.Icon
             data-outcome={outcome.key}
-            className={`ml-auto size-3.5 shrink-0 ${parked ? "text-[var(--cue)]" : ""}`}
+            className="ml-auto size-3.5 shrink-0"
             aria-hidden
           />
         )}
       </div>
       <p className={`mt-1 truncate text-xs ${captionClass}`}>{lane.task || "working…"}</p>
       <p
-        className={`mt-0.5 text-[11px] tabular-nums ${parked ? "text-[var(--cue)]" : captionClass}`}
+        className={`mt-0.5 text-[11px] tabular-nums ${parked ? "text-[var(--paper)]" : captionClass}`}
       >
         {parked ? "needs you" : elapsed}
       </p>
