@@ -1,7 +1,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
-@import "@fontsource-variable/geist";
 
 /*
  * Tests are not markup. Tailwind's scanner reads raw bytes, so a bare word in a
@@ -16,8 +15,9 @@
 @custom-variant dark (&:is(.dark *));
 
 @theme inline {
-    --font-heading: var(--font-sans);
-    --font-sans: 'Geist Variable', sans-serif;
+    --font-heading: "Syne Variable", sans-serif;
+    --font-sans: "Source Sans 3 Variable", sans-serif;
+    --font-mono: "IBM Plex Mono", ui-monospace, monospace;
     --color-sidebar-ring: var(--sidebar-ring);
     --color-sidebar-border: var(--sidebar-border);
     --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -59,8 +59,14 @@
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
+    --plaster: #B7AFA4;
+    --floor: #2F2C28;
+    --ink: #1C1917;
+    --paper: #E6E1D6;
+    --tungsten: #CC8A3A;
+    --cue: #A33B32;
+    --background: var(--plaster);
+    --foreground: var(--ink);
     --card: oklch(1 0 0);
     --card-foreground: oklch(0.145 0 0);
     --popover: oklch(1 0 0);
@@ -125,6 +131,24 @@
     --sidebar-accent-foreground: oklch(0.985 0 0);
     --sidebar-border: oklch(1 0 0 / 10%);
     --sidebar-ring: oklch(0.556 0 0);
+}
+
+html[data-scene="floor"],
+html[data-scene="spotlight"] {
+    --background: var(--floor);
+    --foreground: var(--paper);
+}
+
+/* Floor stays mounted under spotlight; dim the stage, not the cue. Under
+   reduce, opacity still snaps to 0.28 — only the fade is motion-gated. */
+[data-scene="spotlight"] [data-floor] {
+    opacity: 0.28;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    [data-scene="spotlight"] [data-floor] {
+        transition: opacity 180ms ease;
+    }
 }
 
 @layer base {
