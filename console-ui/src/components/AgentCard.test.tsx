@@ -85,6 +85,10 @@ describe("AgentCard", () => {
     ).toBe("parked");
   });
 
+  it("marks itself as a floor station", () => {
+    expect(show(lane("running")).querySelector("[data-station]")).toBeTruthy();
+  });
+
   it("selects the card when the sprite itself is clicked", async () => {
     const onSelect = vi.fn();
     const user = userEvent.setup();

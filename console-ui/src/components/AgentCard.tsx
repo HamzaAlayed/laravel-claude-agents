@@ -21,6 +21,8 @@ const outcomeOf = (lane: Lane, parked: boolean) => {
   return null;
 };
 
+const captionClass = "text-[color-mix(in_oklab,var(--paper)_70%,transparent)]";
+
 export function AgentCard({ lane, agent, parked, onSelect }: Props) {
   const elapsed = useElapsed(lane.startedAt, lane.endedAt);
   const color = agent?.color ?? "#64748b";
@@ -30,15 +32,18 @@ export function AgentCard({ lane, agent, parked, onSelect }: Props) {
     <motion.button
       layout
       layoutId={lane.toolUseId}
+      data-station=""
       onClick={onSelect}
       initial={{ opacity: 0, y: 8, scale: 0.97 }}
       animate={{ opacity: lane.status === "done" ? 0.7 : 1, y: 0, scale: 1 }}
       transition={{ type: "spring", stiffness: 380, damping: 30 }}
-      className={`w-full rounded-lg border bg-card p-2.5 text-left focus-visible:ring-2 ${parked ? "animate-attention" : ""}`}
+      className={`w-full p-2.5 text-left text-[var(--paper)] focus-visible:ring-2 focus-visible:ring-[var(--paper)] ${
+        parked
+          ? "animate-attention border-2 shadow-[inset_0_-3px_0_0_var(--cue)]"
+          : "border-2 border-transparent"
+      }`}
       style={{
         ["--lane-color" as string]: color,
-        borderColor: parked ? color : undefined,
-        borderWidth: parked ? 2 : 1,
       }}
       aria-label={`${agent?.name ?? lane.slug}: ${lane.task || "working"}`}
     >
@@ -51,18 +56,24 @@ export function AgentCard({ lane, agent, parked, onSelect }: Props) {
         />
         <span className="truncate text-sm font-medium">{agent?.name ?? lane.slug}</span>
         {outcome && (
-          <outcome.Icon data-outcome={outcome.key} className="ml-auto size-3.5 shrink-0" aria-hidden />
+          <outcome.Icon
+            data-outcome={outcome.key}
+            className={`ml-auto size-3.5 shrink-0 ${parked ? "text-[var(--cue)]" : ""}`}
+            aria-hidden
+          />
         )}
       </div>
-      <p className="mt-1 truncate text-xs text-muted-foreground">{lane.task || "working…"}</p>
-      <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
+      <p className={`mt-1 truncate text-xs ${captionClass}`}>{lane.task || "working…"}</p>
+      <p
+        className={`mt-0.5 text-[11px] tabular-nums ${parked ? "text-[var(--cue)]" : captionClass}`}
+      >
         {parked ? "needs you" : elapsed}
       </p>
       {/* Claude Code decides some calls before can_use_tool is consulted. Saying
           so is the difference between a transcript and an approval record. One
           template literal, not two nodes, so the line reads as one string. */}
       {lane.unasked > 0 && (
-        <p className="mt-0.5 text-[11px] tabular-nums text-muted-foreground">
+        <p className={`mt-0.5 text-[11px] tabular-nums ${captionClass}`}>
           {`${lane.unasked} ran unasked`}
         </p>
       )}
