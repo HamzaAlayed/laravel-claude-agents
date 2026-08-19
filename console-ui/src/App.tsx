@@ -34,6 +34,21 @@ function restoreConsoleFocus() {
   document.getElementById("guild-call-sheet")?.focus({ preventScroll: true });
 }
 
+const KIND_LABEL: Record<string, string> = {
+  prompt: "Freeform",
+  command: "Command",
+  specialist: "Specialist",
+};
+
+/** What the show is called on the floor: the ask, else the target, else the kind. */
+function productionTitle(spec: LaunchSpec): string {
+  const text = spec.text.trim();
+  if (text) return text;
+  const target = spec.target.trim();
+  if (target) return target;
+  return KIND_LABEL[spec.kind] ?? spec.kind;
+}
+
 export default function App() {
   const [catalog, setCatalog] = useState<Catalog | null>(null);
   const [runId, setRunId] = useState<string | null>(null);
@@ -59,6 +74,7 @@ export default function App() {
   // Recorded runs are strictly read-only: their approval futures died with the
   // process that held them, so there is nothing left to answer or interrupt.
   const [recorded, setRecorded] = useState<string | null>(null);
+  const [showTitle, setShowTitle] = useState("The Guild");
   const [runStartedAt, setRunStartedAt] = useState(0);
   const lastSeq = useRef(0);
   // Survives close so LanePanel can animate out; written only while a lane is
@@ -135,6 +151,7 @@ export default function App() {
     setStopped(false);
     setLiveMode(spec.mode);
     setRecorded(null);
+    setShowTitle(productionTitle(spec));
     setRunStartedAt(Date.now());
     lastSelectedLane.current = null;
     try {
@@ -151,7 +168,8 @@ export default function App() {
     setError(null);
     try {
       const events = await api.fetchRun(id);
-      const kind = runs.find((row) => row.run_id === id)?.spec?.kind ?? "prompt";
+      const row = runs.find((entry) => entry.run_id === id);
+      const kind = row?.spec?.kind ?? "prompt";
       // Detach from any live stream first: the effect below closes the
       // EventSource when runId goes null.
       setRunId(null);
@@ -160,6 +178,7 @@ export default function App() {
       lastSelectedLane.current = null;
       setView(events.reduce(reduce, emptyRun(kind)));
       setRecorded(id);
+      setShowTitle(row ? formatRunLabel(row) : id);
     } catch (e) {
       setError(String((e as Error).message));
     }
@@ -273,7 +292,7 @@ export default function App() {
     <main className="mx-auto max-w-6xl p-4 md:p-6">
       <header className="mb-4 flex items-baseline gap-3 bg-[var(--floor)] text-[var(--paper)]">
         <ShowHeader
-          title="Laravel Guild Console"
+          title={showTitle}
           live={live}
           startedAt={runStartedAt}
           outcome={

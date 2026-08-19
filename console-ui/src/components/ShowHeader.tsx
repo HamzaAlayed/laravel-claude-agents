@@ -18,7 +18,7 @@ export function ShowHeader({
 }) {
   return (
     <div className="contents">
-      <h1 className="font-heading truncate text-lg font-semibold text-[var(--paper)]">
+      <h1 className="font-heading truncate text-lg font-extrabold text-[var(--paper)]">
         {title}
       </h1>
       <StatusChip live={live} startedAt={startedAt} outcome={outcome} />

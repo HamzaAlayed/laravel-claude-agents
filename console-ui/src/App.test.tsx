@@ -810,6 +810,11 @@ describe("the follow-up composer", () => {
 });
 
 describe("the header status chip", () => {
+  it("titles the show after the launch text", async () => {
+    await launch();
+    expect(screen.getByRole("heading", { name: "ship the invoice export" })).toBeTruthy();
+  });
+
   it("ticks while the run is live", async () => {
     await launch();
     expect(screen.getByText(/running ·/)).toBeTruthy();
@@ -829,7 +834,9 @@ describe("the header status chip", () => {
 
     // Scoped to the header: the main-thread transcript also renders a bare
     // "error" row for the same event, and that row is not the chip.
-    const header = screen.getByText("Laravel Guild Console").closest("header") as HTMLElement;
+    const header = screen
+      .getByRole("heading", { name: "ship the invoice export" })
+      .closest("header") as HTMLElement;
     expect(within(header).getByText("error")).toBeTruthy();
   });
 
@@ -858,5 +865,6 @@ describe("the header status chip", () => {
 
     expect(screen.queryByText(/running ·/)).toBeNull();
     expect(screen.queryByText("done")).toBeNull();
+    expect(screen.getByRole("heading", { name: /prompt ·/ })).toBeTruthy();
   });
 });
