@@ -55,7 +55,9 @@ Statuses are `✔ done / ▶ running / · queued / ✖ failed`. Each specialist 
 
 In `/console`, named cards (Adam, Elena, Dina, …) fill the pipeline as they start. An amber bar means the run is parked on an approval. Every Bash call asks you.
 
-Screenshots of a live mid-run board are pending a live console capture.
+![Console board mid-run](docs/images/console-board-mid-run.png)
+
+Fixture-driven capture of the Guild console pipeline board (Adam + Dina, parked approval) — not a billed live `/console` run.
 
 ---
 
