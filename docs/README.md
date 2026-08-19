@@ -4,7 +4,7 @@ This page maps the `docs/` corpus so the next review — human or agent — star
 
 Adopting the pack on a Laravel app? [Run your first delivery](onboarding.md). Seeing it work in five minutes? The [README quickstart](../README.md#five-minute-quickstart).
 
-Last verified 2026-08-19 against pack v1.43.0.
+Last verified 2026-08-19 against pack v1.44.0.
 
 ## What lives where
 
@@ -52,6 +52,7 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 | Harvest on command-driven runs (v1.41.0) | [harvest spec](superpowers/specs/2026-08-07-harvest-interface-fix-design.md); [run 7 second addendum](evals/2026-08-06-run-7.md#second-addendum-the-real-fix-v1410-re-run) |
 | Orchestration-contract repair + `/audit-agents` (v1.42.0) | [contract spec](superpowers/specs/2026-08-18-orchestration-contract-fix-design.md); [run 9](evals/2026-08-18-run-9.md) |
 | Prove-it **Adoption** (v1.43.0) | [adoption plan](plans/2026-08-19-adoption-1.43.md); README quickstart; [onboarding](onboarding.md); [this index](README.md) |
+| Console company-theater redesign (v1.44.0) | [design](plans/2026-08-19-console-company-theater-design.md); [plan](plans/2026-08-19-console-company-theater.md); fixture still at [console-board-mid-run.png](images/console-board-mid-run.png) |
 | Console board screenshot | [docs/images/console-board-mid-run.png](images/console-board-mid-run.png) — fixture-driven, not a billed live `/console` run. Optional GIF not taken. |
 | CAN-RIDE console minors + actor-sprite hover (v1.43.0) | [motion follow-ups](plans/2026-08-04-console-motion-followups.md); [hover spec](superpowers/specs/2026-08-07-actor-sprite-hover-design.md) |
 | Eval `$SUBAGENT_LOG` extractor | [subagent-log write-up](evals/2026-08-19-subagent-log.md). [Run 10](evals/2026-08-19-run-10.md) inspected a billed transcript: 125 nested turns, all `tool_use` only, log empty. Feature greps stay commented. |
@@ -69,7 +70,6 @@ Still true as of 2026-08-19. A new review starts here.
 | Item | Where | Notes |
 | --- | --- | --- |
 | **Per-stage specialist returns unmeasured** | [run 8](evals/2026-08-12-run-8.md); [subagent-log](evals/2026-08-19-subagent-log.md); [run 10](evals/2026-08-19-run-10.md) | Extractor shipped in v1.43.0. Run 10's `$SUBAGENT_LOG` is empty: 125 nested assistant turns, every one `tool_use` only. Do not uncomment `check_subagent_log` on that shape. |
-| **Console company-theater redesign** | [design](plans/2026-08-19-console-company-theater-design.md); [plan](plans/2026-08-19-console-company-theater.md) | Implemented on this branch (`console-ui/` + committed `scripts/console/dist`); pending VERSION bump. |
 
 ## How a new review should start
 

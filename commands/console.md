@@ -35,8 +35,9 @@ only — it drives the Claude Agent SDK, which the other runtimes don't ship.
 - Runs persist to `.claude/console/runs/*.jsonl`; add `.claude/console/` to
   `.gitignore` if `.claude/` is committed.
 - A run **parks** until you answer an approval or a checkpoint question — the
-  amber bar at the top of the board is the signal. Several agents can park at
-  once; the bar counts them and you answer one at a time.
+  parked station is marked on the floor, and **Needs you** in the show header
+  reopens Spotlight if no station is marked. Several agents can park at once;
+  you answer one at a time in Spotlight.
 - **Every Bash command asks you** — including read-only ones like `echo hello`,
   which Claude Code would otherwise approve by itself before the console was
   consulted. A `PreToolUse` hook forces them back through the browser, because no

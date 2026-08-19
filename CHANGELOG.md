@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.44.0] - 2026-08-19
+
+`/console` is a two-act company floor. The call sheet starts a production;
+the house fills with stations; a parked Bash prompt takes the stage. Same
+Python server, same events.
+
 ### Added
 
 - **A two-act company floor for `/console`** — call sheet, theater, and
@@ -16,7 +22,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 
 - **The approval bar is gone.** Decisions live in Spotlight on the main
-  canvas; dismiss keeps a parked card so you can reopen.
+  canvas; dismiss keeps a parked card so you can reopen. **Needs you** in
+  the show header is the fallback when no station is marked.
 - **Geist is out.** Display is Syne, body is Source Sans 3, mono is IBM
   Plex Mono.
 - **The console board screenshot was recaptured** as the company floor
