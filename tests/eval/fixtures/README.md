@@ -15,7 +15,7 @@ other field is altered; every `usage` object is byte-original.
 | File | Prompt | Why |
 | --- | --- | --- |
 | `stream-json-sample.jsonl` | "List the files in the current directory, then stop." | Baseline shape: line types, keys, where usage and the final answer live. |
-| `stream-json-subagent.jsonl` | Delegate one `general-purpose` subagent, report what it returned. | The per-agent attribution question. The baseline probe spawns no subagent, so it **cannot** answer it — that is why there are two. |
+| `stream-json-subagent.jsonl` | Delegate one `general-purpose` subagent, report what it returned. | The per-agent attribution question. The baseline probe spawns no subagent, so it **cannot** answer it — that is why there are two. The subagent assistant turn is tools-only (`Bash` pwd); it has no text block, so `eval-cost.py --subagent-text` exiting 2 on this file is expected, not a missed `parent_tool_use_id`. |
 
 ## Observed line types
 

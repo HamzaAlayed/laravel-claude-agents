@@ -657,6 +657,15 @@ expect "the opt-in case stays out of the default sweep" "0" \
 expect "no checks function reads the raw transcript" "0" \
   "$(sed -n '/^checks_/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'stream\.jsonl' || true)"
+# The subagent-log helper is the legal way to observe per-stage specialist
+# returns (run 8). It must grep the derived $SUBAGENT_LOG, not collapse to
+# reading stream.jsonl the way a checks_* workaround would.
+expect "check_subagent_log does not read the raw transcript" "0" \
+  "$(sed -n '/^check_subagent_log()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'stream\.jsonl' || true)"
+expect "check_subagent_log greps the derived subagent log" "1" \
+  "$(sed -n '/^check_subagent_log()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE '\$SUBAGENT_LOG' || true)"
 expect "console bundle is committed" "1" \
   "$([ -f "$SCRIPT_DIR/scripts/console/dist/index.html" ] && echo 1 || echo 0)"
 # The committed bundle needs ONE blessed toolchain. A hardcoded node-version in

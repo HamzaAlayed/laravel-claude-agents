@@ -29,6 +29,24 @@ Results land in `tests/eval/results/<run-id>/` (gitignored): per-case output
 log, check results, `git diff` of what the agents changed, and the
 `agents-board.jsonl` event stream (per-agent timing).
 
+Three derived text artifacts are rebuilt from the stream-json transcript by
+`scripts/eval-cost.py`. `checks_*` functions must grep these files, never
+`stream.jsonl` (guardrails ratchet):
+
+| Artifact | CLI flag | Extractor | What it contains |
+| -------- | -------- | --------- | ---------------- |
+| `<case>.log` (`$LOG`) | `--text-only` | `final_text()` | closing `result` field, or concatenated assistant text if the run timed out |
+| `<case>.full-text.log` (`$FULL_LOG`) | `--full-text` | `full_text()` | every **main-thread** assistant turn (`parent_tool_use_id is None`) |
+| `<case>.subagent.log` (`$SUBAGENT_LOG`) | `--subagent-text` | `subagent_text()` | every **subagent** assistant turn (`parent_tool_use_id` is not None) |
+
+`$FULL_LOG` is load-bearing: an Interface contract that binds the orchestrator
+must not be satisfiable by a specialist (run 7 finding 3). Per-stage specialist
+returns (`STATUS`/`DID`/`VERIFIED`/`NOT-CHECKED`/`FLAGS`/`NEXT`) live on
+subagent turns and are structurally invisible there (run 8). Use
+`check_subagent_log` to grep `$SUBAGENT_LOG` for those fields. The opt-in
+`feature` case ships the helper and a commented assertion shape; do not turn
+those greps on without an inspected billed transcript.
+
 ## Answer key — planted flaws
 
 The fixture is a small blog app. **The flaws are documented here, not in the
