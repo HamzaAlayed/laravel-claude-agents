@@ -33,4 +33,11 @@ describe("ShowHeader", () => {
     expect(document.getElementById("guild-launcher")).toBeNull();
     expect(document.getElementById("guild-call-sheet")).toBeNull(); // header is not the call sheet
   });
+
+  it("Back calls onBack when a recording is open", async () => {
+    const onBack = vi.fn();
+    const { user } = mount({ live: false, onStop: undefined, onBack });
+    await user.click(screen.getByRole("button", { name: "Close recording" }));
+    expect(onBack).toHaveBeenCalledTimes(1);
+  });
 });

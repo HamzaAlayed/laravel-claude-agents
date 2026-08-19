@@ -55,9 +55,8 @@ export function buildAnswers(
 }
 
 /**
- * App still mounts DecisionSheet until the scene wiring lands. Chrome lives on
- * Spotlight; this wrapper maps `open` onto mount/unmount so existing callers
- * keep the same props.
+ * Helpers (`buildAnswers`, `mergeFreeText`, `splitJsonKey`) stay here for
+ * Spotlight. This wrapper is unused by App — scenes mount Spotlight directly.
  */
 export function DecisionSheet({
   pending,

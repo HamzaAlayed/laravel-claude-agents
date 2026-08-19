@@ -108,25 +108,89 @@ describe("the run is launched", () => {
     });
   });
 
-  it("refuses a second launch while a run is live, and says why", async () => {
-    const { server, user } = await launch();
-    expect(runButton().disabled).toBe(true);
-    expect(screen.getByText(/interrupt it before starting another/)).toBeTruthy();
-
-    // Implicit submission must not sneak past the disabled button either.
-    await user.type(screen.getByPlaceholderText("describe the task"), "{Enter}");
+  it("unmounts the call sheet while a run is live", async () => {
+    const { server } = await launch();
+    expect(document.getElementById("guild-call-sheet")).toBeNull();
     expect(server.postsTo("/api/runs")).toHaveLength(1);
   });
 });
 
-describe("a parked approval", () => {
-  it("is announced by name and opens the sheet unprompted", async () => {
+describe("two-act scenes", () => {
+  it("hides the call sheet once a run is live and shows the floor", async () => {
+    await launch();
+    expect(document.getElementById("guild-call-sheet")).toBeNull();
+    expect(screen.getByRole("heading", { name: "ship the invoice export" })).toBeTruthy();
+  });
+
+  it("opens Spotlight on a prompt, not a Review bar", async () => {
     const { server } = await launch();
     server.emit(approval("p1", "backend-developer"));
 
-    expect(screen.getByText("Adam needs approval — Bash")).toBeTruthy();
-    // The sheet opens itself: a parked run must never wait to be noticed.
     expect(await screen.findByText("Allow Bash?")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Allow once" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Review" })).toBeNull();
+  });
+
+  it("dismisses Spotlight and reopens it from the parked card", async () => {
+    const { server, user } = await launch();
+    server.emit({
+      type: "agent_start",
+      agent: "backend-developer",
+      tool_use_id: "t1",
+      task: "add the export job",
+    });
+    server.emit({
+      type: "agent_start",
+      agent: "qa-engineer",
+      tool_use_id: "t2",
+      task: "cover it with tests",
+    });
+    server.emit(approval("p1", "qa-engineer"));
+    expect(await screen.findByText("Allow Bash?")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByText("Allow Bash?")).toBeNull());
+
+    const parked = button("Dina: cover it with tests");
+    expect(within(parked).getByText("needs you")).toBeTruthy();
+
+    await user.click(parked);
+    expect(await screen.findByText("Allow Bash?")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Dina" })).toBeNull();
+  });
+
+  it("never offers Allow on a recorded run", async () => {
+    const opened = await open(testCatalog, (s) =>
+      s.addRecordedRun({ run_id: "run_parked", spec: { kind: "prompt" } }, [
+        {
+          type: "prompt",
+          prompt_id: "p1",
+          agent: "backend-developer",
+          tool: "Bash",
+          input: { command: "ls" },
+          is_question: false,
+          suggestions: [],
+        },
+      ]),
+    );
+    await screen.findByLabelText("Run kind");
+    await waitFor(() => expect(screen.getByLabelText("Open a recorded run")).toBeTruthy());
+    await opened.user.selectOptions(screen.getByLabelText("Open a recorded run"), "run_parked");
+
+    await screen.findByText(/Viewing a recorded run/);
+    expect(screen.queryByText("Allow Bash?")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Allow once" })).toBeNull();
+  });
+});
+
+describe("a parked approval", () => {
+  it("opens Spotlight unprompted when a prompt arrives", async () => {
+    const { server } = await launch();
+    server.emit(approval("p1", "backend-developer"));
+
+    // A parked run must never wait to be noticed.
+    expect(await screen.findByText("Allow Bash?")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Review" })).toBeNull();
   });
 
   it("answers exactly the prompt on screen", async () => {
@@ -186,10 +250,15 @@ describe("a parked approval", () => {
       within(button("Adam: add the export job")).queryByText("needs you"),
     ).toBeNull();
 
-    // Selecting a card reveals that lane's transcript under its agent's name.
-    // The panel now mounts in a portal, a tick after the click.
+    // A parked card reopens Spotlight, not Sides.
     await user.click(parked);
-    expect(await screen.findByRole("heading", { name: "Dina" })).toBeTruthy();
+    expect(await screen.findByText("Allow Bash?")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Dina" })).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+    await waitFor(() => expect(screen.queryByText("Allow Bash?")).toBeNull());
+    await user.click(button("Adam: add the export job"));
+    expect(await screen.findByRole("heading", { name: "Adam" })).toBeTruthy();
   });
 
   it("pulses the parked card so it can be found without reading", async () => {
@@ -219,11 +288,8 @@ describe("a parked approval", () => {
     server.emit({ type: "prompt_resolved", prompt_id: "p1", agent: "backend-developer" });
 
     await waitFor(() => expect(screen.queryByText("Allow Bash?")).toBeNull());
-    // The bar animates out, so it outlives the state change by a few frames.
-    await waitFor(() => expect(screen.queryByText(/needs approval/)).toBeNull(), {
-      timeout: 3000,
-    });
-    expect(runButton().disabled).toBe(true);
+    expect(screen.queryByRole("button", { name: "Review" })).toBeNull();
+    expect(document.getElementById("guild-call-sheet")).toBeNull();
   });
 });
 
@@ -263,36 +329,21 @@ describe("the transcript panel", () => {
     expect(screen.queryByRole("heading", { name: "Adam" })).toBeNull();
   });
 
-  /**
-   * The panel is pinned right at 28rem, full height, z-50; the approval bar is
-   * sticky z-30 with Review right-aligned — so an open panel covered exactly that
-   * button. Reproduced in a browser in this order: park a decision, dismiss the
-   * sheet, open a card, then try to click Review.
-   *
-   * The bar now reserves the panel's width on its own trailing edge, which keeps
-   * Review clear without moving the board (still clickable behind the panel) or
-   * narrowing the panel itself. jsdom performs no layout, so this asserts the
-   * reservation; that it un-occludes the button was verified in a real browser.
-   */
-  it("keeps Review reachable while a transcript panel covers the bar's edge", async () => {
+  it("opens Spotlight from a parked station even when Sides is open", async () => {
     const { server, user } = await launch();
     server.emit(start("backend-developer", "t1", "add the export job"));
     server.emit(start("qa-engineer", "t2", "cover it with tests"));
     server.emit(approval("p1", "backend-developer"));
 
-    // The sheet opens itself on arrival; dismissing it is what leaves the bar as
-    // the only way back to the decision.
     await user.keyboard("{Escape}");
-    const bar = await screen.findByRole("alert");
-    expect(bar.dataset.insetEnd).toBe("false");
+    await waitFor(() => expect(screen.queryByText("Allow Bash?")).toBeNull());
 
     await user.click(button("Dina: cover it with tests"));
     await screen.findByRole("heading", { name: "Dina" });
-    expect(bar.dataset.insetEnd).toBe("true");
 
-    // And it is still a working button, not just an unobscured one.
-    await user.click(button("Review"));
-    expect(await screen.findByRole("dialog")).toBeTruthy();
+    await user.click(button("Adam: add the export job"));
+    expect(await screen.findByText("Allow Bash?")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Review" })).toBeNull();
   });
 
   it("yields to an arriving decision", async () => {
@@ -320,9 +371,10 @@ describe("a queue of approvals", () => {
     server.emit(approval("p1", "backend-developer"));
     server.emit(approval("p2", "qa-engineer", "Write"));
 
-    expect(screen.getByText("2 waiting on you")).toBeTruthy();
-    expect(screen.getByText("Adam needs approval — Bash")).toBeTruthy();
     expect(await screen.findByText("Allow Bash?")).toBeTruthy();
+    expect(screen.getByText("2 remaining")).toBeTruthy();
+    expect(screen.queryByText("2 waiting on you")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Review" })).toBeNull();
   });
 
   it("cannot be resolved two-at-a-time by one double-click", async () => {
@@ -369,12 +421,8 @@ describe("a queue of approvals", () => {
     expect(
       await screen.findByText(/the run is no longer accepting answers/),
     ).toBeTruthy();
-    // The sheet closes on the way out, so the bar is the surface that has to
-    // still name the parked agent — and Review must lead back to the SAME
-    // decision, armed again rather than stuck disabled from the failed attempt.
-    expect(screen.getByText("Adam needs approval — Bash")).toBeTruthy();
-    await user.click(button("Review"));
-    expect(await screen.findByText("Allow Bash?")).toBeTruthy();
+    // Failed Allow stays on Spotlight, re-armed — the prompt is still waiting.
+    expect(screen.getByText("Allow Bash?")).toBeTruthy();
     await waitFor(() => expect(button("Allow once").disabled).toBe(false));
 
     await user.click(button("Allow once"));
@@ -453,7 +501,7 @@ describe("a question prompt", () => {
 describe("a run that ends badly", () => {
   it("reports an errored run as ended and lets another one start", async () => {
     const { server } = await launch();
-    expect(runButton().disabled).toBe(true);
+    expect(document.getElementById("guild-call-sheet")).toBeNull();
 
     server.emit({ type: "error", message: "CLINotConnectedError: transport closed" });
 
@@ -553,11 +601,12 @@ describe("an attribution the engine had to guess", () => {
     agent_confidence: "guess",
   });
 
-  it("hedges in the bar instead of naming the agent outright", async () => {
+  it("still opens Spotlight when attribution is only a guess", async () => {
     const { server } = await launch();
     server.emit(guessed("p1", "backend-developer"));
 
-    expect(screen.getByText("Possibly Adam needs approval — Bash")).toBeTruthy();
+    expect(await screen.findByText("Allow Bash?")).toBeTruthy();
+    expect(screen.queryByText(/Possibly Adam needs approval/)).toBeNull();
   });
 
   it("does not mark any card, because the wrong one might be marked", async () => {
@@ -576,15 +625,23 @@ describe("an attribution the engine had to guess", () => {
     expect(
       within(button("Dina: cover it with tests")).queryByText("needs you"),
     ).toBeNull();
-    // Still unmistakably parked — the bar is the honest surface for a guess.
-    expect(screen.getByText(/Possibly Dina needs approval/)).toBeTruthy();
+    expect(screen.queryByText(/Possibly Dina needs approval/)).toBeNull();
   });
 
-  it("still names the agent outright when the engine was sure", async () => {
-    const { server } = await launch();
+  it("marks the card when the engine was sure", async () => {
+    const { server, user } = await launch();
+    server.emit({
+      type: "agent_start", agent: "backend-developer",
+      tool_use_id: "t1", task: "add the export job",
+    });
+    server.emit({
+      type: "agent_start", agent: "qa-engineer",
+      tool_use_id: "t2", task: "cover it with tests",
+    });
     server.emit({ ...approval("p1", "backend-developer"), agent_confidence: "exact" });
+    await user.click(await screen.findByRole("button", { name: "Close" }));
 
-    expect(screen.getByText("Adam needs approval — Bash")).toBeTruthy();
+    expect(within(button("Adam: add the export job")).getByText("needs you")).toBeTruthy();
   });
 });
 
@@ -683,8 +740,23 @@ describe("recorded runs", () => {
   it("cannot be opened while a run is live", async () => {
     await launch((s) => s.addRecordedRun({ run_id: "run_old" }, []));
 
+    expect(screen.queryByLabelText("Open a recorded run")).toBeNull();
+  });
+
+  it("returns to the call sheet from Back", async () => {
+    const opened = await open(testCatalog, (s) =>
+      s.addRecordedRun({ run_id: "run_old", spec: { kind: "prompt" } }, [
+        { type: "result", subtype: "success", result: "old news", duration_ms: 1, total_cost_usd: 0 },
+      ]),
+    );
+    await screen.findByLabelText("Run kind");
     await waitFor(() => expect(picker()).toBeTruthy());
-    expect(picker().disabled).toBe(true);
+    await opened.user.selectOptions(picker(), "run_old");
+    await screen.findByText("old news");
+
+    await opened.user.click(screen.getByRole("button", { name: "Close recording" }));
+    expect(document.getElementById("guild-call-sheet")).toBeTruthy();
+    expect(screen.queryByText(/Viewing a recorded run/)).toBeNull();
   });
 
   it("is replaced by a new launch", async () => {
@@ -698,6 +770,8 @@ describe("recorded runs", () => {
     await opened.user.selectOptions(picker(), "run_old");
     await screen.findByText("old news");
 
+    await opened.user.click(screen.getByRole("button", { name: "Close recording" }));
+    await screen.findByLabelText("Run kind");
     await opened.user.type(screen.getByPlaceholderText("describe the task"), "something new");
     await opened.user.click(runButton());
 
@@ -723,7 +797,7 @@ describe("the event stream giving out", () => {
     server.blipStream();
 
     expect(screen.queryByText(/event stream/i)).toBeNull();
-    expect(runButton().disabled).toBe(true);
+    expect(document.getElementById("guild-call-sheet")).toBeNull();
   });
 });
 
@@ -789,10 +863,10 @@ describe("the follow-up composer", () => {
     server.emit({ type: "result", subtype: "success", result: "shipped", duration_ms: 10, total_cost_usd: 0.1 });
 
     expect(screen.queryByLabelText("Follow-up message")).toBeNull();
-    expect(screen.getByText("shipped")).toBeTruthy();
+    expect(runButton().disabled).toBe(false);
   });
 
-  it("renders the final answer as markdown, not as a wall of asterisks", async () => {
+  it("returns to the call sheet instead of keeping the floor after a result", async () => {
     const { server } = await launch();
     server.emit({
       type: "result",
@@ -802,11 +876,8 @@ describe("the follow-up composer", () => {
       total_cost_usd: 0.1,
     });
 
-    expect(screen.getByRole("heading", { name: "Done" })).toBeTruthy();
-    expect(screen.getAllByRole("listitem").map((li) => li.textContent)).toEqual([
-      "added the Action",
-      "moved the mail fan-out",
-    ]);
+    expect(document.getElementById("guild-call-sheet")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Done" })).toBeNull();
   });
 });
 
@@ -821,31 +892,29 @@ describe("the header status chip", () => {
     expect(screen.getByText(/running ·/)).toBeTruthy();
   });
 
-  it("turns into done when the result lands", async () => {
+  it("returns to the call sheet when the result lands", async () => {
     const { server } = await launch();
     server.emit({ type: "result", subtype: "success", result: "shipped", duration_ms: 10, total_cost_usd: 0 });
 
-    expect(screen.getByText("done")).toBeTruthy();
+    expect(document.getElementById("guild-call-sheet")).toBeTruthy();
     expect(screen.queryByText(/running ·/)).toBeNull();
+    expect(screen.queryByText("done")).toBeNull();
   });
 
-  it("says error when the run dies", async () => {
+  it("returns to the call sheet when the run dies", async () => {
     const { server } = await launch();
     server.emit({ type: "error", message: "CLINotConnectedError: transport closed" });
 
-    // Scoped to the header: the main-thread transcript also renders a bare
-    // "error" row for the same event, and that row is not the chip.
-    const header = screen
-      .getByRole("heading", { name: "ship the invoice export" })
-      .closest("header") as HTMLElement;
-    expect(within(header).getByText("error")).toBeTruthy();
+    expect(document.getElementById("guild-call-sheet")).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "ship the invoice export" })).toBeNull();
   });
 
-  it("says stopped after an interrupt", async () => {
+  it("returns to the call sheet after an interrupt", async () => {
     const { user } = await launch();
     await user.click(button(/interrupt the running agent/i));
 
-    expect(await screen.findByText("stopped")).toBeTruthy();
+    await waitFor(() => expect(document.getElementById("guild-call-sheet")).toBeTruthy());
+    expect(screen.queryByText("stopped")).toBeNull();
   });
 
   it("shows nothing for a recorded replay", async () => {

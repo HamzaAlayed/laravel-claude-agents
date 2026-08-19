@@ -3,27 +3,27 @@ import { AnimatePresence, motion } from "motion/react";
 import { AlertTriangle, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ApprovalBar } from "@/components/ApprovalBar";
 import { Board } from "@/components/Board";
-import { DecisionSheet } from "@/components/DecisionSheet";
 import { FocusRun } from "@/components/FocusRun";
 import { LanePanel } from "@/components/LanePanel";
 import { Launcher, type LaunchSpec } from "@/components/Launcher";
 import { Markdown } from "@/components/Markdown";
 import { ShowHeader } from "@/components/ShowHeader";
+import { Spotlight } from "@/components/Spotlight";
 import * as api from "@/lib/api";
 import { fadeRise } from "@/lib/motion";
 import { formatRunLabel } from "@/lib/runLabel";
 import { emptyRun, isRunOver, reduce } from "@/lib/reducer";
 import { parkedLaneIds } from "@/lib/parkedLanes";
+import { sceneOf } from "@/lib/scene";
 import { armGate, canSubmit, settleSubmit, startSubmit } from "@/lib/submitGate";
 import type { Catalog, GuildEvent, Lane, RunView } from "@/lib/types";
 
 /**
  * Neither overlay has a dedicated trigger to return to: any card opens the
- * panel, and a `prompt` event can open the sheet by itself. Prefer the cue line
- * when the floor is up; otherwise the call sheet. Both are tabindex -1 so they
- * are not in the tab order. Do not invent a fake trigger.
+ * panel, and a `prompt` event can open the spotlight by itself. Prefer the cue
+ * line when the floor is up; otherwise the call sheet. Both are tabindex -1 so
+ * they are not in the tab order. Do not invent a fake trigger.
  */
 function restoreConsoleFocus() {
   const cue = document.getElementById("cue-line");
@@ -54,13 +54,13 @@ export default function App() {
   const [runId, setRunId] = useState<string | null>(null);
   const [view, setView] = useState<RunView>(() => emptyRun("prompt"));
   const [selected, setSelected] = useState<Lane | null>(null);
-  const [sheetOpen, setSheetOpen] = useState(false);
+  const [spotlightOpen, setSpotlightOpen] = useState(false);
   // prompt_ids whose answer is in flight: dropped from the queue optimistically
-  // so the sheet advances to the next decision without waiting for the round
+  // so the spotlight advances to the next decision without waiting for the round
   // trip, and restored if the POST fails (the agent is still parked).
   const [answering, setAnswering] = useState<string[]>([]);
   // Which decision may be submitted, and which one is already submitted. Kept
-  // here rather than in DecisionSheet because the sheet is remounted the instant
+  // here rather than in Spotlight because the canvas is remounted the instant
   // the queue advances and would lose the flag exactly when it matters.
   const [gate, setGate] = useState(() => armGate(null));
   const [stopped, setStopped] = useState(false);
@@ -95,7 +95,7 @@ export default function App() {
     lastSeq.current = Math.max(lastSeq.current, event.seq);
     setView((current) => reduce(current, event));
     if (event.type === "prompt") {
-      setSheetOpen(true);
+      setSpotlightOpen(true);
       setSelected(null);
     }
     if (event.type === "prompt_resolved")
@@ -120,17 +120,36 @@ export default function App() {
   }, [runId, onEvent, onStreamLost]);
 
   // A recorded run offers no approvals: a `prompt` with no `prompt_resolved`
-  // means the process died holding that decision, and a bar inviting an answer
-  // that can never land would be a lie.
+  // means the process died holding that decision, and inviting an answer that
+  // can never land would be a lie.
   const queue = recorded
     ? []
     : view.pending.filter((prompt) => !answering.includes(prompt.prompt_id));
   const head = queue[0] ?? null;
   const headId = head?.prompt_id ?? null;
 
+  // Live = launched, no terminal outcome (result OR error) and no interrupt yet.
+  // Launching a second run while one is live abandoned the first: its SDK client
+  // stayed connected and billing, still reported `running`, and could park on an
+  // approval no browser was watching.
+  const live = runId !== null && !isRunOver(view) && !stopped;
+  const scene = sceneOf({
+    runActive: live,
+    recorded: recorded !== null,
+    pending: queue.length,
+    spotlightOpen,
+  });
+
+  useEffect(() => {
+    document.documentElement.dataset.scene = scene;
+    return () => {
+      delete document.documentElement.dataset.scene;
+    };
+  }, [scene]);
+
   // Arming is deliberately an effect: it costs a render cycle AFTER the queue
-  // advanced and the sheet remounted for the next prompt, so the second click of
-  // a double-click has nothing enabled to hit. No timer, no confirmation step.
+  // advanced and the spotlight remounted for the next prompt, so the second click
+  // of a double-click has nothing enabled to hit. No timer, no confirmation step.
   // `armedFor` is a dependency too so that no batching of the submit and its
   // settle can leave the gate shut on a prompt that is still waiting.
   useEffect(() => {
@@ -147,7 +166,7 @@ export default function App() {
     setSelected(null);
     setAnswering([]);
     setGate(armGate(null));
-    setSheetOpen(false);
+    setSpotlightOpen(false);
     setStopped(false);
     setLiveMode(spec.mode);
     setRecorded(null);
@@ -174,7 +193,7 @@ export default function App() {
       // EventSource when runId goes null.
       setRunId(null);
       setSelected(null);
-      setSheetOpen(false);
+      setSpotlightOpen(false);
       lastSelectedLane.current = null;
       setView(events.reduce(reduce, emptyRun(kind)));
       setRecorded(id);
@@ -182,6 +201,15 @@ export default function App() {
     } catch (e) {
       setError(String((e as Error).message));
     }
+  };
+
+  const closeRecorded = () => {
+    setRecorded(null);
+    setView(emptyRun("prompt"));
+    setShowTitle("The Guild");
+    setSelected(null);
+    lastSelectedLane.current = null;
+    setError(null);
   };
 
   if (!catalog) {
@@ -197,15 +225,6 @@ export default function App() {
   const packBroken =
     view.init !== null &&
     (view.init.plugin_errors.length > 0 || !view.init.plugins.includes("laravel-team"));
-
-  // Live = launched, no terminal outcome (result OR error) and no interrupt yet.
-  // Launching a second run while one is live abandoned the first: its SDK client
-  // stayed connected and billing, still reported `running`, and could park on an
-  // approval no browser was watching.
-  const live = runId !== null && !isRunOver(view) && !stopped;
-  const agentLabel = head?.agent
-    ? catalog.agents.find((agent) => agent.slug === head.agent)?.name ?? head.agent
-    : null;
 
   // The lane behind `selected` re-derived from the live view every render, so
   // the panel's transcript keeps growing with the same lane instead of
@@ -229,14 +248,15 @@ export default function App() {
     if (!canSubmit(gate, promptId)) return;
     setGate((current) => startSubmit(current, promptId));
     setAnswering((ids) => [...ids, promptId]);
-    // One prompt is answered at a time; if others are still waiting the sheet
-    // stays open on the next one rather than leaving a parked run hidden.
-    setSheetOpen(queue.some((prompt) => prompt.prompt_id !== promptId));
     try {
       await api.answerPrompt(runId, payload);
+      // Close only after the POST lands, and only when this was the last
+      // waiting decision. A failed Allow must leave the spotlight up.
+      setSpotlightOpen(queue.some((prompt) => prompt.prompt_id !== promptId));
     } catch (e) {
       setAnswering((ids) => ids.filter((id) => id !== promptId));
       setError(String((e as Error).message));
+      setSpotlightOpen(true);
     } finally {
       // Releases the gate; the effect above re-arms it for whatever prompt is on
       // screen one render later.
@@ -288,9 +308,70 @@ export default function App() {
     }
   };
 
+  const onSelect = (lane: Lane) => {
+    if (parkedLaneIds(view).has(lane.toolUseId)) {
+      setSpotlightOpen(true);
+      setSelected(null);
+      return;
+    }
+    setSelected(lane);
+  };
+
+  if (scene === "call") {
+    return (
+      <main>
+        {(error || view.failure) && (
+          <div className="mx-auto max-w-lg space-y-2 px-4 pt-6">
+            {error && (
+              <p role="alert" className="text-sm text-destructive">
+                {error}
+              </p>
+            )}
+            {view.failure && (
+              <section role="alert" className="rounded-xl border-2 border-destructive p-3">
+                <h2 className="mb-1 flex items-center gap-2 text-sm font-medium">
+                  <AlertTriangle className="size-4" aria-hidden /> The run ended with an error
+                </h2>
+                <p className="whitespace-pre-wrap text-sm">{view.failure.message}</p>
+              </section>
+            )}
+          </div>
+        )}
+        <Launcher
+          catalog={catalog}
+          busy={false}
+          busyReason={null}
+          onLaunch={launch}
+          pastShows={
+            runs.length > 0 ? (
+              <label className="flex flex-col gap-1.5">
+                <span className="text-xs">Past shows</span>
+                <select
+                  aria-label="Open a recorded run"
+                  className="h-9 w-full rounded-md border border-[color-mix(in_oklab,var(--ink)_18%,transparent)] bg-[var(--paper)] px-2 text-sm text-[var(--ink)]"
+                  value=""
+                  onChange={(event) => {
+                    if (event.target.value) void openRecorded(event.target.value);
+                  }}
+                >
+                  <option value="">Recorded runs…</option>
+                  {runs.map((row) => (
+                    <option key={row.run_id} value={row.run_id}>
+                      {formatRunLabel(row)}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            ) : null
+          }
+        />
+      </main>
+    );
+  }
+
   return (
-    <main className="mx-auto max-w-6xl p-4 md:p-6">
-      <header className="mb-4 flex items-baseline gap-3 bg-[var(--floor)]">
+    <main className="min-h-dvh bg-[var(--floor)]" data-floor="">
+      <header className="mb-4 flex items-baseline gap-3 bg-[var(--floor)] px-4 pt-4 md:px-6">
         <ShowHeader
           title={showTitle}
           live={live}
@@ -307,26 +388,10 @@ export default function App() {
               : null
           }
           onStop={live ? interrupt : undefined}
+          onBack={recorded ? closeRecorded : undefined}
         />
-        <div className="ml-auto flex items-center gap-2">
-          {runs.length > 0 && (
-            <select
-              aria-label="Open a recorded run"
-              className="h-8 max-w-56 rounded-md border bg-background px-2 text-sm"
-              disabled={live}
-              title={live ? "Interrupt the live run before reading an old one." : undefined}
-              value={recorded ?? ""}
-              onChange={(event) => event.target.value && openRecorded(event.target.value)}
-            >
-              <option value="">Recorded runs…</option>
-              {runs.map((row) => (
-                <option key={row.run_id} value={row.run_id}>
-                  {formatRunLabel(row)}
-                </option>
-              ))}
-            </select>
-          )}
-          {live && (
+        {live && (
+          <div className="ml-auto flex items-center gap-2">
             <select
               aria-label="Change this run's permission mode"
               className="h-8 rounded-md border bg-background px-2 text-sm"
@@ -337,8 +402,8 @@ export default function App() {
               <option value="acceptEdits">Accept edits</option>
               <option value="plan">Plan only</option>
             </select>
-          )}
-        </div>
+          </div>
+        )}
       </header>
 
       {/* Deliberately not "it has finished": GET /api/runs lists live runs too, so
@@ -355,15 +420,6 @@ export default function App() {
           </motion.p>
         )}
       </AnimatePresence>
-
-      <Launcher
-        catalog={catalog}
-        busy={live}
-        busyReason={
-          live ? "A run is in flight — interrupt it before starting another." : null
-        }
-        onLaunch={launch}
-      />
 
       <AnimatePresence>
         {packBroken && (
@@ -401,18 +457,8 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      <ApprovalBar
-        pending={queue}
-        agentLabel={agentLabel}
-        insetEnd={selectedLane !== null}
-        onOpen={() => {
-          setSheetOpen(true);
-          setSelected(null);
-        }}
-      />
-
       {view.mode === "board" ? (
-        <Board view={view} catalog={catalog} onSelect={setSelected} />
+        <Board view={view} catalog={catalog} onSelect={onSelect} />
       ) : (
         <FocusRun view={view} catalog={catalog} />
       )}
@@ -464,7 +510,7 @@ export default function App() {
         <form
           id="cue-line"
           tabIndex={-1}
-          className="mt-4 flex items-center gap-2 bg-[var(--floor)] text-[var(--paper)]"
+          className="mt-4 flex items-center gap-2 bg-[var(--floor)] px-4 pb-4 text-[var(--paper)] md:px-6"
           onSubmit={sendFollowUp}
         >
           <Input
@@ -485,24 +531,23 @@ export default function App() {
         </form>
       )}
 
-      {head && (
+      {scene === "spotlight" && head && (
         // key: per-prompt local state (selections, the Other fields, the deny
         // reason) must not leak from one prompt into the next.
-        <DecisionSheet
-          key={head.prompt_id}
-          pending={head}
-          open={sheetOpen}
-          // Closed while an answer is in flight AND until this prompt has been
-          // armed, so a click meant for the previous decision cannot commit this
-          // one. Survives the remount above because the gate is App state.
-          disabled={!canSubmit(gate, head.prompt_id)}
-          queueLength={queue.length}
-          onClose={() => {
-            setSheetOpen(false);
-            restoreConsoleFocus();
-          }}
-          onAnswer={answer}
-        />
+        <div className="fixed inset-0 z-50 overflow-auto">
+          <Spotlight
+            key={head.prompt_id}
+            pending={head}
+            disabled={!canSubmit(gate, head.prompt_id)}
+            queueLength={queue.length}
+            agent={catalog.agents.find((agent) => agent.slug === head.agent)}
+            onClose={() => {
+              setSpotlightOpen(false);
+              restoreConsoleFocus();
+            }}
+            onAnswer={answer}
+          />
+        </div>
       )}
     </main>
   );

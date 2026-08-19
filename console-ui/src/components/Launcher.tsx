@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Play } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -31,12 +31,15 @@ export function Launcher({
   busy,
   busyReason,
   onLaunch,
+  pastShows,
 }: {
   catalog: Catalog;
   busy: boolean;
   /** Shown when Start is disabled — never refuse a press silently. */
   busyReason: string | null;
   onLaunch: (spec: LaunchSpec) => void;
+  /** Recorded-run picker — lives on the call sheet, not the floor. */
+  pastShows?: ReactNode;
 }) {
   const [kind, setKind] = useState<string>("prompt");
   const [target, setTarget] = useState("");
@@ -178,6 +181,8 @@ export function Launcher({
           </Button>
           {busy && busyReason && <p className={captionClass}>{busyReason}</p>}
         </div>
+
+        {pastShows}
       </div>
     </form>
   );
