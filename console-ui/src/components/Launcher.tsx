@@ -19,9 +19,9 @@ const MODES = [
 ] as const;
 
 const fieldClass =
-  "h-9 w-full rounded-md border border-[color-mix(in_oklab,var(--ink)_18%,transparent)] bg-[var(--paper)] px-2 text-sm text-[var(--ink)]";
+  "w-full rounded-md border border-[color-mix(in_oklab,var(--ink)_18%,transparent)] bg-[var(--paper)] px-2 text-sm text-[var(--ink)]";
 
-const captionClass = "text-xs text-[color-mix(in_oklab,var(--ink)_58%,transparent)]";
+const captionClass = "text-xs text-[color-mix(in_oklab,var(--ink)_70%,transparent)]";
 
 /** "backend-developer" → "backend developer" — the catalog's slug IS the role. */
 export const roleOf = (slug: string) => slug.replace(/-/g, " ");
@@ -117,7 +117,7 @@ export function Launcher({
             <span className="text-xs">{targetLabel}</span>
             <select
               aria-label={targetLabel}
-              className={fieldClass}
+              className={`${fieldClass} h-9`}
               value={target}
               onChange={(event) => setTarget(event.target.value)}
               required
@@ -136,7 +136,7 @@ export function Launcher({
           <span className="text-xs">Permission mode</span>
           <select
             aria-label="Permission mode"
-            className={fieldClass}
+            className={`${fieldClass} h-9`}
             value={mode}
             onChange={(event) => setMode(event.target.value)}
           >
@@ -148,12 +148,16 @@ export function Launcher({
           </select>
         </label>
 
-        <Input
-          className={`${fieldClass} h-10`}
-          placeholder={kind === "command" ? "arguments (optional)" : "describe the task"}
-          value={text}
-          onChange={(event) => setText(event.target.value)}
-        />
+        <label className="flex flex-col gap-1.5">
+          <span className="text-xs">{kind === "command" ? "Arguments" : "Task"}</span>
+          <Input
+            aria-label={kind === "command" ? "Arguments" : "Task"}
+            className={`${fieldClass} h-10`}
+            placeholder={kind === "command" ? "arguments (optional)" : "describe the task"}
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+          />
+        </label>
 
         <p className={captionClass}>
           {modeCaption}{" "}
