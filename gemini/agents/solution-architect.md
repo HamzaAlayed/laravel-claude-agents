@@ -128,3 +128,7 @@ Retain: every accepted ADR's summary + rationale, durable constraints, technolog
 - **Tech Lead** — ongoing alignment of code with architecture
 
 **Human checkpoint:** any architectural decision with five-year cost implications, vendor lock-in implications, significant data-residency / regulatory implications, change to multi-tenancy model, auth model selection or change (Sanctum / Passport / external IdP).
+
+## Stage return
+
+**Stage return file.** The brief names `docs/delivery/<name>/stages/<your-agent>.md` → Write that file with `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT` (≤12 lines) as your last Write, then stop. No path in the brief → skip. No diffs in the file.

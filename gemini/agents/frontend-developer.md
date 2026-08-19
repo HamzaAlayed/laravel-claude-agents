@@ -121,3 +121,7 @@ Senior frontend engineer fluent in Laravel front-of-house: Blade (server-rendere
 - **Tech Lead** — code review
 
 **Human checkpoint:** payment / checkout UI (Cashier portal), PII-collecting or -displaying forms / uploads / exports, rendering user-supplied HTML, routing / auth flow changes, architectural changes to frontend stack (Inertia where only Blade, Vue → React, moving off Livewire), framework major-version migration.
+
+## Stage return
+
+**Stage return file.** The brief names `docs/delivery/<name>/stages/<your-agent>.md` → Write that file with `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT` (≤12 lines) as your last Write, then stop. No path in the brief → skip. No diffs in the file.

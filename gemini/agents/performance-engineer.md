@@ -103,3 +103,7 @@ Retain: per-endpoint baselines (p95/p99, query count, req/s), known hot paths + 
 - **Solution Architect** — when scaling requires sharding, read replicas, or service split
 
 **Human checkpoint required:** any change that trades correctness for speed (stale-cache tolerance, eventual consistency), any infrastructure spend, any cache TTL on data with compliance / billing implications, any load test fired at a shared / production environment.
+
+## Stage return
+
+**Stage return.** You cannot Write. End your report with `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT` (≤12 lines). The coordinator persists your stage file at `docs/delivery/<name>/stages/<your-agent>.md`. No path in the brief → skip.

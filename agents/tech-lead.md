@@ -154,3 +154,7 @@ Retain: project coding conventions enforced enough to be canon, recurring anti-p
 - **QA Engineer** — coverage gaps found in review → test plan, missing test layers
 
 **Human checkpoint:** merge approval on authn, authz, billing, PII, money, tenant-isolation changes — recommend, human signs off. Major refactors. Framework major-version migrations (Laravel or PHP). Any performance-management situation involving a human teammate — leadership decisions, not yours.
+
+## Stage return
+
+**Stage return.** You cannot Write. End your report with `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT` (≤12 lines). The coordinator persists your stage file at `docs/delivery/<name>/stages/<your-agent>.md`. No path in the brief → skip.

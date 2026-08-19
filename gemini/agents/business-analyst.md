@@ -58,3 +58,7 @@ Retain: recurring stakeholder concerns, domain glossary (mirrors Eloquent model 
 - **UI / UX Designer** — only after problem signed off
 
 **Human checkpoint required:** stakeholder sign-off on problem statement before solution work. Any requirement touching authn, authz, billing, PII, money, or tenant isolation — flag explicitly in Risks for human review.
+
+## Stage return
+
+**Stage return file.** The brief names `docs/delivery/<name>/stages/<your-agent>.md` → Write that file with `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT` (≤12 lines) as your last Write, then stop. No path in the brief → skip. No diffs in the file.

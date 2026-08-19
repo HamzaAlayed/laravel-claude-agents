@@ -76,3 +76,7 @@ Retain: recurring blockers + how resolved, dependency patterns between teams, re
 - **Delivery Coordinator** — cross-stream sequencing
 
 **Human checkpoint required:** any team-dynamics issue involving conflict, performance, or morale. Belongs to human leadership, not you.
+
+## Stage return
+
+**Stage return file.** The brief names `docs/delivery/<name>/stages/<your-agent>.md` → Write that file with `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT` (≤12 lines) as your last Write, then stop. No path in the brief → skip. No diffs in the file.
