@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { AlertTriangle, Send, Square } from "lucide-react";
+import { AlertTriangle, Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ApprovalBar } from "@/components/ApprovalBar";
@@ -10,7 +10,7 @@ import { FocusRun } from "@/components/FocusRun";
 import { LanePanel } from "@/components/LanePanel";
 import { Launcher, type LaunchSpec } from "@/components/Launcher";
 import { Markdown } from "@/components/Markdown";
-import { StatusChip } from "@/components/StatusChip";
+import { ShowHeader } from "@/components/ShowHeader";
 import * as api from "@/lib/api";
 import { fadeRise } from "@/lib/motion";
 import { formatRunLabel } from "@/lib/runLabel";
@@ -21,12 +21,17 @@ import type { Catalog, GuildEvent, Lane, RunView } from "@/lib/types";
 
 /**
  * Neither overlay has a dedicated trigger to return to: any card opens the
- * panel, and a `prompt` event can open the sheet by itself. Best-effort restore
- * is the launcher form (`#guild-launcher`, tabindex -1 so it is not in the tab
- * order). Do not invent a fake trigger.
+ * panel, and a `prompt` event can open the sheet by itself. Prefer the cue line
+ * when the floor is up; otherwise the call sheet. Both are tabindex -1 so they
+ * are not in the tab order. Do not invent a fake trigger.
  */
 function restoreConsoleFocus() {
-  document.getElementById("guild-launcher")?.focus({ preventScroll: true });
+  const cue = document.getElementById("cue-line");
+  if (cue) {
+    cue.focus({ preventScroll: true });
+    return;
+  }
+  document.getElementById("guild-call-sheet")?.focus({ preventScroll: true });
 }
 
 export default function App() {
@@ -266,15 +271,24 @@ export default function App() {
 
   return (
     <main className="mx-auto max-w-6xl p-4 md:p-6">
-      <header className="mb-4 flex items-baseline gap-3">
-        <h1 className="text-lg font-semibold">Laravel Guild Console</h1>
-        {runId && !recorded && (
-          <StatusChip
-            live={live}
-            startedAt={runStartedAt}
-            outcome={view.result ? "done" : view.failure ? "error" : stopped ? "stopped" : null}
-          />
-        )}
+      <header className="mb-4 flex items-baseline gap-3 bg-[var(--floor)] text-[var(--paper)]">
+        <ShowHeader
+          title="Laravel Guild Console"
+          live={live}
+          startedAt={runStartedAt}
+          outcome={
+            runId && !recorded
+              ? view.result
+                ? "done"
+                : view.failure
+                  ? "error"
+                  : stopped
+                    ? "stopped"
+                    : null
+              : null
+          }
+          onStop={runId ? interrupt : undefined}
+        />
         <div className="ml-auto flex items-center gap-2">
           {runs.length > 0 && (
             <select
@@ -304,16 +318,6 @@ export default function App() {
               <option value="acceptEdits">Accept edits</option>
               <option value="plan">Plan only</option>
             </select>
-          )}
-          {runId && (
-            <Button
-              size="sm"
-              variant="outline"
-              aria-label="Interrupt the running agent"
-              onClick={interrupt}
-            >
-              <Square className="mr-1 size-3.5" aria-hidden /> Interrupt
-            </Button>
           )}
         </div>
       </header>
@@ -438,15 +442,25 @@ export default function App() {
 
       {/* Clarifications arrive as plain text; this is how the user replies. */}
       {live && (
-        <form className="mt-4 flex items-center gap-2" onSubmit={sendFollowUp}>
+        <form
+          id="cue-line"
+          tabIndex={-1}
+          className="mt-4 flex items-center gap-2 bg-[var(--floor)] text-[var(--paper)]"
+          onSubmit={sendFollowUp}
+        >
           <Input
-            className="flex-1"
+            className="flex-1 border-[color-mix(in_oklab,var(--paper)_18%,transparent)] bg-transparent text-[var(--paper)] placeholder:text-[color-mix(in_oklab,var(--paper)_70%,transparent)]"
             aria-label="Follow-up message"
             placeholder="Reply to the Guild, or add context…"
             value={followUp}
             onChange={(event) => setFollowUp(event.target.value)}
           />
-          <Button type="submit" variant="secondary" disabled={!followUp.trim()}>
+          <Button
+            type="submit"
+            variant="secondary"
+            className="bg-[var(--paper)] text-[var(--ink)] hover:bg-[var(--paper)]"
+            disabled={!followUp.trim()}
+          >
             <Send className="mr-1 size-4" aria-hidden /> Send
           </Button>
         </form>

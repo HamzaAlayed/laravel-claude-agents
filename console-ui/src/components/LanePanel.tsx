@@ -36,11 +36,11 @@ export function LanePanel({
       <SheetContent
         side="right"
         showOverlay={false}
-        className="w-full data-[side=right]:sm:max-w-md"
+        className="w-full border-[color-mix(in_oklab,var(--paper)_18%,transparent)] bg-[var(--floor)] text-[var(--paper)] data-[side=right]:sm:max-w-md"
       >
         <motion.div {...fadeRise} className="flex min-h-0 flex-1 flex-col">
           <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
+            <SheetTitle className="flex items-center gap-2 font-heading text-[var(--paper)]">
               {/* Twice the card's size, which is what earns the instrument: this
                   is the surface you open to find out what an agent is doing. */}
               <Actor
@@ -51,7 +51,7 @@ export function LanePanel({
               />
               {agent?.name ?? lane.slug}
             </SheetTitle>
-            <SheetDescription className="truncate">
+            <SheetDescription className="truncate text-[color-mix(in_oklab,var(--paper)_70%,transparent)]">
               {lane.task || "working…"}
             </SheetDescription>
           </SheetHeader>

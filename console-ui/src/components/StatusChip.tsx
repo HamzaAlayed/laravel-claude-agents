@@ -20,8 +20,8 @@ export function StatusChip({
   const elapsed = useElapsed(live ? startedAt : 0, live ? 0 : 1);
   if (live) {
     return (
-      <span className="flex items-center gap-1.5 rounded-full border px-2 py-0.5 text-xs tabular-nums text-muted-foreground">
-        <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" aria-hidden />
+      <span className="flex items-center gap-1.5 rounded-full border border-[color-mix(in_oklab,var(--tungsten)_40%,transparent)] px-2 py-0.5 text-xs tabular-nums text-[var(--tungsten)]">
+        <span className="size-1.5 animate-pulse rounded-full bg-[var(--tungsten)]" aria-hidden />
         running · {elapsed}
       </span>
     );
@@ -30,7 +30,9 @@ export function StatusChip({
   return (
     <span
       className={`rounded-full border px-2 py-0.5 text-xs ${
-        outcome === "error" ? "border-destructive text-destructive" : "text-muted-foreground"
+        outcome === "error"
+          ? "border-destructive text-destructive"
+          : "border-[color-mix(in_oklab,var(--paper)_24%,transparent)] text-[color-mix(in_oklab,var(--paper)_70%,transparent)]"
       }`}
     >
       {outcome}
