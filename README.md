@@ -53,11 +53,11 @@ N stages · done when: POST /api/donations creates a Donation
 
 Statuses are `✔ done / ▶ running / · queued / ✖ failed`. Each specialist returns `STATUS / DID / VERIFIED / NOT-CHECKED / FLAGS / NEXT`. After two or more specialists report, `docs/team/stack.md` and `docs/delivery/<name>/log.md` exist before the closing answer.
 
-In `/console`, named cards (Adam, Elena, Dina, …) fill the pipeline as they start. An amber bar means the run is parked on an approval. Every Bash call asks you.
+In `/console`, stations take the dark floor as the company starts. A parked agent is marked on the floor (cue / needs you) — there is no amber bar. Every Bash call asks you.
 
 ![Console board mid-run](docs/images/console-board-mid-run.png)
 
-Fixture-driven capture of the Guild console pipeline board (Adam + Dina, parked approval) — not a billed live `/console` run.
+Fixture-driven capture of the Guild console company floor (Adam + Dina, parked cue) — not a billed live `/console` run.
 
 ---
 

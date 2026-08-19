@@ -1,7 +1,7 @@
 /**
  * Dev-only capture harness. Mounts the real App against a browser-safe copy of
  * the test fake (same catalog + mid-run events as App.test.tsx) so Playwright
- * can photograph the pipeline board. Not imported from main.tsx.
+ * can photograph the Act II company floor. Not imported from main.tsx.
  */
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
@@ -119,7 +119,7 @@ async function pose(server: PoseServer) {
   const field = document.querySelector('[placeholder="describe the task"]');
   if (!(field instanceof HTMLInputElement)) throw new Error("task field missing");
   setInputValue(field, "ship the invoice export");
-  buttonNamed("Run")?.click();
+  buttonNamed("Start")?.click();
   await waitFor(() => server.openStreams() === 1);
 
   server.emit({
@@ -146,8 +146,12 @@ async function pose(server: PoseServer) {
 
   await waitFor(() => Boolean(buttonNamed("Close")));
   buttonNamed("Close")?.click();
+  // Floor stations exist under the spotlight overlay; pose-ready only after
+  // Close so the still is Act II, not the dimmed overlay or the call sheet.
   await waitFor(
     () =>
+      document.getElementById("guild-call-sheet") === null &&
+      !buttonNamed("Close") &&
       Boolean(buttonNamed("Adam: add the export job")) &&
       Boolean(buttonNamed("Dina: cover it with tests")),
   );

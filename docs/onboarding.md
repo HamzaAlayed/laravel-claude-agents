@@ -29,11 +29,11 @@ From your Laravel project, pick a small, real slice — one model, one write pat
 2. Each specialist returns `STATUS / DID / VERIFIED / NOT-CHECKED / FLAGS / NEXT`. An empty `VERIFIED` is a claim — the orchestrator re-briefs.
 3. Harvest (`docs/team/stack.md` and `docs/delivery/<name>/log.md` before the closing answer) was missing on command-driven runs until v1.41.0; it is in the shared Interface block now.
 
-Want that pipeline as a browser board? `/console`. Named cards fill as specialists start; an amber bar means the run is parked on an approval. Every Bash call asks you — including read-only ones (`commands/console.md`).
+Want that pipeline as a browser board? `/console`. Stations take the dark floor as the company starts; a parked agent is marked (cue / needs you) — there is no amber bar. Every Bash call asks you — including read-only ones (`commands/console.md`).
 
 ![Console board mid-run](images/console-board-mid-run.png)
 
-Fixture-driven capture of the Guild console pipeline board (Adam + Dina, parked approval) — not a billed live `/console` run.
+Fixture-driven capture of the Guild console company floor (Adam + Dina, parked cue) — not a billed live `/console` run.
 
 ## 3. Teach the first rule
 
