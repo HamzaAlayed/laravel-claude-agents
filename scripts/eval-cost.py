@@ -205,6 +205,28 @@ def full_text(lines):
     return "".join(assistant_text) or None
 
 
+def subagent_text(lines):
+    """Assistant text from subagent turns only -- the complement of `full_text`.
+
+    `full_text` keeps `parent_tool_use_id is None` (run 7 finding 3): an
+    Interface contract that binds the orchestrator must not be satisfiable by
+    a specialist. Per-stage returns (STATUS/DID/VERIFIED/NOT-CHECKED/FLAGS/NEXT)
+    live on the other side of that filter, so they are structurally invisible
+    to `$FULL_LOG` no matter how faithfully a specialist complies (run 8).
+
+    This extractor concatenates assistant text from turns whose
+    `parent_tool_use_id` is not None. Same `user`-line exclusion as the other
+    two text modes. `checks_*` still must not grep `stream.jsonl`; the harness
+    persists this as a derived `<case>.subagent.log` and greps that.
+    """
+    assistant_text = [
+        _text_of(obj)
+        for obj, ok in _iter_objects(lines)
+        if ok and obj.get("type") == "assistant" and obj.get("parent_tool_use_id") is not None
+    ]
+    return "".join(assistant_text) or None
+
+
 def _price(counts, rate, multipliers):
     """Cost of one bundle of token counts at one model's rates."""
     per_input = rate["input"] / PER_MILLION
@@ -470,6 +492,13 @@ def main(argv=None):
         help="print every assistant turn's text concatenated, not just the closing "
              "answer (for checks that assert on something said early, e.g. a board header)",
     )
+    text_mode.add_argument(
+        "--subagent-text",
+        action="store_true",
+        help="print assistant text from subagent turns only (parent_tool_use_id "
+             "is not None) — for per-stage specialist returns that full_text "
+             "structurally cannot see",
+    )
     args = ap.parse_args(argv)
 
     try:
@@ -491,6 +520,14 @@ def main(argv=None):
         text = full_text(lines)
         if text is None:
             print("eval-cost: no assistant text in transcript", file=sys.stderr)
+            return 2
+        print(text)
+        return 0
+
+    if args.subagent_text:
+        text = subagent_text(lines)
+        if text is None:
+            print("eval-cost: no subagent text in transcript", file=sys.stderr)
             return 2
         print(text)
         return 0

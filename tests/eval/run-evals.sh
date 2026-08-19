@@ -271,6 +271,7 @@ EOF
 WORK=""
 LOG=""
 FULL_LOG=""
+SUBAGENT_LOG=""
 CHECK_PASS=0
 CHECK_FAIL=0
 CHECK_LINES=()
@@ -298,6 +299,17 @@ check_log_anywhere() { # check_log_anywhere <regex> <description>
   # scoring two false negatives here, because $LOG structurally cannot show a
   # turn earlier than the CLI's own closing `result` line.
   grep -qiE "$1" "$FULL_LOG"
+  record $? "output: $2"
+}
+
+check_subagent_log() { # check_subagent_log <regex> <description>
+  # Greps the derived subagent log -- assistant text from subagent turns only
+  # (the complement of the main-thread full-text log). Per-stage specialist
+  # returns (STATUS/DID/VERIFIED/NOT-CHECKED/FLAGS/NEXT) live on those turns
+  # and are structurally invisible to full_text() (run 8). Must not read
+  # the raw transcript: tests/guardrails.test.sh forbids checks_* from
+  # grepping it, and this helper itself must not collapse to that.
+  grep -qiE "$1" "$SUBAGENT_LOG"
   record $? "output: $2"
 }
 
@@ -452,6 +464,17 @@ checks_feature() {
   # (Interface block's last sentence) can be asserted against this stream.
   check_log 'VERIFIED' "final answer carries VERIFIED"
   check_log 'NOT-CHECKED' "final answer carries NOT-CHECKED"
+  # Opt-in shape for a future billed feature run that keeps <case>.subagent.log.
+  # Do NOT uncomment without a transcript that has been inspected: this worktree
+  # has no run-8/run-9 feature artifacts, and enabling these would fail the
+  # case (or pass on the wrong evidence). Grep the derived subagent log via
+  # check_subagent_log — never the raw transcript, never $FULL_LOG (run 8).
+  # check_subagent_log 'STATUS:' "a specialist return carries STATUS"
+  # check_subagent_log 'DID:' "a specialist return carries DID"
+  # check_subagent_log 'VERIFIED:' "a specialist return carries VERIFIED"
+  # check_subagent_log 'NOT-CHECKED:' "a specialist return carries NOT-CHECKED"
+  # check_subagent_log 'FLAGS:' "a specialist return carries FLAGS"
+  # check_subagent_log 'NEXT:' "a specialist return carries NEXT"
   check_file "docs/team/stack.md" "harvest persisted the stack snapshot (routing-table artifact)"
   check_file_under "docs/delivery" "log.md" "harvest persisted the delivery log (routing-table artifact)"
 }
@@ -642,6 +665,7 @@ run_case() { # run_case <name> <results-dir>
   WORK="$(mktemp -d -t "laravel-agents-eval-$name.XXXXXX")"
   LOG="$results/$name.log"
   FULL_LOG="$results/$name.full-text.log"
+  SUBAGENT_LOG="$results/$name.subagent.log"
   CHECK_PASS=0
   CHECK_FAIL=0
   CHECK_LINES=()
@@ -704,6 +728,12 @@ run_case() { # run_case <name> <results-dir>
   # a "No such file or directory" error.
   python3 "$ROOT/scripts/eval-cost.py" --transcript "$stream" \
     --rates "$ROOT/tests/eval/model-rates.json" --full-text >"$FULL_LOG" 2>/dev/null || true
+
+  # Subagent assistant text only -- complement of $FULL_LOG. Empty file on
+  # failure (no subagent turn produced text), same as $FULL_LOG, so a later
+  # check_subagent_log grep is a clean FAIL rather than a missing-file error.
+  python3 "$ROOT/scripts/eval-cost.py" --transcript "$stream" \
+    --rates "$ROOT/tests/eval/model-rates.json" --subagent-text >"$SUBAGENT_LOG" 2>/dev/null || true
 
   # Per-agent input/output/cache tokens, tool-call counts, and the run's billed
   # cost. Models come from the transcript (message.model), so a re-tiered agent

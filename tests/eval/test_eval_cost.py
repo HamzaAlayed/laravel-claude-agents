@@ -37,13 +37,16 @@ def assistant_line(
     tools=(),
     parent=None,
     model="claude-opus-5",
+    text="ok",
 ):
     """One assistant turn. Key paths per fixtures/README.md.
 
     Note `parent` is `parent_tool_use_id`: None on the main thread, and the
     spawning Agent tool_use id inside a subagent. There is no `agent` field.
+    `text` is the assistant text block; default `"ok"` keeps existing callers
+    byte-stable.
     """
-    content = [{"type": "text", "text": "ok"}]
+    content = [{"type": "text", "text": text}]
     for name in tools:
         content.append({"type": "tool_use", "name": name, "input": {}})
     return json.dumps({
@@ -216,6 +219,113 @@ class TestFullText(unittest.TestCase):
         self.assertEqual(eval_cost.final_text(lines), "MAIN SUB ")
         self.assertEqual(eval_cost.full_text(lines), "MAIN ")
         self.assertNotEqual(eval_cost.final_text(lines), eval_cost.full_text(lines))
+
+
+# Six-field per-stage return the Interface block mandates. Planted only on a
+# subagent turn so the three extractors can be proved apart (run 8 gap, run 9
+# finding 5). Labels are the contract literals, not invented CLI keys.
+_SPECIALIST_RETURN = (
+    "STATUS: DONE\n"
+    "DID: planted specialist work\n"
+    "VERIFIED: fixture unit tests\n"
+    "NOT-CHECKED: production deploy\n"
+    "FLAGS: none\n"
+    "NEXT: coordinator\n"
+)
+_MAIN_THREAD = "4 stages, done when: tags ship\n"
+
+
+def _six_field_transcript():
+    """Main-thread board header + one specialist return on a subagent turn."""
+    return [
+        assistant_line(10, 5, text=_MAIN_THREAD),
+        assistant_line(3, 2, parent="toolu_specialist_1", text=_SPECIALIST_RETURN),
+        result_line("closing summary without six fields"),
+    ]
+
+
+class TestSubagentText(unittest.TestCase):
+    """subagent_text() is the complement of full_text(): assistant text from
+    turns whose parent_tool_use_id is not None. Per-stage specialist returns
+    live there and are structurally invisible to full_text() (run 8).
+    """
+
+    def test_returns_none_on_an_empty_transcript(self):
+        self.assertIsNone(eval_cost.subagent_text([]))
+
+    def test_returns_none_when_only_main_thread_turns_exist(self):
+        self.assertIsNone(eval_cost.subagent_text([assistant_line(10, 5)]))
+
+    def test_full_text_does_not_see_specialist_six_field_return(self):
+        # Load-bearing: full_text() stays main-thread only (run 7 finding 3).
+        text = eval_cost.full_text(_six_field_transcript())
+        self.assertIn("done when:", text)
+        self.assertNotIn("STATUS:", text)
+        self.assertNotIn("DID:", text)
+        self.assertNotIn("FLAGS:", text)
+        self.assertNotIn("NEXT:", text)
+
+    def test_subagent_text_sees_specialist_six_field_return(self):
+        text = eval_cost.subagent_text(_six_field_transcript())
+        self.assertIn("STATUS:", text)
+        self.assertIn("DID:", text)
+        self.assertIn("VERIFIED:", text)
+        self.assertIn("NOT-CHECKED:", text)
+        self.assertIn("FLAGS:", text)
+        self.assertIn("NEXT:", text)
+        self.assertNotIn("done when:", text)
+
+    def test_specialist_verified_cannot_satisfy_main_thread_full_log(self):
+        # A grep of $FULL_LOG (check_log / check_log_anywhere on main-thread
+        # text) must not pass just because a specialist said VERIFIED on a
+        # subagent turn. Run 9 finding 5: closing-contract greps matched a
+        # specialist quoted into reconstructed $LOG, not the orchestrator.
+        full = eval_cost.full_text(_six_field_transcript())
+        sub = eval_cost.subagent_text(_six_field_transcript())
+        self.assertIn("VERIFIED:", sub)
+        self.assertNotIn("VERIFIED:", full)
+        self.assertNotIn("NOT-CHECKED:", full)
+
+    def test_excludes_user_turn_text(self):
+        user_line = json.dumps({
+            "type": "user",
+            "message": {"content": [{"type": "text", "text": "PROMPT-SENTINEL"}]},
+        })
+        lines = [
+            user_line,
+            assistant_line(3, 2, parent="toolu_1", text="SUB-OK"),
+        ]
+        text = eval_cost.subagent_text(lines)
+        self.assertEqual(text, "SUB-OK")
+        self.assertNotIn("PROMPT-SENTINEL", text)
+
+    def test_concatenates_multiple_subagent_turns_in_order(self):
+        lines = [
+            assistant_line(text="MAIN "),
+            assistant_line(parent="toolu_a", text="FIRST "),
+            assistant_line(parent="toolu_b", text="SECOND "),
+        ]
+        self.assertEqual(eval_cost.subagent_text(lines), "FIRST SECOND ")
+        self.assertEqual(eval_cost.full_text(lines), "MAIN ")
+
+    def test_real_delegating_fixture_has_parent_id_but_no_text_block(self):
+        # stream-json-subagent.jsonl is a real CLI capture. Its one subagent
+        # assistant turn is tool_use (Bash pwd) with no text block, so
+        # subagent_text() is empty. That is the fixture's shape, not a missed
+        # key: parent_tool_use_id sits on the object (fixtures/README.md).
+        # A six-field specialist return would be a later text block on that
+        # same parent id — covered by test_subagent_text_sees_specialist_six_field_return.
+        lines = [
+            l for l in (FIXTURES / "stream-json-subagent.jsonl").read_text().splitlines()
+            if l.strip()
+        ]
+        self.assertIsNone(eval_cost.subagent_text(lines))
+        parents = [
+            json.loads(l).get("parent_tool_use_id")
+            for l in lines
+            if l.startswith("{") and json.loads(l).get("type") == "assistant"
+        ]
+        self.assertIn("toolu_01WH5oCebDzRZ5aPkFGU1khi", parents)
 
 
 class TestPricing(unittest.TestCase):
@@ -618,6 +728,42 @@ class TestCLI(unittest.TestCase):
     def test_text_only_and_full_text_are_mutually_exclusive(self):
         proc = self._run("--transcript", str(FIXTURES / "stream-json-sample.jsonl"),
                          "--rates", str(RATES_PATH), "--text-only", "--full-text")
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("not allowed with argument", proc.stderr)
+
+    def test_subagent_text_prints_only_subagent_turns(self):
+        mixed = FIXTURES / "mixed-for-subagent-text-test.jsonl"
+        mixed.write_text("\n".join(_six_field_transcript()) + "\n")
+        try:
+            proc = self._run("--transcript", str(mixed), "--rates", str(RATES_PATH),
+                             "--subagent-text")
+            self.assertEqual(proc.returncode, 0, proc.stderr)
+            self.assertIn("STATUS:", proc.stdout)
+            self.assertIn("DID:", proc.stdout)
+            self.assertIn("FLAGS:", proc.stdout)
+            self.assertIn("NEXT:", proc.stdout)
+            self.assertNotIn("done when:", proc.stdout)
+            full = self._run("--transcript", str(mixed), "--rates", str(RATES_PATH),
+                             "--full-text")
+            self.assertEqual(full.returncode, 0, full.stderr)
+            self.assertIn("done when:", full.stdout)
+            self.assertNotIn("STATUS:", full.stdout)
+        finally:
+            mixed.unlink()
+
+    def test_exits_two_when_subagent_text_finds_no_text(self):
+        empty = FIXTURES / "empty-for-subagent-text-test.jsonl"
+        empty.write_text("")
+        try:
+            proc = self._run("--transcript", str(empty), "--rates", str(RATES_PATH),
+                             "--subagent-text")
+            self.assertEqual(proc.returncode, 2)
+        finally:
+            empty.unlink()
+
+    def test_subagent_text_is_mutually_exclusive_with_full_text(self):
+        proc = self._run("--transcript", str(FIXTURES / "stream-json-sample.jsonl"),
+                         "--rates", str(RATES_PATH), "--full-text", "--subagent-text")
         self.assertNotEqual(proc.returncode, 0)
         self.assertIn("not allowed with argument", proc.stderr)
 
