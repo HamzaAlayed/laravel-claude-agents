@@ -348,12 +348,22 @@ expect "Interface block refuses to build or patch specialist files" "9" \
   "$(grep -l 'You do not build and you do not patch' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block requires verify-before-advancing" "9" \
   "$(grep -l 'Verify before advancing' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block requires stage returns on disk" "9" \
+  "$(grep -l 'Stage returns land on disk' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # Literature-gap tranche (docs/plans/2026-07-29-literature-gap-tranche.md), gate
 # cleared by eval run 5. Escalation fired on category only; NOT-CHECKED was
 # collected by every stage return and consumed by nothing. Nothing bounded a
 # run's total stages (only lane cap and per-stage retry). A checkpoint wrote no
 # resume state, so a delivery resumed tomorrow replayed work already paid for.
 COORD="$SCRIPT_DIR/agents/delivery-coordinator.md"
+expect "thirteen writer agents require a last-Write stage file" "13" \
+  "$(grep -l 'as your last Write' "$SCRIPT_DIR"/agents/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "three read-only agents defer the stage file to the coordinator" "3" \
+  "$(grep -l 'coordinator persists your stage file' "$SCRIPT_DIR"/agents/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "coordinator never writes a writer stage file" "1" \
+  "$(grep -c 'never write a writer' "$COORD")"
+expect "coordinator Reads the stage file before a checkmark" "1" \
+  "$(grep -c 'Read that file before' "$COORD")"
 # Orchestration-audit Should-fix (docs/evals/2026-08-12-orchestration-audit.md):
 # Dimension 3 — Working interface is a deliberate Interface-contract superset.
 # Dimension 4 — four specialist docs/ paths missing from the routing table.
@@ -650,6 +660,12 @@ expect "the guard checker inspects the authorize body, not just its presence" "1
 expect "the opt-in case asserts that work was delegated" "1" \
   "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'check_delegated')"
+expect "the opt-in case asserts stage-return files" "1" \
+  "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'check_stage_return_files')"
+expect "the opt-in case does not enable check_subagent_log" "0" \
+  "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE "^[[:space:]]*check_subagent_log ")"
 expect "the opt-in case stays out of the default sweep" "0" \
   "$(sed -n 's/^ALL_CASES=(\(.*\))$/\1/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | tr ' ' '\n' | grep -cx 'feature' || true)"
@@ -662,6 +678,9 @@ expect "no checks function reads the raw transcript" "0" \
 # reading stream.jsonl the way a checks_* workaround would.
 expect "check_subagent_log does not read the raw transcript" "0" \
   "$(sed -n '/^check_subagent_log()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'stream\.jsonl' || true)"
+expect "check_stage_return_files does not read the raw transcript" "0" \
+  "$(sed -n '/^check_stage_return_files()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'stream\.jsonl' || true)"
 # shellcheck disable=SC2016 # literal $SUBAGENT_LOG in the grep pattern
 expect "check_subagent_log greps the derived subagent log" "1" \
