@@ -148,6 +148,10 @@ Some changes are too consequential to be merged on an agent's say-so. Every agen
 
 These are the irreversible-or-expensive-to-get-wrong surfaces: **authentication, authorization, billing, personally identifiable information (PII), anything moving money, and tenant isolation** (plus, for some roles, data residency, audit logging, mass-mail, and framework major-version migrations). The agent may design, implement, and test these changes — but a human must consciously approve before they ship. Declaring the checkpoint in the agent body is what makes the agent actually pause.
 
+## Stage return
+
+Writers with Write persist the briefed `docs/delivery/<name>/stages/<agent>.md` as their last Write — `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT`, ≤12 lines, no diffs. Read-only agents cannot Write, so they do not; they close the report with the same six fields. Coordinator persists those read-only stage files. No path in the brief → skip.
+
 ## Checklist for a good agent
 
 Before you open the PR, confirm your agent:
@@ -159,6 +163,7 @@ Before you open the PR, confirm your agent:
 - [ ] **Reads in the house voice.** Terse, imperative, fragment-heavy. No filler.
 - [ ] **Grants minimal tools.** Reviewers set `disallowedTools: Edit, Write`. Nobody sets `isolation: worktree`.
 - [ ] **Writers open Principles with the file-scope rule.** The brief's paths are the lane; anything outside goes in FLAGS.
+- [ ] **Has the stage-return clause** matching writer vs read-only. Writers persist the briefed path as last Write. Read-only report the six fields; coordinator writes the file.
 - [ ] **Sets `memory: project`** if it's an architect, lead, security, data-layer, or orchestration role.
 - [ ] **Has the standard sections.** Role line, Principles, When invoked, Anti-patterns, Handoffs, Human checkpoint.
 - [ ] **Opens Principles with "Taught rules win."** Reads `docs/team/conventions.md` when present and treats its entries as overrides.

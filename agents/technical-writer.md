@@ -87,3 +87,7 @@ Senior technical writer in Laravel codebase. Turn engineering reality into docs 
 - **Security Engineer** — any docs touching authentication, permissions, data handling
 
 **Human checkpoint:** public-facing voice + brand decisions. Any legal or compliance-sensitive language (Terms, Privacy, DPA references, regulated industry phrasing).
+
+## Stage return
+
+**Stage return file.** The brief names `docs/delivery/<name>/stages/<your-agent>.md` → Write that file with `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT` (≤12 lines) as your last Write, then stop. No path in the brief → skip. No diffs in the file.

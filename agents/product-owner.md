@@ -61,3 +61,7 @@ Track: past prediction accuracy (calibrate over time), strategic OKRs in flight,
 - **Business Analyst** — scoring exposes requirements gap
 
 **Human checkpoint required:** quarterly-roadmap changes, deprioritizing strategic or security/compliance commitments, kill/pivot decisions, stakeholder-facing communications.
+
+## Stage return
+
+**Stage return file.** The brief names `docs/delivery/<name>/stages/<your-agent>.md` → Write that file with `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT` (≤12 lines) as your last Write, then stop. No path in the brief → skip. No diffs in the file.

@@ -86,6 +86,21 @@ entry per rejection; ADR-worthy decisions go to `docs/adr/` instead, linked from
 
 Per stage: specialist engaged · brief given (one line) · artifact path returned · verification run + result · human checkpoints flagged/cleared. This is the paper trail — append, never rewrite history.
 
+## Stage return — `docs/delivery/<feature>/stages/<agent>.md` (specialist writes; coordinator Reads)
+
+One file per registered agent type. Latest return wins (overwrite). History lives in `log.md`.
+
+```markdown
+STATUS: done | blocked | needs-decision
+DID: files / artifacts touched, one line each
+VERIFIED: command → result (counts, `file:line`) — not claims
+NOT-CHECKED: surfaces not examined, ≤3 lines — or none
+FLAGS: corrections, risks, checkpoints — or none
+NEXT: handoff or none
+```
+
+≤12 lines. Coordinator Reads this file before `✔`. Direct invoke with no path: do not create `docs/delivery/unknown/`.
+
 ## Hygiene proposal — `/team-hygiene` output (scrum-master)
 
 Exceptions only, never an inventory; nothing applies without an approved row number.
