@@ -69,7 +69,7 @@ Still true as of 2026-08-19. A new review starts here.
 
 | Item | Where | Notes |
 | --- | --- | --- |
-| **Per-stage specialist returns unmeasured** | [run 8](evals/2026-08-12-run-8.md); [subagent-log](evals/2026-08-19-subagent-log.md); [run 10](evals/2026-08-19-run-10.md) | Extractor shipped in v1.43.0. Run 10's `$SUBAGENT_LOG` is empty: 125 nested assistant turns, every one `tool_use` only. Do not uncomment `check_subagent_log` on that shape. |
+| **Per-stage specialist returns unmeasured** | [run 8](evals/2026-08-12-run-8.md); [subagent-log](evals/2026-08-19-subagent-log.md); [run 10](evals/2026-08-19-run-10.md) | Spec: [2026-08-19-l3-stage-returns-design.md](plans/2026-08-19-l3-stage-returns-design.md). Do not uncomment `check_subagent_log`. |
 
 ## How a new review should start
 
