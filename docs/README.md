@@ -12,7 +12,7 @@ Last verified 2026-08-19 against pack v1.43.0.
 | --- | --- |
 | [`docs/superpowers/specs/`](superpowers/specs/) | Approved design specs. Intent, scope, non-goals. Written before the plan. |
 | [`docs/superpowers/plans/`](superpowers/plans/) | Implementation plans for those specs. File lists, task order, verification. |
-| [`docs/plans/`](plans/) | Working plans that are not Superpowers-shaped: follow-ups, held UI work, this Adoption plan. |
+| [`docs/plans/`](plans/) | Working plans that are not Superpowers-shaped: follow-ups, held UI work, Adoption, the console company-theater redesign. |
 | [`docs/evals/`](evals/) | Eval scorecards and audits. One file per billed run or instrument change. |
 | [`docs/requirements/`](requirements/) | Discovery / current-state reviews. Input to a spec, not a spec. |
 | [`docs/research/`](research/) | Literature and comparative audits. |
@@ -69,6 +69,7 @@ Still true as of 2026-08-19. A new review starts here.
 | Item | Where | Notes |
 | --- | --- | --- |
 | **Per-stage specialist returns unmeasured** | [run 8](evals/2026-08-12-run-8.md); [subagent-log](evals/2026-08-19-subagent-log.md); [run 10](evals/2026-08-19-run-10.md) | Extractor shipped in v1.43.0. Run 10's `$SUBAGENT_LOG` is empty: 125 nested assistant turns, every one `tool_use` only. Do not uncomment `check_subagent_log` on that shape. |
+| **Console company-theater redesign** | [design](plans/2026-08-19-console-company-theater-design.md); [plan](plans/2026-08-19-console-company-theater.md) | Two-act floor (call sheet → theater → spotlight). Same server. Not started. |
 
 ## How a new review should start
 
