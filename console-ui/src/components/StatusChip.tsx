@@ -31,7 +31,7 @@ export function StatusChip({
     <span
       className={`rounded-full border px-2 py-0.5 text-xs ${
         outcome === "error"
-          ? "border-destructive text-destructive"
+          ? "border-[color-mix(in_oklab,var(--cue)_50%,var(--paper))] text-[color-mix(in_oklab,var(--cue)_50%,var(--paper))]"
           : "border-[color-mix(in_oklab,var(--paper)_24%,transparent)] text-[color-mix(in_oklab,var(--paper)_70%,transparent)]"
       }`}
     >

@@ -22,7 +22,9 @@ describe("ShowHeader", () => {
   it("Stop calls onStop", async () => {
     const { onStop, user } = mount();
     expect(screen.getByText("Stop")).toBeTruthy();
-    await user.click(screen.getByRole("button", { name: "Interrupt the running agent" }));
+    await user.click(
+      screen.getByRole("button", { name: "Stop — interrupt the running agent" }),
+    );
     expect(onStop).toHaveBeenCalledTimes(1);
   });
 

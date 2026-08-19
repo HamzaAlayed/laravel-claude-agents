@@ -23,7 +23,8 @@ afterEach(() => {
 
 const runButton = () => screen.getByRole("button", { name: "Start" }) as HTMLButtonElement;
 
-const button = (name: string) => screen.getByRole("button", { name }) as HTMLButtonElement;
+const button = (name: string | RegExp) =>
+  screen.getByRole("button", { name }) as HTMLButtonElement;
 
 /**
  * Render the console and wait for the catalog to land. `seed` runs before the
@@ -467,7 +468,7 @@ describe("a run that ends badly", () => {
     const { server, user } = await launch();
     server.failNext("/interrupt", "CLINotConnectedError");
 
-    await user.click(button("Interrupt the running agent"));
+    await user.click(button(/interrupt the running agent/i));
 
     expect(await screen.findByText(/treating this run as ended/)).toBeTruthy();
     await waitFor(() => expect(runButton().disabled).toBe(false));
@@ -475,7 +476,7 @@ describe("a run that ends badly", () => {
 
   it("ends the run on a successful interrupt", async () => {
     const { server, user } = await launch();
-    await user.click(button("Interrupt the running agent"));
+    await user.click(button(/interrupt the running agent/i));
 
     await waitFor(() => expect(server.postsTo("/interrupt")).toHaveLength(1));
     await waitFor(() => expect(runButton().disabled).toBe(false));
@@ -842,7 +843,7 @@ describe("the header status chip", () => {
 
   it("says stopped after an interrupt", async () => {
     const { user } = await launch();
-    await user.click(button("Interrupt the running agent"));
+    await user.click(button(/interrupt the running agent/i));
 
     expect(await screen.findByText("stopped")).toBeTruthy();
   });

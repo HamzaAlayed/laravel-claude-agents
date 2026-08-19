@@ -290,7 +290,7 @@ export default function App() {
 
   return (
     <main className="mx-auto max-w-6xl p-4 md:p-6">
-      <header className="mb-4 flex items-baseline gap-3 bg-[var(--floor)] text-[var(--paper)]">
+      <header className="mb-4 flex items-baseline gap-3 bg-[var(--floor)]">
         <ShowHeader
           title={showTitle}
           live={live}
@@ -306,7 +306,7 @@ export default function App() {
                     : null
               : null
           }
-          onStop={runId ? interrupt : undefined}
+          onStop={live ? interrupt : undefined}
         />
         <div className="ml-auto flex items-center gap-2">
           {runs.length > 0 && (
