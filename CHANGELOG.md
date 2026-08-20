@@ -7,30 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Guild 2.0 closes the Supervisor loop on disk. Dependents wait for their
-join; the board shows how many agents are still in flight.
+The coordinator overwrites `close.md` after the plan and after every
+stage. A killed run is scored from that file, not mid-board `$LOG` prose.
+Dependents wait for their join; the board header states the spawn cap.
+Humans still read the progress board — not the close file.
 
 ### Added
 
 - **Close file on disk** at `docs/delivery/<name>/close.md`. The
-  Supervisor writes the delivery verdict there; the coordinator Reads it
-  before the run is marked done.
-- **Join-before-dependent** — a stage that depends on another does not
-  start until the upstream stage has returned and its artifacts are on
-  disk.
-- **Need-to-know briefs** — each specialist gets only the context required
-  for its stage, not the full delivery thread.
-- **Spawn cap in the board header** — the console shows how many nested
-  agents are active against the configured limit so you can see when the
-  house is at capacity.
+  coordinator overwrites this file after the plan and after every stage
+  (pass, fail, or checkpoint). Latest write wins; history stays in
+  `log.md`. The opt-in `feature` eval reads `close.md` when the process
+  is killed at timeout. Humans still see the progress board; this is not
+  a `/console` feature.
+- **Join-before-dependent** — a stage that depends on others does not
+  `✔` until upstream stage files exist and verify. The coordinator must
+  Read those files before starting the dependent stage.
+- **Need-to-know briefs** — each specialist gets only goal, owned paths,
+  success criteria, the exact stage path, and named stack facts. No paste
+  of other specialists' diffs.
+- **Spawn cap in the board header** — the progress board states
+  `N stages · cap: M spawns · done when:` before any agent spends
+  tokens. `M` defaults to stage count + 2. Hitting the cap without
+  `done when:` → write `close.md` with `STATUS: stopped` and stop.
 
-### Changed
+### Breaking
 
 - **This pack ships as 2.0.0.** Re-install from the new release; do not
   assume in-place upgrade from 1.x.
-- **The Interface contract changed.** Specialist tool grants, stage-return
-  shape, and coordinator routing were revised for Supervisor-complete
-  delivery. Re-read the shared Interface block after upgrade.
+- **The Interface contract changed.** Close file, join checks,
+  need-to-know briefs, and spawn cap are new Interface requirements.
+  Re-read the shared Interface block after upgrade.
 
 ## [1.45.0] - 2026-08-20
 
