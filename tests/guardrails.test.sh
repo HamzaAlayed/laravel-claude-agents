@@ -425,8 +425,16 @@ read -r -a EVAL_CASE_LIST <<<"$(sed -n 's/^ALL_CASES=(\(.*\))$/\1/p' "$EVAL_SH")
 # needing a rubric, and an unjudged case is exactly what this ratchet exists for.
 read -r -a EVAL_OPT_IN_LIST <<<"$(sed -n 's/^OPT_IN_CASES=(\(.*\))$/\1/p' "$EVAL_SH")"
 EVAL_CASE_LIST+=("${EVAL_OPT_IN_LIST[@]}")
+# Capture once and match in-process. `sed | grep -q` races under `pipefail`:
+# grep -q closes the pipe on the first hit, sed SIGPIPEs, the pipeline is
+# non-zero, and `||` records a false miss. CI hit that on the jq-removed
+# invocation (Broken pipe, then `got  tests`) after the with-jq run passed.
+RUBRIC_SRC="$(sed -n '/^case_rubric()/,/^}/p' "$EVAL_SH")"
 for c in "${EVAL_CASE_LIST[@]}"; do
-  sed -n '/^case_rubric()/,/^}/p' "$EVAL_SH" | grep -qE "^ *$c\)" || MISSING_RUBRIC="$MISSING_RUBRIC $c"
+  case "$RUBRIC_SRC" in
+    *"    ${c})"*) ;;
+    *) MISSING_RUBRIC="$MISSING_RUBRIC $c" ;;
+  esac
 done
 expect "every eval case has a judge rubric" "" "$MISSING_RUBRIC"
 # Assignments only — `regex_verdict="$3"` (reading the verdict) must not trip it.
