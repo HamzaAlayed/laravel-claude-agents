@@ -106,12 +106,12 @@ NEXT: handoff or none
 Latest wins. A killed run is scored from this file, not mid-board prose. Coordinator overwrites after the plan and after every stage.
 
 ```markdown
-VERIFIED: command → result (counts) — not claims
-NOT-CHECKED: surfaces not verified, ≤3 lines — or none
-STATUS: running | done | stopped
-BOARD: progress board as last printed
+VERIFIED: <commands you ran → counts>
+NOT-CHECKED: <what nobody verified, or none>
+STATUS: running
+BOARD: <progress board as last printed>
 ```
-
+`STATUS` is exactly `running`, `done`, or `stopped` — never `in-progress`. Stage-return STATUS stays `done | blocked | needs-decision`.
 ≤12 lines. Labels only — no prose dump.
 
 ## Hygiene proposal — `/team-hygiene` output (scrum-master)
