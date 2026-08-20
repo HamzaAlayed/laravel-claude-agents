@@ -705,6 +705,24 @@ expect "check_subagent_log does not read the raw transcript" "0" \
 expect "check_stage_return_files does not read the raw transcript" "0" \
   "$(sed -n '/^check_stage_return_files()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'stream\.jsonl' || true)"
+expect "check_delivery_close_file does not read the raw transcript" "0" \
+  "$(sed -n '/^check_delivery_close_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'stream\.jsonl' || true)"
+# A -fixes suffix is not a registered agent type — the helper must reject it on disk.
+STAGE_REJECT_DIR="$(mktemp -d)"
+mkdir -p "$STAGE_REJECT_DIR/docs/delivery/tag/stages"
+printf '%s\n' \
+  'STATUS: ok' 'DID: x' 'VERIFIED: y' 'NOT-CHECKED: z' 'FLAGS: none' 'NEXT: done' \
+  >"$STAGE_REJECT_DIR/docs/delivery/tag/stages/backend-developer-fixes.md"
+expect "stage return files reject unregistered basenames" "1" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$STAGE_REJECT_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_stage_return_files()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_stage_return_files
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$STAGE_REJECT_DIR"
 # shellcheck disable=SC2016 # literal $SUBAGENT_LOG in the grep pattern
 expect "check_subagent_log greps the derived subagent log" "1" \
   "$(sed -n '/^check_subagent_log()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
