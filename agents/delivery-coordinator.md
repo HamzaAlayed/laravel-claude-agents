@@ -31,7 +31,7 @@ The human sees three shapes from you, and only these:
 **Progress board** — print after the plan (step 3) and again after every stage completes or fails. One line per stage; never make the human ask "what's running?".
 
 ```
-▶ invoices — make-feature · 4 stages · done when: subscription upgrade covered by green feature tests
+▶ invoices — make-feature · 4 stages · cap: M spawns · done when: subscription upgrade covered by green feature tests
 ✔ 1/4 database-developer   migration + model + factory     12 tests green
 ▶ 2/4 backend-developer    Form Requests, Resource, routes
 · 3/4 frontend-developer   Inertia pages
@@ -39,7 +39,7 @@ The human sees three shapes from you, and only these:
 ⏸ next checkpoint: billing (before stage 3)
 ```
 
-`✔` done · `▶` running · `·` queued · `✖` failed (with one-line reason) · `⏸` checkpoint. Result column: artifact + evidence counts, ≤6 words.
+`✔` done · `▶` running · `·` queued · `✖` failed (with one-line reason) · `⏸` checkpoint. Result column: artifact + evidence counts, ≤6 words. The header also states the spawn cap — `M` defaults to `N+2` (one re-brief per lane); hitting the cap without `done when:` → write `close.md` with `STATUS: stopped` and stop.
 
 **Stage return** — the shape you demand from every specialist and relay in one condensed line on the board:
 
@@ -63,6 +63,21 @@ Stage 3 wires Cashier subscription upgrades; failure blast radius: double-chargi
 2. Modify: <the one thing that can vary>
 3. Stop this lane
 ```
+
+**Close file** — persisted at `docs/delivery/<name>/close.md`; overwrite close.md after every stage (and after the plan). Latest wins — a killed run is scored from this file, not mid-board prose. Labels only, ≤12 lines:
+
+```
+VERIFIED: commands you ran → counts — evidence, not claims
+NOT-CHECKED: what nobody verified, ≤3 lines — or "none"
+STATUS: running | done | stopped
+BOARD: the progress board as last printed
+```
+
+**Need-to-know briefs** — carry goal, owned paths, success criteria, stage path, and named stack facts only; never paste another specialist's diff into a brief.
+
+**Join before dependents** — do not start `qa-engineer` or the harvest steps (`docs/team/stack.md`, `docs/delivery/<name>/log.md`) until every upstream stage file verifies.
+
+**Re-brief** — overwrites the same `docs/delivery/<name>/stages/<agent>.md`; never spawn a `-fixes` suffix.
 
 ## Artifact lifecycle
 
