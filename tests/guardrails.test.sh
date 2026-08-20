@@ -374,6 +374,17 @@ expect "coordinator Reads the stage file before a checkmark" "1" \
   "$(grep -c 'Read that file before' "$COORD")"
 expect "coordinator writes the close file after every stage" "1" \
   "$(grep -c 'overwrite close.md after every stage' "$COORD")"
+CLOSE_COORD="$(sed -n '/^\*\*Close file\*\*/,/^\*\*Need-to-know briefs\*\*/p' "$COORD")"
+expect "coordinator close skeleton prefixes VERIFIED:" "1" \
+  "$(printf '%s\n' "$CLOSE_COORD" | grep -c '^VERIFIED:')"
+expect "coordinator close skeleton prefixes NOT-CHECKED:" "1" \
+  "$(printf '%s\n' "$CLOSE_COORD" | grep -c '^NOT-CHECKED:')"
+expect "coordinator close skeleton STATUS is the in-flight default" "1" \
+  "$(printf '%s\n' "$CLOSE_COORD" | grep -cE '^STATUS: running$')"
+expect "coordinator close skeleton prefixes BOARD:" "1" \
+  "$(printf '%s\n' "$CLOSE_COORD" | grep -c '^BOARD:')"
+expect "coordinator re-brief names the exact stage path" "1" \
+  "$(grep -c 'Stage file (overwrite, no other name):' "$COORD")"
 expect "coordinator spawn cap is documented once" "1" \
   "$(grep -c 'cap: M spawns' "$COORD")"
 # Orchestration-audit Should-fix (docs/evals/2026-08-12-orchestration-audit.md):
@@ -723,6 +734,46 @@ expect "stage return files reject unregistered basenames" "1" \
     echo "$CHECK_FAIL"
   ')"
 rm -rf "$STAGE_REJECT_DIR"
+TPL="$SCRIPT_DIR/skills/delivery-templates/SKILL.md"
+CLOSE_TPL="$(sed -n '/^## Close file/,/^## Hygiene proposal/p' "$TPL")"
+expect "delivery-templates close skeleton prefixes VERIFIED:" "1" \
+  "$(printf '%s\n' "$CLOSE_TPL" | grep -c '^VERIFIED:')"
+expect "delivery-templates close skeleton prefixes NOT-CHECKED:" "1" \
+  "$(printf '%s\n' "$CLOSE_TPL" | grep -c '^NOT-CHECKED:')"
+expect "delivery-templates close skeleton STATUS is the in-flight default" "1" \
+  "$(printf '%s\n' "$CLOSE_TPL" | grep -cE '^STATUS: running$')"
+expect "delivery-templates close skeleton prefixes BOARD:" "1" \
+  "$(printf '%s\n' "$CLOSE_TPL" | grep -c '^BOARD:')"
+
+CLOSE_REJECT_DIR="$(mktemp -d)"
+mkdir -p "$CLOSE_REJECT_DIR/docs/delivery/tag"
+printf '%s\n' \
+  'VERIFIED: x' 'NOT-CHECKED: y' 'STATUS: in-progress' 'BOARD: z' \
+  >"$CLOSE_REJECT_DIR/docs/delivery/tag/close.md"
+expect "close file rejects STATUS in-progress" "1" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$CLOSE_REJECT_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_close_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_close_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$CLOSE_REJECT_DIR"
+
+CLOSE_PASS_DIR="$(mktemp -d)"
+mkdir -p "$CLOSE_PASS_DIR/docs/delivery/tag"
+printf '%s\n' \
+  'VERIFIED: x' 'NOT-CHECKED: y' 'STATUS: running' 'BOARD: z' \
+  >"$CLOSE_PASS_DIR/docs/delivery/tag/close.md"
+expect "close file accepts STATUS running" "0" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$CLOSE_PASS_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_close_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_close_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$CLOSE_PASS_DIR"
 # shellcheck disable=SC2016 # literal $SUBAGENT_LOG in the grep pattern
 expect "check_subagent_log greps the derived subagent log" "1" \
   "$(sed -n '/^check_subagent_log()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
