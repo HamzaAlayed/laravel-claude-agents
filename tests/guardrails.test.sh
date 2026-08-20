@@ -374,6 +374,10 @@ expect "coordinator Reads the stage file before a checkmark" "1" \
   "$(grep -c 'Read that file before' "$COORD")"
 expect "coordinator writes the close file after every stage" "1" \
   "$(grep -c 'overwrite close.md after every stage' "$COORD")"
+expect "coordinator Writes close.md after every Agent return" "1" \
+  "$(grep -c 'after every Agent return, the next Write is close.md' "$COORD")"
+expect "coordinator bans parentheticals on close labels" "1" \
+  "$(grep -cF 'VERIFIED (` is a contract break' "$COORD")"
 CLOSE_COORD="$(sed -n '/^\*\*Close file\*\*/,/^\*\*Need-to-know briefs\*\*/p' "$COORD")"
 expect "coordinator close skeleton prefixes VERIFIED:" "1" \
   "$(printf '%s\n' "$CLOSE_COORD" | grep -c '^VERIFIED:')"
@@ -774,6 +778,36 @@ expect "close file accepts STATUS running" "0" \
     echo "$CHECK_FAIL"
   ')"
 rm -rf "$CLOSE_PASS_DIR"
+
+CLOSE_INDENT_DIR="$(mktemp -d)"
+mkdir -p "$CLOSE_INDENT_DIR/docs/delivery/tag"
+printf '%s\n' \
+  '  VERIFIED: x' 'NOT-CHECKED: y' 'STATUS: running' 'BOARD: z' \
+  >"$CLOSE_INDENT_DIR/docs/delivery/tag/close.md"
+expect "close file rejects indented VERIFIED:" "1" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$CLOSE_INDENT_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_close_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_close_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$CLOSE_INDENT_DIR"
+
+CLOSE_PAREN_DIR="$(mktemp -d)"
+mkdir -p "$CLOSE_PAREN_DIR/docs/delivery/tag"
+printf '%s\n' \
+  'VERIFIED (coordinator): x' 'NOT-CHECKED: y' 'STATUS: running' 'BOARD: z' \
+  >"$CLOSE_PAREN_DIR/docs/delivery/tag/close.md"
+expect "close file rejects VERIFIED parenthetical" "1" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$CLOSE_PAREN_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_close_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_close_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$CLOSE_PAREN_DIR"
 
 CLOSE_DONE_DIR="$(mktemp -d)"
 mkdir -p "$CLOSE_DONE_DIR/docs/delivery/tag"
