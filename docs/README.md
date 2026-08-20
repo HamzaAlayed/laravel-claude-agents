@@ -12,7 +12,7 @@ Last verified 2026-08-20 against pack v1.45.0.
 | --- | --- |
 | [`docs/superpowers/specs/`](superpowers/specs/) | Approved design specs. Intent, scope, non-goals. Written before the plan. |
 | [`docs/superpowers/plans/`](superpowers/plans/) | Implementation plans for those specs. File lists, task order, verification. |
-| [`docs/plans/`](plans/) | Working plans that are not Superpowers-shaped: follow-ups, held UI work, Adoption, the console company-theater redesign. |
+| [`docs/plans/`](plans/) | Working plans that are not Superpowers-shaped: follow-ups, held UI work, Adoption, the console company-theater redesign, Guild v2. |
 | [`docs/evals/`](evals/) | Eval scorecards and audits. One file per billed run or instrument change. |
 | [`docs/requirements/`](requirements/) | Discovery / current-state reviews. Input to a spec, not a spec. |
 | [`docs/research/`](research/) | Literature and comparative audits. |
@@ -66,7 +66,9 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 
 ## Open
 
-None as of 2026-08-20 (pack v1.45.0).
+| Item | Evidence |
+| --- | --- |
+| Guild v2 — Supervisor complete (2.0.0) | [design / roadmap](plans/2026-08-20-guild-v2-design.md); [implementation plan](plans/2026-08-20-guild-v2.md). Do not bump `VERSION` until the billed `feature` pin. 2.1 Adaptive and 2.2 graph wait until 2.0’s close file is proven. |
 
 ## How a new review should start
 
