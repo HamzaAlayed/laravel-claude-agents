@@ -350,6 +350,14 @@ expect "Interface block requires verify-before-advancing" "9" \
   "$(grep -l 'Verify before advancing' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block requires stage returns on disk" "9" \
   "$(grep -l 'Stage returns land on disk' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block requires a delivery close file" "9" \
+  "$(grep -l 'Close file on disk' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block requires need-to-know briefs" "9" \
+  "$(grep -l 'Brief only what the specialist owns' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block requires joins before dependents" "9" \
+  "$(grep -l 'Join before a dependent stage' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block caps specialist spawns" "9" \
+  "$(grep -l 'Spawn cap in the board header' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # Literature-gap tranche (docs/plans/2026-07-29-literature-gap-tranche.md), gate
 # cleared by eval run 5. Escalation fired on category only; NOT-CHECKED was
 # collected by every stage return and consumed by nothing. Nothing bounded a
@@ -364,6 +372,10 @@ expect "coordinator never writes a writer stage file" "1" \
   "$(grep -c 'never write a writer' "$COORD")"
 expect "coordinator Reads the stage file before a checkmark" "1" \
   "$(grep -c 'Read that file before' "$COORD")"
+expect "coordinator writes the close file after every stage" "1" \
+  "$(grep -c 'overwrite close.md after every stage' "$COORD")"
+expect "coordinator spawn cap is documented once" "1" \
+  "$(grep -c 'cap: M spawns' "$COORD")"
 # Orchestration-audit Should-fix (docs/evals/2026-08-12-orchestration-audit.md):
 # Dimension 3 — Working interface is a deliberate Interface-contract superset.
 # Dimension 4 — four specialist docs/ paths missing from the routing table.
@@ -671,6 +683,9 @@ expect "the opt-in case asserts that work was delegated" "1" \
 expect "the opt-in case asserts stage-return files" "1" \
   "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'check_stage_return_files')"
+expect "the opt-in case asserts the delivery close file" "1" \
+  "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'check_delivery_close_file')"
 expect "the opt-in case does not enable check_subagent_log" "0" \
   "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE "^[[:space:]]*check_subagent_log ")"
