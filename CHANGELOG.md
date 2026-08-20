@@ -31,6 +31,13 @@ Humans still read the progress board — not the close file.
   tokens. `M` defaults to stage count + 2. Hitting the cap without
   `done when:` → write `close.md` with `STATUS: stopped` and stop.
 
+### Changed
+
+- **The close file is a four-line labeled skeleton.** Writes start
+  `VERIFIED:` / `NOT-CHECKED:` / `STATUS:` / `BOARD:` — do not rename
+  those labels. `STATUS` is `running`, `done`, or `stopped`. A re-brief
+  names the exact path `docs/delivery/<name>/stages/<agent>.md`.
+
 ### Breaking
 
 - **This pack ships as 2.0.0.** Re-install from the new release; do not
