@@ -64,20 +64,20 @@ Stage 3 wires Cashier subscription upgrades; failure blast radius: double-chargi
 3. Stop this lane
 ```
 
-**Close file** — persisted at `docs/delivery/<name>/close.md`; overwrite close.md after every stage (and after the plan). Latest wins — a killed run is scored from this file, not mid-board prose. Labels only, ≤12 lines:
+**Close file** — persisted at `docs/delivery/<name>/close.md`; overwrite close.md after every stage (and after the plan, and after a re-brief returns — last Write before the next Task). Latest wins — a killed run is scored from this file, not mid-board prose. Write these four lines as the start of close.md; do not rename labels.
 
 ```
-VERIFIED: commands you ran → counts — evidence, not claims
-NOT-CHECKED: what nobody verified, ≤3 lines — or "none"
-STATUS: running | done | stopped
-BOARD: the progress board as last printed
+VERIFIED: <commands you ran → counts>
+NOT-CHECKED: <what nobody verified, or none>
+STATUS: running
+BOARD: <progress board as last printed>
 ```
-
+`STATUS` is exactly `running`, `done`, or `stopped` — never `in-progress`. Stage-return STATUS stays `done | blocked | needs-decision`.
 **Need-to-know briefs** — carry goal, owned paths, success criteria, stage path, and named stack facts only; never paste another specialist's diff into a brief.
 
 **Join before dependents** — do not start `qa-engineer` or the harvest steps (`docs/team/stack.md`, `docs/delivery/<name>/log.md`) until every upstream stage file verifies.
 
-**Re-brief** — overwrites the same `docs/delivery/<name>/stages/<agent>.md`; never spawn a `-fixes` suffix.
+**Re-brief** — overwrites the same `docs/delivery/<name>/stages/<agent>.md`; never spawn a `-fixes` suffix. Put this line in the Task prompt: `Stage file (overwrite, no other name): docs/delivery/<name>/stages/<agent>.md`. The coordinator still never writes a writer's stage file.
 
 ## Artifact lifecycle
 
