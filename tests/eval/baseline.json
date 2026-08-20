@@ -72,9 +72,9 @@
     }
   },
   "coordinator_hash": {
-    "sha256": "f475d97aac301b117fbc06b778c691bf8ca7d4a862b60fba27193be48d0e9765",
+    "sha256": "bbc48c43caabd28aebc501b928d6124d796f6c42c82b67cbaf71758a5422dcc4",
     "as_of": "2026-08-20",
-    "note": "Verified by the Guild 2.0 billed feature run (2026-08-20, docs/evals/2026-08-20-run-12.md): close.md written. Score 10/12 FAIL — TIMED OUT at 1202s; check_delivery_close_file miss (no VERIFIED: colon); -fixes basename FAIL. Do not treat this pin as a 2.0.0 ship.",
+    "note": "Verified by the close-file stickiness billed feature run (2026-08-20, docs/evals/2026-08-20-run-13.md): close.md written, no -fixes. Score 11/12 FAIL — TIMED OUT at 1203s; check_delivery_close_file miss (VERIFIED ( not VERIFIED:). Do not treat this pin as a 2.0.0 ship.",
     "waivers": []
   }
 }
