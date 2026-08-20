@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Guild 2.0 closes the Supervisor loop on disk. Dependents wait for their
+join; the board shows how many agents are still in flight.
+
+### Added
+
+- **Close file on disk** at `docs/delivery/<name>/close.md`. The
+  Supervisor writes the delivery verdict there; the coordinator Reads it
+  before the run is marked done.
+- **Join-before-dependent** — a stage that depends on another does not
+  start until the upstream stage has returned and its artifacts are on
+  disk.
+- **Need-to-know briefs** — each specialist gets only the context required
+  for its stage, not the full delivery thread.
+- **Spawn cap in the board header** — the console shows how many nested
+  agents are active against the configured limit so you can see when the
+  house is at capacity.
+
+### Changed
+
+- **This pack ships as 2.0.0.** Re-install from the new release; do not
+  assume in-place upgrade from 1.x.
+- **The Interface contract changed.** Specialist tool grants, stage-return
+  shape, and coordinator routing were revised for Supervisor-complete
+  delivery. Re-read the shared Interface block after upgrade.
+
 ## [1.45.0] - 2026-08-20
 
 Specialists persist six-field stage returns on disk. The coordinator
