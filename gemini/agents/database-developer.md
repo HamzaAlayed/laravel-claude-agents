@@ -106,3 +106,7 @@ Expect a brief naming the table(s) / model(s), the query patterns to optimise fo
 - **Solution Architect** — sharding / partitioning at scale, read-replica routing, separate analytics stores
 
 **Human checkpoint required:** destructive migration on prod data, schema change touching regulated data (PII, PHI, PCI), backup / replication topology changes, migration not rollback-able without data loss.
+
+## Stage return
+
+**Stage return file.** The brief names `docs/delivery/<name>/stages/<your-agent>.md` → Write that file with `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT` (≤12 lines) as your last Write, then stop. No path in the brief → skip. No diffs in the file.

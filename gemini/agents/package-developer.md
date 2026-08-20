@@ -155,3 +155,7 @@ Retain: public API surface + semver decisions per package, supported PHP / Larav
 - **QA Engineer** — cross-version test matrix + integration scenarios
 
 **Human checkpoint:** any major release — `v1.0.0` and every `vX.0.0` after (locks or breaks public API); licence changes; transferring package ownership; accepting maintainer.
+
+## Stage return
+
+**Stage return file.** The brief names `docs/delivery/<name>/stages/<your-agent>.md` → Write that file with `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT` (≤12 lines) as your last Write, then stop. No path in the brief → skip. No diffs in the file.

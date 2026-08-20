@@ -154,3 +154,7 @@ Every checkmark backed by command output from this session. Not run → report "
 - **Tech Lead** — non-trivial architecture review
 
 **Human checkpoint required:** authn, authz, billing (Cashier), PII, data residency, audit logging, mass-mail, tenant isolation, money.
+
+## Stage return
+
+**Stage return file.** The brief names `docs/delivery/<name>/stages/<your-agent>.md` → Write that file with `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT` (≤12 lines) as your last Write, then stop. No path in the brief → skip. No diffs in the file.

@@ -323,6 +323,26 @@ check_file_under() { # check_file_under <dir> <name-glob> <description> — any 
   record $? "file:   $3"
 }
 
+check_stage_return_files() { # ≥2 docs/delivery/*/stages/*.md, each with six labels
+  local n=0
+  local f label
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    n=$((n + 1))
+    for label in 'STATUS:' 'DID:' 'VERIFIED:' 'NOT-CHECKED:' 'FLAGS:' 'NEXT:'; do
+      if ! grep -q "$label" "$f"; then
+        record 1 "file:   stage return missing $label ($(basename "$f"))"
+        return
+      fi
+    done
+  done < <(find "$WORK/docs/delivery" -type f -path '*/stages/*.md' 2>/dev/null)
+  if [ "$n" -ge 2 ]; then
+    record 0 "file:   ≥2 stage-return files with six labels"
+  else
+    record 1 "file:   ≥2 stage-return files with six labels (found $n)"
+  fi
+}
+
 check_in_files() { # check_in_files <regex> <relative-path> <description>
   grep -qriE "$1" "$WORK/$2" 2>/dev/null
   record $? "code:   $3"
@@ -475,8 +495,10 @@ checks_feature() {
   # check_subagent_log 'NOT-CHECKED:' "a specialist return carries NOT-CHECKED"
   # check_subagent_log 'FLAGS:' "a specialist return carries FLAGS"
   # check_subagent_log 'NEXT:' "a specialist return carries NEXT"
+  # Per-stage returns are the stage files (this helper); $SUBAGENT_LOG stays an instrument (run 10).
   check_file "docs/team/stack.md" "harvest persisted the stack snapshot (routing-table artifact)"
   check_file_under "docs/delivery" "log.md" "harvest persisted the delivery log (routing-table artifact)"
+  check_stage_return_files 
 }
 
 checks_hygiene() {
@@ -681,6 +703,7 @@ run_case() { # run_case <name> <results-dir>
   # with the fixture. Read naively it said `hygiene` ran qa-engineer. Truncating
   # here means the feed is this case's events and nothing else, whatever the
   # fixture happens to carry.
+  mkdir -p "$WORK/.claude"
   : >"$WORK/.claude/agents-board.jsonl"
   if ! bash "$ROOT/install.sh" "$WORK" >"$results/$name.install.log" 2>&1; then
     echo "   ERROR: install.sh failed — see $results/$name.install.log"

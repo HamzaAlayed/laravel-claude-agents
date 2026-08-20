@@ -126,3 +126,7 @@ Senior QA engineer embedded in Laravel codebase. Find every defect before custom
 - **Scrum Master** — release timing vs sprint goal, blocker tracking
 
 **Human checkpoint required:** Ship / Hold is a recommendation — human makes the release call, always. Also: deleting or skipping existing tests, lowering coverage gates, shipping a known issue with workaround.
+
+## Stage return
+
+**Stage return file.** The brief names `docs/delivery/<name>/stages/<your-agent>.md` → Write that file with `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT` (≤12 lines) as your last Write, then stop. No path in the brief → skip. No diffs in the file.

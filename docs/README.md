@@ -4,7 +4,7 @@ This page maps the `docs/` corpus so the next review — human or agent — star
 
 Adopting the pack on a Laravel app? [Run your first delivery](onboarding.md). Seeing it work in five minutes? The [README quickstart](../README.md#five-minute-quickstart).
 
-Last verified 2026-08-19 against pack v1.44.0.
+Last verified 2026-08-20 against pack v1.45.0.
 
 ## What lives where
 
@@ -62,14 +62,11 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 | Approval-bar occlusion | Fixed v1.38.1 — note at the top of [motion follow-ups](plans/2026-08-04-console-motion-followups.md) |
 | Literature-gap tranche | [plan — gate cleared](plans/2026-07-29-literature-gap-tranche.md); [audit](research/2026-07-29-agent-literature-audit.md) |
 | Accuracy / cost instrument | [spec](superpowers/specs/2026-08-04-agent-accuracy-and-cost-design.md); shipped across v1.34–v1.38 |
+| Per-stage specialist returns on disk (v1.45.0) | [design](plans/2026-08-19-l3-stage-returns-design.md); [plan](plans/2026-08-19-l3-stage-returns.md); [run 11](evals/2026-08-20-run-11.md) — `check_stage_return_files` PASS. Do not uncomment `check_subagent_log`. |
 
 ## Open
 
-Still true as of 2026-08-19. A new review starts here.
-
-| Item | Where | Notes |
-| --- | --- | --- |
-| **Per-stage specialist returns unmeasured** | [run 8](evals/2026-08-12-run-8.md); [subagent-log](evals/2026-08-19-subagent-log.md); [run 10](evals/2026-08-19-run-10.md) | Extractor shipped in v1.43.0. Run 10's `$SUBAGENT_LOG` is empty: 125 nested assistant turns, every one `tool_use` only. Do not uncomment `check_subagent_log` on that shape. |
+None as of 2026-08-20 (pack v1.45.0).
 
 ## How a new review should start
 

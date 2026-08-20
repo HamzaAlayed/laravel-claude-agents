@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.45.0] - 2026-08-20
+
+Specialists persist six-field stage returns on disk. The coordinator
+Reads that file before `✔`. Nested chat is no longer the measurement.
+
+### Added
+
+- **Six-field stage returns land on disk** at
+  `docs/delivery/<name>/stages/`. Specialists persist `STATUS` / `DID` /
+  `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT`. The coordinator Reads
+  that file before `✔`. The opt-in `feature` eval asserts the files.
+  `$SUBAGENT_LOG` is still not an answer-key surface.
+
 ## [1.44.0] - 2026-08-19
 
 `/console` is a two-act company floor. The call sheet starts a production;

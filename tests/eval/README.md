@@ -42,10 +42,8 @@ Three derived text artifacts are rebuilt from the stream-json transcript by
 `$FULL_LOG` is load-bearing: an Interface contract that binds the orchestrator
 must not be satisfiable by a specialist (run 7 finding 3). Per-stage specialist
 returns (`STATUS`/`DID`/`VERIFIED`/`NOT-CHECKED`/`FLAGS`/`NEXT`) live on
-subagent turns and are structurally invisible there (run 8). Use
-`check_subagent_log` to grep `$SUBAGENT_LOG` for those fields. The opt-in
-`feature` case ships the helper and a commented assertion shape; do not turn
-those greps on without an inspected billed transcript.
+`docs/delivery/*/stages/*.md`; `check_stage_return_files` asserts them.
+`check_subagent_log` stays commented on the run-10 shape.
 
 ## Answer key — planted flaws
 

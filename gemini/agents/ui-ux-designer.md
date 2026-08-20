@@ -82,3 +82,7 @@ Retain: design-system tokens + their semantic meaning, recurring accessibility v
 - **QA Engineer** — seed visual-regression + accessibility tests
 
 **Human checkpoint:** brand-defining visual decisions, screens collecting new PII, auth / consent / checkout flows, final design approval before development begins.
+
+## Stage return
+
+**Stage return file.** The brief names `docs/delivery/<name>/stages/<your-agent>.md` → Write that file with `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT` (≤12 lines) as your last Write, then stop. No path in the brief → skip. No diffs in the file.
