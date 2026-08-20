@@ -101,6 +101,19 @@ NEXT: handoff or none
 
 ≤12 lines. Coordinator Reads this file before `✔`. Direct invoke with no path: do not create `docs/delivery/unknown/`.
 
+## Close file — `docs/delivery/<feature>/close.md` (coordinator writes; overwrites)
+
+Latest wins. A killed run is scored from this file, not mid-board prose. Coordinator overwrites after the plan and after every stage.
+
+```markdown
+VERIFIED: command → result (counts) — not claims
+NOT-CHECKED: surfaces not verified, ≤3 lines — or none
+STATUS: running | done | stopped
+BOARD: progress board as last printed
+```
+
+≤12 lines. Labels only — no prose dump.
+
 ## Hygiene proposal — `/team-hygiene` output (scrum-master)
 
 Exceptions only, never an inventory; nothing applies without an approved row number.
