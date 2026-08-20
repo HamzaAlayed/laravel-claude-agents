@@ -68,7 +68,7 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 
 | Item | Evidence |
 | --- | --- |
-| Guild v2 — Supervisor complete (2.0.0) | [design / roadmap](plans/2026-08-20-guild-v2-design.md); [implementation plan](plans/2026-08-20-guild-v2.md); [run 12](evals/2026-08-20-run-12.md) — 10/12 FAIL. `close.md` existed without `VERIFIED:`; `-fixes` suffix returned. Do not bump `VERSION`. 2.1 Adaptive and 2.2 graph wait. |
+| Guild v2 — Supervisor complete (2.0.0) | [design / roadmap](plans/2026-08-20-guild-v2-design.md); [implementation plan](plans/2026-08-20-guild-v2.md); [run 12](evals/2026-08-20-run-12.md) — 10/12 FAIL. Follow-up: [close-file stickiness](plans/2026-08-20-guild-v2-close-stick-design.md). Do not bump `VERSION`. 2.1 Adaptive and 2.2 graph wait. |
 
 ## How a new review should start
 
