@@ -37,6 +37,9 @@ Humans still read the progress board — not the close file.
   `VERIFIED:` / `NOT-CHECKED:` / `STATUS:` / `BOARD:` — do not rename
   those labels. `STATUS` is `running`, `done`, or `stopped`. A re-brief
   names the exact path `docs/delivery/<name>/stages/<agent>.md`.
+- **After every specialist returns, the coordinator's next Write is
+  `close.md`.** Labels start the line (`VERIFIED (` is a contract
+  break).
 
 ### Breaking
 
