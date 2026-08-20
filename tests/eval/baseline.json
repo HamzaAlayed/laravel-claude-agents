@@ -72,20 +72,9 @@
     }
   },
   "coordinator_hash": {
-    "sha256": "a4c1bce301aef50337c3002bb29ee0d5653c2504175239d36511fdffc22e224f",
-    "as_of": "2026-08-18",
-    "note": "Verified by the v1.42.0 billed feature run (2026-08-18, docs/evals/2026-08-18-run-9.md): Interface-block edit (build/patch refusal + verify-before-advancing) plus coordinator routing-table/Working-interface note. Harvest still fired (docs/team/stack.md + a docs/delivery/*/log.md), confirmed by reading the files. Score: 10/10.",
-    "waivers": [
-      {
-        "sha256": "95d218c55eb63ec0606075747fb590fd8884325aeeecc664a9b455bd3de11f33",
-        "date": "2026-08-19",
-        "reason": "Interface stage-return-on-disk sentence; billed feature re-pin is plan Task 7"
-      },
-      {
-        "sha256": "d05a1c19db40bd66f7685eae3c7f93e87419eb6c3936762275eaf564becfee3d",
-        "date": "2026-08-19",
-        "reason": "coordinator Working-interface + step 4/5 stage-return file clauses; billed feature re-pin is plan Task 7"
-      }
-    ]
+    "sha256": "d05a1c19db40bd66f7685eae3c7f93e87419eb6c3936762275eaf564becfee3d",
+    "as_of": "2026-08-20",
+    "note": "Verified by the v1.45.0 billed feature run (2026-08-20, docs/evals/2026-08-20-run-11.md): stage-return files on disk. Score 10/11 FAIL — TIMED OUT at 1203s; check_stage_return_files PASS; check_log NOT-CHECKED miss (no coordinator close). Do not treat this pin as an 11/11.",
+    "waivers": []
   }
 }

@@ -7,6 +7,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.45.0] - 2026-08-20
+
+Specialists persist six-field stage returns on disk. The coordinator
+Reads that file before `✔`. Nested chat is no longer the measurement.
+
 ### Added
 
 - **Six-field stage returns land on disk** at
