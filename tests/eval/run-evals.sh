@@ -360,6 +360,10 @@ check_delivery_close_file() { # ≥1 docs/delivery/*/close.md with VERIFIED:/NOT
         return
       fi
     done
+    if ! grep -qE '^STATUS: (running|done|stopped)(\b|$)' "$f"; then
+      record 1 "file:   close file STATUS is not running|done|stopped ($(basename "$(dirname "$f")")/close.md)"
+      return
+    fi
   done < <(find "$WORK/docs/delivery" -type f -name 'close.md' 2>/dev/null)
   if [ "$n" -ge 1 ]; then
     record 0 "file:   delivery close file with VERIFIED/NOT-CHECKED/STATUS"

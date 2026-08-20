@@ -774,6 +774,36 @@ expect "close file accepts STATUS running" "0" \
     echo "$CHECK_FAIL"
   ')"
 rm -rf "$CLOSE_PASS_DIR"
+
+CLOSE_DONE_DIR="$(mktemp -d)"
+mkdir -p "$CLOSE_DONE_DIR/docs/delivery/tag"
+printf '%s\n' \
+  'VERIFIED: x' 'NOT-CHECKED: y' 'STATUS: done' 'BOARD: z' \
+  >"$CLOSE_DONE_DIR/docs/delivery/tag/close.md"
+expect "close file accepts STATUS done" "0" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$CLOSE_DONE_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_close_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_close_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$CLOSE_DONE_DIR"
+
+CLOSE_STOPPED_DIR="$(mktemp -d)"
+mkdir -p "$CLOSE_STOPPED_DIR/docs/delivery/tag"
+printf '%s\n' \
+  'VERIFIED: x' 'NOT-CHECKED: y' 'STATUS: stopped' 'BOARD: z' \
+  >"$CLOSE_STOPPED_DIR/docs/delivery/tag/close.md"
+expect "close file accepts STATUS stopped" "0" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$CLOSE_STOPPED_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_close_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_close_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$CLOSE_STOPPED_DIR"
 # shellcheck disable=SC2016 # literal $SUBAGENT_LOG in the grep pattern
 expect "check_subagent_log greps the derived subagent log" "1" \
   "$(sed -n '/^check_subagent_log()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \

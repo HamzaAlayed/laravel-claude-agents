@@ -45,7 +45,7 @@ returns (`STATUS`/`DID`/`VERIFIED`/`NOT-CHECKED`/`FLAGS`/`NEXT`) live on
 `docs/delivery/*/stages/*.md`; `check_stage_return_files` asserts them — basenames must match
 registered agent types (`tech-lead.md` ok, `backend-developer-fixes.md` fail). The coordinator's
 close lands on `docs/delivery/*/close.md`; `check_delivery_close_file` asserts
-`VERIFIED:`/`NOT-CHECKED:`/`STATUS:` so a killed run is scored from disk, not mid-board prose.
+`VERIFIED:`/`NOT-CHECKED:`/`STATUS:` so a killed run is scored from disk, not mid-board prose. `STATUS` must be `running`, `done`, or `stopped` (`in-progress` fails).
 `check_subagent_log` stays commented on the run-10 shape.
 
 ## Answer key — planted flaws
