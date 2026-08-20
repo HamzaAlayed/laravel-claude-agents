@@ -703,6 +703,7 @@ run_case() { # run_case <name> <results-dir>
   # with the fixture. Read naively it said `hygiene` ran qa-engineer. Truncating
   # here means the feed is this case's events and nothing else, whatever the
   # fixture happens to carry.
+  mkdir -p "$WORK/.claude"
   : >"$WORK/.claude/agents-board.jsonl"
   if ! bash "$ROOT/install.sh" "$WORK" >"$results/$name.install.log" 2>&1; then
     echo "   ERROR: install.sh failed — see $results/$name.install.log"
