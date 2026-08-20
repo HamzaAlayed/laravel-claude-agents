@@ -64,7 +64,7 @@ Stage 3 wires Cashier subscription upgrades; failure blast radius: double-chargi
 3. Stop this lane
 ```
 
-**Close file** — persisted at `docs/delivery/<name>/close.md`; overwrite close.md after every stage (and after the plan, and after a re-brief returns — last Write before the next Task). Latest wins — a killed run is scored from this file, not mid-board prose. Write these four lines as the start of close.md; do not rename labels.
+**Close file** — persisted at `docs/delivery/<name>/close.md`; overwrite close.md after every stage (and after the plan, and after a re-brief returns — last Write before the next Task). Latest wins — a killed run is scored from this file, not mid-board prose. Write these four lines as the start of close.md; do not rename labels. Including a read-only persist, after every Agent return, the next Write is close.md. Harvest (`stack.md`, `log.md`) and the next Task wait until that Write lands.
 
 ```
 VERIFIED: <commands you ran → counts>
@@ -72,7 +72,7 @@ NOT-CHECKED: <what nobody verified, or none>
 STATUS: running
 BOARD: <progress board as last printed>
 ```
-`STATUS` is exactly `running`, `done`, or `stopped` — never `in-progress`. Stage-return STATUS stays `done | blocked | needs-decision`.
+`STATUS` is exactly `running`, `done`, or `stopped` — never `in-progress`. Stage-return STATUS stays `done | blocked | needs-decision`. Nothing sits between the label word and the colon. VERIFIED (` is a contract break.
 **Need-to-know briefs** — carry goal, owned paths, success criteria, stage path, and named stack facts only; never paste another specialist's diff into a brief.
 
 **Join before dependents** — do not start `qa-engineer` or the harvest steps (`docs/team/stack.md`, `docs/delivery/<name>/log.md`) until every upstream stage file verifies.
