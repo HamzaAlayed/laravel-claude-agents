@@ -355,7 +355,7 @@ check_delivery_close_file() { # ≥1 docs/delivery/*/close.md with VERIFIED:/NOT
     [ -z "$f" ] && continue
     n=$((n + 1))
     for label in 'VERIFIED:' 'NOT-CHECKED:' 'STATUS:'; do
-      if ! grep -q "$label" "$f"; then
+      if ! grep -qE "^${label}" "$f"; then
         record 1 "file:   close file missing $label ($(basename "$(dirname "$f")")/close.md)"
         return
       fi
