@@ -130,6 +130,14 @@ expect "close.md journal Edit blocks" "$BLOCK" \
   "$(run_hook enforce-close-file.sh '{"tool_input":{"file_path":"docs/delivery/tag/close.md","new_string":"more journal\n"}}')"
 expect "FALLBACK (no jq/python3): close.md path still blocks" "$BLOCK" \
   "$(run_hook_noparsers enforce-close-file.sh '{"tool_input":{"path":"docs/delivery/tag/close.md","contents":"# Close file\n\nVERIFIED (coordinator):\nx\nSTATUS: planning complete\n"}}')"
+expect "close.md Bash cat-redirect blocks" "$BLOCK" \
+  "$(run_hook enforce-close-file.sh '{"tool_input":{"command":"cat > docs/delivery/tag/close.md <<EOF\njournal\nEOF"}}')"
+expect "close.md Bash read allows" "$ALLOW" \
+  "$(run_hook enforce-close-file.sh '{"tool_input":{"command":"cat docs/delivery/tag/close.md"}}')"
+expect "php artisan test allows" "$ALLOW" \
+  "$(run_hook enforce-close-file.sh '{"tool_input":{"command":"php artisan test --compact"}}')"
+expect "FALLBACK (no jq/python3): close.md Bash write still blocks" "$BLOCK" \
+  "$(run_hook_noparsers enforce-close-file.sh '{"tool_input":{"command":"cat > docs/delivery/tag/close.md <<EOF\nx\nEOF"}}')"
 
 echo "codex-protect-env-files.sh (Codex apply_patch-aware)"
 expect "apply_patch adding .env.production blocks" "$BLOCK" \
@@ -398,6 +406,8 @@ expect "coordinator copies the stage-return stub when persisting read-only" "1" 
   "$(grep -c 'copy skills/delivery-templates/stage-return.md' "$COORD")"
 expect "coordinator names the close.md hook bounce" "1" \
   "$(grep -c 'close.md hook bounces a Write that is not helper shape' "$COORD")"
+expect "coordinator forbids Bash writes of close.md" "1" \
+  "$(grep -c 'Bash must not write close.md' "$COORD")"
 CLOSE_COORD="$(sed -n '/^\*\*Close file\*\*/,/^\*\*Need-to-know briefs\*\*/p' "$COORD")"
 expect "coordinator close skeleton prefixes VERIFIED:" "1" \
   "$(printf '%s\n' "$CLOSE_COORD" | grep -c '^VERIFIED:')"
