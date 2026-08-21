@@ -40,6 +40,9 @@ Humans still read the progress board — not the close file.
 - **After every specialist returns, the coordinator's next Write is
   `close.md`.** Labels start the line (`VERIFIED (` is a contract
   break).
+- **First Write of `close.md` copies
+  `skills/delivery-templates/close.md`.** Read-only persist copies
+  `stage-return.md`; fill after the colons.
 
 ### Breaking
 
