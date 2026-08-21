@@ -72,9 +72,9 @@
     }
   },
   "coordinator_hash": {
-    "sha256": "33d55f54b7ef492304bef703546f611899901cfbb94e393cd560cca6a2510d47",
+    "sha256": "4dd22de19c8c7f592df075532a4b09911e7ee32f32ba9928f787cd8fdbddca03",
     "as_of": "2026-08-21",
-    "note": "Verified by the close.md procedure billed feature run (2026-08-21, docs/evals/2026-08-21-run-14.md): finished in 1046s, $6.33 billed, close.md STATUS: done. Score 9/12 FAIL — check_delivery_close_file miss (VERIFIED ( not ^VERIFIED:); tech-lead.md same parenthetical. Do not treat this pin as a 2.0.0 ship.",
+    "note": "Verified by the close.md stub-copy billed feature run (2026-08-21, docs/evals/2026-08-21-run-15.md): TIMED OUT 1202s, $7.60 billed, 15.5M tokens (REGRESSED vs 14.5M). Score 9/12 FAIL — check_delivery_close_file miss (journal with VERIFIED ( not ^VERIFIED:; stub not copied). tech-lead.md six labels PASS. Do not treat this pin as a 2.0.0 ship.",
     "waivers": []
   }
 }
