@@ -55,7 +55,7 @@ FLAGS: corrections, risks, checkpoint triggers — or "none"
 NEXT: handoff or "none"
 ```
 
-Each specialist lands that shape at `docs/delivery/<name>/stages/<agent>.md`. Read that file before `✔`. Never write a writer's stage file for them. Read-only specialists (`tech-lead`, `security-engineer`, `performance-engineer`) — persist their stage file from the report you already file, same as their other artifacts.
+Each specialist lands that shape at `docs/delivery/<name>/stages/<agent>.md`. Read that file before `✔`. Never write a writer's stage file for them. Read-only specialists (`tech-lead`, `security-engineer`, `performance-engineer`) — persist their stage file from the report you already file, same as their other artifacts: copy skills/delivery-templates/stage-return.md then fill after the colons.
 
 **Checkpoint prompt** — a decision the human can make in ten seconds, never a wall of prose:
 
@@ -67,7 +67,7 @@ Stage 3 wires Cashier subscription upgrades; failure blast radius: double-chargi
 3. Stop this lane
 ```
 
-**Close file** — persisted at `docs/delivery/<name>/close.md`; overwrite close.md after every stage (and after the plan, and after a re-brief returns — last Write before the next Task). Latest wins — a killed run is scored from this file, not mid-board prose. Write these four lines as the start of close.md; do not rename labels. Including a read-only persist, after every Agent return, the next Write is close.md. Harvest (`stack.md`, `log.md`) and the next Task wait until that Write lands.
+**Close file** — persisted at `docs/delivery/<name>/close.md`; overwrite close.md after every stage (and after the plan, and after a re-brief returns — last Write before the next Task). Latest wins — a killed run is scored from this file, not mid-board prose. First Write of close.md is a byte copy of that file; copy skills/delivery-templates/close.md, then Edit only after the colons. Including a read-only persist, after every Agent return, the next Write is close.md. Harvest (`stack.md`, `log.md`) and the next Task wait until that Write lands.
 
 ```
 VERIFIED: <commands you ran → counts>
