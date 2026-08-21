@@ -89,6 +89,7 @@ Per stage: specialist engaged · brief given (one line) · artifact path returne
 ## Stage return — `docs/delivery/<feature>/stages/<agent>.md` (specialist writes; coordinator Reads)
 
 One file per registered agent type. Latest return wins (overwrite). History lives in `log.md`.
+Coordinator copies `stage-return.md` in this skill directory and fills after the colons.
 
 ```markdown
 STATUS: done | blocked | needs-decision
@@ -104,6 +105,7 @@ NEXT: handoff or none
 ## Close file — `docs/delivery/<feature>/close.md` (coordinator writes; overwrites)
 
 Latest wins. A killed run is scored from this file, not mid-board prose. Coordinator overwrites after the plan and after every stage.
+Coordinator copies `close.md` in this skill directory and fills after the colons.
 
 ```markdown
 VERIFIED: <commands you ran → counts>
