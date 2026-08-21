@@ -238,6 +238,7 @@ desired = [
     ("PreToolUse",  "Bash",       "./scripts/enforce-reviewer-readonly.sh"),
     ("PreToolUse",  "Bash",       "./scripts/enforce-sail.sh"),
     ("PreToolUse",  "Write|Edit", "./scripts/protect-env-files.sh"),
+    ("PreToolUse",  "Write|Edit", "./scripts/enforce-close-file.sh"),
     ("PreToolUse",  "Agent|Task", "./scripts/emit-agent-events.sh"),
     ("PostToolUse", "Agent|Task", "./scripts/emit-agent-events.sh"),
     ("SubagentStop", "",          "./scripts/emit-agent-events.sh"),
