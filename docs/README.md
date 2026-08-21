@@ -68,7 +68,7 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 
 | Item | Evidence |
 | --- | --- |
-| Guild v2 — Supervisor complete (2.0.0) | [design / roadmap](plans/2026-08-20-guild-v2-design.md); [run 15](evals/2026-08-21-run-15.md) 9/12 FAIL — timeout 1202s, `$7.60`, `close.md` still a `VERIFIED (` journal (stub not copied). Follow-up: [close.md stub copy](plans/2026-08-21-guild-v2-close-stub-design.md). Do not bump `VERSION`. 2.1 Adaptive and 2.2 graph wait. |
+| Guild v2 — Supervisor complete (2.0.0) | [design / roadmap](plans/2026-08-20-guild-v2-design.md); [run 16](evals/2026-08-21-run-16.md) 10/12 FAIL — timeout 1203s, `close.md` still `VERIFIED (` via Bash `cat` (Write|Edit hook never saw it). Follow-up: [close.md shape hook](plans/2026-08-21-guild-v2-close-hook-design.md). Do not bump `VERSION`. 2.1 Adaptive and 2.2 graph wait. |
 
 ## How a new review should start
 
