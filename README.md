@@ -120,7 +120,7 @@ skills/                           # 8 on-demand cookbooks (see the Skills sectio
 ├── accessibility-design/         # WCAG 2.2 AA thresholds, Livewire/Inertia focus, mobile a11y
 └── docs-authoring/               # Changelog / release-notes / runbook / API-reference templates
 
-hooks/hooks.json                  # Plugin hook manifest (5 guardrails + the agents-board observer)
+hooks/hooks.json                  # Plugin hook manifest (6 guardrails + the agents-board observer)
 tests/guardrails.test.sh          # Zero-dependency test harness for the guardrails
 .github/workflows/ci.yml          # shellcheck + guardrail tests + manifest validation
 ```
@@ -179,7 +179,7 @@ Each run's misses become levers, ship in the next release, and get re-measured �
 
 **Reviewers cannot edit code.** `tech-lead`, `security-engineer`, and `performance-engineer` are read-only (`disallowedTools: Edit, Write`). They return findings; the `delivery-coordinator` persists the reports and builders apply the changes. This keeps reviews trustworthy and prevents reviewer drift. (On the residual `Bash` write-vector and how to fully sandbox a reviewer, see [docs/read-only-by-design.md](docs/read-only-by-design.md).)
 
-**Guardrails fail closed.** The five guardrail hooks are deny-rules with a tested parser-fallback chain (jq → python3 → conservative bare-string matching) — removing jq degrades the parsing, never the protection, and CI runs the whole suite both ways. This is the opposite posture of agent harnesses that ship autonomous shell access gated only by an optional hook that fails open on error or timeout. The one fail-open script is the board observer, deliberately: a dashboard must never block delivery.
+**Guardrails fail closed.** The six guardrail hooks are deny-rules with a tested parser-fallback chain (jq → python3 → conservative bare-string matching) — removing jq degrades the parsing, never the protection, and CI runs the whole suite both ways. This is the opposite posture of agent harnesses that ship autonomous shell access gated only by an optional hook that fails open on error or timeout. The one fail-open script is the board observer, deliberately: a dashboard must never block delivery.
 
 **You can see the team working.** The `delivery-coordinator` and all nine orchestrating commands print a progress board after planning and after every stage (`✔ done / ▶ running / · queued / ✖ failed / ⏸ checkpoint`), demand one stage-return shape from every specialist (`STATUS / DID / VERIFIED / NOT-CHECKED / FLAGS / NEXT` — evidence required, gaps named, claims rejected), and present human checkpoints as numbered options with a recommended default (via `AskUserQuestion` when running main-thread). And `/board` opens a live HTML dashboard — the `emit-agent-events` hook streams every subagent start/finish (agent, task, duration, tokens) to `.claude/agents-board.jsonl` deterministically, so the board fills up no matter which command or agent is orchestrating. Agents spawned from inside another agent nest under their spawner (the hook records the calling agent as `parent`), and async-launched agents get a real completion event via `SubagentStop` — background work shows its true duration instead of vanishing at launch. A multi-agent run reads like a dashboard, not a silence.
 
@@ -312,7 +312,7 @@ Add the marketplace once, then install the plugin:
 /plugin install laravel-team@laravel-claude-agents
 ```
 
-That registers all 17 agents, the 14 slash commands, the `laravel-conventions` skill, and the five guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
+That registers all 17 agents, the 14 slash commands, the `laravel-conventions` skill, and the six guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
 
 ```
 /plugin install laravel-team@laravel-claude-agents --scope project
@@ -339,7 +339,7 @@ It registers the 17 subagents (auto-delegated, or call `@backend-developer` etc.
 
 #### Codex CLI
 
-Codex has no one-command install, so the pack ships a **Codex Core** target under [`codex/`](codex/) — `AGENTS.md` (Codex's native context file), the `laravel-conventions` skill, and the 4 guardrail hooks as `PreToolUse`. Install it into your project:
+Codex has no one-command install, so the pack ships a **Codex Core** target under [`codex/`](codex/) — `AGENTS.md` (Codex's native context file), the `laravel-conventions` skill, and the 5 guardrail hooks as `PreToolUse`. Install it into your project:
 
 ```bash
 git clone https://github.com/HamzaAlayed/laravel-claude-agents

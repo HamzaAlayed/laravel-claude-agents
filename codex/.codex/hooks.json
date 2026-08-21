@@ -12,7 +12,8 @@
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "$(git rev-parse --show-toplevel)/.codex/hooks/protect-env-files.sh", "statusMessage": "Protecting .env / secret files" }
+          { "type": "command", "command": "$(git rev-parse --show-toplevel)/.codex/hooks/protect-env-files.sh", "statusMessage": "Protecting .env / secret files" },
+          { "type": "command", "command": "$(git rev-parse --show-toplevel)/.codex/hooks/enforce-close-file.sh", "statusMessage": "Enforcing close.md helper shape" }
         ]
       }
     ]

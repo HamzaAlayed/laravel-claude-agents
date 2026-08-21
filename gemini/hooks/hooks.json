@@ -12,7 +12,8 @@
       {
         "matcher": "write_file|replace",
         "hooks": [
-          { "type": "command", "name": "protect-env-files", "command": "${extensionPath}/scripts/protect-env-files.sh" }
+          { "type": "command", "name": "protect-env-files", "command": "${extensionPath}/scripts/protect-env-files.sh" },
+          { "type": "command", "name": "enforce-close-file", "command": "${extensionPath}/scripts/enforce-close-file.sh" }
         ]
       }
     ]
