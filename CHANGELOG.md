@@ -46,6 +46,8 @@ Humans still read the progress board — not the close file.
 - **PreToolUse hook bounces `close.md` Writes that are not helper
   shape.** `enforce-close-file.sh` on the existing `Write|Edit` matcher
   denies journal payloads; helper labels still write.
+- **Bash must not write `close.md`.** Use Write so the shape hook
+  can see the payload.
 
 ### Breaking
 
