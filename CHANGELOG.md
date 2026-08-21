@@ -43,6 +43,9 @@ Humans still read the progress board — not the close file.
 - **First Write of `close.md` copies
   `skills/delivery-templates/close.md`.** Read-only persist copies
   `stage-return.md`; fill after the colons.
+- **PreToolUse hook bounces `close.md` Writes that are not helper
+  shape.** `enforce-close-file.sh` on the existing `Write|Edit` matcher
+  denies journal payloads; helper labels still write.
 
 ### Breaking
 
