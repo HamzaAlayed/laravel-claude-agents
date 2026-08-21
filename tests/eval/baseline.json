@@ -72,9 +72,9 @@
     }
   },
   "coordinator_hash": {
-    "sha256": "0e7794490fb97de5b9adb7a34f5934d0895da0d65b375fca1752eed1c3bdb20b",
+    "sha256": "80b5e9c069cf773e67790fafa7e3a601915c669d5872b20a05e38d9b367ff46a",
     "as_of": "2026-08-21",
-    "note": "Verified by the close.md shape-hook billed feature run (2026-08-21, docs/evals/2026-08-21-run-16.md): TIMED OUT 1203s, billed usd null, 11.0M tokens. Score 10/12 FAIL — check_delivery_close_file miss (journal via Bash cat heredoc, Write|Edit hook never saw it); tech-lead.md VERIFIED ( not VERIFIED:. Do not treat this pin as a 2.0.0 ship.",
+    "note": "Verified by the close.md Bash-deny billed feature run (2026-08-21, docs/evals/2026-08-21-run-17.md): TIMED OUT 1203s, billed usd null, 8.7M tokens. Score 10/12 FAIL on harvest; check_delivery_close_file PASS. This pin is the 2.0.0 ship.",
     "waivers": []
   }
 }

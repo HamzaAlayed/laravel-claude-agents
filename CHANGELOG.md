@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-08-21
+
 The coordinator overwrites `close.md` after the plan and after every
 stage. A killed run is scored from that file, not mid-board `$LOG` prose.
 Dependents wait for their join; the board header states the spawn cap.
