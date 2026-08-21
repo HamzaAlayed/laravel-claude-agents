@@ -378,6 +378,10 @@ expect "coordinator Writes close.md after every Agent return" "1" \
   "$(grep -c 'after every Agent return, the next Write is close.md' "$COORD")"
 expect "coordinator bans parentheticals on close labels" "1" \
   "$(grep -cF 'VERIFIED (` is a contract break' "$COORD")"
+expect "coordinator copies the close stub" "1" \
+  "$(grep -c 'copy skills/delivery-templates/close.md' "$COORD")"
+expect "coordinator copies the stage-return stub when persisting read-only" "1" \
+  "$(grep -c 'copy skills/delivery-templates/stage-return.md' "$COORD")"
 CLOSE_COORD="$(sed -n '/^\*\*Close file\*\*/,/^\*\*Need-to-know briefs\*\*/p' "$COORD")"
 expect "coordinator close skeleton prefixes VERIFIED:" "1" \
   "$(printf '%s\n' "$CLOSE_COORD" | grep -c '^VERIFIED:')"
@@ -748,6 +752,28 @@ expect "delivery-templates close skeleton STATUS is the in-flight default" "1" \
   "$(printf '%s\n' "$CLOSE_TPL" | grep -cE '^STATUS: running$')"
 expect "delivery-templates close skeleton prefixes BOARD:" "1" \
   "$(printf '%s\n' "$CLOSE_TPL" | grep -c '^BOARD:')"
+CLOSE_STUB="$SCRIPT_DIR/skills/delivery-templates/close.md"
+STAGE_STUB="$SCRIPT_DIR/skills/delivery-templates/stage-return.md"
+expect "close stub file prefixes VERIFIED:" "1" \
+  "$(sed -n '1p' "$CLOSE_STUB" 2>/dev/null | grep -c '^VERIFIED:')"
+expect "close stub file prefixes NOT-CHECKED:" "1" \
+  "$(sed -n '2p' "$CLOSE_STUB" 2>/dev/null | grep -c '^NOT-CHECKED:')"
+expect "close stub file STATUS is the in-flight default" "1" \
+  "$(sed -n '3p' "$CLOSE_STUB" 2>/dev/null | grep -cE '^STATUS: running$')"
+expect "close stub file prefixes BOARD:" "1" \
+  "$(sed -n '4p' "$CLOSE_STUB" 2>/dev/null | grep -c '^BOARD:')"
+expect "stage-return stub file prefixes STATUS:" "1" \
+  "$(sed -n '1p' "$STAGE_STUB" 2>/dev/null | grep -c '^STATUS:')"
+expect "stage-return stub file prefixes DID:" "1" \
+  "$(sed -n '2p' "$STAGE_STUB" 2>/dev/null | grep -c '^DID:')"
+expect "stage-return stub file prefixes VERIFIED:" "1" \
+  "$(sed -n '3p' "$STAGE_STUB" 2>/dev/null | grep -c '^VERIFIED:')"
+expect "stage-return stub file prefixes NOT-CHECKED:" "1" \
+  "$(sed -n '4p' "$STAGE_STUB" 2>/dev/null | grep -c '^NOT-CHECKED:')"
+expect "stage-return stub file prefixes FLAGS:" "1" \
+  "$(sed -n '5p' "$STAGE_STUB" 2>/dev/null | grep -c '^FLAGS:')"
+expect "stage-return stub file prefixes NEXT:" "1" \
+  "$(sed -n '6p' "$STAGE_STUB" 2>/dev/null | grep -c '^NEXT:')"
 
 CLOSE_REJECT_DIR="$(mktemp -d)"
 mkdir -p "$CLOSE_REJECT_DIR/docs/delivery/tag"
