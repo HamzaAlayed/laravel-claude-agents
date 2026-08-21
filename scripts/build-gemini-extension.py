@@ -230,7 +230,8 @@ def build_hooks():
         "hooks": [
           { "type": "command", "name": "block-prod-destructive-sql", "command": "${extensionPath}/scripts/block-prod-destructive-sql.sh" },
           { "type": "command", "name": "block-prod-artisan", "command": "${extensionPath}/scripts/block-prod-artisan.sh" },
-          { "type": "command", "name": "enforce-sail", "command": "${extensionPath}/scripts/enforce-sail.sh" }
+          { "type": "command", "name": "enforce-sail", "command": "${extensionPath}/scripts/enforce-sail.sh" },
+          { "type": "command", "name": "enforce-close-file", "command": "${extensionPath}/scripts/enforce-close-file.sh" }
         ]
       },
       {

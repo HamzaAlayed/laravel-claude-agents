@@ -111,7 +111,8 @@ def build_hooks():
         "hooks": [
           { "type": "command", "command": "%(r)s/.codex/hooks/block-prod-destructive-sql.sh", "statusMessage": "Checking for destructive prod SQL" },
           { "type": "command", "command": "%(r)s/.codex/hooks/block-prod-artisan.sh", "statusMessage": "Checking for prod-affecting artisan" },
-          { "type": "command", "command": "%(r)s/.codex/hooks/enforce-sail.sh", "statusMessage": "Routing PHP tooling through Sail" }
+          { "type": "command", "command": "%(r)s/.codex/hooks/enforce-sail.sh", "statusMessage": "Routing PHP tooling through Sail" },
+          { "type": "command", "command": "%(r)s/.codex/hooks/enforce-close-file.sh", "statusMessage": "Enforcing close.md helper shape" }
         ]
       },
       {
