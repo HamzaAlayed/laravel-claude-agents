@@ -67,7 +67,7 @@ Stage 3 wires Cashier subscription upgrades; failure blast radius: double-chargi
 3. Stop this lane
 ```
 
-**Close file** — persisted at `docs/delivery/<name>/close.md`; overwrite close.md after every stage (and after the plan, and after a re-brief returns — last Write before the next Task). Latest wins — a killed run is scored from this file, not mid-board prose. First Write of close.md is a byte copy of that file; copy skills/delivery-templates/close.md, then Edit only after the colons. Including a read-only persist, after every Agent return, the next Write is close.md. Harvest (`stack.md`, `log.md`) and the next Task wait until that Write lands.
+**Close file** — persisted at `docs/delivery/<name>/close.md`; overwrite close.md after every stage (and after the plan, and after a re-brief returns — last Write before the next Task). Latest wins — a killed run is scored from this file, not mid-board prose. First Write of close.md is a byte copy of that file; copy skills/delivery-templates/close.md, then Edit only after the colons. Including a read-only persist, after every Agent return, the next Write is close.md. Harvest (`stack.md`, `log.md`) and the next Task wait until that Write lands. The close.md hook bounces a Write that is not helper shape.
 
 ```
 VERIFIED: <commands you ran → counts>
