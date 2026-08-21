@@ -117,24 +117,19 @@ expect "write to app/Models/User.php allows" "$ALLOW" \
 expect "FALLBACK (no jq/python3): .env.production still blocks" "$BLOCK" \
   "$(run_hook_noparsers protect-env-files.sh '{"tool_input":{"file_path":"/app/.env.production"}}')"
 
-echo "enforce-close-file.sh (close.md helper shape)"
-CLOSE_OK='{"tool_input":{"path":"docs/delivery/tag/close.md","contents":"VERIFIED: x\nNOT-CHECKED: y\nSTATUS: running\nBOARD: z\n"}}'
-CLOSE_JOURNAL='{"tool_input":{"path":"docs/delivery/tag/close.md","contents":"# Close file\n\nVERIFIED (coordinator):\nx\nSTATUS: planning complete\n"}}'
-CLOSE_OTHER='{"tool_input":{"path":"app/Models/Tag.php","contents":"class Tag {}\n"}}'
-CLOSE_EDIT_OK='{"tool_input":{"file_path":"docs/delivery/tag/close.md","new_string":"VERIFIED: x\nNOT-CHECKED: none\nSTATUS: done\nBOARD: done\n"}}'
-CLOSE_EDIT_BAD='{"tool_input":{"file_path":"docs/delivery/tag/close.md","new_string":"more journal\n"}}'
+echo "enforce-close-file.sh"
 expect "close.md stub Write allows" "$ALLOW" \
-  "$(run_hook enforce-close-file.sh "$CLOSE_OK")"
+  "$(run_hook enforce-close-file.sh '{"tool_input":{"path":"docs/delivery/tag/close.md","contents":"VERIFIED: x\nNOT-CHECKED: y\nSTATUS: running\nBOARD: z\n"}}')"
 expect "close.md journal Write blocks" "$BLOCK" \
-  "$(run_hook enforce-close-file.sh "$CLOSE_JOURNAL")"
+  "$(run_hook enforce-close-file.sh '{"tool_input":{"path":"docs/delivery/tag/close.md","contents":"# Close file\n\nVERIFIED (coordinator):\nx\nSTATUS: planning complete\n"}}')"
 expect "non-close.md Write allows" "$ALLOW" \
-  "$(run_hook enforce-close-file.sh "$CLOSE_OTHER")"
+  "$(run_hook enforce-close-file.sh '{"tool_input":{"path":"app/Models/Tag.php","contents":"class Tag {}\n"}}')"
 expect "close.md stub Edit allows" "$ALLOW" \
-  "$(run_hook enforce-close-file.sh "$CLOSE_EDIT_OK")"
+  "$(run_hook enforce-close-file.sh '{"tool_input":{"file_path":"docs/delivery/tag/close.md","new_string":"VERIFIED: x\nNOT-CHECKED: none\nSTATUS: done\nBOARD: done\n"}}')"
 expect "close.md journal Edit blocks" "$BLOCK" \
-  "$(run_hook enforce-close-file.sh "$CLOSE_EDIT_BAD")"
+  "$(run_hook enforce-close-file.sh '{"tool_input":{"file_path":"docs/delivery/tag/close.md","new_string":"more journal\n"}}')"
 expect "FALLBACK (no jq/python3): close.md path still blocks" "$BLOCK" \
-  "$(run_hook_noparsers enforce-close-file.sh "$CLOSE_JOURNAL")"
+  "$(run_hook_noparsers enforce-close-file.sh '{"tool_input":{"path":"docs/delivery/tag/close.md","contents":"# Close file\n\nVERIFIED (coordinator):\nx\nSTATUS: planning complete\n"}}')"
 
 echo "codex-protect-env-files.sh (Codex apply_patch-aware)"
 expect "apply_patch adding .env.production blocks" "$BLOCK" \
