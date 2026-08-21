@@ -117,6 +117,25 @@ expect "write to app/Models/User.php allows" "$ALLOW" \
 expect "FALLBACK (no jq/python3): .env.production still blocks" "$BLOCK" \
   "$(run_hook_noparsers protect-env-files.sh '{"tool_input":{"file_path":"/app/.env.production"}}')"
 
+echo "enforce-close-file.sh (close.md helper shape)"
+CLOSE_OK='{"tool_input":{"path":"docs/delivery/tag/close.md","contents":"VERIFIED: x\nNOT-CHECKED: y\nSTATUS: running\nBOARD: z\n"}}'
+CLOSE_JOURNAL='{"tool_input":{"path":"docs/delivery/tag/close.md","contents":"# Close file\n\nVERIFIED (coordinator):\nx\nSTATUS: planning complete\n"}}'
+CLOSE_OTHER='{"tool_input":{"path":"app/Models/Tag.php","contents":"class Tag {}\n"}}'
+CLOSE_EDIT_OK='{"tool_input":{"file_path":"docs/delivery/tag/close.md","new_string":"VERIFIED: x\nNOT-CHECKED: none\nSTATUS: done\nBOARD: done\n"}}'
+CLOSE_EDIT_BAD='{"tool_input":{"file_path":"docs/delivery/tag/close.md","new_string":"more journal\n"}}'
+expect "close.md stub Write allows" "$ALLOW" \
+  "$(run_hook enforce-close-file.sh "$CLOSE_OK")"
+expect "close.md journal Write blocks" "$BLOCK" \
+  "$(run_hook enforce-close-file.sh "$CLOSE_JOURNAL")"
+expect "non-close.md Write allows" "$ALLOW" \
+  "$(run_hook enforce-close-file.sh "$CLOSE_OTHER")"
+expect "close.md stub Edit allows" "$ALLOW" \
+  "$(run_hook enforce-close-file.sh "$CLOSE_EDIT_OK")"
+expect "close.md journal Edit blocks" "$BLOCK" \
+  "$(run_hook enforce-close-file.sh "$CLOSE_EDIT_BAD")"
+expect "FALLBACK (no jq/python3): close.md path still blocks" "$BLOCK" \
+  "$(run_hook_noparsers enforce-close-file.sh "$CLOSE_JOURNAL")"
+
 echo "codex-protect-env-files.sh (Codex apply_patch-aware)"
 expect "apply_patch adding .env.production blocks" "$BLOCK" \
   "$(run_hook codex-protect-env-files.sh '{"tool_input":{"command":"*** Begin Patch\n*** Add File: .env.production\n+SECRET=x\n*** End Patch"}}')"
@@ -382,6 +401,8 @@ expect "coordinator copies the close stub" "1" \
   "$(grep -c 'copy skills/delivery-templates/close.md' "$COORD")"
 expect "coordinator copies the stage-return stub when persisting read-only" "1" \
   "$(grep -c 'copy skills/delivery-templates/stage-return.md' "$COORD")"
+expect "coordinator names the close.md hook bounce" "1" \
+  "$(grep -c 'close.md hook bounces a Write that is not helper shape' "$COORD")"
 CLOSE_COORD="$(sed -n '/^\*\*Close file\*\*/,/^\*\*Need-to-know briefs\*\*/p' "$COORD")"
 expect "coordinator close skeleton prefixes VERIFIED:" "1" \
   "$(printf '%s\n' "$CLOSE_COORD" | grep -c '^VERIFIED:')"
