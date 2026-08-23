@@ -7,6 +7,58 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.0.0] - 2026-08-21
+
+The coordinator overwrites `close.md` after the plan and after every
+stage. A killed run is scored from that file, not mid-board `$LOG` prose.
+Dependents wait for their join; the board header states the spawn cap.
+Humans still read the progress board — not the close file.
+
+### Added
+
+- **Close file on disk** at `docs/delivery/<name>/close.md`. The
+  coordinator overwrites this file after the plan and after every stage
+  (pass, fail, or checkpoint). Latest write wins; history stays in
+  `log.md`. The opt-in `feature` eval reads `close.md` when the process
+  is killed at timeout. Humans still see the progress board; this is not
+  a `/console` feature.
+- **Join-before-dependent** — a stage that depends on others does not
+  `✔` until upstream stage files exist and verify. The coordinator must
+  Read those files before starting the dependent stage.
+- **Need-to-know briefs** — each specialist gets only goal, owned paths,
+  success criteria, the exact stage path, and named stack facts. No paste
+  of other specialists' diffs.
+- **Spawn cap in the board header** — the progress board states
+  `N stages · cap: M spawns · done when:` before any agent spends
+  tokens. `M` defaults to stage count + 2. Hitting the cap without
+  `done when:` → write `close.md` with `STATUS: stopped` and stop.
+
+### Changed
+
+- **The close file is a four-line labeled skeleton.** Writes start
+  `VERIFIED:` / `NOT-CHECKED:` / `STATUS:` / `BOARD:` — do not rename
+  those labels. `STATUS` is `running`, `done`, or `stopped`. A re-brief
+  names the exact path `docs/delivery/<name>/stages/<agent>.md`.
+- **After every specialist returns, the coordinator's next Write is
+  `close.md`.** Labels start the line (`VERIFIED (` is a contract
+  break).
+- **First Write of `close.md` copies
+  `skills/delivery-templates/close.md`.** Read-only persist copies
+  `stage-return.md`; fill after the colons.
+- **PreToolUse hook bounces `close.md` Writes that are not helper
+  shape.** `enforce-close-file.sh` on the existing `Write|Edit` matcher
+  denies journal payloads; helper labels still write.
+- **Bash must not write `close.md`.** Use Write so the shape hook
+  can see the payload.
+
+### Breaking
+
+- **This pack ships as 2.0.0.** Re-install from the new release; do not
+  assume in-place upgrade from 1.x.
+- **The Interface contract changed.** Close file, join checks,
+  need-to-know briefs, and spawn cap are new Interface requirements.
+  Re-read the shared Interface block after upgrade.
+
 ## [1.45.0] - 2026-08-20
 
 Specialists persist six-field stage returns on disk. The coordinator

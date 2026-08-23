@@ -323,11 +323,16 @@ check_file_under() { # check_file_under <dir> <name-glob> <description> — any 
   record $? "file:   $3"
 }
 
-check_stage_return_files() { # ≥2 docs/delivery/*/stages/*.md, each with six labels
+check_stage_return_files() { # ≥2 docs/delivery/*/stages/*.md, each with six labels; basenames = registered agent types
   local n=0
-  local f label
+  local f label base
   while IFS= read -r f; do
     [ -z "$f" ] && continue
+    base="$(basename "$f" .md)"
+    if [ ! -f "$ROOT/agents/${base}.md" ]; then
+      record 1 "file:   stage file basename is not a registered agent type ($base)"
+      return
+    fi
     n=$((n + 1))
     for label in 'STATUS:' 'DID:' 'VERIFIED:' 'NOT-CHECKED:' 'FLAGS:' 'NEXT:'; do
       if ! grep -q "$label" "$f"; then
@@ -340,6 +345,30 @@ check_stage_return_files() { # ≥2 docs/delivery/*/stages/*.md, each with six l
     record 0 "file:   ≥2 stage-return files with six labels"
   else
     record 1 "file:   ≥2 stage-return files with six labels (found $n)"
+  fi
+}
+
+check_delivery_close_file() { # ≥1 docs/delivery/*/close.md with VERIFIED:/NOT-CHECKED:/STATUS:
+  local n=0
+  local f label
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    n=$((n + 1))
+    for label in 'VERIFIED:' 'NOT-CHECKED:' 'STATUS:'; do
+      if ! grep -qE "^${label}" "$f"; then
+        record 1 "file:   close file missing $label ($(basename "$(dirname "$f")")/close.md)"
+        return
+      fi
+    done
+    if ! grep -qE '^STATUS: (running|done|stopped)(\b|$)' "$f"; then
+      record 1 "file:   close file STATUS is not running|done|stopped ($(basename "$(dirname "$f")")/close.md)"
+      return
+    fi
+  done < <(find "$WORK/docs/delivery" -type f -name 'close.md' 2>/dev/null)
+  if [ "$n" -ge 1 ]; then
+    record 0 "file:   delivery close file with VERIFIED/NOT-CHECKED/STATUS"
+  else
+    record 1 "file:   delivery close file with VERIFIED/NOT-CHECKED/STATUS (found $n)"
   fi
 }
 
@@ -499,6 +528,7 @@ checks_feature() {
   check_file "docs/team/stack.md" "harvest persisted the stack snapshot (routing-table artifact)"
   check_file_under "docs/delivery" "log.md" "harvest persisted the delivery log (routing-table artifact)"
   check_stage_return_files 
+  check_delivery_close_file 
 }
 
 checks_hygiene() {

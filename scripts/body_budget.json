@@ -14,7 +14,7 @@
       "description_chars": 635
     },
     "delivery-coordinator": {
-      "lines": 149,
+      "lines": 157,
       "description_chars": 616
     },
     "devops-engineer": {
@@ -75,7 +75,7 @@
       "lines": 51
     },
     "delivery-templates": {
-      "lines": 126
+      "lines": 129
     },
     "docs-authoring": {
       "lines": 42

@@ -72,9 +72,9 @@
     }
   },
   "coordinator_hash": {
-    "sha256": "d05a1c19db40bd66f7685eae3c7f93e87419eb6c3936762275eaf564becfee3d",
-    "as_of": "2026-08-20",
-    "note": "Verified by the v1.45.0 billed feature run (2026-08-20, docs/evals/2026-08-20-run-11.md): stage-return files on disk. Score 10/11 FAIL — TIMED OUT at 1203s; check_stage_return_files PASS; check_log NOT-CHECKED miss (no coordinator close). Do not treat this pin as an 11/11.",
+    "sha256": "80b5e9c069cf773e67790fafa7e3a601915c669d5872b20a05e38d9b367ff46a",
+    "as_of": "2026-08-21",
+    "note": "Verified by the close.md Bash-deny billed feature run (2026-08-21, docs/evals/2026-08-21-run-17.md): TIMED OUT 1203s, billed usd null, 8.7M tokens. Score 10/12 FAIL on harvest; check_delivery_close_file PASS. This pin is the 2.0.0 ship.",
     "waivers": []
   }
 }

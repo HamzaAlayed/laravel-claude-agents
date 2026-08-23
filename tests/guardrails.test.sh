@@ -117,6 +117,28 @@ expect "write to app/Models/User.php allows" "$ALLOW" \
 expect "FALLBACK (no jq/python3): .env.production still blocks" "$BLOCK" \
   "$(run_hook_noparsers protect-env-files.sh '{"tool_input":{"file_path":"/app/.env.production"}}')"
 
+echo "enforce-close-file.sh"
+expect "close.md stub Write allows" "$ALLOW" \
+  "$(run_hook enforce-close-file.sh '{"tool_input":{"path":"docs/delivery/tag/close.md","contents":"VERIFIED: x\nNOT-CHECKED: y\nSTATUS: running\nBOARD: z\n"}}')"
+expect "close.md journal Write blocks" "$BLOCK" \
+  "$(run_hook enforce-close-file.sh '{"tool_input":{"path":"docs/delivery/tag/close.md","contents":"# Close file\n\nVERIFIED (coordinator):\nx\nSTATUS: planning complete\n"}}')"
+expect "non-close.md Write allows" "$ALLOW" \
+  "$(run_hook enforce-close-file.sh '{"tool_input":{"path":"app/Models/Tag.php","contents":"class Tag {}\n"}}')"
+expect "close.md stub Edit allows" "$ALLOW" \
+  "$(run_hook enforce-close-file.sh '{"tool_input":{"file_path":"docs/delivery/tag/close.md","new_string":"VERIFIED: x\nNOT-CHECKED: none\nSTATUS: done\nBOARD: done\n"}}')"
+expect "close.md journal Edit blocks" "$BLOCK" \
+  "$(run_hook enforce-close-file.sh '{"tool_input":{"file_path":"docs/delivery/tag/close.md","new_string":"more journal\n"}}')"
+expect "FALLBACK (no jq/python3): close.md path still blocks" "$BLOCK" \
+  "$(run_hook_noparsers enforce-close-file.sh '{"tool_input":{"path":"docs/delivery/tag/close.md","contents":"# Close file\n\nVERIFIED (coordinator):\nx\nSTATUS: planning complete\n"}}')"
+expect "close.md Bash cat-redirect blocks" "$BLOCK" \
+  "$(run_hook enforce-close-file.sh '{"tool_input":{"command":"cat > docs/delivery/tag/close.md <<EOF\njournal\nEOF"}}')"
+expect "close.md Bash read allows" "$ALLOW" \
+  "$(run_hook enforce-close-file.sh '{"tool_input":{"command":"cat docs/delivery/tag/close.md"}}')"
+expect "php artisan test allows" "$ALLOW" \
+  "$(run_hook enforce-close-file.sh '{"tool_input":{"command":"php artisan test --compact"}}')"
+expect "FALLBACK (no jq/python3): close.md Bash write still blocks" "$BLOCK" \
+  "$(run_hook_noparsers enforce-close-file.sh '{"tool_input":{"command":"cat > docs/delivery/tag/close.md <<EOF\nx\nEOF"}}')"
+
 echo "codex-protect-env-files.sh (Codex apply_patch-aware)"
 expect "apply_patch adding .env.production blocks" "$BLOCK" \
   "$(run_hook codex-protect-env-files.sh '{"tool_input":{"command":"*** Begin Patch\n*** Add File: .env.production\n+SECRET=x\n*** End Patch"}}')"
@@ -350,6 +372,14 @@ expect "Interface block requires verify-before-advancing" "9" \
   "$(grep -l 'Verify before advancing' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block requires stage returns on disk" "9" \
   "$(grep -l 'Stage returns land on disk' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block requires a delivery close file" "9" \
+  "$(grep -l 'Close file on disk' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block requires need-to-know briefs" "9" \
+  "$(grep -l 'Brief only what the specialist owns' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block requires joins before dependents" "9" \
+  "$(grep -l 'Join before a dependent stage' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block caps specialist spawns" "9" \
+  "$(grep -l 'Spawn cap in the board header' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # Literature-gap tranche (docs/plans/2026-07-29-literature-gap-tranche.md), gate
 # cleared by eval run 5. Escalation fired on category only; NOT-CHECKED was
 # collected by every stage return and consumed by nothing. Nothing bounded a
@@ -364,6 +394,33 @@ expect "coordinator never writes a writer stage file" "1" \
   "$(grep -c 'never write a writer' "$COORD")"
 expect "coordinator Reads the stage file before a checkmark" "1" \
   "$(grep -c 'Read that file before' "$COORD")"
+expect "coordinator writes the close file after every stage" "1" \
+  "$(grep -c 'overwrite close.md after every stage' "$COORD")"
+expect "coordinator Writes close.md after every Agent return" "1" \
+  "$(grep -c 'after every Agent return, the next Write is close.md' "$COORD")"
+expect "coordinator bans parentheticals on close labels" "1" \
+  "$(grep -cF 'VERIFIED (` is a contract break' "$COORD")"
+expect "coordinator copies the close stub" "1" \
+  "$(grep -c 'copy skills/delivery-templates/close.md' "$COORD")"
+expect "coordinator copies the stage-return stub when persisting read-only" "1" \
+  "$(grep -c 'copy skills/delivery-templates/stage-return.md' "$COORD")"
+expect "coordinator names the close.md hook bounce" "1" \
+  "$(grep -c 'close.md hook bounces a Write that is not helper shape' "$COORD")"
+expect "coordinator forbids Bash writes of close.md" "1" \
+  "$(grep -c 'Bash must not write close.md' "$COORD")"
+CLOSE_COORD="$(sed -n '/^\*\*Close file\*\*/,/^\*\*Need-to-know briefs\*\*/p' "$COORD")"
+expect "coordinator close skeleton prefixes VERIFIED:" "1" \
+  "$(printf '%s\n' "$CLOSE_COORD" | grep -c '^VERIFIED:')"
+expect "coordinator close skeleton prefixes NOT-CHECKED:" "1" \
+  "$(printf '%s\n' "$CLOSE_COORD" | grep -c '^NOT-CHECKED:')"
+expect "coordinator close skeleton STATUS is the in-flight default" "1" \
+  "$(printf '%s\n' "$CLOSE_COORD" | grep -cE '^STATUS: running$')"
+expect "coordinator close skeleton prefixes BOARD:" "1" \
+  "$(printf '%s\n' "$CLOSE_COORD" | grep -c '^BOARD:')"
+expect "coordinator re-brief names the exact stage path" "1" \
+  "$(grep -c 'Stage file (overwrite, no other name):' "$COORD")"
+expect "coordinator spawn cap is documented once" "1" \
+  "$(grep -c 'cap: M spawns' "$COORD")"
 # Orchestration-audit Should-fix (docs/evals/2026-08-12-orchestration-audit.md):
 # Dimension 3 — Working interface is a deliberate Interface-contract superset.
 # Dimension 4 — four specialist docs/ paths missing from the routing table.
@@ -671,6 +728,9 @@ expect "the opt-in case asserts that work was delegated" "1" \
 expect "the opt-in case asserts stage-return files" "1" \
   "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'check_stage_return_files')"
+expect "the opt-in case asserts the delivery close file" "1" \
+  "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'check_delivery_close_file')"
 expect "the opt-in case does not enable check_subagent_log" "0" \
   "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE "^[[:space:]]*check_subagent_log ")"
@@ -690,6 +750,146 @@ expect "check_subagent_log does not read the raw transcript" "0" \
 expect "check_stage_return_files does not read the raw transcript" "0" \
   "$(sed -n '/^check_stage_return_files()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'stream\.jsonl' || true)"
+expect "check_delivery_close_file does not read the raw transcript" "0" \
+  "$(sed -n '/^check_delivery_close_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'stream\.jsonl' || true)"
+# A -fixes suffix is not a registered agent type — the helper must reject it on disk.
+STAGE_REJECT_DIR="$(mktemp -d)"
+mkdir -p "$STAGE_REJECT_DIR/docs/delivery/tag/stages"
+printf '%s\n' \
+  'STATUS: ok' 'DID: x' 'VERIFIED: y' 'NOT-CHECKED: z' 'FLAGS: none' 'NEXT: done' \
+  >"$STAGE_REJECT_DIR/docs/delivery/tag/stages/backend-developer-fixes.md"
+expect "stage return files reject unregistered basenames" "1" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$STAGE_REJECT_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_stage_return_files()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_stage_return_files
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$STAGE_REJECT_DIR"
+TPL="$SCRIPT_DIR/skills/delivery-templates/SKILL.md"
+CLOSE_TPL="$(sed -n '/^## Close file/,/^## Hygiene proposal/p' "$TPL")"
+expect "delivery-templates close skeleton prefixes VERIFIED:" "1" \
+  "$(printf '%s\n' "$CLOSE_TPL" | grep -c '^VERIFIED:')"
+expect "delivery-templates close skeleton prefixes NOT-CHECKED:" "1" \
+  "$(printf '%s\n' "$CLOSE_TPL" | grep -c '^NOT-CHECKED:')"
+expect "delivery-templates close skeleton STATUS is the in-flight default" "1" \
+  "$(printf '%s\n' "$CLOSE_TPL" | grep -cE '^STATUS: running$')"
+expect "delivery-templates close skeleton prefixes BOARD:" "1" \
+  "$(printf '%s\n' "$CLOSE_TPL" | grep -c '^BOARD:')"
+CLOSE_STUB="$SCRIPT_DIR/skills/delivery-templates/close.md"
+STAGE_STUB="$SCRIPT_DIR/skills/delivery-templates/stage-return.md"
+expect "close stub file prefixes VERIFIED:" "1" \
+  "$(sed -n '1p' "$CLOSE_STUB" 2>/dev/null | grep -c '^VERIFIED:')"
+expect "close stub file prefixes NOT-CHECKED:" "1" \
+  "$(sed -n '2p' "$CLOSE_STUB" 2>/dev/null | grep -c '^NOT-CHECKED:')"
+expect "close stub file STATUS is the in-flight default" "1" \
+  "$(sed -n '3p' "$CLOSE_STUB" 2>/dev/null | grep -cE '^STATUS: running$')"
+expect "close stub file prefixes BOARD:" "1" \
+  "$(sed -n '4p' "$CLOSE_STUB" 2>/dev/null | grep -c '^BOARD:')"
+expect "stage-return stub file prefixes STATUS:" "1" \
+  "$(sed -n '1p' "$STAGE_STUB" 2>/dev/null | grep -c '^STATUS:')"
+expect "stage-return stub file prefixes DID:" "1" \
+  "$(sed -n '2p' "$STAGE_STUB" 2>/dev/null | grep -c '^DID:')"
+expect "stage-return stub file prefixes VERIFIED:" "1" \
+  "$(sed -n '3p' "$STAGE_STUB" 2>/dev/null | grep -c '^VERIFIED:')"
+expect "stage-return stub file prefixes NOT-CHECKED:" "1" \
+  "$(sed -n '4p' "$STAGE_STUB" 2>/dev/null | grep -c '^NOT-CHECKED:')"
+expect "stage-return stub file prefixes FLAGS:" "1" \
+  "$(sed -n '5p' "$STAGE_STUB" 2>/dev/null | grep -c '^FLAGS:')"
+expect "stage-return stub file prefixes NEXT:" "1" \
+  "$(sed -n '6p' "$STAGE_STUB" 2>/dev/null | grep -c '^NEXT:')"
+
+CLOSE_REJECT_DIR="$(mktemp -d)"
+mkdir -p "$CLOSE_REJECT_DIR/docs/delivery/tag"
+printf '%s\n' \
+  'VERIFIED: x' 'NOT-CHECKED: y' 'STATUS: in-progress' 'BOARD: z' \
+  >"$CLOSE_REJECT_DIR/docs/delivery/tag/close.md"
+expect "close file rejects STATUS in-progress" "1" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$CLOSE_REJECT_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_close_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_close_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$CLOSE_REJECT_DIR"
+
+CLOSE_PASS_DIR="$(mktemp -d)"
+mkdir -p "$CLOSE_PASS_DIR/docs/delivery/tag"
+printf '%s\n' \
+  'VERIFIED: x' 'NOT-CHECKED: y' 'STATUS: running' 'BOARD: z' \
+  >"$CLOSE_PASS_DIR/docs/delivery/tag/close.md"
+expect "close file accepts STATUS running" "0" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$CLOSE_PASS_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_close_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_close_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$CLOSE_PASS_DIR"
+
+CLOSE_INDENT_DIR="$(mktemp -d)"
+mkdir -p "$CLOSE_INDENT_DIR/docs/delivery/tag"
+printf '%s\n' \
+  '  VERIFIED: x' 'NOT-CHECKED: y' 'STATUS: running' 'BOARD: z' \
+  >"$CLOSE_INDENT_DIR/docs/delivery/tag/close.md"
+expect "close file rejects indented VERIFIED:" "1" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$CLOSE_INDENT_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_close_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_close_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$CLOSE_INDENT_DIR"
+
+CLOSE_PAREN_DIR="$(mktemp -d)"
+mkdir -p "$CLOSE_PAREN_DIR/docs/delivery/tag"
+printf '%s\n' \
+  'VERIFIED (coordinator): x' 'NOT-CHECKED: y' 'STATUS: running' 'BOARD: z' \
+  >"$CLOSE_PAREN_DIR/docs/delivery/tag/close.md"
+expect "close file rejects VERIFIED parenthetical" "1" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$CLOSE_PAREN_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_close_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_close_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$CLOSE_PAREN_DIR"
+
+CLOSE_DONE_DIR="$(mktemp -d)"
+mkdir -p "$CLOSE_DONE_DIR/docs/delivery/tag"
+printf '%s\n' \
+  'VERIFIED: x' 'NOT-CHECKED: y' 'STATUS: done' 'BOARD: z' \
+  >"$CLOSE_DONE_DIR/docs/delivery/tag/close.md"
+expect "close file accepts STATUS done" "0" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$CLOSE_DONE_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_close_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_close_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$CLOSE_DONE_DIR"
+
+CLOSE_STOPPED_DIR="$(mktemp -d)"
+mkdir -p "$CLOSE_STOPPED_DIR/docs/delivery/tag"
+printf '%s\n' \
+  'VERIFIED: x' 'NOT-CHECKED: y' 'STATUS: stopped' 'BOARD: z' \
+  >"$CLOSE_STOPPED_DIR/docs/delivery/tag/close.md"
+expect "close file accepts STATUS stopped" "0" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$CLOSE_STOPPED_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_close_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_close_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$CLOSE_STOPPED_DIR"
 # shellcheck disable=SC2016 # literal $SUBAGENT_LOG in the grep pattern
 expect "check_subagent_log greps the derived subagent log" "1" \
   "$(sed -n '/^check_subagent_log()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \

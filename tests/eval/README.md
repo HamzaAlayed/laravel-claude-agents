@@ -42,7 +42,10 @@ Three derived text artifacts are rebuilt from the stream-json transcript by
 `$FULL_LOG` is load-bearing: an Interface contract that binds the orchestrator
 must not be satisfiable by a specialist (run 7 finding 3). Per-stage specialist
 returns (`STATUS`/`DID`/`VERIFIED`/`NOT-CHECKED`/`FLAGS`/`NEXT`) live on
-`docs/delivery/*/stages/*.md`; `check_stage_return_files` asserts them.
+`docs/delivery/*/stages/*.md`; `check_stage_return_files` asserts them — basenames must match
+registered agent types (`tech-lead.md` ok, `backend-developer-fixes.md` fail). The coordinator's
+close lands on `docs/delivery/*/close.md`; `check_delivery_close_file` asserts
+`VERIFIED:`/`NOT-CHECKED:`/`STATUS:` so a killed run is scored from disk, not mid-board prose. `VERIFIED:` / `NOT-CHECKED:` must start the line (`VERIFIED (` fails). `STATUS` must be `running`, `done`, or `stopped` (`in-progress` fails).
 `check_subagent_log` stays commented on the run-10 shape.
 
 ## Answer key — planted flaws

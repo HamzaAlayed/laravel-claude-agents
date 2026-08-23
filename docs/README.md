@@ -4,7 +4,7 @@ This page maps the `docs/` corpus so the next review — human or agent — star
 
 Adopting the pack on a Laravel app? [Run your first delivery](onboarding.md). Seeing it work in five minutes? The [README quickstart](../README.md#five-minute-quickstart).
 
-Last verified 2026-08-20 against pack v1.45.0.
+Last verified 2026-08-21 against pack v2.0.0.
 
 ## What lives where
 
@@ -12,7 +12,7 @@ Last verified 2026-08-20 against pack v1.45.0.
 | --- | --- |
 | [`docs/superpowers/specs/`](superpowers/specs/) | Approved design specs. Intent, scope, non-goals. Written before the plan. |
 | [`docs/superpowers/plans/`](superpowers/plans/) | Implementation plans for those specs. File lists, task order, verification. |
-| [`docs/plans/`](plans/) | Working plans that are not Superpowers-shaped: follow-ups, held UI work, Adoption, the console company-theater redesign. |
+| [`docs/plans/`](plans/) | Working plans that are not Superpowers-shaped: follow-ups, held UI work, Adoption, the console company-theater redesign, Guild v2. |
 | [`docs/evals/`](evals/) | Eval scorecards and audits. One file per billed run or instrument change. |
 | [`docs/requirements/`](requirements/) | Discovery / current-state reviews. Input to a spec, not a spec. |
 | [`docs/research/`](research/) | Literature and comparative audits. |
@@ -63,10 +63,13 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 | Literature-gap tranche | [plan — gate cleared](plans/2026-07-29-literature-gap-tranche.md); [audit](research/2026-07-29-agent-literature-audit.md) |
 | Accuracy / cost instrument | [spec](superpowers/specs/2026-08-04-agent-accuracy-and-cost-design.md); shipped across v1.34–v1.38 |
 | Per-stage specialist returns on disk (v1.45.0) | [design](plans/2026-08-19-l3-stage-returns-design.md); [plan](plans/2026-08-19-l3-stage-returns.md); [run 11](evals/2026-08-20-run-11.md) — `check_stage_return_files` PASS. Do not uncomment `check_subagent_log`. |
+| Guild v2 — Supervisor complete (2.0.0) | [design / roadmap](plans/2026-08-20-guild-v2-design.md); [run 17](evals/2026-08-21-run-17.md) — `check_delivery_close_file` PASS (timeout 1203s, harvest still FAIL). Close file, joins, spawn cap, need-to-know briefs. |
 
 ## Open
 
-None as of 2026-08-20 (pack v1.45.0).
+| Item | Evidence |
+| --- | --- |
+| Guild v2 — 2.1 Adaptive / 2.2 graph | [design / roadmap](plans/2026-08-20-guild-v2-design.md). Not started. Wait until a new spec. |
 
 ## How a new review should start
 

@@ -34,7 +34,7 @@ The human sees three shapes from you, and only these:
 **Progress board** — print after the plan (step 3) and again after every stage completes or fails. One line per stage; never make the human ask "what's running?".
 
 ```
-▶ invoices — make-feature · 4 stages · done when: subscription upgrade covered by green feature tests
+▶ invoices — make-feature · 4 stages · cap: M spawns · done when: subscription upgrade covered by green feature tests
 ✔ 1/4 database-developer   migration + model + factory     12 tests green
 ▶ 2/4 backend-developer    Form Requests, Resource, routes
 · 3/4 frontend-developer   Inertia pages
@@ -42,7 +42,7 @@ The human sees three shapes from you, and only these:
 ⏸ next checkpoint: billing (before stage 3)
 ```
 
-`✔` done · `▶` running · `·` queued · `✖` failed (with one-line reason) · `⏸` checkpoint. Result column: artifact + evidence counts, ≤6 words.
+`✔` done · `▶` running · `·` queued · `✖` failed (with one-line reason) · `⏸` checkpoint. Result column: artifact + evidence counts, ≤6 words. The header also states the spawn cap — `M` defaults to `N+2` (one re-brief per lane); hitting the cap without `done when:` → write `close.md` with `STATUS: stopped` and stop.
 
 **Stage return** — the shape you demand from every specialist and relay in one condensed line on the board:
 
@@ -55,7 +55,7 @@ FLAGS: corrections, risks, checkpoint triggers — or "none"
 NEXT: handoff or "none"
 ```
 
-Each specialist lands that shape at `docs/delivery/<name>/stages/<agent>.md`. Read that file before `✔`. Never write a writer's stage file for them. Read-only specialists (`tech-lead`, `security-engineer`, `performance-engineer`) — persist their stage file from the report you already file, same as their other artifacts.
+Each specialist lands that shape at `docs/delivery/<name>/stages/<agent>.md`. Read that file before `✔`. Never write a writer's stage file for them. Read-only specialists (`tech-lead`, `security-engineer`, `performance-engineer`) — persist their stage file from the report you already file, same as their other artifacts: copy skills/delivery-templates/stage-return.md then fill after the colons.
 
 **Checkpoint prompt** — a decision the human can make in ten seconds, never a wall of prose:
 
@@ -66,6 +66,21 @@ Stage 3 wires Cashier subscription upgrades; failure blast radius: double-chargi
 2. Modify: <the one thing that can vary>
 3. Stop this lane
 ```
+
+**Close file** — persisted at `docs/delivery/<name>/close.md`; overwrite close.md after every stage (and after the plan, and after a re-brief returns — last Write before the next Task). Latest wins — a killed run is scored from this file, not mid-board prose. First Write of close.md is a byte copy of that file; copy skills/delivery-templates/close.md, then Edit only after the colons. Including a read-only persist, after every Agent return, the next Write is close.md. Harvest (`stack.md`, `log.md`) and the next Task wait until that Write lands. The close.md hook bounces a Write that is not helper shape. Bash must not write close.md.
+
+```
+VERIFIED: <commands you ran → counts>
+NOT-CHECKED: <what nobody verified, or none>
+STATUS: running
+BOARD: <progress board as last printed>
+```
+`STATUS` is exactly `running`, `done`, or `stopped` — never `in-progress`. Stage-return STATUS stays `done | blocked | needs-decision`. Nothing sits between the label word and the colon. VERIFIED (` is a contract break.
+**Need-to-know briefs** — carry goal, owned paths, success criteria, stage path, and named stack facts only; never paste another specialist's diff into a brief.
+
+**Join before dependents** — do not start `qa-engineer` or the harvest steps (`docs/team/stack.md`, `docs/delivery/<name>/log.md`) until every upstream stage file verifies.
+
+**Re-brief** — overwrites the same `docs/delivery/<name>/stages/<agent>.md`; never spawn a `-fixes` suffix. Put this line in the Task prompt: `Stage file (overwrite, no other name): docs/delivery/<name>/stages/<agent>.md`. The coordinator still never writes a writer's stage file.
 
 ## Artifact lifecycle
 

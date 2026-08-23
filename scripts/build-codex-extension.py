@@ -95,6 +95,12 @@ def build_hooks():
     out = os.path.join(hooks_dir, "protect-env-files.sh")
     write(out, txt)
     os.chmod(out, 0o755)
+    # close.md helper-shape guard — same Write|Edit contract as Claude.
+    with open(os.path.join(ROOT, "scripts", "enforce-close-file.sh")) as f:
+        txt = sanitize(f.read())
+    out = os.path.join(hooks_dir, "enforce-close-file.sh")
+    write(out, txt)
+    os.chmod(out, 0o755)
 
     git_root = "$(git rev-parse --show-toplevel)"
     hooks_json = '''{
@@ -105,13 +111,15 @@ def build_hooks():
         "hooks": [
           { "type": "command", "command": "%(r)s/.codex/hooks/block-prod-destructive-sql.sh", "statusMessage": "Checking for destructive prod SQL" },
           { "type": "command", "command": "%(r)s/.codex/hooks/block-prod-artisan.sh", "statusMessage": "Checking for prod-affecting artisan" },
-          { "type": "command", "command": "%(r)s/.codex/hooks/enforce-sail.sh", "statusMessage": "Routing PHP tooling through Sail" }
+          { "type": "command", "command": "%(r)s/.codex/hooks/enforce-sail.sh", "statusMessage": "Routing PHP tooling through Sail" },
+          { "type": "command", "command": "%(r)s/.codex/hooks/enforce-close-file.sh", "statusMessage": "Enforcing close.md helper shape" }
         ]
       },
       {
         "matcher": "apply_patch|Edit|Write",
         "hooks": [
-          { "type": "command", "command": "%(r)s/.codex/hooks/protect-env-files.sh", "statusMessage": "Protecting .env / secret files" }
+          { "type": "command", "command": "%(r)s/.codex/hooks/protect-env-files.sh", "statusMessage": "Protecting .env / secret files" },
+          { "type": "command", "command": "%(r)s/.codex/hooks/enforce-close-file.sh", "statusMessage": "Enforcing close.md helper shape" }
         ]
       }
     ]
@@ -126,7 +134,7 @@ def main():
     build_agents_md()
     build_skill()
     build_hooks()
-    print("codex target built: AGENTS.md + 8 skills + 4 PreToolUse guardrail hooks")
+    print("codex target built: AGENTS.md + 8 skills + 5 PreToolUse guardrail hooks")
 
 
 if __name__ == "__main__":
