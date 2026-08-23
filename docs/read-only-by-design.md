@@ -1,10 +1,10 @@
 # Read-only reviewers: how "can't touch the code" is actually enforced
 
-Three agents are review-only by design — they produce findings, other agents apply
-changes: **`tech-lead`**, **`security-engineer`**, **`performance-engineer`**. This
-keeps reviews trustworthy and prevents a reviewer from quietly "fixing" what it just
-flagged. This page documents exactly how that guarantee is enforced, where it stops,
-and how a team can make it airtight.
+Four agents are review-only by design — they produce findings, other agents apply
+changes: **`tech-lead`**, **`security-engineer`**, **`performance-engineer`**,
+**`peer-router`**. This keeps reviews trustworthy and prevents a reviewer from
+quietly "fixing" what it just flagged. This page documents exactly how that
+guarantee is enforced, where it stops, and how a team can make it airtight.
 
 ## The layered controls (what ships in the pack)
 
@@ -39,7 +39,7 @@ carries `agent_type` when a subagent calls, so the shipped
 `enforce-reviewer-readonly.sh` guard blocks write-shaped Bash (`sed -i` / `perl -i`,
 output redirects, `tee`, mutating `git` / `artisan` / `composer` / `npm`, `pint`
 without `--test`, `rm` / `mv` / `cp` / `chmod`) **only when the caller is
-`tech-lead`, `security-engineer`, or `performance-engineer`** — builders,
+`tech-lead`, `security-engineer`, `performance-engineer`, or `peer-router`** — builders,
 `devops-engineer`, and the main thread are untouched. Safe forms stay allowed:
 `2>&1`, redirects to `/dev/null` / `/tmp`, `migrate:status`, `pint --test`, PHP
 `->` arrows. The reviewer-body instructions remain as the first layer;
@@ -51,7 +51,7 @@ the hook is the enforcement behind them.
 
 ## Opt-in: a stricter project-wide policy
 
-The reviewer guard above covers the three read-only roles. If your team additionally
+The reviewer guard above covers the four read-only roles. If your team additionally
 wants to constrain *every* agent in the project (including builders)
 and prefers belt-and-suspenders, add deny rules to your project's
 `.claude/settings.json`. Tune to your workflow — these examples are deliberately
