@@ -75,8 +75,12 @@ answers that, check by check, so the classification is never re-derived.
 | teach-delivery | `check_file_under docs/delivery log.md` | artifact | sound |
 | teach-delivery | `check_touched tests/` | artifact | sound |
 | teach-delivery | `check_log_anywhere 'done when:'` | format-contract | sound — same FULL_LOG fix as the feature row above |
+| feature-adaptive | `check_adaptive_packet` | artifact | sound — packet on disk at `docs/delivery/*/packets/*-to-*.md`; sender/recipient/summary/paths present; recipient is a registered agent type |
+| feature-adaptive | `check_in_files '^FROM:'` (delivery) | artifact | sound — packet sender label on disk |
+| feature-adaptive | `check_in_files '^TO:'` (delivery) | artifact | sound — packet recipient label on disk |
+| feature-adaptive | `check_log_anywhere 'handoff'` | format-contract | sound — Adaptive handoff line on the board or close; reads FULL_LOG, never the raw transcript |
 
-Tally: 45 checks — 33 artifact, 5 fixture-noun, 5 format-contract, **2 hardened-prose (formerly free-prose; 0 free-prose remain)**. The rubric judge
+Tally: 49 checks — 36 artifact, 5 fixture-noun, 6 format-contract, **2 hardened-prose (formerly free-prose; 0 free-prose remain)**. The rubric judge
 (`EVAL_JUDGE=1`) stays on as the independent dissenter for the transcript-based
 checks; it has been right both times it disagreed with the key.
 

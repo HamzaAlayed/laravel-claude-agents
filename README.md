@@ -318,7 +318,7 @@ Add the marketplace once, then install the plugin:
 /plugin install laravel-team@laravel-claude-agents
 ```
 
-That registers all 17 agents, the 14 slash commands, the `laravel-conventions` skill, and the six guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
+That registers all 18 agents, the 14 slash commands, the `laravel-conventions` skill, and the six guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
 
 ```
 /plugin install laravel-team@laravel-claude-agents --scope project
@@ -354,7 +354,7 @@ git clone https://github.com/HamzaAlayed/laravel-claude-agents
 
 It drops `AGENTS.md` (only if absent), `.agents/skills/laravel-conventions/`, and `.codex/hooks.json` + `.codex/hooks/*.sh` (hook paths resolve from the git root). On the next `codex` run you're asked to review and trust the hooks. The guard scripts use the same `.tool_input.command` / `exit 2` contract as Claude, with an `apply_patch`-aware `.env` guard that inspects the patch's target paths.
 
-> **Scope:** the full 17-agent team is **not** ported to Codex — its subagent model is a different `config.toml` schema. Codex Core ships the conventions skill + guardrails; use Claude Code or Gemini CLI for the full team.
+> **Scope:** the full 18-agent team is **not** ported to Codex — its subagent model is a different `config.toml` schema. Codex Core ships the conventions skill + guardrails; use Claude Code or Gemini CLI for the full team.
 
 ### Just the skills, on any agent (skills.sh)
 
@@ -505,7 +505,7 @@ For point work, call a specialist directly:
 
 ## Usage in Gemini CLI
 
-After `gemini extensions install ./laravel-claude-agents/gemini`, the 17 specialists load as Gemini subagents, the 12 commands as slash commands, the `laravel-conventions` skill, and the guardrail hooks.
+After `gemini extensions install ./laravel-claude-agents/gemini`, the 18 specialists load as Gemini subagents, the 12 commands as slash commands, the `laravel-conventions` skill, and the guardrail hooks.
 
 **Invoke a specialist** — either let Gemini auto-delegate from your description, or target one explicitly with `@`:
 
