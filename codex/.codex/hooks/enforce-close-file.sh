@@ -86,7 +86,7 @@ writes_delivery_close() {
   if printf '%s' "$cmd" | grep -qE "(^|[;&| ])tee([ ]+-[a-zA-Z]+)*[ ]+[\"']?[^ ;&|\"']*$path"; then
     return 0
   fi
-  if printf '%s' "$cmd" | grep -qE "$path[\"']?[ ]*<<"; then
+  if printf '%s' "$cmd" | grep -qE "${path}[\"']?[ ]*<<"; then
     return 0
   fi
   return 1
