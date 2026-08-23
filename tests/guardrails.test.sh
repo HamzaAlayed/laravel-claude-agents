@@ -191,6 +191,8 @@ expect "tech-lead artisan migrate blocks" "$BLOCK" \
   "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"tech-lead","tool_input":{"command":"php artisan migrate"}}')"
 expect "backend-developer sed -i allows (not a reviewer)" "$ALLOW" \
   "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"backend-developer","tool_input":{"command":"sed -i s/a/b/ app/Models/User.php"}}')"
+expect "peer-router sed -i blocks" "$BLOCK" \
+  "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"peer-router","tool_input":{"command":"sed -i s/a/b/ file.php"}}')"
 expect "main thread (no agent_type) sed -i allows" "$ALLOW" \
   "$(run_hook enforce-reviewer-readonly.sh '{"tool_input":{"command":"sed -i s/a/b/ file.php"}}')"
 expect "FALLBACK (no jq/python3): tech-lead sed -i blocks" "$BLOCK" \
@@ -380,6 +382,8 @@ expect "Interface block requires joins before dependents" "9" \
   "$(grep -l 'Join before a dependent stage' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block caps specialist spawns" "9" \
   "$(grep -l 'Spawn cap in the board header' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block requires adaptive opt-in" "9" \
+  "$(grep -l 'Without `--adaptive`, ignore' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # Literature-gap tranche (docs/plans/2026-07-29-literature-gap-tranche.md), gate
 # cleared by eval run 5. Escalation fired on category only; NOT-CHECKED was
 # collected by every stage return and consumed by nothing. Nothing bounded a
@@ -388,7 +392,7 @@ expect "Interface block caps specialist spawns" "9" \
 COORD="$SCRIPT_DIR/agents/delivery-coordinator.md"
 expect "thirteen writer agents require a last-Write stage file" "13" \
   "$(grep -l 'as your last Write' "$SCRIPT_DIR"/agents/*.md 2>/dev/null | wc -l | tr -d ' ')"
-expect "three read-only agents defer the stage file to the coordinator" "3" \
+expect "four read-only agents defer the stage file to the coordinator" "4" \
   "$(grep -l 'coordinator persists your stage file' "$SCRIPT_DIR"/agents/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "coordinator never writes a writer stage file" "1" \
   "$(grep -c 'never write a writer' "$COORD")"
@@ -408,6 +412,16 @@ expect "coordinator names the close.md hook bounce" "1" \
   "$(grep -c 'close.md hook bounces a Write that is not helper shape' "$COORD")"
 expect "coordinator forbids Bash writes of close.md" "1" \
   "$(grep -c 'Bash must not write close.md' "$COORD")"
+expect "coordinator names the packet path" "1" \
+  "$(grep -c 'docs/delivery/<name>/packets/' "$COORD")"
+expect "coordinator has peer-router validate" "1" \
+  "$(grep -c 'peer-router validates' "$COORD")"
+expect "coordinator prints a handoff line" "1" \
+  "$(grep -c 'print a handoff line' "$COORD")"
+expect "coordinator counts hops against the spawn cap" "1" \
+  "$(grep -c 'hops count against the spawn cap' "$COORD")"
+expect "coordinator never spawns peer-router without --adaptive" "1" \
+  "$(grep -c 'never spawn peer-router without --adaptive' "$COORD")"
 CLOSE_COORD="$(sed -n '/^\*\*Close file\*\*/,/^\*\*Need-to-know briefs\*\*/p' "$COORD")"
 expect "coordinator close skeleton prefixes VERIFIED:" "1" \
   "$(printf '%s\n' "$CLOSE_COORD" | grep -c '^VERIFIED:')"
@@ -788,6 +802,17 @@ expect "close stub file STATUS is the in-flight default" "1" \
   "$(sed -n '3p' "$CLOSE_STUB" 2>/dev/null | grep -cE '^STATUS: running$')"
 expect "close stub file prefixes BOARD:" "1" \
   "$(sed -n '4p' "$CLOSE_STUB" 2>/dev/null | grep -c '^BOARD:')"
+PACKET="$SCRIPT_DIR/skills/delivery-templates/packet.md"
+expect "packet stub prefixes FROM:" "1" \
+  "$(grep -c '^FROM:' "$PACKET" 2>/dev/null || echo 0)"
+expect "packet stub prefixes TO:" "1" \
+  "$(grep -c '^TO:' "$PACKET" 2>/dev/null || echo 0)"
+expect "packet stub prefixes SUMMARY:" "1" \
+  "$(grep -c '^SUMMARY:' "$PACKET" 2>/dev/null || echo 0)"
+expect "packet stub prefixes PATHS:" "1" \
+  "$(grep -c '^PATHS:' "$PACKET" 2>/dev/null || echo 0)"
+expect "packet stub prefixes STAGE:" "1" \
+  "$(grep -c 'STAGE:' "$PACKET" 2>/dev/null || echo 0)"
 expect "stage-return stub file prefixes STATUS:" "1" \
   "$(sed -n '1p' "$STAGE_STUB" 2>/dev/null | grep -c '^STATUS:')"
 expect "stage-return stub file prefixes DID:" "1" \
