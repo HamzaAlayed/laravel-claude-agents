@@ -116,6 +116,17 @@ BOARD: <progress board as last printed>
 `STATUS` is exactly `running`, `done`, or `stopped` — never `in-progress`. Stage-return STATUS stays `done | blocked | needs-decision`.
 ≤12 lines. Labels only — no prose dump.
 
+## Packet — `docs/delivery/<feature>/packets/<from>-to-<peer>.md` (writer writes; coordinator Reads)
+
+No-re-ask handoff when `--adaptive`. Latest wins (overwrite). Writer copies `packet.md` in this skill directory and fills after the colons.
+
+```markdown
+FROM: <registered agent>
+TO: <registered agent>
+SUMMARY: <investigation, employee/task ids masked>
+PATHS: <owned paths> · STAGE: docs/delivery/<name>/stages/<peer>.md
+```
+
 ## Hygiene proposal — `/team-hygiene` output (scrum-master)
 
 Exceptions only, never an inventory; nothing applies without an approved row number.
