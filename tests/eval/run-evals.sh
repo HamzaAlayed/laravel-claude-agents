@@ -365,6 +365,51 @@ check_stage_return_files() { # ≥2 docs/delivery/*/stages/*.md, each with six l
   fi
 }
 
+check_adaptive_handoff() { # handoff on $FULL_LOG or any docs/delivery/*/close.md
+  # Plan: grep -qiE 'handoff' "$LOG" || grep -qiE 'handoff' close.md.
+  # Use $FULL_LOG, not $LOG: run 7 finding 3 — $LOG is closing-summary-only
+  # and false-negatives an early board line. A killed Adaptive run can leave
+  # the word only on close.md BOARD:. Never grep the raw transcript.
+  if [ -n "${FULL_LOG:-}" ] && grep -qiE 'handoff' "$FULL_LOG"; then
+    record 0 "output: board or close carries a handoff line"
+    return
+  fi
+  local f
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    if grep -qiE 'handoff' "$f"; then
+      record 0 "output: board or close carries a handoff line"
+      return
+    fi
+  done < <(find "$WORK/docs/delivery" -type f -name 'close.md' 2>/dev/null)
+  record 1 "output: board or close carries a handoff line"
+}
+
+check_adaptive_peer_router() { # docs/delivery/*/stages/peer-router.md exists, registered, six labels
+  local n=0
+  local f label base
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    base="$(basename "$f" .md)"
+    if [ ! -f "$ROOT/agents/${base}.md" ]; then
+      record 1 "file:   peer-router stage file basename is not a registered agent type ($base)"
+      return
+    fi
+    n=$((n + 1))
+    for label in 'STATUS:' 'DID:' 'VERIFIED:' 'NOT-CHECKED:' 'FLAGS:' 'NEXT:'; do
+      if ! grep -q "$label" "$f"; then
+        record 1 "file:   peer-router stage return missing $label"
+        return
+      fi
+    done
+  done < <(find "$WORK/docs/delivery" -type f -path '*/stages/peer-router.md' 2>/dev/null)
+  if [ "$n" -ge 1 ]; then
+    record 0 "file:   peer-router.md stage return with six labels"
+  else
+    record 1 "file:   peer-router.md stage return with six labels (found $n)"
+  fi
+}
+
 check_adaptive_packet() { # ≥1 docs/delivery/*/packets/*-to-*.md with FROM:/TO:/SUMMARY:/PATHS:; TO is a registered agent
   local n=0
   local f label to_val to_base
@@ -580,7 +625,8 @@ checks_feature_adaptive() {
   check_adaptive_packet 
   check_in_files '^FROM:' "docs/delivery" "packet has FROM:"
   check_in_files '^TO:' "docs/delivery" "packet has TO:"
-  check_log_anywhere 'handoff' "board or close carries a handoff line"
+  check_adaptive_handoff 
+  check_adaptive_peer_router 
 }
 
 checks_hygiene() {

@@ -767,6 +767,21 @@ expect "check_stage_return_files does not read the raw transcript" "0" \
 expect "check_delivery_close_file does not read the raw transcript" "0" \
   "$(sed -n '/^check_delivery_close_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'stream\.jsonl' || true)"
+expect "check_adaptive_handoff does not read the raw transcript" "0" \
+  "$(sed -n '/^check_adaptive_handoff()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'stream\.jsonl' || true)"
+expect "check_adaptive_peer_router does not read the raw transcript" "0" \
+  "$(sed -n '/^check_adaptive_peer_router()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'stream\.jsonl' || true)"
+expect "the Adaptive case asserts a handoff on board or close" "1" \
+  "$(sed -n '/^checks_feature_adaptive()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'check_adaptive_handoff')"
+expect "the Adaptive case asserts a peer-router stage file" "1" \
+  "$(sed -n '/^checks_feature_adaptive()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'check_adaptive_peer_router')"
+expect "the Adaptive case does not enable check_subagent_log" "0" \
+  "$(sed -n '/^checks_feature_adaptive()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE "^[[:space:]]*check_subagent_log ")"
 # A -fixes suffix is not a registered agent type — the helper must reject it on disk.
 STAGE_REJECT_DIR="$(mktemp -d)"
 mkdir -p "$STAGE_REJECT_DIR/docs/delivery/tag/stages"
@@ -915,6 +930,84 @@ expect "close file accepts STATUS stopped" "0" \
     echo "$CHECK_FAIL"
   ')"
 rm -rf "$CLOSE_STOPPED_DIR"
+
+HANDOFF_CLOSE_DIR="$(mktemp -d)"
+HANDOFF_CLOSE_LOG="$(mktemp)"
+mkdir -p "$HANDOFF_CLOSE_DIR/docs/delivery/tag"
+printf '%s\n' \
+  'VERIFIED: x' 'NOT-CHECKED: y' 'STATUS: running' 'BOARD: handoff to qa-engineer' \
+  >"$HANDOFF_CLOSE_DIR/docs/delivery/tag/close.md"
+: >"$HANDOFF_CLOSE_LOG"
+expect "adaptive handoff PASSes from close.md when FULL_LOG is silent" "0" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$HANDOFF_CLOSE_DIR" FULL_LOG="$HANDOFF_CLOSE_LOG" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_adaptive_handoff()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_adaptive_handoff
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$HANDOFF_CLOSE_DIR" "$HANDOFF_CLOSE_LOG"
+
+HANDOFF_LOG_DIR="$(mktemp -d)"
+HANDOFF_FULL_LOG="$(mktemp)"
+mkdir -p "$HANDOFF_LOG_DIR/docs/delivery/tag"
+printf '%s\n' \
+  'VERIFIED: x' 'NOT-CHECKED: y' 'STATUS: running' 'BOARD: no transfer noted' \
+  >"$HANDOFF_LOG_DIR/docs/delivery/tag/close.md"
+printf 'handoff to qa-engineer\n' >"$HANDOFF_FULL_LOG"
+expect "adaptive handoff PASSes from FULL_LOG when close.md is silent" "0" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$HANDOFF_LOG_DIR" FULL_LOG="$HANDOFF_FULL_LOG" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_adaptive_handoff()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_adaptive_handoff
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$HANDOFF_LOG_DIR" "$HANDOFF_FULL_LOG"
+
+HANDOFF_MISS_DIR="$(mktemp -d)"
+HANDOFF_MISS_LOG="$(mktemp)"
+mkdir -p "$HANDOFF_MISS_DIR/docs/delivery/tag"
+printf '%s\n' \
+  'VERIFIED: x' 'NOT-CHECKED: y' 'STATUS: running' 'BOARD: no transfer noted' \
+  >"$HANDOFF_MISS_DIR/docs/delivery/tag/close.md"
+: >"$HANDOFF_MISS_LOG"
+expect "adaptive handoff FAILs when board and close omit handoff" "1" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$HANDOFF_MISS_DIR" FULL_LOG="$HANDOFF_MISS_LOG" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_adaptive_handoff()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_adaptive_handoff
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$HANDOFF_MISS_DIR" "$HANDOFF_MISS_LOG"
+
+PEER_MISS_DIR="$(mktemp -d)"
+mkdir -p "$PEER_MISS_DIR/docs/delivery/tag/stages"
+expect "adaptive peer-router FAILs when the stage file is missing" "1" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$PEER_MISS_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_adaptive_peer_router()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_adaptive_peer_router
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$PEER_MISS_DIR"
+
+PEER_PASS_DIR="$(mktemp -d)"
+mkdir -p "$PEER_PASS_DIR/docs/delivery/tag/stages"
+printf '%s\n' \
+  'STATUS: ok' 'DID: x' 'VERIFIED: y' 'NOT-CHECKED: z' 'FLAGS: none' 'NEXT: done' \
+  >"$PEER_PASS_DIR/docs/delivery/tag/stages/peer-router.md"
+expect "adaptive peer-router PASSes with six labels" "0" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$PEER_PASS_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_adaptive_peer_router()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_adaptive_peer_router
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$PEER_PASS_DIR"
 # shellcheck disable=SC2016 # literal $SUBAGENT_LOG in the grep pattern
 expect "check_subagent_log greps the derived subagent log" "1" \
   "$(sed -n '/^check_subagent_log()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
