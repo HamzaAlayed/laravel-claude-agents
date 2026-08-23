@@ -56,11 +56,11 @@
     },
     "feature-adaptive": {
       "max_seconds": 1900,
-      "basis": "copied from feature until a billed Adaptive run reseeds — same Tag --api shape plus packet/peer-router/handoff",
+      "basis": "run 18 (2026-08-23, docs/evals/2026-08-23-run-18.md): TIMED OUT 1204s; Adaptive packet/peer-router/handoff FAIL. Ceiling stays 1900s; EVAL_TIMEOUT stays 1200s",
       "max_tokens": 14500000,
-      "tokens_basis": "copied from feature until a billed Adaptive run reseeds",
+      "tokens_basis": "run 18: 14,300,360 attributed — near the 14.5M ceiling; do not raise",
       "max_usd": 8.5,
-      "usd_basis": "copied from feature until a billed Adaptive run reseeds"
+      "usd_basis": "run 18: billed.usd null (timeout); attributed $10.87 REGRESSED vs $8.50 — do not raise. Same Tag --api floor as feature"
     },
     "teach": {
       "max_seconds": 40,
@@ -80,9 +80,9 @@
     }
   },
   "coordinator_hash": {
-    "sha256": "80b5e9c069cf773e67790fafa7e3a601915c669d5872b20a05e38d9b367ff46a",
-    "as_of": "2026-08-21",
-    "note": "Verified by the close.md Bash-deny billed feature run (2026-08-21, docs/evals/2026-08-21-run-17.md): TIMED OUT 1203s, billed usd null, 8.7M tokens. Score 10/12 FAIL on harvest; check_delivery_close_file PASS. This pin is the 2.0.0 ship.",
+    "sha256": "e90994a23d464162fad73e03ef5c4bf73f3ab76788fbfe230c5de8a168704256",
+    "as_of": "2026-08-23",
+    "note": "Verified by billed feature-adaptive run 18 (2026-08-23, docs/evals/2026-08-23-run-18.md): TIMED OUT 1204s, billed.usd null, attributed $10.87 / 14.3M tokens. Score 12/17 FAIL — Adaptive packet, peer-router.md, and handoff missed; check_delivery_close_file PASS. Harvest and Tag artifacts PASS. VERSION stays 2.0.0; do not ship 2.1.0.",
     "waivers": []
   }
 }
