@@ -69,7 +69,8 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 
 | Item | Evidence |
 | --- | --- |
-| Guild v2 — 2.1 Adaptive / 2.2 graph | [design / roadmap](plans/2026-08-20-guild-v2-design.md). Not started. Wait until a new spec. |
+| Guild v2 — 2.1 Adaptive | [design](plans/2026-08-23-guild-v2-adaptive-design.md); [plan](plans/2026-08-23-guild-v2-adaptive.md). In progress. VERSION stays 2.0.0. |
+| Guild v2 — 2.2 graph | [roadmap](plans/2026-08-20-guild-v2-design.md). Still waits. Do not start. |
 
 ## How a new review should start
 
