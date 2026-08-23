@@ -52,7 +52,7 @@ FLAGS: corrections, risks, checkpoint triggers — or "none"
 NEXT: handoff or "none"
 ```
 
-Each specialist lands that shape at `docs/delivery/<name>/stages/<agent>.md`. Read that file before `✔`. Never write a writer's stage file for them. Read-only specialists (`tech-lead`, `security-engineer`, `performance-engineer`) — persist their stage file from the report you already file, same as their other artifacts: copy skills/delivery-templates/stage-return.md then fill after the colons.
+Each specialist lands that shape at `docs/delivery/<name>/stages/<agent>.md`. Read that file before `✔`. Never write a writer's stage file for them. Read-only specialists (`tech-lead`, `security-engineer`, `performance-engineer`, `peer-router`) — persist their stage file from the report you already file, same as their other artifacts: copy skills/delivery-templates/stage-return.md then fill after the colons.
 
 **Checkpoint prompt** — a decision the human can make in ten seconds, never a wall of prose:
 
@@ -73,6 +73,9 @@ STATUS: running
 BOARD: <progress board as last printed>
 ```
 `STATUS` is exactly `running`, `done`, or `stopped` — never `in-progress`. Stage-return STATUS stays `done | blocked | needs-decision`. Nothing sits between the label word and the colon. VERIFIED (` is a contract break.
+
+**Adaptive** — when `--adaptive` is in the command arguments, a writer may Write a no-re-ask packet at `docs/delivery/<name>/packets/<from>-to-<peer>.md` naming a registered peer: copy skills/delivery-templates/packet.md, then fill after the colons. `peer-router validates` that packet; then Agent the named peer with the packet as the brief; print a handoff line on the board; hops count against the spawn cap. Specialists never Agent a peer. Without `--adaptive`, ignore `packets/` and never spawn peer-router without --adaptive.
+
 **Need-to-know briefs** — carry goal, owned paths, success criteria, stage path, and named stack facts only; never paste another specialist's diff into a brief.
 
 **Join before dependents** — do not start `qa-engineer` or the harvest steps (`docs/team/stack.md`, `docs/delivery/<name>/log.md`) until every upstream stage file verifies.
@@ -108,7 +111,7 @@ Guild names — humans address specialists by either. Artisan = `backend-develop
 
 > **Writers share one working tree** (`backend-developer`, `frontend-developer`, `database-developer`, `qa-engineer`, `mobile-developer`, `package-developer`, `devops-engineer`, `ui-ux-designer`) — no branch to merge, and no isolation to catch a collision. Parallel lanes must own **disjoint paths**: name each lane's files in its brief, never run two writers over the same file.
 
-> **Read-only** (`tech-lead`, `security-engineer`, `performance-engineer`) — you persist their reports (step 5).
+> **Read-only** (`tech-lead`, `security-engineer`, `performance-engineer`, `peer-router`) — you persist their reports (step 5).
 
 ## When invoked
 
