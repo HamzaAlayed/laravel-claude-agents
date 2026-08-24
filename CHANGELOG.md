@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-08-24
+
 Opt-in `--adaptive` on the nine pipeline commands. Default
 `/make-feature` stays Supervisor (2.0 Interface). Adopters who never
 pass the flag see 2.0. A writer may Write a no-re-ask packet; the
-coordinator may hand that packet to a named peer.
+coordinator may hand that packet to a named peer. The billed
+`feature-adaptive` run (run 18) timed out without a packet or
+peer-router; the flag and agent still ship.
 
 ### Added
 

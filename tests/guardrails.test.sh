@@ -382,6 +382,7 @@ expect "Interface block requires joins before dependents" "9" \
   "$(grep -l 'Join before a dependent stage' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block caps specialist spawns" "9" \
   "$(grep -l 'Spawn cap in the board header' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal `--adaptive` backticks in the Interface needle
 expect "Interface block requires adaptive opt-in" "9" \
   "$(grep -l 'Without `--adaptive`, ignore' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # Literature-gap tranche (docs/plans/2026-07-29-literature-gap-tranche.md), gate
