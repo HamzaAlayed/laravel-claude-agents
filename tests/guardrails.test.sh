@@ -191,6 +191,8 @@ expect "tech-lead artisan migrate blocks" "$BLOCK" \
   "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"tech-lead","tool_input":{"command":"php artisan migrate"}}')"
 expect "backend-developer sed -i allows (not a reviewer)" "$ALLOW" \
   "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"backend-developer","tool_input":{"command":"sed -i s/a/b/ app/Models/User.php"}}')"
+expect "peer-router sed -i blocks" "$BLOCK" \
+  "$(run_hook enforce-reviewer-readonly.sh '{"agent_type":"peer-router","tool_input":{"command":"sed -i s/a/b/ file.php"}}')"
 expect "main thread (no agent_type) sed -i allows" "$ALLOW" \
   "$(run_hook enforce-reviewer-readonly.sh '{"tool_input":{"command":"sed -i s/a/b/ file.php"}}')"
 expect "FALLBACK (no jq/python3): tech-lead sed -i blocks" "$BLOCK" \
@@ -380,6 +382,9 @@ expect "Interface block requires joins before dependents" "9" \
   "$(grep -l 'Join before a dependent stage' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block caps specialist spawns" "9" \
   "$(grep -l 'Spawn cap in the board header' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal `--adaptive` backticks in the Interface needle
+expect "Interface block requires adaptive opt-in" "9" \
+  "$(grep -l 'Without `--adaptive`, ignore' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # Literature-gap tranche (docs/plans/2026-07-29-literature-gap-tranche.md), gate
 # cleared by eval run 5. Escalation fired on category only; NOT-CHECKED was
 # collected by every stage return and consumed by nothing. Nothing bounded a
@@ -388,7 +393,7 @@ expect "Interface block caps specialist spawns" "9" \
 COORD="$SCRIPT_DIR/agents/delivery-coordinator.md"
 expect "thirteen writer agents require a last-Write stage file" "13" \
   "$(grep -l 'as your last Write' "$SCRIPT_DIR"/agents/*.md 2>/dev/null | wc -l | tr -d ' ')"
-expect "three read-only agents defer the stage file to the coordinator" "3" \
+expect "four read-only agents defer the stage file to the coordinator" "4" \
   "$(grep -l 'coordinator persists your stage file' "$SCRIPT_DIR"/agents/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "coordinator never writes a writer stage file" "1" \
   "$(grep -c 'never write a writer' "$COORD")"
@@ -408,6 +413,16 @@ expect "coordinator names the close.md hook bounce" "1" \
   "$(grep -c 'close.md hook bounces a Write that is not helper shape' "$COORD")"
 expect "coordinator forbids Bash writes of close.md" "1" \
   "$(grep -c 'Bash must not write close.md' "$COORD")"
+expect "coordinator names the packet path" "1" \
+  "$(grep -c 'docs/delivery/<name>/packets/' "$COORD")"
+expect "coordinator has peer-router validate" "1" \
+  "$(grep -c 'peer-router validates' "$COORD")"
+expect "coordinator prints a handoff line" "1" \
+  "$(grep -c 'print a handoff line' "$COORD")"
+expect "coordinator counts hops against the spawn cap" "1" \
+  "$(grep -c 'hops count against the spawn cap' "$COORD")"
+expect "coordinator never spawns peer-router without --adaptive" "1" \
+  "$(grep -c 'never spawn peer-router without --adaptive' "$COORD")"
 CLOSE_COORD="$(sed -n '/^\*\*Close file\*\*/,/^\*\*Need-to-know briefs\*\*/p' "$COORD")"
 expect "coordinator close skeleton prefixes VERIFIED:" "1" \
   "$(printf '%s\n' "$CLOSE_COORD" | grep -c '^VERIFIED:')"
@@ -753,6 +768,21 @@ expect "check_stage_return_files does not read the raw transcript" "0" \
 expect "check_delivery_close_file does not read the raw transcript" "0" \
   "$(sed -n '/^check_delivery_close_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'stream\.jsonl' || true)"
+expect "check_adaptive_handoff does not read the raw transcript" "0" \
+  "$(sed -n '/^check_adaptive_handoff()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'stream\.jsonl' || true)"
+expect "check_adaptive_peer_router does not read the raw transcript" "0" \
+  "$(sed -n '/^check_adaptive_peer_router()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'stream\.jsonl' || true)"
+expect "the Adaptive case asserts a handoff on board or close" "1" \
+  "$(sed -n '/^checks_feature_adaptive()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'check_adaptive_handoff')"
+expect "the Adaptive case asserts a peer-router stage file" "1" \
+  "$(sed -n '/^checks_feature_adaptive()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'check_adaptive_peer_router')"
+expect "the Adaptive case does not enable check_subagent_log" "0" \
+  "$(sed -n '/^checks_feature_adaptive()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE "^[[:space:]]*check_subagent_log ")"
 # A -fixes suffix is not a registered agent type — the helper must reject it on disk.
 STAGE_REJECT_DIR="$(mktemp -d)"
 mkdir -p "$STAGE_REJECT_DIR/docs/delivery/tag/stages"
@@ -788,6 +818,17 @@ expect "close stub file STATUS is the in-flight default" "1" \
   "$(sed -n '3p' "$CLOSE_STUB" 2>/dev/null | grep -cE '^STATUS: running$')"
 expect "close stub file prefixes BOARD:" "1" \
   "$(sed -n '4p' "$CLOSE_STUB" 2>/dev/null | grep -c '^BOARD:')"
+PACKET="$SCRIPT_DIR/skills/delivery-templates/packet.md"
+expect "packet stub prefixes FROM:" "1" \
+  "$(grep -c '^FROM:' "$PACKET" 2>/dev/null || echo 0)"
+expect "packet stub prefixes TO:" "1" \
+  "$(grep -c '^TO:' "$PACKET" 2>/dev/null || echo 0)"
+expect "packet stub prefixes SUMMARY:" "1" \
+  "$(grep -c '^SUMMARY:' "$PACKET" 2>/dev/null || echo 0)"
+expect "packet stub prefixes PATHS:" "1" \
+  "$(grep -c '^PATHS:' "$PACKET" 2>/dev/null || echo 0)"
+expect "packet stub prefixes STAGE:" "1" \
+  "$(grep -c 'STAGE:' "$PACKET" 2>/dev/null || echo 0)"
 expect "stage-return stub file prefixes STATUS:" "1" \
   "$(sed -n '1p' "$STAGE_STUB" 2>/dev/null | grep -c '^STATUS:')"
 expect "stage-return stub file prefixes DID:" "1" \
@@ -890,6 +931,84 @@ expect "close file accepts STATUS stopped" "0" \
     echo "$CHECK_FAIL"
   ')"
 rm -rf "$CLOSE_STOPPED_DIR"
+
+HANDOFF_CLOSE_DIR="$(mktemp -d)"
+HANDOFF_CLOSE_LOG="$(mktemp)"
+mkdir -p "$HANDOFF_CLOSE_DIR/docs/delivery/tag"
+printf '%s\n' \
+  'VERIFIED: x' 'NOT-CHECKED: y' 'STATUS: running' 'BOARD: handoff to qa-engineer' \
+  >"$HANDOFF_CLOSE_DIR/docs/delivery/tag/close.md"
+: >"$HANDOFF_CLOSE_LOG"
+expect "adaptive handoff PASSes from close.md when FULL_LOG is silent" "0" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$HANDOFF_CLOSE_DIR" FULL_LOG="$HANDOFF_CLOSE_LOG" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_adaptive_handoff()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_adaptive_handoff
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$HANDOFF_CLOSE_DIR" "$HANDOFF_CLOSE_LOG"
+
+HANDOFF_LOG_DIR="$(mktemp -d)"
+HANDOFF_FULL_LOG="$(mktemp)"
+mkdir -p "$HANDOFF_LOG_DIR/docs/delivery/tag"
+printf '%s\n' \
+  'VERIFIED: x' 'NOT-CHECKED: y' 'STATUS: running' 'BOARD: no transfer noted' \
+  >"$HANDOFF_LOG_DIR/docs/delivery/tag/close.md"
+printf 'handoff to qa-engineer\n' >"$HANDOFF_FULL_LOG"
+expect "adaptive handoff PASSes from FULL_LOG when close.md is silent" "0" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$HANDOFF_LOG_DIR" FULL_LOG="$HANDOFF_FULL_LOG" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_adaptive_handoff()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_adaptive_handoff
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$HANDOFF_LOG_DIR" "$HANDOFF_FULL_LOG"
+
+HANDOFF_MISS_DIR="$(mktemp -d)"
+HANDOFF_MISS_LOG="$(mktemp)"
+mkdir -p "$HANDOFF_MISS_DIR/docs/delivery/tag"
+printf '%s\n' \
+  'VERIFIED: x' 'NOT-CHECKED: y' 'STATUS: running' 'BOARD: no transfer noted' \
+  >"$HANDOFF_MISS_DIR/docs/delivery/tag/close.md"
+: >"$HANDOFF_MISS_LOG"
+expect "adaptive handoff FAILs when board and close omit handoff" "1" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$HANDOFF_MISS_DIR" FULL_LOG="$HANDOFF_MISS_LOG" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_adaptive_handoff()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_adaptive_handoff
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$HANDOFF_MISS_DIR" "$HANDOFF_MISS_LOG"
+
+PEER_MISS_DIR="$(mktemp -d)"
+mkdir -p "$PEER_MISS_DIR/docs/delivery/tag/stages"
+expect "adaptive peer-router FAILs when the stage file is missing" "1" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$PEER_MISS_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_adaptive_peer_router()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_adaptive_peer_router
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$PEER_MISS_DIR"
+
+PEER_PASS_DIR="$(mktemp -d)"
+mkdir -p "$PEER_PASS_DIR/docs/delivery/tag/stages"
+printf '%s\n' \
+  'STATUS: ok' 'DID: x' 'VERIFIED: y' 'NOT-CHECKED: z' 'FLAGS: none' 'NEXT: done' \
+  >"$PEER_PASS_DIR/docs/delivery/tag/stages/peer-router.md"
+expect "adaptive peer-router PASSes with six labels" "0" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$PEER_PASS_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_adaptive_peer_router()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_adaptive_peer_router
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$PEER_PASS_DIR"
 # shellcheck disable=SC2016 # literal $SUBAGENT_LOG in the grep pattern
 expect "check_subagent_log greps the derived subagent log" "1" \
   "$(sed -n '/^check_subagent_log()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \

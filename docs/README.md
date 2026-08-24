@@ -4,7 +4,7 @@ This page maps the `docs/` corpus so the next review — human or agent — star
 
 Adopting the pack on a Laravel app? [Run your first delivery](onboarding.md). Seeing it work in five minutes? The [README quickstart](../README.md#five-minute-quickstart).
 
-Last verified 2026-08-21 against pack v2.0.0.
+Last verified 2026-08-24 against pack v2.1.0.
 
 ## What lives where
 
@@ -64,12 +64,13 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 | Accuracy / cost instrument | [spec](superpowers/specs/2026-08-04-agent-accuracy-and-cost-design.md); shipped across v1.34–v1.38 |
 | Per-stage specialist returns on disk (v1.45.0) | [design](plans/2026-08-19-l3-stage-returns-design.md); [plan](plans/2026-08-19-l3-stage-returns.md); [run 11](evals/2026-08-20-run-11.md) — `check_stage_return_files` PASS. Do not uncomment `check_subagent_log`. |
 | Guild v2 — Supervisor complete (2.0.0) | [design / roadmap](plans/2026-08-20-guild-v2-design.md); [run 17](evals/2026-08-21-run-17.md) — `check_delivery_close_file` PASS (timeout 1203s, harvest still FAIL). Close file, joins, spawn cap, need-to-know briefs. |
+| Guild v2 — 2.1 Adaptive (2.1.0) | [design](plans/2026-08-23-guild-v2-adaptive-design.md); [plan](plans/2026-08-23-guild-v2-adaptive.md); [run 18](evals/2026-08-23-run-18.md) — billed Adaptive packet, peer-router.md, and handoff FAIL; close file PASS. Opt-in `--adaptive` ships. |
 
 ## Open
 
 | Item | Evidence |
 | --- | --- |
-| Guild v2 — 2.1 Adaptive / 2.2 graph | [design / roadmap](plans/2026-08-20-guild-v2-design.md). Not started. Wait until a new spec. |
+| Guild v2 — 2.2 graph | [roadmap](plans/2026-08-20-guild-v2-design.md). Still waits. Do not start. |
 
 ## How a new review should start
 

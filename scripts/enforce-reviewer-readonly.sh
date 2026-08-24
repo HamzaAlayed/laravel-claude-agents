@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # Blocks file-mutating Bash from the read-only reviewer subagents
-# (tech-lead, security-engineer, performance-engineer).
+# (tech-lead, security-engineer, performance-engineer, peer-router).
 #
 # Their frontmatter already denies Edit/Write, but Bash remains a write vector
 # (sed -i, redirects, git reset, pint without --test — see
 # docs/read-only-by-design.md). This hook closes it deterministically: the
 # PreToolUse stdin JSON carries `agent_type` when a subagent calls, so the
-# guard applies only to the three reviewers and never touches builders or the
+# guard applies only to the four reviewers and never touches builders or the
 # main thread. Claude Code only — Gemini's hook input carries no agent
 # identity, so this script is deliberately absent from the Gemini target.
 #
@@ -16,7 +16,7 @@ set -euo pipefail
 
 INPUT="$(cat)"
 
-REVIEWERS='(tech-lead|security-engineer|performance-engineer)'
+REVIEWERS='(tech-lead|security-engineer|performance-engineer|peer-router)'
 
 # Extract a field from the tool-input JSON. Degrades jq -> python3 -> empty
 # (the raw-payload fallback is handled separately below).

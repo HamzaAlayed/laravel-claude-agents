@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.0] - 2026-08-24
+
+Opt-in `--adaptive` on the nine pipeline commands. Default
+`/make-feature` stays Supervisor (2.0 Interface). Adopters who never
+pass the flag see 2.0. A writer may Write a no-re-ask packet; the
+coordinator may hand that packet to a named peer. The billed
+`feature-adaptive` run (run 18) timed out without a packet or
+peer-router; the flag and agent still ship.
+
+### Added
+
+- **Opt-in `--adaptive`** on all nine pipeline commands. Default
+  `/make-feature` stays Supervisor (2.0 Interface). Adopters who never
+  pass the flag see 2.0.
+- **No-re-ask packet** at
+  `docs/delivery/<name>/packets/<from>-to-<peer>.md`. A writer may Write
+  it from `skills/delivery-templates/packet.md`.
+- **`peer-router`** — 18th agent, read-only. Validates the packet;
+  spawned only with `--adaptive`. The coordinator then Agent-spawns the
+  named peer with the packet as the brief, prints a handoff line, and
+  counts hops against the spawn cap. Specialists never Agent a peer.
+
+### Changed
+
+- **Eighteen agents** (was 17). Read-only agents are four (was 3). Close
+  file, harvest, and spawn cap are unchanged.
+
 ## [2.0.0] - 2026-08-21
 
 The coordinator overwrites `close.md` after the plan and after every

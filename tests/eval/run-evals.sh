@@ -66,7 +66,8 @@ ALL_CASES=(n-plus-one policy action tests hygiene)
 # teach + teach-delivery: run 7's split hypothesis (docs/evals/2026-08-06-run-7-scope.md).
 # Opt-in like feature: they measure coordinator/team-memory behaviour, which only
 # needs re-measuring when that behaviour changes — the hash gate says when.
-OPT_IN_CASES=(feature teach teach-delivery)
+# feature-adaptive: same Tag --api floor as feature, plus packet / peer-router / handoff.
+OPT_IN_CASES=(feature teach teach-delivery feature-adaptive)
 
 case_prompt() {
   case "$1" in
@@ -78,6 +79,7 @@ case_prompt() {
     feature)    echo "/make-feature Tag --api" ;;
     teach)      echo "/teach New tables use ULID primary keys, never auto-increment integers — sortable and non-enumerable" ;;
     teach-delivery) echo "/make-feature Donation --api" ;;
+    feature-adaptive) echo "/make-feature Tag --api --adaptive" ;;
   esac
 }
 
@@ -91,6 +93,7 @@ case_desc() {
     feature)    echo "scaffolds an API Tag feature across specialists — the only case that must delegate" ;;
     teach)      echo "records a taught rule in docs/team/conventions.md in the Rule/Why/Scope/Source contract" ;;
     teach-delivery) echo "delivers a feature that must OBEY two seeded taught rules where defaults differ, and harvest without being asked" ;;
+    feature-adaptive) echo "Adaptive Tag --api; packet + peer-router + handoff" ;;
   esac
 }
 
@@ -187,6 +190,20 @@ EOF
   feature test.
 - A correct-looking feature that ignores the ledger (float money or
   auto-increment ids) is a FAIL even if it works.
+EOF
+      ;;
+    feature-adaptive) cat <<'EOF'
+- A Tag API feature is scaffolded across the same layers as a normal
+  delivery: schema, model, HTTP entry, registered route, and a feature test,
+  via specialists rather than inline main-thread work.
+- Adaptive is on: a peer packet exists on disk under the delivery packets
+  path, with sender, recipient, summary, and owned paths filled in.
+- The packet was validated by the peer-router before any peer was spawned —
+  the coordinator did not skip the validator.
+- A handoff is visible on the board or the close file so a human can see
+  who was asked to take the packet.
+- The close file is still the helper-shaped close (verified / not-checked /
+  status), not a rewritten Adaptive-only format.
 EOF
       ;;
   esac
@@ -345,6 +362,78 @@ check_stage_return_files() { # ≥2 docs/delivery/*/stages/*.md, each with six l
     record 0 "file:   ≥2 stage-return files with six labels"
   else
     record 1 "file:   ≥2 stage-return files with six labels (found $n)"
+  fi
+}
+
+check_adaptive_handoff() { # handoff on $FULL_LOG or any docs/delivery/*/close.md
+  # Plan: grep -qiE 'handoff' "$LOG" || grep -qiE 'handoff' close.md.
+  # Use $FULL_LOG, not $LOG: run 7 finding 3 — $LOG is closing-summary-only
+  # and false-negatives an early board line. A killed Adaptive run can leave
+  # the word only on close.md BOARD:. Never grep the raw transcript.
+  if [ -n "${FULL_LOG:-}" ] && grep -qiE 'handoff' "$FULL_LOG"; then
+    record 0 "output: board or close carries a handoff line"
+    return
+  fi
+  local f
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    if grep -qiE 'handoff' "$f"; then
+      record 0 "output: board or close carries a handoff line"
+      return
+    fi
+  done < <(find "$WORK/docs/delivery" -type f -name 'close.md' 2>/dev/null)
+  record 1 "output: board or close carries a handoff line"
+}
+
+check_adaptive_peer_router() { # docs/delivery/*/stages/peer-router.md exists, registered, six labels
+  local n=0
+  local f label base
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    base="$(basename "$f" .md)"
+    if [ ! -f "$ROOT/agents/${base}.md" ]; then
+      record 1 "file:   peer-router stage file basename is not a registered agent type ($base)"
+      return
+    fi
+    n=$((n + 1))
+    for label in 'STATUS:' 'DID:' 'VERIFIED:' 'NOT-CHECKED:' 'FLAGS:' 'NEXT:'; do
+      if ! grep -q "$label" "$f"; then
+        record 1 "file:   peer-router stage return missing $label"
+        return
+      fi
+    done
+  done < <(find "$WORK/docs/delivery" -type f -path '*/stages/peer-router.md' 2>/dev/null)
+  if [ "$n" -ge 1 ]; then
+    record 0 "file:   peer-router.md stage return with six labels"
+  else
+    record 1 "file:   peer-router.md stage return with six labels (found $n)"
+  fi
+}
+
+check_adaptive_packet() { # ≥1 docs/delivery/*/packets/*-to-*.md with FROM:/TO:/SUMMARY:/PATHS:; TO is a registered agent
+  local n=0
+  local f label to_val to_base
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    n=$((n + 1))
+    for label in 'FROM:' 'TO:' 'SUMMARY:' 'PATHS:'; do
+      if ! grep -qE "^${label}" "$f"; then
+        record 1 "file:   adaptive packet missing $label ($(basename "$f"))"
+        return
+      fi
+    done
+    to_val="$(sed -n 's/^TO:[[:space:]]*//p' "$f" | head -1)"
+    to_base="${to_val%%[[:space:]]*}"
+    to_base="$(basename "$to_base" .md)"
+    if [ ! -f "$ROOT/agents/${to_base}.md" ]; then
+      record 1 "file:   adaptive packet TO is not a registered agent type ($to_base)"
+      return
+    fi
+  done < <(find "$WORK/docs/delivery" -type f -path '*/packets/*-to-*.md' 2>/dev/null)
+  if [ "$n" -ge 1 ]; then
+    record 0 "file:   adaptive packet under packets/ with FROM/TO/SUMMARY/PATHS"
+  else
+    record 1 "file:   adaptive packet under packets/ with FROM/TO/SUMMARY/PATHS (found $n)"
   fi
 }
 
@@ -529,6 +618,15 @@ checks_feature() {
   check_file_under "docs/delivery" "log.md" "harvest persisted the delivery log (routing-table artifact)"
   check_stage_return_files 
   check_delivery_close_file 
+}
+
+checks_feature_adaptive() {
+  checks_feature
+  check_adaptive_packet 
+  check_in_files '^FROM:' "docs/delivery" "packet has FROM:"
+  check_in_files '^TO:' "docs/delivery" "packet has TO:"
+  check_adaptive_handoff 
+  check_adaptive_peer_router 
 }
 
 checks_hygiene() {

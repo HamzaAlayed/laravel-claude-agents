@@ -72,17 +72,19 @@ fixture**, so agents under evaluation can't read the answer key.
 | `tests` | `/add-test PostController` | test files added, update route covered, authorization failure (403) probed |
 | `hygiene` | `/team-hygiene` | proposal table classifies the duplicate + conflict, names the stale `LegacyPayments` fact, and applies **nothing** (headless = no approval) |
 | `feature` **(opt-in)** | `/make-feature Tag --api` | a tags migration, `Tag` model, registered route and a feature test exist; **the board feed shows ≥2 distinct agents**; the printed board carries a `done when:` completion condition; the coordinator's closing answer carries `VERIFIED`/`NOT-CHECKED`, and it persisted `docs/team/stack.md` + a `docs/delivery/*/log.md` entry (harvest) |
+| `feature-adaptive` **(opt-in)** | `/make-feature Tag --api --adaptive` | same Tag --api floor as `feature`, plus an Adaptive packet on disk (`docs/delivery/*/packets/*-to-*.md` with FROM/TO/SUMMARY/PATHS), a registered `TO`, and a visible handoff on the board or close |
 
 A failing check is **signal, not necessarily a harness bug** — it becomes a
 line in the findings doc. Keep checks intent-level (did the flaw get found?)
 rather than wording-level, so phrasing changes don't flake.
 
-### The opt-in `feature` case
+### The opt-in `feature` and `feature-adaptive` cases
 
-`feature` is registered but **excluded from the default sweep** — run it by name:
+`feature` and `feature-adaptive` are registered but **excluded from the default sweep** — run them by name:
 
 ```sh
 ./tests/eval/run-evals.sh feature
+./tests/eval/run-evals.sh feature-adaptive
 ```
 
 It exists because nothing else in the suite proves delegation happened. `policy`

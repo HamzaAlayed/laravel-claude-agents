@@ -2,7 +2,7 @@
 
 Install the Guild on a Laravel app, ship one feature through the team, teach one rule, and read an eval scorecard. The five-minute path (install → first command → what you see) is the [README quickstart](../README.md#five-minute-quickstart).
 
-Last verified 2026-08-21 against pack v2.0.0.
+Last verified 2026-08-24 against pack v2.1.0.
 
 ## Prerequisites
 
@@ -93,7 +93,7 @@ These failed for real people (or real evals). Imagined first-week problems are n
 | Plugin installed, no `CLAUDE.md` | By design. | Copy `CLAUDE.md.template`, or use `install.sh`. |
 | `/console` parks on `echo hello` / `git status` | Every Bash call is forced through the browser. | Allow once, or Allow always for that exact command this run (`commands/console.md`). |
 | Tests written, never run; agent in a fresh worktree | `isolation: worktree` has no `vendor/`. Eval run 4 caught this. The pack forbids that flag. | Do not add `isolation: worktree` to an agent. |
-| Codex has no Adam / no `/make-feature` | Codex Core is the conventions skill + 4 guardrail hooks. The 17-agent team is Claude Code / Gemini. | Use Claude Code for the full team. |
+| Codex has no Adam / no `/make-feature` | Codex Core is the conventions skill + 4 guardrail hooks. The 18-agent team is Claude Code / Gemini. | Use Claude Code for the full team. |
 | Gemini has no `/console` or `/board` | Generator skips those two commands (`scripts/check_inventory_sync.py`, `GEMINI_SKIPPED_COMMANDS`). | Use Claude Code for the web console. |
 
 ## Next
