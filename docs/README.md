@@ -70,7 +70,7 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 
 | Item | Evidence |
 | --- | --- |
-| Guild v2 — 2.1.1 required hop | [design](plans/2026-08-24-guild-v2-adaptive-graph-design.md). In progress. `--adaptive` must hop once (coordinator fallback). VERSION stays 2.1.0 until billed PASS. |
+| Guild v2 — 2.1.1 required hop | [design](plans/2026-08-24-guild-v2-adaptive-graph-design.md). In progress. Interface requires `--adaptive` to hop at least once; coordinator files a fallback packet if writers do not. VERSION stays 2.1.0 until billed PASS. |
 | Guild v2 — 2.2.0 graph | [design](plans/2026-08-24-guild-v2-adaptive-graph-design.md); [roadmap](plans/2026-08-20-guild-v2-design.md). Waits until 2.1.1 is tagged. |
 
 ## How a new review should start
