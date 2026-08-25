@@ -385,6 +385,8 @@ expect "Interface block caps specialist spawns" "9" \
 # shellcheck disable=SC2016 # literal `--adaptive` backticks in the Interface needle
 expect "Interface block requires adaptive opt-in" "9" \
   "$(grep -l 'Without `--adaptive`, ignore' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block requires adaptive fallback hop" "9" \
+  "$(grep -l 'one fallback packet per run' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # Literature-gap tranche (docs/plans/2026-07-29-literature-gap-tranche.md), gate
 # cleared by eval run 5. Escalation fired on category only; NOT-CHECKED was
 # collected by every stage return and consumed by nothing. Nothing bounded a
@@ -423,6 +425,10 @@ expect "coordinator counts hops against the spawn cap" "1" \
   "$(grep -c 'hops count against the spawn cap' "$COORD")"
 expect "coordinator never spawns peer-router without --adaptive" "1" \
   "$(grep -c 'never spawn peer-router without --adaptive' "$COORD")"
+expect "coordinator names one fallback packet per run" "1" \
+  "$(grep -c 'one fallback packet per run' "$COORD")"
+expect "coordinator fallback TO is next queued specialist else tech-lead" "1" \
+  "$(grep -c 'next queued specialist else tech-lead' "$COORD")"
 CLOSE_COORD="$(sed -n '/^\*\*Close file\*\*/,/^\*\*Need-to-know briefs\*\*/p' "$COORD")"
 expect "coordinator close skeleton prefixes VERIFIED:" "1" \
   "$(printf '%s\n' "$CLOSE_COORD" | grep -c '^VERIFIED:')"
