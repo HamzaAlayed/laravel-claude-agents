@@ -461,6 +461,54 @@ check_delivery_close_file() { # ≥1 docs/delivery/*/close.md with VERIFIED:/NOT
   fi
 }
 
+check_delivery_graph_file() { # ≥1 docs/delivery/*/graph.md with NODES:/EDGES:/PARALLEL:/ON-FAIL:; NODES tokens registered; packet TO ∈ NODES
+  local n=0
+  local f label nodes_line token packet to_val to_base found
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    n=$((n + 1))
+    for label in 'NODES:' 'EDGES:' 'PARALLEL:' 'ON-FAIL:'; do
+      if ! grep -qE "^${label}" "$f"; then
+        record 1 "file:   graph file missing $label ($(basename "$(dirname "$f")")/graph.md)"
+        return
+      fi
+    done
+    nodes_line="$(sed -n 's/^NODES:[[:space:]]*//p' "$f" | head -1)"
+    while IFS= read -r token; do
+      token="$(printf '%s' "$token" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+      [ -z "$token" ] && continue
+      if [ ! -f "$ROOT/agents/${token}.md" ]; then
+        record 1 "file:   graph NODES token is not a registered agent type ($token)"
+        return
+      fi
+    done < <(printf '%s\n' "$nodes_line" | tr ',' '\n')
+    while IFS= read -r packet; do
+      [ -z "$packet" ] && continue
+      to_val="$(sed -n 's/^TO:[[:space:]]*//p' "$packet" | head -1)"
+      to_base="${to_val%%[[:space:]]*}"
+      to_base="$(basename "$to_base" .md)"
+      found=0
+      while IFS= read -r token; do
+        token="$(printf '%s' "$token" | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
+        [ -z "$token" ] && continue
+        if [ "$token" = "$to_base" ]; then
+          found=1
+          break
+        fi
+      done < <(printf '%s\n' "$nodes_line" | tr ',' '\n')
+      if [ "$found" -ne 1 ]; then
+        record 1 "file:   adaptive packet TO is not a NODES token ($to_base)"
+        return
+      fi
+    done < <(find "$WORK/docs/delivery" -type f -path '*/packets/*-to-*.md' 2>/dev/null)
+  done < <(find "$WORK/docs/delivery" -type f -name 'graph.md' 2>/dev/null)
+  if [ "$n" -ge 1 ]; then
+    record 0 "file:   delivery graph file with NODES/EDGES/PARALLEL/ON-FAIL"
+  else
+    record 1 "file:   delivery graph file with NODES/EDGES/PARALLEL/ON-FAIL (found $n)"
+  fi
+}
+
 check_in_files() { # check_in_files <regex> <relative-path> <description>
   grep -qriE "$1" "$WORK/$2" 2>/dev/null
   record $? "code:   $3"
@@ -618,6 +666,7 @@ checks_feature() {
   check_file_under "docs/delivery" "log.md" "harvest persisted the delivery log (routing-table artifact)"
   check_stage_return_files 
   check_delivery_close_file 
+  check_delivery_graph_file 
 }
 
 checks_feature_adaptive() {

@@ -760,6 +760,9 @@ expect "the opt-in case asserts stage-return files" "1" \
 expect "the opt-in case asserts the delivery close file" "1" \
   "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'check_delivery_close_file')"
+expect "the opt-in case asserts the delivery graph file" "1" \
+  "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'check_delivery_graph_file')"
 expect "the opt-in case does not enable check_subagent_log" "0" \
   "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE "^[[:space:]]*check_subagent_log ")"
@@ -781,6 +784,9 @@ expect "check_stage_return_files does not read the raw transcript" "0" \
      | grep -cE 'stream\.jsonl' || true)"
 expect "check_delivery_close_file does not read the raw transcript" "0" \
   "$(sed -n '/^check_delivery_close_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'stream\.jsonl' || true)"
+expect "check_delivery_graph_file does not read the raw transcript" "0" \
+  "$(sed -n '/^check_delivery_graph_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'stream\.jsonl' || true)"
 expect "check_adaptive_handoff does not read the raw transcript" "0" \
   "$(sed -n '/^check_adaptive_handoff()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
@@ -954,6 +960,102 @@ expect "close file accepts STATUS stopped" "0" \
     echo "$CHECK_FAIL"
   ')"
 rm -rf "$CLOSE_STOPPED_DIR"
+
+GRAPH_PASS_DIR="$(mktemp -d)"
+mkdir -p "$GRAPH_PASS_DIR/docs/delivery/tag"
+printf '%s\n' \
+  'NODES: backend-developer' \
+  'EDGES: none' \
+  'PARALLEL: none' \
+  'ON-FAIL: stop' \
+  >"$GRAPH_PASS_DIR/docs/delivery/tag/graph.md"
+expect "graph file accepts registered NODES and four labels" "0" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$GRAPH_PASS_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_graph_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_graph_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$GRAPH_PASS_DIR"
+
+GRAPH_MISS_DIR="$(mktemp -d)"
+mkdir -p "$GRAPH_MISS_DIR/docs/delivery/tag"
+expect "graph file FAILs when graph.md is missing" "1" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$GRAPH_MISS_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_graph_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_graph_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$GRAPH_MISS_DIR"
+
+GRAPH_UNREG_DIR="$(mktemp -d)"
+mkdir -p "$GRAPH_UNREG_DIR/docs/delivery/tag"
+printf '%s\n' \
+  'NODES: not-an-agent' \
+  'EDGES: none' \
+  'PARALLEL: none' \
+  'ON-FAIL: stop' \
+  >"$GRAPH_UNREG_DIR/docs/delivery/tag/graph.md"
+expect "graph file rejects unregistered NODES token" "1" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$GRAPH_UNREG_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_graph_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_graph_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$GRAPH_UNREG_DIR"
+
+GRAPH_TO_MISS_DIR="$(mktemp -d)"
+mkdir -p "$GRAPH_TO_MISS_DIR/docs/delivery/tag/packets"
+printf '%s\n' \
+  'NODES: backend-developer' \
+  'EDGES: none' \
+  'PARALLEL: none' \
+  'ON-FAIL: stop' \
+  >"$GRAPH_TO_MISS_DIR/docs/delivery/tag/graph.md"
+printf '%s\n' \
+  'FROM: backend-developer' \
+  'TO: qa-engineer' \
+  'SUMMARY: x' \
+  'PATHS: y' \
+  >"$GRAPH_TO_MISS_DIR/docs/delivery/tag/packets/backend-developer-to-qa-engineer.md"
+expect "graph file rejects packet TO missing from NODES" "1" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$GRAPH_TO_MISS_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_graph_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_graph_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$GRAPH_TO_MISS_DIR"
+
+GRAPH_TO_PASS_DIR="$(mktemp -d)"
+mkdir -p "$GRAPH_TO_PASS_DIR/docs/delivery/tag/packets"
+printf '%s\n' \
+  'NODES: backend-developer, qa-engineer' \
+  'EDGES: none' \
+  'PARALLEL: none' \
+  'ON-FAIL: stop' \
+  >"$GRAPH_TO_PASS_DIR/docs/delivery/tag/graph.md"
+printf '%s\n' \
+  'FROM: backend-developer' \
+  'TO: qa-engineer' \
+  'SUMMARY: x' \
+  'PATHS: y' \
+  >"$GRAPH_TO_PASS_DIR/docs/delivery/tag/packets/backend-developer-to-qa-engineer.md"
+expect "graph file accepts packet TO that is a NODES token" "0" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$GRAPH_TO_PASS_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_graph_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_graph_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$GRAPH_TO_PASS_DIR"
 
 HANDOFF_CLOSE_DIR="$(mktemp -d)"
 HANDOFF_CLOSE_LOG="$(mktemp)"
