@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+Every delivery Writes `graph.md` after the plan, before the first
+Agent. Coordinator must not spawn a type that is not a `NODES:`
+entry. An `--adaptive` hop `TO:` must be a node. Default
+`/make-feature` stays Supervisor. The contract is in the prompts and
+eval helper; the billed pin is not yet run.
+
+### Added
+
+- **Default `graph.md`** at `docs/delivery/<name>/graph.md`. After
+  the plan, before the first Agent, the coordinator copies
+  `skills/delivery-templates/graph.md` and fills `NODES:` / `EDGES:`
+  / `PARALLEL:` / `ON-FAIL:`. Nodes are registered agent types.
+
+### Changed
+
+- **Coordinator must not spawn off-graph.** A type that is not a
+  `NODES:` entry is not Agent-spawned. An `--adaptive` hop `TO:`
+  must be a node; fallback `TO:` is the next queued node. Default
+  `/make-feature` stays Supervisor (2.0 Interface).
+
 ## [2.1.1] - 2026-08-26
 
 `--adaptive` hops at least once. If writers do not file a packet, the

@@ -71,7 +71,7 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 
 | Item | Evidence |
 | --- | --- |
-| Guild v2 — 2.2.0 graph | [design](plans/2026-08-24-guild-v2-adaptive-graph-design.md); [roadmap](plans/2026-08-20-guild-v2-design.md). 2.2 still waits. |
+| Guild v2 — 2.2.0 graph | [design](plans/2026-08-24-guild-v2-adaptive-graph-design.md); [plan](plans/2026-08-24-guild-v2-adaptive-graph.md). In flight. Billed pin not yet. |
 
 ## How a new review should start
 
