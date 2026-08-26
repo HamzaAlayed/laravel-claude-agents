@@ -56,11 +56,11 @@
     },
     "feature-adaptive": {
       "max_seconds": 1900,
-      "basis": "run 18 (2026-08-23, docs/evals/2026-08-23-run-18.md): TIMED OUT 1204s; Adaptive packet/peer-router/handoff FAIL. Ceiling stays 1900s; EVAL_TIMEOUT stays 1200s",
+      "basis": "run 19 (2026-08-26, docs/evals/2026-08-26-run-19.md): TIMED OUT 1203s; Adaptive packet/peer-router/handoff/close PASS (writer-filed). Ceiling stays 1900s; EVAL_TIMEOUT stays 1200s",
       "max_tokens": 14500000,
-      "tokens_basis": "run 18: 14,300,360 attributed — near the 14.5M ceiling; do not raise",
+      "tokens_basis": "run 19: 8,494,454 attributed — within 14.5M; do not raise",
       "max_usd": 8.5,
-      "usd_basis": "run 18: billed.usd null (timeout); attributed $10.87 REGRESSED vs $8.50 — do not raise. Same Tag --api floor as feature"
+      "usd_basis": "run 19: billed.usd null (timeout); attributed $6.33 within $8.50 — do not raise. Same Tag --api floor as feature"
     },
     "teach": {
       "max_seconds": 40,
@@ -80,9 +80,9 @@
     }
   },
   "coordinator_hash": {
-    "sha256": "e90994a23d464162fad73e03ef5c4bf73f3ab76788fbfe230c5de8a168704256",
-    "as_of": "2026-08-23",
-    "note": "Verified by billed feature-adaptive run 18 (2026-08-23, docs/evals/2026-08-23-run-18.md): TIMED OUT 1204s, billed.usd null, attributed $10.87 / 14.3M tokens. Score 12/17 FAIL — Adaptive packet, peer-router.md, and handoff missed; check_delivery_close_file PASS. Harvest and Tag artifacts PASS. VERSION stays 2.0.0; do not ship 2.1.0.",
+    "sha256": "e4c54674a0cd3c9499d96529f718366892b4d0cfc1915c47723a63f9deb43606",
+    "as_of": "2026-08-26",
+    "note": "Verified by billed feature-adaptive run 19 (2026-08-26, docs/evals/2026-08-26-run-19.md): TIMED OUT 1203s, billed.usd null, attributed $6.33 / 8.5M tokens. Score 16/17 — Adaptive packet, peer-router.md, handoff, and close PASS (writer-filed; coordinator fallback not needed). Feature test miss (qa-engineer not spawned). VERSION 2.1.1.",
     "waivers": []
   }
 }

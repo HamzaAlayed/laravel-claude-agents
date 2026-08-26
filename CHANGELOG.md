@@ -7,9 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-08-26
+
 `--adaptive` hops at least once. If writers do not file a packet, the
 coordinator Writes one fallback. Default `/make-feature` stays
-Supervisor.
+Supervisor. The billed `feature-adaptive` run (run 19) timed out at
+1203s; Adaptive packet, `peer-router.md`, handoff, and close PASS.
 
 ### Changed
 

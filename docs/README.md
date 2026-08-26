@@ -4,7 +4,7 @@ This page maps the `docs/` corpus so the next review — human or agent — star
 
 Adopting the pack on a Laravel app? [Run your first delivery](onboarding.md). Seeing it work in five minutes? The [README quickstart](../README.md#five-minute-quickstart).
 
-Last verified 2026-08-24 against pack v2.1.0.
+Last verified 2026-08-26 against pack v2.1.1.
 
 ## What lives where
 
@@ -65,13 +65,13 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 | Per-stage specialist returns on disk (v1.45.0) | [design](plans/2026-08-19-l3-stage-returns-design.md); [plan](plans/2026-08-19-l3-stage-returns.md); [run 11](evals/2026-08-20-run-11.md) — `check_stage_return_files` PASS. Do not uncomment `check_subagent_log`. |
 | Guild v2 — Supervisor complete (2.0.0) | [design / roadmap](plans/2026-08-20-guild-v2-design.md); [run 17](evals/2026-08-21-run-17.md) — `check_delivery_close_file` PASS (timeout 1203s, harvest still FAIL). Close file, joins, spawn cap, need-to-know briefs. |
 | Guild v2 — 2.1 Adaptive (2.1.0) | [design](plans/2026-08-23-guild-v2-adaptive-design.md); [plan](plans/2026-08-23-guild-v2-adaptive.md); [run 18](evals/2026-08-23-run-18.md) — billed Adaptive packet, peer-router.md, and handoff FAIL; close file PASS. Opt-in `--adaptive` ships. |
+| Guild v2 — 2.1.1 required hop (2.1.1) | [design](plans/2026-08-24-guild-v2-adaptive-graph-design.md); [plan](plans/2026-08-24-guild-v2-adaptive-graph.md); [run 19](evals/2026-08-26-run-19.md) — billed Adaptive packet, peer-router.md, handoff, and close PASS. Writer-filed hop. Harvest PASS. Feature test miss (timeout). |
 
 ## Open
 
 | Item | Evidence |
 | --- | --- |
-| Guild v2 — 2.1.1 required hop | [design](plans/2026-08-24-guild-v2-adaptive-graph-design.md). In progress. Interface requires `--adaptive` to hop at least once; coordinator files a fallback packet if writers do not. VERSION stays 2.1.0 until billed PASS. |
-| Guild v2 — 2.2.0 graph | [design](plans/2026-08-24-guild-v2-adaptive-graph-design.md); [roadmap](plans/2026-08-20-guild-v2-design.md). Waits until 2.1.1 is tagged. |
+| Guild v2 — 2.2.0 graph | [design](plans/2026-08-24-guild-v2-adaptive-graph-design.md); [roadmap](plans/2026-08-20-guild-v2-design.md). 2.2 still waits. |
 
 ## How a new review should start
 
