@@ -387,6 +387,8 @@ expect "Interface block requires adaptive opt-in" "9" \
   "$(grep -l 'Without `--adaptive`, ignore' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block requires adaptive fallback hop" "9" \
   "$(grep -l 'one fallback packet per run' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block requires delivery graph.md" "9" \
+  "$(grep -l 'do not spawn a type that is not a NODES:' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # Literature-gap tranche (docs/plans/2026-07-29-literature-gap-tranche.md), gate
 # cleared by eval run 5. Escalation fired on category only; NOT-CHECKED was
 # collected by every stage return and consumed by nothing. Nothing bounded a
@@ -429,6 +431,12 @@ expect "coordinator names one fallback packet per run" "1" \
   "$(grep -c 'one fallback packet per run' "$COORD")"
 expect "coordinator fallback TO is next queued specialist else tech-lead" "1" \
   "$(grep -c 'next queued specialist else tech-lead' "$COORD")"
+expect "coordinator Writes graph.md after the plan" "1" \
+  "$(grep -c 'docs/delivery/<name>/graph.md' "$COORD")"
+expect "coordinator never spawns off-graph" "1" \
+  "$(grep -c 'do not spawn a type that is not a NODES:' "$COORD")"
+expect "coordinator Adaptive hop TO must be a node" "1" \
+  "$(grep -c 'an Adaptive hop TO: must be a node' "$COORD")"
 CLOSE_COORD="$(sed -n '/^\*\*Close file\*\*/,/^\*\*Need-to-know briefs\*\*/p' "$COORD")"
 expect "coordinator close skeleton prefixes VERIFIED:" "1" \
   "$(printf '%s\n' "$CLOSE_COORD" | grep -c '^VERIFIED:')"
@@ -835,6 +843,15 @@ expect "packet stub prefixes PATHS:" "1" \
   "$(grep -c '^PATHS:' "$PACKET" 2>/dev/null || echo 0)"
 expect "packet stub prefixes STAGE:" "1" \
   "$(grep -c 'STAGE:' "$PACKET" 2>/dev/null || echo 0)"
+GRAPH="$SCRIPT_DIR/skills/delivery-templates/graph.md"
+expect "graph stub prefixes NODES:" "1" \
+  "$(grep -c '^NODES:' "$GRAPH" 2>/dev/null || echo 0)"
+expect "graph stub prefixes EDGES:" "1" \
+  "$(grep -c '^EDGES:' "$GRAPH" 2>/dev/null || echo 0)"
+expect "graph stub prefixes PARALLEL:" "1" \
+  "$(grep -c '^PARALLEL:' "$GRAPH" 2>/dev/null || echo 0)"
+expect "graph stub prefixes ON-FAIL:" "1" \
+  "$(grep -c '^ON-FAIL:' "$GRAPH" 2>/dev/null || echo 0)"
 expect "stage-return stub file prefixes STATUS:" "1" \
   "$(sed -n '1p' "$STAGE_STUB" 2>/dev/null | grep -c '^STATUS:')"
 expect "stage-return stub file prefixes DID:" "1" \
