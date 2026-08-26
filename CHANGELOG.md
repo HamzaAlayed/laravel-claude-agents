@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.1.1] - 2026-08-26
+
+`--adaptive` hops at least once. If writers do not file a packet, the
+coordinator Writes one fallback. Default `/make-feature` stays
+Supervisor. The billed `feature-adaptive` run (run 19) timed out at
+1203s; Adaptive packet, `peer-router.md`, handoff, and close PASS.
+
+### Changed
+
+- **`--adaptive` hops at least once.** A writer may still Write a
+  no-re-ask packet. If writers do not, the coordinator Writes one
+  fallback packet (`FROM:` that writer, `TO:` the next queued
+  specialist who has not returned, else `tech-lead`) — one fallback
+  per run. `peer-router` validates; the coordinator Agent-spawns that
+  peer, prints a handoff line, and counts the hop against the spawn
+  cap. Specialists never Agent a peer. Default `/make-feature` stays
+  Supervisor (2.0 Interface).
+
 ## [2.1.0] - 2026-08-24
 
 Opt-in `--adaptive` on the nine pipeline commands. Default
