@@ -127,6 +127,17 @@ SUMMARY: <investigation, employee/task ids masked>
 PATHS: <owned paths> · STAGE: docs/delivery/<name>/stages/<peer>.md
 ```
 
+## Graph — `docs/delivery/<feature>/graph.md` (coordinator writes; after the plan)
+
+After the plan, before the first Agent. Coordinator copies `graph.md` in this skill directory and fills after the colons.
+
+```markdown
+NODES: <registered agent types, comma-separated>
+EDGES: <from -> to, comma-separated>
+PARALLEL: none
+ON-FAIL: stop
+```
+
 ## Hygiene proposal — `/team-hygiene` output (scrum-master)
 
 Exceptions only, never an inventory; nothing applies without an approved row number.
