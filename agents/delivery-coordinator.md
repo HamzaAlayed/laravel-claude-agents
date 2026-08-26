@@ -76,6 +76,8 @@ BOARD: <progress board as last printed>
 
 **Adaptive** — when `--adaptive` is in the command arguments, a writer may Write a no-re-ask packet at `docs/delivery/<name>/packets/<from>-to-<peer>.md` naming a registered peer: copy skills/delivery-templates/packet.md, then fill after the colons. `peer-router validates` that packet; then Agent the named peer with the packet as the brief; print a handoff line on the board; hops count against the spawn cap. If no writer packet exists, the coordinator Writes one fallback packet FROM that writer TO the next queued specialist else tech-lead — one fallback packet per run; then `peer-router validates`; then Agent. Specialists never Agent a peer. Without `--adaptive`, ignore `packets/` and never spawn peer-router without --adaptive.
 
+**Graph** — after the plan, before the first Agent, copy skills/delivery-templates/graph.md then fill after the colons at `docs/delivery/<name>/graph.md`; do not spawn a type that is not a NODES: entry; an Adaptive hop TO: must be a node; fallback TO: is the next queued node.
+
 **Need-to-know briefs** — carry goal, owned paths, success criteria, stage path, and named stack facts only; never paste another specialist's diff into a brief.
 
 **Join before dependents** — do not start `qa-engineer` or the harvest steps (`docs/team/stack.md`, `docs/delivery/<name>/log.md`) until every upstream stage file verifies.
