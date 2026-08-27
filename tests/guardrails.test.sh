@@ -387,6 +387,10 @@ expect "Interface block requires adaptive opt-in" "9" \
   "$(grep -l 'Without `--adaptive`, ignore' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block requires adaptive fallback hop" "9" \
   "$(grep -l 'one fallback packet per run' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block requires delivery graph.md" "9" \
+  "$(grep -l 'do not spawn a type that is not a NODES:' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block requires graph stub byte copy" "9" \
+  "$(grep -l 'byte copy of skills/delivery-templates/graph.md' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # Literature-gap tranche (docs/plans/2026-07-29-literature-gap-tranche.md), gate
 # cleared by eval run 5. Escalation fired on category only; NOT-CHECKED was
 # collected by every stage return and consumed by nothing. Nothing bounded a
@@ -429,6 +433,14 @@ expect "coordinator names one fallback packet per run" "1" \
   "$(grep -c 'one fallback packet per run' "$COORD")"
 expect "coordinator fallback TO is next queued specialist else tech-lead" "1" \
   "$(grep -c 'next queued specialist else tech-lead' "$COORD")"
+expect "coordinator Writes graph.md after the plan" "1" \
+  "$(grep -c 'docs/delivery/<name>/graph.md' "$COORD")"
+expect "coordinator never spawns off-graph" "1" \
+  "$(grep -c 'do not spawn a type that is not a NODES:' "$COORD")"
+expect "coordinator Adaptive hop TO must be a node" "1" \
+  "$(grep -c 'an Adaptive hop TO: must be a node' "$COORD")"
+expect "coordinator graph.md first Write is a byte copy" "1" \
+  "$(grep -c 'byte copy of skills/delivery-templates/graph.md' "$COORD")"
 CLOSE_COORD="$(sed -n '/^\*\*Close file\*\*/,/^\*\*Need-to-know briefs\*\*/p' "$COORD")"
 expect "coordinator close skeleton prefixes VERIFIED:" "1" \
   "$(printf '%s\n' "$CLOSE_COORD" | grep -c '^VERIFIED:')"
@@ -752,6 +764,9 @@ expect "the opt-in case asserts stage-return files" "1" \
 expect "the opt-in case asserts the delivery close file" "1" \
   "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'check_delivery_close_file')"
+expect "the opt-in case asserts the delivery graph file" "1" \
+  "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'check_delivery_graph_file')"
 expect "the opt-in case does not enable check_subagent_log" "0" \
   "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE "^[[:space:]]*check_subagent_log ")"
@@ -773,6 +788,9 @@ expect "check_stage_return_files does not read the raw transcript" "0" \
      | grep -cE 'stream\.jsonl' || true)"
 expect "check_delivery_close_file does not read the raw transcript" "0" \
   "$(sed -n '/^check_delivery_close_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'stream\.jsonl' || true)"
+expect "check_delivery_graph_file does not read the raw transcript" "0" \
+  "$(sed -n '/^check_delivery_graph_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'stream\.jsonl' || true)"
 expect "check_adaptive_handoff does not read the raw transcript" "0" \
   "$(sed -n '/^check_adaptive_handoff()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
@@ -835,6 +853,15 @@ expect "packet stub prefixes PATHS:" "1" \
   "$(grep -c '^PATHS:' "$PACKET" 2>/dev/null || echo 0)"
 expect "packet stub prefixes STAGE:" "1" \
   "$(grep -c 'STAGE:' "$PACKET" 2>/dev/null || echo 0)"
+GRAPH="$SCRIPT_DIR/skills/delivery-templates/graph.md"
+expect "graph stub prefixes NODES:" "1" \
+  "$(grep -c '^NODES:' "$GRAPH" 2>/dev/null || echo 0)"
+expect "graph stub prefixes EDGES:" "1" \
+  "$(grep -c '^EDGES:' "$GRAPH" 2>/dev/null || echo 0)"
+expect "graph stub prefixes PARALLEL:" "1" \
+  "$(grep -c '^PARALLEL:' "$GRAPH" 2>/dev/null || echo 0)"
+expect "graph stub prefixes ON-FAIL:" "1" \
+  "$(grep -c '^ON-FAIL:' "$GRAPH" 2>/dev/null || echo 0)"
 expect "stage-return stub file prefixes STATUS:" "1" \
   "$(sed -n '1p' "$STAGE_STUB" 2>/dev/null | grep -c '^STATUS:')"
 expect "stage-return stub file prefixes DID:" "1" \
@@ -937,6 +964,102 @@ expect "close file accepts STATUS stopped" "0" \
     echo "$CHECK_FAIL"
   ')"
 rm -rf "$CLOSE_STOPPED_DIR"
+
+GRAPH_PASS_DIR="$(mktemp -d)"
+mkdir -p "$GRAPH_PASS_DIR/docs/delivery/tag"
+printf '%s\n' \
+  'NODES: backend-developer' \
+  'EDGES: none' \
+  'PARALLEL: none' \
+  'ON-FAIL: stop' \
+  >"$GRAPH_PASS_DIR/docs/delivery/tag/graph.md"
+expect "graph file accepts registered NODES and four labels" "0" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$GRAPH_PASS_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_graph_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_graph_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$GRAPH_PASS_DIR"
+
+GRAPH_MISS_DIR="$(mktemp -d)"
+mkdir -p "$GRAPH_MISS_DIR/docs/delivery/tag"
+expect "graph file FAILs when graph.md is missing" "1" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$GRAPH_MISS_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_graph_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_graph_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$GRAPH_MISS_DIR"
+
+GRAPH_UNREG_DIR="$(mktemp -d)"
+mkdir -p "$GRAPH_UNREG_DIR/docs/delivery/tag"
+printf '%s\n' \
+  'NODES: not-an-agent' \
+  'EDGES: none' \
+  'PARALLEL: none' \
+  'ON-FAIL: stop' \
+  >"$GRAPH_UNREG_DIR/docs/delivery/tag/graph.md"
+expect "graph file rejects unregistered NODES token" "1" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$GRAPH_UNREG_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_graph_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_graph_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$GRAPH_UNREG_DIR"
+
+GRAPH_TO_MISS_DIR="$(mktemp -d)"
+mkdir -p "$GRAPH_TO_MISS_DIR/docs/delivery/tag/packets"
+printf '%s\n' \
+  'NODES: backend-developer' \
+  'EDGES: none' \
+  'PARALLEL: none' \
+  'ON-FAIL: stop' \
+  >"$GRAPH_TO_MISS_DIR/docs/delivery/tag/graph.md"
+printf '%s\n' \
+  'FROM: backend-developer' \
+  'TO: qa-engineer' \
+  'SUMMARY: x' \
+  'PATHS: y' \
+  >"$GRAPH_TO_MISS_DIR/docs/delivery/tag/packets/backend-developer-to-qa-engineer.md"
+expect "graph file rejects packet TO missing from NODES" "1" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$GRAPH_TO_MISS_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_graph_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_graph_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$GRAPH_TO_MISS_DIR"
+
+GRAPH_TO_PASS_DIR="$(mktemp -d)"
+mkdir -p "$GRAPH_TO_PASS_DIR/docs/delivery/tag/packets"
+printf '%s\n' \
+  'NODES: backend-developer, qa-engineer' \
+  'EDGES: none' \
+  'PARALLEL: none' \
+  'ON-FAIL: stop' \
+  >"$GRAPH_TO_PASS_DIR/docs/delivery/tag/graph.md"
+printf '%s\n' \
+  'FROM: backend-developer' \
+  'TO: qa-engineer' \
+  'SUMMARY: x' \
+  'PATHS: y' \
+  >"$GRAPH_TO_PASS_DIR/docs/delivery/tag/packets/backend-developer-to-qa-engineer.md"
+expect "graph file accepts packet TO that is a NODES token" "0" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$GRAPH_TO_PASS_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_graph_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_graph_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$GRAPH_TO_PASS_DIR"
 
 HANDOFF_CLOSE_DIR="$(mktemp -d)"
 HANDOFF_CLOSE_LOG="$(mktemp)"
