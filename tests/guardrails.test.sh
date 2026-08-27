@@ -389,6 +389,8 @@ expect "Interface block requires adaptive fallback hop" "9" \
   "$(grep -l 'one fallback packet per run' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block requires delivery graph.md" "9" \
   "$(grep -l 'do not spawn a type that is not a NODES:' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block requires graph stub byte copy" "9" \
+  "$(grep -l 'byte copy of skills/delivery-templates/graph.md' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # Literature-gap tranche (docs/plans/2026-07-29-literature-gap-tranche.md), gate
 # cleared by eval run 5. Escalation fired on category only; NOT-CHECKED was
 # collected by every stage return and consumed by nothing. Nothing bounded a
@@ -437,6 +439,8 @@ expect "coordinator never spawns off-graph" "1" \
   "$(grep -c 'do not spawn a type that is not a NODES:' "$COORD")"
 expect "coordinator Adaptive hop TO must be a node" "1" \
   "$(grep -c 'an Adaptive hop TO: must be a node' "$COORD")"
+expect "coordinator graph.md first Write is a byte copy" "1" \
+  "$(grep -c 'byte copy of skills/delivery-templates/graph.md' "$COORD")"
 CLOSE_COORD="$(sed -n '/^\*\*Close file\*\*/,/^\*\*Need-to-know briefs\*\*/p' "$COORD")"
 expect "coordinator close skeleton prefixes VERIFIED:" "1" \
   "$(printf '%s\n' "$CLOSE_COORD" | grep -c '^VERIFIED:')"
