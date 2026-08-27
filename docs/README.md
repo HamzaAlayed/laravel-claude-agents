@@ -71,7 +71,7 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 
 | Item | Evidence |
 | --- | --- |
-| Guild v2 — 2.2.0 graph | [design](plans/2026-08-24-guild-v2-adaptive-graph-design.md); [plan](plans/2026-08-24-guild-v2-adaptive-graph.md). In flight. Billed pin not yet. |
+| Guild v2 — 2.2.0 graph | [design](plans/2026-08-24-guild-v2-adaptive-graph-design.md); [plan](plans/2026-08-24-guild-v2-adaptive-graph.md); [run 20](evals/2026-08-27-run-20.md) — default `feature` graph FAIL (missing `PARALLEL:`), close PASS. Adaptive graph labels PASS; hop persist/handoff FAIL. VERSION stays 2.1.1. |
 
 ## How a new review should start
 

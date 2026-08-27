@@ -80,9 +80,9 @@
     }
   },
   "coordinator_hash": {
-    "sha256": "e4c54674a0cd3c9499d96529f718366892b4d0cfc1915c47723a63f9deb43606",
-    "as_of": "2026-08-26",
-    "note": "Verified by billed feature-adaptive run 19 (2026-08-26, docs/evals/2026-08-26-run-19.md): TIMED OUT 1203s, billed.usd null, attributed $6.33 / 8.5M tokens. Score 16/17 — Adaptive packet, peer-router.md, handoff, and close PASS (writer-filed; coordinator fallback not needed). Feature test miss (qa-engineer not spawned). VERSION 2.1.1.",
+    "sha256": "70769b13d9a54ed83bf7667ab011421ca21fa37dd893bc9f40b6faa8d5f53c24",
+    "as_of": "2026-08-27",
+    "note": "Verified by billed feature + feature-adaptive run 20 (2026-08-27, docs/evals/2026-08-27-run-20.md): both TIMED OUT 1203s. Default feature graph FAIL (missing PARALLEL:), close PASS, billed $6.93 within $8.50, attributed 17.2M tokens REGRESSED vs 14.5M. Adaptive graph labels PASS, packet TO is a node, close PASS; peer-router.md found 0, handoff FAIL. VERSION stays 2.1.1. Do not raise ceilings.",
     "waivers": []
   }
 }

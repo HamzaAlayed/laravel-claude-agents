@@ -10,8 +10,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 Every delivery Writes `graph.md` after the plan, before the first
 Agent. Coordinator must not spawn a type that is not a `NODES:`
 entry. An `--adaptive` hop `TO:` must be a node. Default
-`/make-feature` stays Supervisor. The contract is in the prompts and
-eval helper; the billed pin is not yet run.
+`/make-feature` stays Supervisor. The billed pin (run 20) timed out
+at 1203s on both cases; default `feature` close PASS, graph FAIL
+(missing `PARALLEL:`). VERSION stays 2.1.1.
 
 ### Added
 
