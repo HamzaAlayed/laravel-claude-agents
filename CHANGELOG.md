@@ -7,19 +7,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.0] - 2026-08-27
+
 Every delivery Writes `graph.md` after the plan, before the first
 Agent. Coordinator must not spawn a type that is not a `NODES:`
 entry. An `--adaptive` hop `TO:` must be a node. Default
-`/make-feature` stays Supervisor. The billed pin (run 20) timed out
-at 1203s on both cases; default `feature` close PASS, graph FAIL
-(missing `PARALLEL:`). VERSION stays 2.1.1.
+`/make-feature` stays Supervisor. The billed `feature` run (run 21)
+timed out at 1203s; graph labels, registered nodes, and close PASS
+(13/13).
 
 ### Added
 
 - **Default `graph.md`** at `docs/delivery/<name>/graph.md`. After
-  the plan, before the first Agent, the coordinator copies
-  `skills/delivery-templates/graph.md` and fills `NODES:` / `EDGES:`
-  / `PARALLEL:` / `ON-FAIL:`. Nodes are registered agent types.
+  the plan, before the first Agent, the first Write is a byte copy
+  of `skills/delivery-templates/graph.md`, then Edit only after the
+  colons (`NODES:` / `EDGES:` / `PARALLEL:` / `ON-FAIL:`). Nodes are
+  registered agent types.
 
 ### Changed
 
