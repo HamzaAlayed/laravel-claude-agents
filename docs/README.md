@@ -67,12 +67,13 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 | Guild v2 — 2.1 Adaptive (2.1.0) | [design](plans/2026-08-23-guild-v2-adaptive-design.md); [plan](plans/2026-08-23-guild-v2-adaptive.md); [run 18](evals/2026-08-23-run-18.md) — billed Adaptive packet, peer-router.md, and handoff FAIL; close file PASS. Opt-in `--adaptive` ships. |
 | Guild v2 — 2.1.1 required hop (2.1.1) | [design](plans/2026-08-24-guild-v2-adaptive-graph-design.md); [plan](plans/2026-08-24-guild-v2-adaptive-graph.md); [run 19](evals/2026-08-26-run-19.md) — billed Adaptive packet, peer-router.md, handoff, and close PASS. Writer-filed hop. Harvest PASS. Feature test miss (timeout). |
 | Guild v2 — 2.2.0 graph | [design](plans/2026-08-24-guild-v2-adaptive-graph-design.md); [plan](plans/2026-08-24-guild-v2-adaptive-graph.md); [run 21](evals/2026-08-27-run-21.md) — billed default `feature` graph labels + close PASS (13/13, timeout 1203s). Run 20 missed `PARALLEL:` on a prose graph. |
+| Guild v2 — 2.2.1 Adaptive hop persist | [design](plans/2026-08-31-guild-v2-adaptive-persist-design.md); [plan](plans/2026-08-31-guild-v2-adaptive-persist.md) — persist `peer-router.md` + `handoff:`; packet exists (writer or fallback). Billed gate not yet run. |
 
 ## Open
 
 | Item | Evidence |
 | --- | --- |
-| — | No open Guild v2 slice. |
+| Adaptive hop persist (run 20 miss) | [run 20](evals/2026-08-27-run-20.md) — `stages/peer-router.md` found 0; no `handoff` on `$FULL_LOG` or close. FLAG: `peer-router` said “writer has named.” Copy landed; billed `feature-adaptive` not yet run. |
 
 ## How a new review should start
 

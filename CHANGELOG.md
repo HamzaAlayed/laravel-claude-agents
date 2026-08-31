@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+`--adaptive` persists `stages/peer-router.md` after the router returns and
+prints `handoff: <from> → <to>`. Spawn `peer-router` when a packet exists
+(writer or coordinator fallback), not only when a writer has named one.
+Default `/make-feature` stays Supervisor.
+
+### Changed
+
+- **Adaptive hop persist.** After `peer-router` returns, the coordinator
+  Writes `docs/delivery/<name>/stages/peer-router.md`, then prints
+  `handoff:`. On `valid`, Agent the `TO:`.
+- **`peer-router` FLAG.** Spawn when `--adaptive` is on and a packet
+  exists (writer or fallback). Still read-only. Never Agent a peer.
+
 ## [2.2.0] - 2026-08-27
 
 Every delivery Writes `graph.md` after the plan, before the first
