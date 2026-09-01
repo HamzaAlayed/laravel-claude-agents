@@ -80,9 +80,9 @@
     }
   },
   "coordinator_hash": {
-    "sha256": "029de20983a52e63bd4d87e0ec8e3a07e7be7b02ed7c7283c0e460042721c148",
-    "as_of": "2026-08-27",
-    "note": "Verified by billed feature run 21 (2026-08-27, docs/evals/2026-08-27-run-21.md): TIMED OUT 1203s, billed.usd null, attributed $13.20 / 15.8M tokens REGRESSED vs 14.5M. Score 13/13 — graph labels, registered nodes, and close PASS. VERSION 2.2.0. Do not raise ceilings.",
+    "sha256": "162bef022577e309611910ff17301072eb01555b9c34cb09f4b000ad054be0b6",
+    "as_of": "2026-09-01",
+    "note": "Verified by billed feature-adaptive run 22 (2026-09-01, docs/evals/2026-09-01-run-22.md): TIMED OUT 1203s, billed $5.44, attributed 10.2M tokens within 14.5M. Score 16/18 — packet, peer-router.md, handoff, and close PASS. VERSION 2.2.1. Do not raise ceilings.",
     "waivers": []
   }
 }

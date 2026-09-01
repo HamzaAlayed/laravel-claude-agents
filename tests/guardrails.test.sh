@@ -391,6 +391,10 @@ expect "Interface block requires delivery graph.md" "9" \
   "$(grep -l 'do not spawn a type that is not a NODES:' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block requires graph stub byte copy" "9" \
   "$(grep -l 'byte copy of skills/delivery-templates/graph.md' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block requires peer-router stage persist" "9" \
+  "$(grep -l 'stages/peer-router.md' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block requires handoff colon line" "9" \
+  "$(grep -l 'handoff:' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # Literature-gap tranche (docs/plans/2026-07-29-literature-gap-tranche.md), gate
 # cleared by eval run 5. Escalation fired on category only; NOT-CHECKED was
 # collected by every stage return and consumed by nothing. Nothing bounded a
@@ -401,6 +405,10 @@ expect "thirteen writer agents require a last-Write stage file" "13" \
   "$(grep -l 'as your last Write' "$SCRIPT_DIR"/agents/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "four read-only agents defer the stage file to the coordinator" "4" \
   "$(grep -l 'coordinator persists your stage file' "$SCRIPT_DIR"/agents/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "peer-router does not require a writer-named packet" "0" \
+  "$(grep -c 'writer has named' "$SCRIPT_DIR/agents/peer-router.md")"
+expect "peer-router spawns when a packet exists" "2" \
+  "$(grep -c 'a packet exists' "$SCRIPT_DIR/agents/peer-router.md")"
 expect "coordinator never writes a writer stage file" "1" \
   "$(grep -c 'never write a writer' "$COORD")"
 expect "coordinator Reads the stage file before a checkmark" "1" \
@@ -439,6 +447,12 @@ expect "coordinator never spawns off-graph" "1" \
   "$(grep -c 'do not spawn a type that is not a NODES:' "$COORD")"
 expect "coordinator Adaptive hop TO must be a node" "1" \
   "$(grep -c 'an Adaptive hop TO: must be a node' "$COORD")"
+expect "coordinator persists peer-router.md after router return" "1" \
+  "$(grep -c 'stages/peer-router.md' "$COORD")"
+expect "coordinator prints handoff colon line" "1" \
+  "$(grep -c 'handoff:' "$COORD")"
+expect "coordinator spawns peer-router when a packet exists" "1" \
+  "$(grep -c 'when a packet exists' "$COORD")"
 expect "coordinator graph.md first Write is a byte copy" "1" \
   "$(grep -c 'byte copy of skills/delivery-templates/graph.md' "$COORD")"
 CLOSE_COORD="$(sed -n '/^\*\*Close file\*\*/,/^\*\*Need-to-know briefs\*\*/p' "$COORD")"
