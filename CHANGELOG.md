@@ -7,10 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.1] - 2026-09-01
+
 `--adaptive` persists `stages/peer-router.md` after the router returns and
 prints `handoff: <from> → <to>`. Spawn `peer-router` when a packet exists
 (writer or coordinator fallback), not only when a writer has named one.
-Default `/make-feature` stays Supervisor.
+Default `/make-feature` stays Supervisor. The billed `feature-adaptive`
+run (run 22) timed out at 1203s; packet, `peer-router.md`, handoff, and
+close PASS (16/18 — `$LOG` VERIFIED/NOT-CHECKED miss from timeout).
 
 ### Changed
 
