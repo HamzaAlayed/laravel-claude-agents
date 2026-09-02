@@ -7,10 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.2.2] - 2026-09-02
+
 After every `close.md` Write, the coordinator prints `VERIFIED:` /
 `NOT-CHECKED:` / `STATUS:` / `BOARD:` in the same turn. A killed run
 still shows the scorecard in the transcript. Default `/make-feature`
-stays Supervisor.
+stays Supervisor. The billed `feature` run (run 23) finished in
+1114s; close file and `$LOG` VERIFIED/NOT-CHECKED PASS (13/13).
 
 ### Changed
 
