@@ -391,6 +391,8 @@ expect "Interface block requires delivery graph.md" "9" \
   "$(grep -l 'do not spawn a type that is not a NODES:' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block requires graph stub byte copy" "9" \
   "$(grep -l 'byte copy of skills/delivery-templates/graph.md' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block prints close labels after the Write" "9" \
+  "$(grep -l 'After that Write, print' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block requires peer-router stage persist" "9" \
   "$(grep -l 'stages/peer-router.md' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block requires handoff colon line" "9" \
@@ -427,6 +429,8 @@ expect "coordinator names the close.md hook bounce" "1" \
   "$(grep -c 'close.md hook bounces a Write that is not helper shape' "$COORD")"
 expect "coordinator forbids Bash writes of close.md" "1" \
   "$(grep -c 'Bash must not write close.md' "$COORD")"
+expect "coordinator prints close labels after the Write" "1" \
+  "$(grep -c 'after that Write, print VERIFIED:' "$COORD")"
 expect "coordinator names the packet path" "1" \
   "$(grep -c 'docs/delivery/<name>/packets/' "$COORD")"
 expect "coordinator has peer-router validate" "1" \
@@ -781,6 +785,12 @@ expect "the opt-in case asserts the delivery close file" "1" \
 expect "the opt-in case asserts the delivery graph file" "1" \
   "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'check_delivery_graph_file')"
+expect "the opt-in case scores VERIFIED on FULL_LOG" "1" \
+  "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE "check_log_anywhere 'VERIFIED'")"
+expect "the opt-in case scores NOT-CHECKED on FULL_LOG" "1" \
+  "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE "check_log_anywhere 'NOT-CHECKED'")"
 expect "the opt-in case does not enable check_subagent_log" "0" \
   "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE "^[[:space:]]*check_subagent_log ")"
