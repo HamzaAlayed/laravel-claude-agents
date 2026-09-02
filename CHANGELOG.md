@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+After every `close.md` Write, the coordinator prints `VERIFIED:` /
+`NOT-CHECKED:` / `STATUS:` / `BOARD:` in the same turn. A killed run
+still shows the scorecard in the transcript. Default `/make-feature`
+stays Supervisor.
+
+### Changed
+
+- **Close print.** After overwriting `docs/delivery/<name>/close.md`,
+  print the four helper labels in the same turn, not only in the
+  final answer.
+
 ## [2.2.1] - 2026-09-01
 
 `--adaptive` persists `stages/peer-router.md` after the router returns and

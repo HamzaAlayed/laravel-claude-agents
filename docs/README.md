@@ -73,7 +73,7 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 
 | Item | Evidence |
 | --- | --- |
-| — | No open Guild v2 slice. |
+| Guild v2 — 2.2.2 close print | [design](plans/2026-09-02-guild-v2-close-print-design.md); [plan](plans/2026-09-02-guild-v2-close-print.md) — print close labels after every `close.md` Write. Gate is billed `feature`. |
 
 ## How a new review should start
 
