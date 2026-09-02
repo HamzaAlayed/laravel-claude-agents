@@ -642,14 +642,13 @@ checks_feature() {
   check_delegated 2 "work was delegated to specialists"
   # Tranche item 2 — the board declares its budget and completion condition.
   check_log_anywhere 'done when:' "board declares a completion condition"
-  # Orchestration-audit layer B (docs/superpowers/specs/2026-08-12-agent-orchestration-audit-design.md §3):
-  # static file review can't prove the contract is followed at runtime, only declared on paper.
-  # $FULL_LOG is main-thread turns only (scripts/eval-cost.py's full_text()) --
-  # a per-stage specialist return is a subagent turn and structurally never
-  # shows up here, so only the coordinator's own closing-answer contract
-  # (Interface block's last sentence) can be asserted against this stream.
-  check_log 'VERIFIED' "final answer carries VERIFIED"
-  check_log 'NOT-CHECKED' "final answer carries NOT-CHECKED"
+  # $FULL_LOG is main-thread turns only (scripts/eval-cost.py's full_text()).
+  # After 2.2.2 the coordinator prints VERIFIED / NOT-CHECKED after every
+  # close.md Write, so an earlier turn still scores when $LOG is a
+  # "waiting…" kill. Do not grep the raw transcript. Do not uncomment
+  # check_subagent_log.
+  check_log_anywhere 'VERIFIED' "final answer carries VERIFIED"
+  check_log_anywhere 'NOT-CHECKED' "final answer carries NOT-CHECKED"
   # Opt-in shape for a future billed feature run that keeps <case>.subagent.log.
   # Do NOT uncomment without a transcript that has been inspected: this worktree
   # has no run-8/run-9 feature artifacts, and enabling these would fail the
