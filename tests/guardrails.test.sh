@@ -393,6 +393,8 @@ expect "Interface block requires graph stub byte copy" "9" \
   "$(grep -l 'byte copy of skills/delivery-templates/graph.md' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block prints close labels after the Write" "9" \
   "$(grep -l 'After that Write, print' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block resumes a running close.md" "9" \
+  "$(grep -l 'reprint the board from disk' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block requires peer-router stage persist" "9" \
   "$(grep -l 'stages/peer-router.md' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block requires handoff colon line" "9" \
@@ -431,6 +433,8 @@ expect "coordinator forbids Bash writes of close.md" "1" \
   "$(grep -c 'Bash must not write close.md' "$COORD")"
 expect "coordinator prints close labels after the Write" "1" \
   "$(grep -c 'after that Write, print VERIFIED:' "$COORD")"
+expect "coordinator resumes from close.md before the first Agent" "1" \
+  "$(grep -c 'before the first Agent, if close.md exists' "$COORD")"
 expect "coordinator names the packet path" "1" \
   "$(grep -c 'docs/delivery/<name>/packets/' "$COORD")"
 expect "coordinator has peer-router validate" "1" \
@@ -831,6 +835,21 @@ expect "the Adaptive case asserts a peer-router stage file" "1" \
 expect "the Adaptive case does not enable check_subagent_log" "0" \
   "$(sed -n '/^checks_feature_adaptive()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE "^[[:space:]]*check_subagent_log ")"
+expect "the resume case asserts skipped database-developer" "1" \
+  "$(sed -n '/^checks_feature_resume()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'check_agent_absent database-developer')"
+expect "the resume case does not enable check_subagent_log" "0" \
+  "$(sed -n '/^checks_feature_resume()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE "^[[:space:]]*check_subagent_log ")"
+expect "the resume case is opt-in" "1" \
+  "$(sed -n 's/^OPT_IN_CASES=(\(.*\))$/\1/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | tr ' ' '\n' | grep -cx 'feature-resume' || true)"
+expect "the resume case stays out of the default sweep" "0" \
+  "$(sed -n 's/^ALL_CASES=(\(.*\))$/\1/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | tr ' ' '\n' | grep -cx 'feature-resume' || true)"
+expect "check_agent_absent does not read the raw transcript" "0" \
+  "$(sed -n '/^check_agent_absent()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'stream\.jsonl' || true)"
 # A -fixes suffix is not a registered agent type — the helper must reject it on disk.
 STAGE_REJECT_DIR="$(mktemp -d)"
 mkdir -p "$STAGE_REJECT_DIR/docs/delivery/tag/stages"
