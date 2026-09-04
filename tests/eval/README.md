@@ -73,6 +73,7 @@ fixture**, so agents under evaluation can't read the answer key.
 | `hygiene` | `/team-hygiene` | proposal table classifies the duplicate + conflict, names the stale `LegacyPayments` fact, and applies **nothing** (headless = no approval) |
 | `feature` **(opt-in)** | `/make-feature Tag --api` | a tags migration, `Tag` model, registered route and a feature test exist; **the board feed shows ≥2 distinct agents**; the printed board carries a `done when:` completion condition; the coordinator's closing answer carries `VERIFIED`/`NOT-CHECKED`, and it persisted `docs/team/stack.md` + a `docs/delivery/*/log.md` entry (harvest) |
 | `feature-adaptive` **(opt-in)** | `/make-feature Tag --api --adaptive` | same Tag --api floor as `feature`, plus an Adaptive packet on disk (`docs/delivery/*/packets/*-to-*.md` with FROM/TO/SUMMARY/PATHS), a registered `TO`, and a visible handoff on the board or close |
+| `feature-resume` **(opt-in)** | `/make-feature Tag --api` | same Tag --api floor as `feature`, but the workdir already has a running `close.md` and a completed `database-developer` stage plus Tag model/migration; **attributed agents must not include `database-developer`**; routes and tests still land |
 
 A failing check is **signal, not necessarily a harness bug** — it becomes a
 line in the findings doc. Keep checks intent-level (did the flaw get found?)
@@ -85,6 +86,7 @@ rather than wording-level, so phrasing changes don't flake.
 ```sh
 ./tests/eval/run-evals.sh feature
 ./tests/eval/run-evals.sh feature-adaptive
+./tests/eval/run-evals.sh feature-resume
 ```
 
 It exists because nothing else in the suite proves delegation happened. `policy`

@@ -81,8 +81,9 @@ answers that, check by check, so the classification is never re-derived.
 | feature-adaptive | `check_in_files '^TO:'` (delivery) | artifact | sound — packet recipient label on disk |
 | feature-adaptive | `check_adaptive_handoff` | format-contract | sound — Adaptive handoff line on the board or close; greps FULL_LOG or any `docs/delivery/*/close.md`, never the raw transcript |
 | feature-adaptive | `check_adaptive_peer_router` | artifact | sound — `docs/delivery/*/stages/peer-router.md` on disk; basename is a registered agent type; six stage-return labels present |
+| feature-resume | `check_agent_absent database-developer` | artifact | sound — `cost.json` attributed.agents plus launched_without_measured_turns must not name database-developer |
 
-Tally: 51 checks — 38 artifact, 5 fixture-noun, 6 format-contract, **2 hardened-prose (formerly free-prose; 0 free-prose remain)**. The rubric judge
+Tally: 52 checks — 39 artifact, 5 fixture-noun, 6 format-contract, **2 hardened-prose (formerly free-prose; 0 free-prose remain)**. The rubric judge
 (`EVAL_JUDGE=1`) stays on as the independent dissenter for the transcript-based
 checks; it has been right both times it disagreed with the key.
 

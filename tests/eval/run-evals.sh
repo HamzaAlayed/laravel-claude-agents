@@ -67,7 +67,7 @@ ALL_CASES=(n-plus-one policy action tests hygiene)
 # Opt-in like feature: they measure coordinator/team-memory behaviour, which only
 # needs re-measuring when that behaviour changes — the hash gate says when.
 # feature-adaptive: same Tag --api floor as feature, plus packet / peer-router / handoff.
-OPT_IN_CASES=(feature teach teach-delivery feature-adaptive)
+OPT_IN_CASES=(feature teach teach-delivery feature-adaptive feature-resume)
 
 case_prompt() {
   case "$1" in
@@ -80,6 +80,7 @@ case_prompt() {
     teach)      echo "/teach New tables use ULID primary keys, never auto-increment integers — sortable and non-enumerable" ;;
     teach-delivery) echo "/make-feature Donation --api" ;;
     feature-adaptive) echo "/make-feature Tag --api --adaptive" ;;
+    feature-resume) echo "/make-feature Tag --api" ;;
   esac
 }
 
@@ -94,6 +95,7 @@ case_desc() {
     teach)      echo "records a taught rule in docs/team/conventions.md in the Rule/Why/Scope/Source contract" ;;
     teach-delivery) echo "delivers a feature that must OBEY two seeded taught rules where defaults differ, and harvest without being asked" ;;
     feature-adaptive) echo "Adaptive Tag --api; packet + peer-router + handoff" ;;
+    feature-resume) echo "resume Tag --api; skip completed database-developer" ;;
   esac
 }
 
@@ -206,6 +208,16 @@ EOF
   status), not a rewritten Adaptive-only format.
 EOF
       ;;
+    feature-resume) cat <<'EOF'
+- A Tag API feature is finished across the remaining layers: an HTTP entry
+  point, a registered route, and at least one feature test. Schema and model
+  already exist on disk from a prior running close.md.
+- The completed database-developer stage is not launched again.
+- The work that still runs is DELEGATED to specialists rather than done
+  inline by the coordinator.
+- The close file stays helper-shaped (verified / not-checked / status).
+EOF
+      ;;
   esac
 }
 
@@ -280,6 +292,72 @@ starting work; entries here override agent defaults. Maintain via /teach
 - **Why:** Sortable, non-enumerable identifiers.
 - **Scope:** database-developer + backend-developer
 - **Source:** user, 2026-08-06
+EOF
+}
+
+seed_feature_resume_fixture() { # seed_feature_resume_fixture <workdir>
+  local w="$1"
+  mkdir -p "$w/docs/delivery/tag/stages" "$w/app/Models" "$w/database/migrations"
+  cat >"$w/docs/delivery/tag/close.md" <<'EOF'
+VERIFIED: `php artisan test --compact` → 1 passed (baseline ExampleTest)
+NOT-CHECKED: Tag HTTP, feature tests, Pint on new files
+STATUS: running
+BOARD: 4 stages · cap: 6 spawns · done when: POST /api/tags creates a Tag · a ✔ database-developer · b ▶ backend-developer · c · qa-engineer · d · tech-lead
+EOF
+  cat >"$w/docs/delivery/tag/graph.md" <<'EOF'
+NODES: database-developer, backend-developer, qa-engineer, tech-lead
+EDGES: database-developer -> backend-developer, backend-developer -> qa-engineer, backend-developer -> tech-lead
+PARALLEL: qa-engineer || tech-lead
+ON-FAIL: stop
+EOF
+  cat >"$w/docs/delivery/tag/stages/database-developer.md" <<'EOF'
+STATUS: done
+DID: app/Models/Tag.php, database/migrations/2026_09_04_000000_create_tags_table.php
+VERIFIED: files exist on disk
+NOT-CHECKED: HTTP, feature tests
+FLAGS: none
+NEXT: backend-developer
+EOF
+  cat >"$w/app/Models/Tag.php" <<'EOF'
+<?php
+
+declare(strict_types=1);
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Model;
+
+class Tag extends Model
+{
+    protected $fillable = ['name', 'slug'];
+}
+EOF
+  cat >"$w/database/migrations/2026_09_04_000000_create_tags_table.php" <<'EOF'
+<?php
+
+declare(strict_types=1);
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('tags', function (Blueprint $table) {
+            $table->id();
+            $table->string('name');
+            $table->string('slug')->unique();
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('tags');
+    }
+};
 EOF
 }
 
@@ -599,6 +677,23 @@ PYCOUNT
   record $? "agents: $2 (saw ${count:-0} distinct)"
 }
 
+check_agent_absent() { # check_agent_absent <agent> <description>
+  local cost="${LOG%.log}.cost.json"
+  python3 - "$cost" "$1" <<'PYABSENT' >/dev/null 2>&1
+import json, sys
+path, agent = sys.argv[1], sys.argv[2]
+try:
+    data = json.load(open(path, encoding="utf-8"))
+except Exception:
+    sys.exit(1)
+attr = data.get("attributed") or {}
+agents = attr.get("agents") or {}
+launched = attr.get("launched_without_measured_turns") or []
+sys.exit(0 if agent not in agents and agent not in launched else 1)
+PYABSENT
+  record $? "agents: $2"
+}
+
 check_touched() { # check_touched <path-prefix> <description>
   git -C "$WORK" status --porcelain | grep -qE "^(\?\?|.M|A.) +\"?$1"
   record $? "diff:   $2"
@@ -675,6 +770,11 @@ checks_feature_adaptive() {
   check_in_files '^TO:' "docs/delivery" "packet has TO:"
   check_adaptive_handoff 
   check_adaptive_peer_router 
+}
+
+checks_feature_resume() {
+  checks_feature
+  check_agent_absent database-developer "resume skipped the completed database-developer stage"
 }
 
 checks_hygiene() {
@@ -888,6 +988,7 @@ run_case() { # run_case <name> <results-dir>
 
   [ "$name" = "hygiene" ] && seed_hygiene_fixture "$WORK"
   [ "$name" = "teach-delivery" ] && seed_taught_fixture "$WORK"
+  [ "$name" = "feature-resume" ] && seed_feature_resume_fixture "$WORK"
 
   git -C "$WORK" init -q
   git -C "$WORK" -c user.email=eval@example.com -c user.name=eval add -A
