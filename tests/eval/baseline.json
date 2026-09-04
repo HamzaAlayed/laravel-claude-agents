@@ -88,7 +88,7 @@
   "coordinator_hash": {
     "sha256": "053a0599640b52ba6325c004879a22b5066a93a1e4f88121ff1ff42673f970f6",
     "as_of": "2026-09-04",
-    "note": "Verified by billed feature-resume run 24 (2026-09-04, docs/evals/2026-09-04-run-24.md): 843s, billed $4.87, attributed 7.3M tokens within 14.5M. Harness 14/14 — skip row was a false PASS (plugin-prefixed laravel-team:database-developer still launched). VERSION stays 2.2.2. Do not raise ceilings.",
+    "note": "Verified by billed feature-resume run 25 (2026-09-04, docs/evals/2026-09-04-run-25.md): 1117s, billed $6.93, attributed 15.6M tokens REGRESSED vs 14.5M. Score 13/14 — skip FAIL (database-developer launched). Run 24 skip was a false PASS. VERSION stays 2.2.2. Do not raise ceilings.",
     "waivers": []
   }
 }
