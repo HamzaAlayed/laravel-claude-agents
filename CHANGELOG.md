@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+The same `/make-feature` again resumes a `STATUS: running` delivery from
+`close.md` and stage files. Completed writer stages whose artifacts still
+exist are not re-Agented. Default `/make-feature` stays Supervisor.
+
+### Added
+
+- **Resume.** Before the first Agent, Read `docs/delivery/<name>/close.md`.
+  `running` reprints the board from disk and skips skippable `✔` stages.
+
 ## [2.2.2] - 2026-09-02
 
 After every `close.md` Write, the coordinator prints `VERIFIED:` /

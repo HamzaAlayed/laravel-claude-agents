@@ -74,7 +74,7 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 
 | Item | Evidence |
 | --- | --- |
-| — | No open Guild v2 slice. |
+| Guild 2.3.0 resume | [design](plans/2026-09-04-guild-resume-design.md); [plan](plans/2026-09-04-guild-resume.md) — same `/make-feature` continues a running close.md. Gate is billed `feature-resume`. |
 
 ## How a new review should start
 
