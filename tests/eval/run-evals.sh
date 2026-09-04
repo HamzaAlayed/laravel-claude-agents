@@ -689,7 +689,12 @@ except Exception:
 attr = data.get("attributed") or {}
 agents = attr.get("agents") or {}
 launched = attr.get("launched_without_measured_turns") or []
-sys.exit(0 if agent not in agents and agent not in launched else 1)
+keys = list(agents) + list(launched)
+present = set()
+for k in keys:
+    present.add(k)
+    present.add(k.rsplit(":", 1)[-1])
+sys.exit(0 if agent not in present else 1)
 PYABSENT
   record $? "agents: $2"
 }

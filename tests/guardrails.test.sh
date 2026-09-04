@@ -850,6 +850,18 @@ expect "the resume case stays out of the default sweep" "0" \
 expect "check_agent_absent does not read the raw transcript" "0" \
   "$(sed -n '/^check_agent_absent()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'stream\.jsonl' || true)"
+ABSENT_DIR="$(mktemp -d)"
+printf '%s\n' '{"attributed":{"agents":{"laravel-team:database-developer":{"tokens":1}},"launched_without_measured_turns":[]}}' \
+  >"$ABSENT_DIR/x.cost.json"
+expect "check_agent_absent treats a plugin-prefixed agent key as present" "1" \
+  "$(LOG="$ABSENT_DIR/x.log" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_agent_absent()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_agent_absent database-developer "x"
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$ABSENT_DIR"
 # A -fixes suffix is not a registered agent type — the helper must reject it on disk.
 STAGE_REJECT_DIR="$(mktemp -d)"
 mkdir -p "$STAGE_REJECT_DIR/docs/delivery/tag/stages"

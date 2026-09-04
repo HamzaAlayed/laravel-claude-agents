@@ -86,9 +86,9 @@
     }
   },
   "coordinator_hash": {
-    "sha256": "d6df9f8882871d793c269bc9d5e7d284b8f0d20a4df7e1a766bbd6e14e402dcf",
-    "as_of": "2026-09-02",
-    "note": "Verified by billed feature run 23 (2026-09-02, docs/evals/2026-09-02-run-23.md): 1114s, billed $5.37, attributed 10.1M tokens within 14.5M. Score 13/13 — close file and $LOG VERIFIED/NOT-CHECKED PASS. VERSION 2.2.2. Do not raise ceilings.",
+    "sha256": "053a0599640b52ba6325c004879a22b5066a93a1e4f88121ff1ff42673f970f6",
+    "as_of": "2026-09-04",
+    "note": "Verified by billed feature-resume run 24 (2026-09-04, docs/evals/2026-09-04-run-24.md): 843s, billed $4.87, attributed 7.3M tokens within 14.5M. Harness 14/14 — skip row was a false PASS (plugin-prefixed laravel-team:database-developer still launched). VERSION stays 2.2.2. Do not raise ceilings.",
     "waivers": []
   }
 }
