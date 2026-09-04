@@ -395,6 +395,8 @@ expect "Interface block prints close labels after the Write" "9" \
   "$(grep -l 'After that Write, print' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block resumes a running close.md" "9" \
   "$(grep -l 'reprint the board from disk' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block does not re-Agent a skipped writer" "9" \
+  "$(grep -l 'Do not Agent a skipped writer' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block requires peer-router stage persist" "9" \
   "$(grep -l 'stages/peer-router.md' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block requires handoff colon line" "9" \
@@ -435,6 +437,8 @@ expect "coordinator prints close labels after the Write" "1" \
   "$(grep -c 'after that Write, print VERIFIED:' "$COORD")"
 expect "coordinator resumes from close.md before the first Agent" "1" \
   "$(grep -c 'before the first Agent, if close.md exists' "$COORD")"
+expect "coordinator does not re-Agent a skipped writer" "1" \
+  "$(grep -c 'Do not Agent a skipped writer' "$COORD")"
 expect "coordinator names the packet path" "1" \
   "$(grep -c 'docs/delivery/<name>/packets/' "$COORD")"
 expect "coordinator has peer-router validate" "1" \
