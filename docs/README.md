@@ -4,7 +4,7 @@ This page maps the `docs/` corpus so the next review — human or agent — star
 
 Adopting the pack on a Laravel app? [Run your first delivery](onboarding.md). Seeing it work in five minutes? The [README quickstart](../README.md#five-minute-quickstart).
 
-Last verified 2026-09-02 against pack v2.2.2.
+Last verified 2026-09-04 against pack v2.3.0.
 
 ## What lives where
 
@@ -69,12 +69,13 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 | Guild v2 — 2.2.0 graph | [design](plans/2026-08-24-guild-v2-adaptive-graph-design.md); [plan](plans/2026-08-24-guild-v2-adaptive-graph.md); [run 21](evals/2026-08-27-run-21.md) — billed default `feature` graph labels + close PASS (13/13, timeout 1203s). Run 20 missed `PARALLEL:` on a prose graph. |
 | Guild v2 — 2.2.1 Adaptive hop persist | [design](plans/2026-08-31-guild-v2-adaptive-persist-design.md); [plan](plans/2026-08-31-guild-v2-adaptive-persist.md); [run 22](evals/2026-09-01-run-22.md) — billed Adaptive packet, `peer-router.md`, handoff, and close PASS (16/18, timeout 1203s). Writer-filed hop. Harvest PASS. |
 | Guild v2 — 2.2.2 close print | [design](plans/2026-09-02-guild-v2-close-print-design.md); [plan](plans/2026-09-02-guild-v2-close-print.md); [run 23](evals/2026-09-02-run-23.md) — billed default `feature` close print + `$LOG` VERIFIED/NOT-CHECKED PASS (13/13, 1114s). |
+| Guild 2.3.0 resume | [design](plans/2026-09-04-guild-resume-design.md); [plan](plans/2026-09-04-guild-resume.md); [run 26](evals/2026-09-04-run-26.md) — billed `feature-resume` skip PASS (14/14, 703s). Same `/make-feature` continues a running close.md. |
 
 ## Open
 
 | Item | Evidence |
 | --- | --- |
-| Guild 2.3.0 resume | [design](plans/2026-09-04-guild-resume-design.md); [plan](plans/2026-09-04-guild-resume.md) — same `/make-feature` continues a running close.md. Gate is billed `feature-resume`. |
+| — | No open Guild v2 slice. |
 
 ## How a new review should start
 

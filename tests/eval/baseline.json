@@ -86,9 +86,9 @@
     }
   },
   "coordinator_hash": {
-    "sha256": "053a0599640b52ba6325c004879a22b5066a93a1e4f88121ff1ff42673f970f6",
+    "sha256": "b5fd40f2f1a1b91c9c3af90694545bf94ef048c8bc05c971f5df869f8f1c7663",
     "as_of": "2026-09-04",
-    "note": "Verified by billed feature-resume run 25 (2026-09-04, docs/evals/2026-09-04-run-25.md): 1117s, billed $6.93, attributed 15.6M tokens REGRESSED vs 14.5M. Score 13/14 — skip FAIL (database-developer launched). Run 24 skip was a false PASS. VERSION stays 2.2.2. Do not raise ceilings.",
+    "note": "Verified by billed feature-resume run 26 (2026-09-04, docs/evals/2026-09-04-run-26.md): 703s, billed $4.32, attributed 9.1M tokens within 14.5M. Score 14/14 — skip PASS (no database-developer). VERSION 2.3.0. Do not raise ceilings.",
     "waivers": []
   }
 }

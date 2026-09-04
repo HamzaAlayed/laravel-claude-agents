@@ -2,7 +2,7 @@
 
 Install the Guild on a Laravel app, ship one feature through the team, teach one rule, and read an eval scorecard. The five-minute path (install → first command → what you see) is the [README quickstart](../README.md#five-minute-quickstart).
 
-Last verified 2026-09-02 against pack v2.2.2.
+Last verified 2026-09-04 against pack v2.3.0.
 
 ## Prerequisites
 

@@ -7,14 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [2.3.0] - 2026-09-04
+
 The same `/make-feature` again resumes a `STATUS: running` delivery from
 `close.md` and stage files. Completed writer stages whose artifacts still
-exist are not re-Agented. Default `/make-feature` stays Supervisor.
+exist are not re-Agented. Default `/make-feature` stays Supervisor. The
+billed `feature-resume` run (run 26) finished in 703s; skip PASS
+(14/14).
 
 ### Added
 
 - **Resume.** Before the first Agent, Read `docs/delivery/<name>/close.md`.
   `running` reprints the board from disk and skips skippable `✔` stages.
+  Skip beats join/verify for that writer: files `DID:` / `VERIFIED:` did
+  not name are not a skip-breaker.
 
 ## [2.2.2] - 2026-09-02
 
