@@ -12,7 +12,7 @@ Last verified 2026-09-04 against pack v2.3.0.
 | --- | --- |
 | [`docs/superpowers/specs/`](superpowers/specs/) | Approved design specs. Intent, scope, non-goals. Written before the plan. |
 | [`docs/superpowers/plans/`](superpowers/plans/) | Implementation plans for those specs. File lists, task order, verification. |
-| [`docs/plans/`](plans/) | Working plans that are not Superpowers-shaped: follow-ups, held UI work, Adoption, the console company-theater redesign, Guild v2. |
+| [`docs/plans/`](plans/) | Working plans that are not Superpowers-shaped: follow-ups, held UI work, Adoption, the console company-theater redesign, Guild v2 (closed), Guild v3. |
 | [`docs/evals/`](evals/) | Eval scorecards and audits. One file per billed run or instrument change. |
 | [`docs/requirements/`](requirements/) | Discovery / current-state reviews. Input to a spec, not a spec. |
 | [`docs/research/`](research/) | Literature and comparative audits. |
@@ -75,7 +75,7 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 
 | Item | Evidence |
 | --- | --- |
-| — | No open Guild v2 slice. |
+| Guild v3 — Kernel + Laravel truth (3.0.0) | [design](plans/2026-09-08-guild-v3-kernel-design.md) — pack-local Python kernel; `VERIFIED` is a command exit 0. VERSION stays 2.3.0 until billed `feature` PASS. |
 
 ## How a new review should start
 
