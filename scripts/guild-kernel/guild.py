@@ -49,20 +49,22 @@ def build_parser():
 
 def _stages_from_args(raw_stages):
     stages = []
+    help_form = "id,agent,role[,dep+dep][,criterion|criterion]"
     for raw in raw_stages:
-        parts = [part.strip() for part in raw.split(",")]
-        sid, agent = parts[0], parts[1]
-        role = parts[2] if len(parts) > 2 and parts[2] else "writer"
+        parts = raw.split(",")
+        if len(parts) < 2:
+            raise SystemExit(
+                f"--stage needs at least id and agent ({help_form})"
+            )
+        sid, agent = parts[0].strip(), parts[1].strip()
+        role = parts[2].strip() if len(parts) > 2 and parts[2].strip() else "writer"
         depends = (
-            [dep for dep in parts[3].split("+") if dep]
+            [dep for dep in parts[3].strip().split("+") if dep]
             if len(parts) > 3
             else []
         )
-        criteria = (
-            [item for item in parts[4].split("|") if item]
-            if len(parts) > 4
-            else []
-        )
+        criteria_raw = ",".join(parts[4:])
+        criteria = [item.strip() for item in criteria_raw.split("|") if item.strip()]
         stages.append(kernel.StageSpec(sid, agent, role, criteria, depends))
     return stages
 

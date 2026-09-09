@@ -396,6 +396,58 @@ class ViewsCliTest(unittest.TestCase):
         self.assertEqual(d.stages[2].success_criteria, [])
         self.assertEqual(d.stages[2].depends_on, ["b"])
 
+    def test_cli_stage_too_few_fields_is_usage_error(self):
+        guild = REPO / "scripts/guild-kernel/guild.py"
+        help_form = "id,agent,role[,dep+dep][,criterion|criterion]"
+        for stage in ("a", ""):
+            with self.subTest(stage=stage):
+                proc = subprocess.run(
+                    [
+                        sys.executable,
+                        str(guild),
+                        "plan",
+                        "--root",
+                        str(self.root),
+                        "--name",
+                        "tag",
+                        "--stage",
+                        stage,
+                    ],
+                    capture_output=True,
+                    text=True,
+                )
+                self.assertNotEqual(proc.returncode, 0)
+                combined = proc.stderr + proc.stdout
+                self.assertNotIn("list index out of range", combined)
+                self.assertIn(help_form, combined)
+
+    def test_cli_stage_joins_criteria_fields_past_commas(self):
+        guild = REPO / "scripts/guild-kernel/guild.py"
+        proc = subprocess.run(
+            [
+                sys.executable,
+                str(guild),
+                "plan",
+                "--root",
+                str(self.root),
+                "--name",
+                "tag",
+                "--stage",
+                "a,database-developer,writer,,POST /api/tags creates a Tag, returns 201",
+                "--stage",
+                "b,backend-developer,writer,a,hello, world|other",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        d = kernel.load(self.root, "tag")
+        self.assertEqual(
+            d.stages[0].success_criteria,
+            ["POST /api/tags creates a Tag, returns 201"],
+        )
+        self.assertEqual(d.stages[1].success_criteria, ["hello, world", "other"])
+
 
 if __name__ == "__main__":
     unittest.main()
