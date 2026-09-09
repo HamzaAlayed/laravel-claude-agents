@@ -107,9 +107,8 @@ def write_views(root, delivery, *, verified="none", not_checked="none"):
 def plan(*, root, name, done_when, stages):
     if _state_path(root, name).is_file():
         existing = load(root, name)
-        if existing.status == "running":
-            write_views(root, existing, not_checked=existing.done_when or "none")
-            return existing
+        write_views(root, existing, not_checked=existing.done_when or "none")
+        return existing
     delivery = Delivery(
         name=name,
         done_when=done_when,

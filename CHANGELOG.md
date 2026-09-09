@@ -33,6 +33,18 @@ Supervisor. VERSION stays 2.3.0 until a billed `feature` pin.
   `board`, and do not compose `close.md`. Join, skip, cap, and resume
   are kernel rules a prompt cannot outrank.
 
+### Fixed
+
+- **Install copies the kernel.** `install.sh` installs
+  `scripts/guild-kernel/` the same way it installs `scripts/console/`.
+  Eval workdirs and classic adopters get `guild.py`.
+- **`plan` is a no-op when `kernel.json` exists.** `done` and
+  `stopped` no longer reset the board. A missing file is still a
+  fresh plan.
+- **`--stage` carries success criteria.** Form is
+  `id,agent,role[,dep+dep][,criterion|criterion]`. The 3–4 field
+  form is unchanged.
+
 ### Breaking
 
 - **This pack will ship as 3.0.0** after the billed `feature` pin.

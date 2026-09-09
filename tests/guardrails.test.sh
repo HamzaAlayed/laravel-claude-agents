@@ -1312,6 +1312,17 @@ expect "CI pins no node version by hand" "0" \
 expect "emit-agent-events.sh still wired three ways" "3" \
   "$(grep -c 'emit-agent-events.sh' "$SCRIPT_DIR/hooks/hooks.json" | tr -d ' ')"
 
+# install_dir copies files only, so scripts/guild-kernel/ needs a dedicated
+# installer — same shape as install_console. Eval workdirs go through
+# install.sh; without this, Interface calls to guild.py 404.
+echo
+echo "install.sh"
+INSTALL_DEST="$(mktemp -d)"
+bash "$SCRIPT_DIR/install.sh" --no-hooks --no-claudemd "$INSTALL_DEST" >/dev/null
+expect "install dest contains scripts/guild-kernel/guild.py" "1" \
+  "$([ -f "$INSTALL_DEST/scripts/guild-kernel/guild.py" ] && echo 1 || echo 0)"
+rm -rf "$INSTALL_DEST"
+
 echo
 echo "----------------------------------------"
 printf 'total: %d passed, %d failed\n' "$PASS" "$FAIL"

@@ -37,7 +37,7 @@ def build_parser():
         "--stage",
         action="append",
         default=[],
-        help="id,agent,role[,dep+dep] — repeatable",
+        help="id,agent,role[,dep+dep][,criterion|criterion] — repeatable",
     )
     sub.add_parser("next", parents=[common])
     report = sub.add_parser("report", parents=[common])
@@ -58,7 +58,12 @@ def _stages_from_args(raw_stages):
             if len(parts) > 3
             else []
         )
-        stages.append(kernel.StageSpec(sid, agent, role, [], depends))
+        criteria = (
+            [item for item in parts[4].split("|") if item]
+            if len(parts) > 4
+            else []
+        )
+        stages.append(kernel.StageSpec(sid, agent, role, criteria, depends))
     return stages
 
 

@@ -235,6 +235,45 @@ class SkipCapTest(unittest.TestCase):
         self.assertEqual(d.spawns, 1)
         self.assertEqual(d.status, "running")
 
+    def test_plan_on_existing_done_or_stopped_kernel_does_not_reset(self):
+        for status in ("done", "stopped"):
+            with self.subTest(status=status):
+                tmp = tempfile.TemporaryDirectory()
+                root = pathlib.Path(tmp.name)
+                d = kernel.plan(
+                    root=root,
+                    name="tag",
+                    done_when="POST /api/tags creates a Tag",
+                    stages=[
+                        kernel.StageSpec(
+                            "a", "database-developer", "writer", ["m"], []
+                        ),
+                        kernel.StageSpec(
+                            "b", "backend-developer", "writer", ["h"], ["a"]
+                        ),
+                    ],
+                )
+                d.status = status
+                d.spawns = 3
+                kernel.save(root, d)
+                again = kernel.plan(
+                    root=root,
+                    name="tag",
+                    done_when="wiped",
+                    stages=[
+                        kernel.StageSpec(
+                            "z", "frontend-developer", "writer", ["x"], []
+                        )
+                    ],
+                )
+                self.assertEqual(again.status, status)
+                self.assertEqual(again.spawns, 3)
+                self.assertEqual([stage.id for stage in again.stages], ["a", "b"])
+                saved = kernel.load(root, "tag")
+                self.assertEqual(saved.status, status)
+                self.assertEqual(saved.done_when, "POST /api/tags creates a Tag")
+                tmp.cleanup()
+
 
 class ViewsCliTest(unittest.TestCase):
     def setUp(self):
@@ -322,6 +361,40 @@ class ViewsCliTest(unittest.TestCase):
         )
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertEqual(proc.stdout.strip(), "STOP")
+
+    def test_cli_stage_carries_success_criteria(self):
+        guild = REPO / "scripts/guild-kernel/guild.py"
+        proc = subprocess.run(
+            [
+                sys.executable,
+                str(guild),
+                "plan",
+                "--root",
+                str(self.root),
+                "--name",
+                "tag",
+                "--done-when",
+                "POST /api/tags creates a Tag",
+                "--stage",
+                "a,database-developer,writer,,tags migration exists|Tag model",
+                "--stage",
+                "b,backend-developer,writer,a,Tag HTTP",
+                "--stage",
+                "c,qa-engineer,reviewer,b",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        d = kernel.load(self.root, "tag")
+        self.assertEqual(
+            d.stages[0].success_criteria, ["tags migration exists", "Tag model"]
+        )
+        self.assertEqual(d.stages[0].depends_on, [])
+        self.assertEqual(d.stages[1].success_criteria, ["Tag HTTP"])
+        self.assertEqual(d.stages[1].depends_on, ["a"])
+        self.assertEqual(d.stages[2].success_criteria, [])
+        self.assertEqual(d.stages[2].depends_on, ["b"])
 
 
 if __name__ == "__main__":

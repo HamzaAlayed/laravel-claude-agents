@@ -158,7 +158,7 @@ install_dir() {
   echo "  $what: $copied copied, $skipped skipped, $backed_up backed up -> $dest"
 }
 
-# scripts/console/ is a tree (python modules + the built dist/), which
+# scripts/console/ and scripts/guild-kernel/ are trees, which
 # install_dir deliberately skips — it copies files only. Recurse here instead.
 install_console() {
   local src="$SCRIPT_DIR/scripts/console"
@@ -178,6 +178,20 @@ install_console() {
   # may not match the machine being installed onto.
   find "$dest" -type d -name "__pycache__" -prune -exec rm -rf {} + 2>/dev/null || true
   echo "  console: installed -> $dest"
+}
+
+# No dist/ gate — the kernel is stdlib Python with no bundle.
+install_guild_kernel() {
+  local src="$SCRIPT_DIR/scripts/guild-kernel"
+  local dest="$TARGET/scripts/guild-kernel"
+  if [ ! -d "$src" ]; then
+    echo "  guild-kernel: source missing — skipped"
+    return 0
+  fi
+  mkdir -p "$dest"
+  cp -R "$src/." "$dest/"
+  find "$dest" -type d -name "__pycache__" -prune -exec rm -rf {} + 2>/dev/null || true
+  echo "  guild-kernel: installed -> $dest"
 }
 
 install_claudemd() {
@@ -300,6 +314,7 @@ if [ "$GLOBAL" -eq 0 ]; then
   SCRIPTS_DEST="$TARGET/scripts"
   install_dir "$SCRIPT_DIR/scripts" "$SCRIPTS_DEST" "guardrail scripts"
   install_console
+  install_guild_kernel
   find "$SCRIPTS_DEST" -maxdepth 1 -name "*.sh" -type f -exec chmod +x {} \; 2>/dev/null || true
 
   install_claudemd
