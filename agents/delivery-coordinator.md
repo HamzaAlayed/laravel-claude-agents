@@ -39,7 +39,7 @@ The human sees three shapes from you, and only these:
 ⏸ next checkpoint: billing (before stage 3)
 ```
 
-`✔` done · `▶` running · `·` queued · `✖` failed (with one-line reason) · `⏸` checkpoint. Result column: artifact + evidence counts, ≤6 words. The header also states the spawn cap — `M` defaults to `N+2` (one re-brief per lane); hitting the cap without `done when:` → write `close.md` with `STATUS: stopped` and stop.
+`✔` done · `▶` running · `·` queued · `✖` failed (with one-line reason) · `⏸` checkpoint. Result column: artifact + evidence counts, ≤6 words. The header also states the spawn cap — `M` defaults to `N+2` (one re-brief per lane); the kernel owns the cap.
 
 **Stage return** — the shape you demand from every specialist and relay in one condensed line on the board:
 
@@ -64,21 +64,9 @@ Stage 3 wires Cashier subscription upgrades; failure blast radius: double-chargi
 3. Stop this lane
 ```
 
-**Close file** — persisted at `docs/delivery/<name>/close.md`; overwrite close.md after every stage (and after the plan, and after a re-brief returns — last Write before the next Task). Latest wins — a killed run is scored from this file, not mid-board prose. First Write of close.md is a byte copy of that file; copy skills/delivery-templates/close.md, then Edit only after the colons. Including a read-only persist, after every Agent return, the next Write is close.md; after that Write, print VERIFIED: / NOT-CHECKED: / STATUS: / BOARD: in the same turn. Harvest (`stack.md`, `log.md`) and the next Task wait until that Write lands. The close.md hook bounces a Write that is not helper shape. Bash must not write close.md.
-
-```
-VERIFIED: <commands you ran → counts>
-NOT-CHECKED: <what nobody verified, or none>
-STATUS: running
-BOARD: <progress board as last printed>
-```
-`STATUS` is exactly `running`, `done`, or `stopped` — never `in-progress`. Stage-return STATUS stays `done | blocked | needs-decision`. Nothing sits between the label word and the colon. VERIFIED (` is a contract break.
-
-**Resume** — before the first Agent, if close.md exists: STATUS: done or stopped → print VERIFIED: / NOT-CHECKED: / STATUS: / BOARD: from that file and stop; STATUS: running → Read graph.md and stages/*.md, reprint the board, skip a writer whose stage file is STATUS: done and a path named in DID: or VERIFIED: still exists, skip a read-only stage file that is STATUS: done, Agent ▶ and · (overwrite the same stage path). If graph.md already has NODES:/EDGES:/PARALLEL:/ON-FAIL:, do not rewrite it. Remaining spawn cap is M minus distinct stages/*.md already present; remaining 0 → STATUS: stopped, print, stop. Do not Agent a skipped writer: files DID: or VERIFIED: did not name are not a skip-breaker; do not start a second stage for that type. Join Reads that stage file; it does not re-run that brief.
+**Kernel** — before any Agent, run `python3 scripts/guild-kernel/guild.py plan --root . --name <name> ...`. Agent only the type `next` prints. After each return, `report` the stage path. Print `board`. Do not Write close.md; the kernel renders it. Do not Agent a type `next` did not return.
 
 **Adaptive** — when `--adaptive` is in the command arguments, a writer may Write a no-re-ask packet at `docs/delivery/<name>/packets/<from>-to-<peer>.md` naming a registered peer: copy skills/delivery-templates/packet.md, then fill after the colons. If no writer packet exists, the coordinator Writes one fallback packet FROM that writer TO the next queued specialist else tech-lead — one fallback packet per run. Spawn `peer-router` when a packet exists. `peer-router validates` that packet; after it returns, persist `docs/delivery/<name>/stages/peer-router.md`. Then print a handoff line `handoff: <from> → <to>` on the board; on valid, Agent the named peer with the packet as the brief; hops count against the spawn cap. Specialists never Agent a peer. Without `--adaptive`, ignore `packets/` and never spawn peer-router without --adaptive.
-
-**Graph** — after the plan, before the first Agent, first Write of graph.md is a byte copy of skills/delivery-templates/graph.md, then Edit only after the colons at `docs/delivery/<name>/graph.md`. No headings, no bullets, no briefing — NODES, EDGES, PARALLEL, and ON-FAIL stay line prefixes; do not spawn a type that is not a NODES: entry; an Adaptive hop TO: must be a node; fallback TO: is the next queued node.
 
 **Need-to-know briefs** — carry goal, owned paths, success criteria, stage path, and named stack facts only; never paste another specialist's diff into a brief.
 
