@@ -121,6 +121,110 @@ class ReportTest(unittest.TestCase):
         self.assertEqual(d.stages[0].status, "done")
         self.assertEqual(runner.calls[0][1], "php artisan test --filter=TagTest")
 
+    def test_not_checked_naming_criterion_is_rejected(self):
+        self._plan_one()
+        p = self.root / "docs/delivery/tag/stages/database-developer.md"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(
+            "STATUS: done\nDID: app/Models/Tag.php\nVERIFIED: php artisan test --filter=TagTest\n"
+            "NOT-CHECKED: tags migration exists\nFLAGS: none\nNEXT: none\n"
+        )
+        with self.assertRaises(kernel.ReportError):
+            kernel.report(
+                self.root,
+                "tag",
+                p,
+                runner=FakeRunner({"php artisan test --filter=TagTest": 0}),
+            )
+        d = kernel.load(self.root, "tag")
+        self.assertNotEqual(d.stages[0].status, "done")
+
+
+class SkipCapTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _plan_two(self):
+        return kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="POST /api/tags creates a Tag",
+            stages=[
+                kernel.StageSpec(
+                    "a", "database-developer", "writer", ["tags migration exists"], []
+                ),
+                kernel.StageSpec("b", "backend-developer", "writer", ["Tag HTTP"], ["a"]),
+            ],
+        )
+
+    def _write_stage(self, agent, *, did="app/Models/Tag.php"):
+        p = self.root / f"docs/delivery/tag/stages/{agent}.md"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(
+            f"STATUS: done\nDID: {did}\nVERIFIED: php artisan test --filter=TagTest\n"
+            "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
+        )
+        return p
+
+    def _ok_report(self, agent="database-developer", *, did="app/Models/Tag.php"):
+        p = self._write_stage(agent, did=did)
+        return kernel.report(
+            self.root,
+            "tag",
+            p,
+            runner=FakeRunner({"php artisan test --filter=TagTest": 0}),
+        )
+
+    def test_done_writer_with_did_on_disk_is_skipped(self):
+        self._plan_two()
+        did = self.root / "app/Models/Tag.php"
+        did.parent.mkdir(parents=True, exist_ok=True)
+        did.write_text("<?php\n")
+        d = self._ok_report()
+        self.assertEqual(d.stages[0].status, "done")
+        self.assertEqual(getattr(d.stages[0], "did", []), ["app/Models/Tag.php"])
+        self.assertEqual(kernel.next_agent(self.root, "tag"), "backend-developer")
+
+    def test_done_writer_with_missing_did_is_not_skipped(self):
+        self._plan_two()
+        did = self.root / "app/Models/Tag.php"
+        did.parent.mkdir(parents=True, exist_ok=True)
+        did.write_text("<?php\n")
+        self._ok_report()
+        did.unlink()
+        self.assertEqual(kernel.next_agent(self.root, "tag"), "database-developer")
+
+    def test_spawns_at_cap_stops_when_done_when_unmet(self):
+        self._plan_two()
+        d = None
+        for _ in range(4):
+            d = self._ok_report()
+        self.assertEqual(d.spawns, 4)
+        self.assertEqual(d.cap, 4)
+        self.assertEqual(d.status, "stopped")
+        self.assertEqual(kernel.next_agent(self.root, "tag"), "STOP")
+
+    def test_plan_on_running_kernel_does_not_reset_spawns(self):
+        self._plan_two()
+        self._ok_report()
+        d = kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="POST /api/tags creates a Tag",
+            stages=[
+                kernel.StageSpec(
+                    "a", "database-developer", "writer", ["tags migration exists"], []
+                ),
+                kernel.StageSpec("b", "backend-developer", "writer", ["Tag HTTP"], ["a"]),
+            ],
+        )
+        self.assertEqual(d.spawns, 1)
+        self.assertEqual(d.status, "running")
+
 
 if __name__ == "__main__":
     unittest.main()

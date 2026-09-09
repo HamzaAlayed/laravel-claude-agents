@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import json
 import pathlib
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, field
 
 _LABELS = ("STATUS", "DID", "VERIFIED", "NOT-CHECKED", "FLAGS", "NEXT")
 _COMMAND_MARKERS = ("/", "\\", "artisan", "vendor/bin", "php", "pint", "phpstan", "pest", "./")
@@ -20,6 +20,7 @@ class StageSpec:
     success_criteria: list
     depends_on: list
     status: str = "queued"
+    did: list = field(default_factory=list)
 
 
 @dataclass
@@ -49,6 +50,10 @@ def load(root, name):
 
 
 def plan(*, root, name, done_when, stages):
+    if _state_path(root, name).is_file():
+        existing = load(root, name)
+        if existing.status == "running":
+            return existing
     delivery = Delivery(
         name=name,
         done_when=done_when,
@@ -61,16 +66,36 @@ def plan(*, root, name, done_when, stages):
     return delivery
 
 
+def _did_on_disk(root, stage):
+    root = pathlib.Path(root)
+    return any((root / path).is_file() for path in stage.did if path)
+
+
+def _cap_hit(delivery):
+    return delivery.spawns >= delivery.cap and delivery.status != "done"
+
+
 def next_agent(root, name):
     delivery = load(root, name)
+    if delivery.status == "stopped" or _cap_hit(delivery):
+        if _cap_hit(delivery) and delivery.status != "stopped":
+            delivery.status = "stopped"
+            save(root, delivery)
+        return "STOP"
     by_id = {stage.id: stage for stage in delivery.stages}
     for stage in delivery.stages:
-        if stage.status not in ("queued", "running"):
-            continue
         deps_met = all(
             by_id[dep].status in ("done", "skipped") for dep in stage.depends_on
         )
-        if deps_met:
+        if not deps_met:
+            continue
+        if stage.status in ("queued", "running"):
+            return stage.agent
+        if (
+            stage.role == "writer"
+            and stage.status == "done"
+            and not _did_on_disk(root, stage)
+        ):
             return stage.agent
     return "STOP"
 
@@ -107,14 +132,18 @@ def report(root, name, path, runner):
 
     delivery = load(root, name)
     agent = pathlib.Path(path).stem
-    first_report = False
+    not_checked = " ".join(fields["NOT-CHECKED"])
+    did_paths = [item for item in fields["DID"] if item and item != "none"]
     for stage in delivery.stages:
         if stage.agent != agent:
             continue
-        if stage.status != "done":
-            first_report = True
+        for criterion in stage.success_criteria:
+            if criterion and criterion in not_checked:
+                raise ReportError(f"NOT-CHECKED names success criterion: {criterion}")
+        stage.did = did_paths
         stage.status = "done"
-    if first_report:
-        delivery.spawns += 1
+    delivery.spawns += 1
+    if _cap_hit(delivery):
+        delivery.status = "stopped"
     save(root, delivery)
     return delivery
