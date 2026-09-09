@@ -366,12 +366,13 @@ expect "Interface block binds the final answer to VERIFIED + NOT-CHECKED" "9" \
 # summary with no up-front count and no completion condition. Same shape as the
 # v1.24.0 finding, same fix — the contract belongs in the shared block, so a
 # headless command run is bound by it too.
-expect "Interface block requires an up-front stage budget" "9" \
-  "$(grep -l 'done when: <the observable' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal guild.py backticks in the Interface needle
+expect "Interface block calls the guild kernel" "9" \
+  "$(grep -l 'Call `python3 scripts/guild-kernel/guild.py`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # Run 7 (docs/evals/2026-08-06-run-7.md) proved harvest never fires for
 # command-driven deliveries: agents/delivery-coordinator.md promises it, but
 # /make-feature and its 8 siblings never load that file. Same shape as the
-# stage-budget finding two lines above, same fix — the contract belongs in
+# kernel-call finding two lines above, same fix — the contract belongs in
 # the shared block, so a headless command run is bound by it too.
 expect "Interface block requires harvest once specialists report" "9" \
   "$(grep -l 'this delivery harvests too' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
@@ -392,33 +393,37 @@ expect "every command with the harvest clause also grants Write + Edit" "9" \
 # Interface block.
 expect "Interface block refuses to build or patch specialist files" "9" \
   "$(grep -l 'You do not build and you do not patch' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
-expect "Interface block requires verify-before-advancing" "9" \
-  "$(grep -l 'Verify before advancing' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
-expect "Interface block requires stage returns on disk" "9" \
-  "$(grep -l 'Stage returns land on disk' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
-expect "Interface block requires a delivery close file" "9" \
-  "$(grep -l 'Close file on disk' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
-expect "Interface block requires need-to-know briefs" "9" \
-  "$(grep -l 'Brief only what the specialist owns' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
-expect "Interface block requires joins before dependents" "9" \
-  "$(grep -l 'Join before a dependent stage' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
-expect "Interface block caps specialist spawns" "9" \
-  "$(grep -l 'Spawn cap in the board header' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block binds VERIFIED to kernel re-runs" "9" \
+  "$(grep -l 'lines are shell commands the kernel re-runs' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block persists read-only stage files" "9" \
+  "$(grep -l 'persist their stage file from the report you already file' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal close.md path backticks in the Interface needle
+expect "Interface block never composes close.md" "9" \
+  "$(grep -l 'never compose `docs/delivery/<name>/close.md`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block never invents a checkmark" "9" \
+  "$(grep -l 'Never invent a checkmark' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block never writes a writer stage file" "9" \
+  "$(grep -l "never write a writer's stage file for them" "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block counts Adaptive hops against the spawn cap" "9" \
+  "$(grep -l 'hops count against the spawn cap' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # shellcheck disable=SC2016 # literal `--adaptive` backticks in the Interface needle
 expect "Interface block requires adaptive opt-in" "9" \
   "$(grep -l 'Without `--adaptive`, ignore' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block requires adaptive fallback hop" "9" \
   "$(grep -l 'one fallback packet per run' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
-expect "Interface block requires delivery graph.md" "9" \
-  "$(grep -l 'do not spawn a type that is not a NODES:' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
-expect "Interface block requires graph stub byte copy" "9" \
-  "$(grep -l 'byte copy of skills/delivery-templates/graph.md' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
-expect "Interface block prints close labels after the Write" "9" \
-  "$(grep -l 'After that Write, print' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
-expect "Interface block resumes a running close.md" "9" \
-  "$(grep -l 'reprint the board from disk' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
-expect "Interface block does not re-Agent a skipped writer" "9" \
-  "$(grep -l 'Do not Agent a skipped writer' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block rejects NOT-CHECKED that names success criteria" "9" \
+  "$(grep -l 'that names a stage success criterion is a reject' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block requires writers to Write six fields" "9" \
+  "$(grep -l 'Writers Write the six fields' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal `plan` backticks in the Interface needle
+expect "Interface block plans before any Agent" "9" \
+  "$(grep -l '`plan` before any Agent' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal `next` backticks in the Interface needle
+expect "Interface block uses next to choose whom to Agent" "9" \
+  "$(grep -l '`next` to choose whom to Agent' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal `board` backticks in the Interface needle
+expect "Interface block prints the kernel board" "9" \
+  "$(grep -l '`board` to print' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block requires peer-router stage persist" "9" \
   "$(grep -l 'stages/peer-router.md' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block requires handoff colon line" "9" \
@@ -441,26 +446,27 @@ expect "coordinator never writes a writer stage file" "1" \
   "$(grep -c 'never write a writer' "$COORD")"
 expect "coordinator Reads the stage file before a checkmark" "1" \
   "$(grep -c 'Read that file before' "$COORD")"
-expect "coordinator writes the close file after every stage" "1" \
-  "$(grep -c 'overwrite close.md after every stage' "$COORD")"
-expect "coordinator Writes close.md after every Agent return" "1" \
-  "$(grep -c 'after every Agent return, the next Write is close.md' "$COORD")"
-expect "coordinator bans parentheticals on close labels" "1" \
-  "$(grep -cF 'VERIFIED (` is a contract break' "$COORD")"
-expect "coordinator copies the close stub" "1" \
-  "$(grep -c 'copy skills/delivery-templates/close.md' "$COORD")"
+expect "coordinator does not Write close.md; the kernel renders it" "1" \
+  "$(grep -c 'Do not Write close.md; the kernel renders it' "$COORD")"
+expect "coordinator plans via the guild kernel" "1" \
+  "$(grep -c 'python3 scripts/guild-kernel/guild.py plan' "$COORD")"
+expect "coordinator Agents only the type next prints" "1" \
+  "$(grep -c 'Agent only the type' "$COORD")"
+expect "coordinator does not Agent a type next did not return" "1" \
+  "$(grep -c 'Do not Agent a type' "$COORD")"
 expect "coordinator copies the stage-return stub when persisting read-only" "1" \
   "$(grep -c 'copy skills/delivery-templates/stage-return.md' "$COORD")"
-expect "coordinator names the close.md hook bounce" "1" \
-  "$(grep -c 'close.md hook bounces a Write that is not helper shape' "$COORD")"
-expect "coordinator forbids Bash writes of close.md" "1" \
-  "$(grep -c 'Bash must not write close.md' "$COORD")"
-expect "coordinator prints close labels after the Write" "1" \
-  "$(grep -c 'after that Write, print VERIFIED:' "$COORD")"
-expect "coordinator resumes from close.md before the first Agent" "1" \
-  "$(grep -c 'before the first Agent, if close.md exists' "$COORD")"
-expect "coordinator does not re-Agent a skipped writer" "1" \
-  "$(grep -c 'Do not Agent a skipped writer' "$COORD")"
+# shellcheck disable=SC2016 # literal `board` backticks in the coordinator Kernel needle
+expect "coordinator prints the kernel board" "1" \
+  "$(grep -c 'Print `board`' "$COORD")"
+expect "coordinator reports the stage path after each return" "1" \
+  "$(grep -c 'report` the stage path' "$COORD")"
+expect "coordinator copies the Adaptive packet stub" "1" \
+  "$(grep -c 'copy skills/delivery-templates/packet.md' "$COORD")"
+expect "coordinator still names Need-to-know briefs" "1" \
+  "$(grep -c 'Need-to-know briefs' "$COORD")"
+expect "coordinator specialists never Agent a peer" "1" \
+  "$(grep -c 'Specialists never Agent a peer' "$COORD")"
 expect "coordinator names the packet path" "1" \
   "$(grep -c 'docs/delivery/<name>/packets/' "$COORD")"
 expect "coordinator has peer-router validate" "1" \
@@ -475,29 +481,28 @@ expect "coordinator names one fallback packet per run" "1" \
   "$(grep -c 'one fallback packet per run' "$COORD")"
 expect "coordinator fallback TO is next queued specialist else tech-lead" "1" \
   "$(grep -c 'next queued specialist else tech-lead' "$COORD")"
-expect "coordinator Writes graph.md after the plan" "1" \
-  "$(grep -c 'docs/delivery/<name>/graph.md' "$COORD")"
-expect "coordinator never spawns off-graph" "1" \
-  "$(grep -c 'do not spawn a type that is not a NODES:' "$COORD")"
-expect "coordinator Adaptive hop TO must be a node" "1" \
-  "$(grep -c 'an Adaptive hop TO: must be a node' "$COORD")"
+expect "coordinator still joins before dependents" "1" \
+  "$(grep -c 'Join before dependents' "$COORD")"
+expect "coordinator documents that the kernel owns the cap" "1" \
+  "$(grep -c 'the kernel owns the cap' "$COORD")"
+expect "coordinator still verifies before advancing" "1" \
+  "$(grep -c 'Verify before advancing' "$COORD")"
 expect "coordinator persists peer-router.md after router return" "1" \
   "$(grep -c 'stages/peer-router.md' "$COORD")"
 expect "coordinator prints handoff colon line" "1" \
   "$(grep -c 'handoff:' "$COORD")"
 expect "coordinator spawns peer-router when a packet exists" "1" \
   "$(grep -c 'when a packet exists' "$COORD")"
-expect "coordinator graph.md first Write is a byte copy" "1" \
-  "$(grep -c 'byte copy of skills/delivery-templates/graph.md' "$COORD")"
-CLOSE_COORD="$(sed -n '/^\*\*Close file\*\*/,/^\*\*Need-to-know briefs\*\*/p' "$COORD")"
-expect "coordinator close skeleton prefixes VERIFIED:" "1" \
-  "$(printf '%s\n' "$CLOSE_COORD" | grep -c '^VERIFIED:')"
-expect "coordinator close skeleton prefixes NOT-CHECKED:" "1" \
-  "$(printf '%s\n' "$CLOSE_COORD" | grep -c '^NOT-CHECKED:')"
-expect "coordinator close skeleton STATUS is the in-flight default" "1" \
-  "$(printf '%s\n' "$CLOSE_COORD" | grep -cE '^STATUS: running$')"
-expect "coordinator close skeleton prefixes BOARD:" "1" \
-  "$(printf '%s\n' "$CLOSE_COORD" | grep -c '^BOARD:')"
+expect "coordinator never spawns a -fixes suffix" "1" \
+  "$(grep -c 'never spawn a `-fixes` suffix' "$COORD")"
+expect "coordinator never pastes another specialist diff into a brief" "1" \
+  "$(grep -c 'never paste another specialist' "$COORD")"
+expect "coordinator writers share one working tree" "1" \
+  "$(grep -c 'Writers share one working tree' "$COORD")"
+expect "coordinator closes its own answer with the contract" "1" \
+  "$(grep -c 'Close your own answer with the contract' "$COORD")"
+expect "coordinator fast-paths a single-specialist ask" "1" \
+  "$(grep -c 'Fast path — check before anything else' "$COORD")"
 expect "coordinator re-brief names the exact stage path" "1" \
   "$(grep -c 'Stage file (overwrite, no other name):' "$COORD")"
 expect "coordinator spawn cap is documented once" "1" \
