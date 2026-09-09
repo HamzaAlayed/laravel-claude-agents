@@ -86,15 +86,9 @@
     }
   },
   "coordinator_hash": {
-    "sha256": "b5fd40f2f1a1b91c9c3af90694545bf94ef048c8bc05c971f5df869f8f1c7663",
-    "as_of": "2026-09-04",
+    "sha256": "2280868360c203e172e6242b3b9a92c4b17ad13eb44583cd8103fe0b4621d5cd",
+    "as_of": "2026-09-09",
     "note": "Verified by billed feature-resume run 26 (2026-09-04, docs/evals/2026-09-04-run-26.md): 703s, billed $4.32, attributed 9.1M tokens within 14.5M. Score 14/14 — skip PASS (no database-developer). VERSION 2.3.0. Do not raise ceilings.",
-    "waivers": [
-      {
-        "date": "2026-09-09",
-        "sha256": "2280868360c203e172e6242b3b9a92c4b17ad13eb44583cd8103fe0b4621d5cd",
-        "reason": "Task 7 thinned the Interface to call the guild kernel; billed feature pin is Task 13 and must not run until the user says run it."
-      }
-    ]
+    "waivers": []
   }
 }
