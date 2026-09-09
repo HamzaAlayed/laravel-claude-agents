@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+The delivery board is kernel state, not a prompt. `VERIFIED` is a command
+that exited 0. Join, skip, cap, and resume live in
+`python3 scripts/guild-kernel/guild.py`. Default `/make-feature` stays
+Supervisor. VERSION stays 2.3.0 until a billed `feature` pin.
+
+### Added
+
+- **Delivery kernel.** State lives at `docs/delivery/<name>/kernel.json`.
+  Call `python3 scripts/guild-kernel/guild.py` (`plan` / `next` /
+  `report` / `board` / `status`). The coordinator Agents whom `next`
+  names and does not invent `✔`.
+- **Command-backed VERIFIED.** Each `VERIFIED:` line is a shell command
+  in the workdir. `report` re-runs it; exit 0 is the only pass. Prose is
+  a reject. `NOT-CHECKED:` that names a stage success criterion is a
+  reject; the lane stays `▶`.
+- **Stage-return hook.** Seventh production guardrail
+  (`enforce-stage-return.sh`). Write|Edit of
+  `docs/delivery/*/stages/*.md` that is not helper shape is bounced;
+  Bash writes of that path are denied.
+
+### Changed
+
+- **Thin Interface.** Nine pipeline commands call the kernel, print
+  `board`, and do not compose `close.md`. Join, skip, cap, and resume
+  are kernel rules a prompt cannot outrank.
+
+### Breaking
+
+- **This pack will ship as 3.0.0** after the billed `feature` pin.
+  Re-install from the new release; do not assume in-place upgrade from
+  2.x.
+- **The Interface contract changed.** `close.md` is a kernel-rendered
+  view of `kernel.json`. Re-read the shared Interface block after
+  upgrade.
+
 ## [2.3.0] - 2026-09-04
 
 The same `/make-feature` again resumes a `STATUS: running` delivery from
