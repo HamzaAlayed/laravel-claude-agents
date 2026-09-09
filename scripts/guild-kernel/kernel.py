@@ -6,6 +6,13 @@ from dataclasses import asdict, dataclass, field
 
 _LABELS = ("STATUS", "DID", "VERIFIED", "NOT-CHECKED", "FLAGS", "NEXT")
 _COMMAND_MARKERS = ("/", "\\", "artisan", "vendor/bin", "php", "pint", "phpstan", "pest", "./")
+_BOARD_MARK = {
+    "done": "✔",
+    "running": "▶",
+    "queued": "·",
+    "failed": "✖",
+    "skipped": "·",
+}
 
 
 class ReportError(Exception):
@@ -49,10 +56,58 @@ def load(root, name):
     return Delivery(stages=stages, **data)
 
 
+def board_line(delivery):
+    header = (
+        f"{len(delivery.stages)} stages · cap: {delivery.cap} spawns · "
+        f"done when: {delivery.done_when}"
+    )
+    lanes = []
+    for stage in delivery.stages:
+        mark = _BOARD_MARK.get(stage.status, "·")
+        lanes.append(f"{stage.id} {mark} {stage.agent}")
+    return " · ".join([header, *lanes]) if lanes else header
+
+
+def render_close(delivery, *, verified="none", not_checked="none"):
+    return (
+        f"VERIFIED: {verified}\n"
+        f"NOT-CHECKED: {not_checked}\n"
+        f"STATUS: {delivery.status}\n"
+        f"BOARD: {board_line(delivery)}\n"
+    )
+
+
+def render_graph(delivery):
+    nodes = ", ".join(stage.agent for stage in delivery.stages)
+    by_id = {stage.id: stage for stage in delivery.stages}
+    edges = []
+    for stage in delivery.stages:
+        for dep in stage.depends_on:
+            upstream = by_id.get(dep)
+            if upstream:
+                edges.append(f"{upstream.agent} -> {stage.agent}")
+    return (
+        f"NODES: {nodes}\n"
+        f"EDGES: {', '.join(edges) if edges else 'none'}\n"
+        f"PARALLEL: none\n"
+        f"ON-FAIL: stop\n"
+    )
+
+
+def write_views(root, delivery, *, verified="none", not_checked="none"):
+    folder = pathlib.Path(root) / "docs" / "delivery" / delivery.name
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "close.md").write_text(
+        render_close(delivery, verified=verified, not_checked=not_checked)
+    )
+    (folder / "graph.md").write_text(render_graph(delivery))
+
+
 def plan(*, root, name, done_when, stages):
     if _state_path(root, name).is_file():
         existing = load(root, name)
         if existing.status == "running":
+            write_views(root, existing, not_checked=existing.done_when or "none")
             return existing
     delivery = Delivery(
         name=name,
@@ -63,6 +118,7 @@ def plan(*, root, name, done_when, stages):
         spawns=0,
     )
     save(root, delivery)
+    write_views(root, delivery, not_checked=done_when or "none")
     return delivery
 
 
@@ -77,10 +133,11 @@ def _cap_hit(delivery):
 
 def next_agent(root, name):
     delivery = load(root, name)
-    if delivery.status == "stopped" or _cap_hit(delivery):
-        if _cap_hit(delivery) and delivery.status != "stopped":
+    if delivery.status in ("stopped", "done") or _cap_hit(delivery):
+        if _cap_hit(delivery) and delivery.status not in ("stopped", "done"):
             delivery.status = "stopped"
             save(root, delivery)
+            write_views(root, delivery)
         return "STOP"
     by_id = {stage.id: stage for stage in delivery.stages}
     for stage in delivery.stages:
@@ -143,7 +200,15 @@ def report(root, name, path, runner):
         stage.did = did_paths
         stage.status = "done"
     delivery.spawns += 1
-    if _cap_hit(delivery):
+    if all(stage.status in ("done", "skipped") for stage in delivery.stages):
+        delivery.status = "done"
+    elif _cap_hit(delivery):
         delivery.status = "stopped"
     save(root, delivery)
+    write_views(
+        root,
+        delivery,
+        verified=" ".join(commands) if commands else "none",
+        not_checked=not_checked or "none",
+    )
     return delivery

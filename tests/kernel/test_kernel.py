@@ -1,4 +1,5 @@
 import pathlib
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -224,6 +225,94 @@ class SkipCapTest(unittest.TestCase):
         )
         self.assertEqual(d.spawns, 1)
         self.assertEqual(d.status, "running")
+
+
+class ViewsCliTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _plan_two(self):
+        return kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="POST /api/tags creates a Tag",
+            stages=[
+                kernel.StageSpec(
+                    "a", "database-developer", "writer", ["tags migration exists"], []
+                ),
+                kernel.StageSpec("b", "backend-developer", "writer", ["Tag HTTP"], ["a"]),
+            ],
+        )
+
+    def test_plan_writes_close_and_graph_helper_shape(self):
+        self._plan_two()
+        close = (self.root / "docs/delivery/tag/close.md").read_text()
+        for label in ("VERIFIED:", "NOT-CHECKED:", "STATUS:", "BOARD:"):
+            self.assertTrue(
+                any(line.startswith(label) for line in close.splitlines()),
+                f"close.md missing {label} at start of a line",
+            )
+        status = next(line for line in close.splitlines() if line.startswith("STATUS:"))
+        self.assertIn(status.split(":", 1)[1].strip(), ("running", "done", "stopped"))
+
+        graph = (self.root / "docs/delivery/tag/graph.md").read_text()
+        for label in ("NODES:", "EDGES:", "PARALLEL:", "ON-FAIL:"):
+            self.assertTrue(
+                any(line.startswith(label) for line in graph.splitlines()),
+                f"graph.md missing {label} at start of a line",
+            )
+        nodes = next(line for line in graph.splitlines() if line.startswith("NODES:"))
+        self.assertIn("database-developer", nodes)
+        self.assertIn("backend-developer", nodes)
+
+    def test_report_rewrites_close_helper_shape(self):
+        self._plan_two()
+        p = self.root / "docs/delivery/tag/stages/database-developer.md"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(
+            "STATUS: done\nDID: app/Models/Tag.php\nVERIFIED: php artisan test --filter=TagTest\n"
+            "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
+        )
+        kernel.report(
+            self.root,
+            "tag",
+            p,
+            runner=FakeRunner({"php artisan test --filter=TagTest": 0}),
+        )
+        close = (self.root / "docs/delivery/tag/close.md").read_text()
+        for label in ("VERIFIED:", "NOT-CHECKED:", "STATUS:", "BOARD:"):
+            self.assertTrue(
+                any(line.startswith(label) for line in close.splitlines()),
+                f"close.md missing {label} at start of a line",
+            )
+        status = next(line for line in close.splitlines() if line.startswith("STATUS:"))
+        self.assertIn(status.split(":", 1)[1].strip(), ("running", "done", "stopped"))
+
+    def test_cli_next_prints_agent_or_stop(self):
+        self._plan_two()
+        guild = REPO / "scripts/guild-kernel/guild.py"
+        proc = subprocess.run(
+            [sys.executable, str(guild), "next", "--root", str(self.root), "--name", "tag"],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(proc.stdout.strip(), "database-developer")
+
+        d = kernel.load(self.root, "tag")
+        d.status = "stopped"
+        kernel.save(self.root, d)
+        proc = subprocess.run(
+            [sys.executable, str(guild), "next", "--root", str(self.root), "--name", "tag"],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertEqual(proc.stdout.strip(), "STOP")
 
 
 if __name__ == "__main__":
