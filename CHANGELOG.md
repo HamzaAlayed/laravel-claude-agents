@@ -7,10 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.0.0] - 2026-09-09
+
 The delivery board is kernel state, not a prompt. `VERIFIED` is a command
 that exited 0. Join, skip, cap, and resume live in
 `python3 scripts/guild-kernel/guild.py`. Default `/make-feature` stays
-Supervisor. VERSION stays 2.3.0 until a billed `feature` pin.
+Supervisor.
 
 ### Added
 
@@ -47,9 +49,8 @@ Supervisor. VERSION stays 2.3.0 until a billed `feature` pin.
 
 ### Breaking
 
-- **This pack will ship as 3.0.0** after the billed `feature` pin.
-  Re-install from the new release; do not assume in-place upgrade from
-  2.x.
+- **This pack ships as 3.0.0.** Re-install from the new release; do not
+  assume in-place upgrade from 2.x.
 - **The Interface contract changed.** `close.md` is a kernel-rendered
   view of `kernel.json`. Re-read the shared Interface block after
   upgrade.

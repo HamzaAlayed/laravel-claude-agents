@@ -381,4 +381,6 @@ KEEP_TRANSCRIPT=1 KEEP_WORKDIR=1 ./tests/eval/run-evals.sh feature
 - PASS → bump `VERSION` and the five manifests to **3.0.0**, retitle CHANGELOG `[3.0.0]`, close the Open row.
 - FAIL → pin hash, stay **2.3.0** / Unreleased. Do not loosen `check_kernel_state`.
 
+**Waived 2026-09-09:** billed `feature` is no longer a ship gate. 3.0.0 ships on local gates. Do not loosen `check_kernel_state`.
+
 ---

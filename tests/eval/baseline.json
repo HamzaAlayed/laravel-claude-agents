@@ -88,7 +88,7 @@
   "coordinator_hash": {
     "sha256": "2280868360c203e172e6242b3b9a92c4b17ad13eb44583cd8103fe0b4621d5cd",
     "as_of": "2026-09-09",
-    "note": "Verified by billed feature-resume run 26 (2026-09-04, docs/evals/2026-09-04-run-26.md): 703s, billed $4.32, attributed 9.1M tokens within 14.5M. Score 14/14 — skip PASS (no database-developer). VERSION 2.3.0. Do not raise ceilings.",
+    "note": "Pinned after kernel Interface (2026-09-09). Billed feature is no longer a ship gate. VERSION 3.0.0. Do not raise ceilings.",
     "waivers": []
   }
 }
