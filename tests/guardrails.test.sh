@@ -139,6 +139,28 @@ expect "php artisan test allows" "$ALLOW" \
 expect "FALLBACK (no jq/python3): close.md Bash write still blocks" "$BLOCK" \
   "$(run_hook_noparsers enforce-close-file.sh '{"tool_input":{"command":"cat > docs/delivery/tag/close.md <<EOF\nx\nEOF"}}')"
 
+echo "enforce-stage-return.sh"
+expect "stage return stub Write allows" "$ALLOW" \
+  "$(run_hook enforce-stage-return.sh '{"tool_input":{"path":"docs/delivery/tag/stages/database-developer.md","contents":"STATUS: done\nDID: x\nVERIFIED: y\nNOT-CHECKED: z\nFLAGS: none\nNEXT: none\n"}}')"
+expect "stage return journal Write blocks" "$BLOCK" \
+  "$(run_hook enforce-stage-return.sh '{"tool_input":{"path":"docs/delivery/tag/stages/database-developer.md","contents":"# Stage return\n\nI did some work\n"}}')"
+expect "non-stage-return Write allows" "$ALLOW" \
+  "$(run_hook enforce-stage-return.sh '{"tool_input":{"path":"app/Models/Tag.php","contents":"class Tag {}\n"}}')"
+expect "stage return stub Edit allows" "$ALLOW" \
+  "$(run_hook enforce-stage-return.sh '{"tool_input":{"file_path":"docs/delivery/tag/stages/database-developer.md","new_string":"STATUS: done\nDID: x\nVERIFIED: y\nNOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"}}')"
+expect "stage return journal Edit blocks" "$BLOCK" \
+  "$(run_hook enforce-stage-return.sh '{"tool_input":{"file_path":"docs/delivery/tag/stages/database-developer.md","new_string":"more journal\n"}}')"
+expect "FALLBACK (no jq/python3): stage return path still blocks" "$BLOCK" \
+  "$(run_hook_noparsers enforce-stage-return.sh '{"tool_input":{"path":"docs/delivery/tag/stages/database-developer.md","contents":"# Stage return\n\nI did some work\n"}}')"
+expect "stage return Bash cat-redirect blocks" "$BLOCK" \
+  "$(run_hook enforce-stage-return.sh '{"tool_input":{"command":"cat > docs/delivery/tag/stages/database-developer.md <<EOF\njournal\nEOF"}}')"
+expect "stage return Bash read allows" "$ALLOW" \
+  "$(run_hook enforce-stage-return.sh '{"tool_input":{"command":"cat docs/delivery/tag/stages/database-developer.md"}}')"
+expect "stage return php artisan test allows" "$ALLOW" \
+  "$(run_hook enforce-stage-return.sh '{"tool_input":{"command":"php artisan test --compact"}}')"
+expect "FALLBACK (no jq/python3): stage return Bash write still blocks" "$BLOCK" \
+  "$(run_hook_noparsers enforce-stage-return.sh '{"tool_input":{"command":"cat > docs/delivery/tag/stages/database-developer.md <<EOF\nx\nEOF"}}')"
+
 echo "codex-protect-env-files.sh (Codex apply_patch-aware)"
 expect "apply_patch adding .env.production blocks" "$BLOCK" \
   "$(run_hook codex-protect-env-files.sh '{"tool_input":{"command":"*** Begin Patch\n*** Add File: .env.production\n+SECRET=x\n*** End Patch"}}')"

@@ -203,7 +203,7 @@ def build_scripts():
     src = os.path.join(ROOT, "scripts")
     dst = os.path.join(GEM, "scripts")
     os.makedirs(dst, exist_ok=True)
-    for fn in ("block-prod-destructive-sql.sh", "block-prod-artisan.sh", "enforce-sail.sh", "protect-env-files.sh", "enforce-close-file.sh"):
+    for fn in ("block-prod-destructive-sql.sh", "block-prod-artisan.sh", "enforce-sail.sh", "protect-env-files.sh", "enforce-close-file.sh", "enforce-stage-return.sh"):
         with open(os.path.join(src, fn)) as f:
             txt = f.read()
         out = os.path.join(dst, fn)
@@ -231,14 +231,16 @@ def build_hooks():
           { "type": "command", "name": "block-prod-destructive-sql", "command": "${extensionPath}/scripts/block-prod-destructive-sql.sh" },
           { "type": "command", "name": "block-prod-artisan", "command": "${extensionPath}/scripts/block-prod-artisan.sh" },
           { "type": "command", "name": "enforce-sail", "command": "${extensionPath}/scripts/enforce-sail.sh" },
-          { "type": "command", "name": "enforce-close-file", "command": "${extensionPath}/scripts/enforce-close-file.sh" }
+          { "type": "command", "name": "enforce-close-file", "command": "${extensionPath}/scripts/enforce-close-file.sh" },
+          { "type": "command", "name": "enforce-stage-return", "command": "${extensionPath}/scripts/enforce-stage-return.sh" }
         ]
       },
       {
         "matcher": "write_file|replace",
         "hooks": [
           { "type": "command", "name": "protect-env-files", "command": "${extensionPath}/scripts/protect-env-files.sh" },
-          { "type": "command", "name": "enforce-close-file", "command": "${extensionPath}/scripts/enforce-close-file.sh" }
+          { "type": "command", "name": "enforce-close-file", "command": "${extensionPath}/scripts/enforce-close-file.sh" },
+          { "type": "command", "name": "enforce-stage-return", "command": "${extensionPath}/scripts/enforce-stage-return.sh" }
         ]
       }
     ]
@@ -255,7 +257,7 @@ def build_manifest():
     manifest = '''{
   "name": "laravel-team",
   "version": "%s",
-  "description": "A 18-agent Laravel-specialized team plus 12 workflow commands, 8 on-demand skills, and production guardrail hooks.",
+  "description": "A 18-agent Laravel-specialized team plus 12 workflow commands, 8 on-demand skills, and 7 production guardrail hooks.",
   "contextFileName": "GEMINI.md"
 }
 ''' % version
