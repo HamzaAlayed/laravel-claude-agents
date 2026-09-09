@@ -820,6 +820,9 @@ expect "the opt-in case asserts the delivery close file" "1" \
 expect "the opt-in case asserts the delivery graph file" "1" \
   "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'check_delivery_graph_file')"
+expect "the opt-in case asserts kernel state" "1" \
+  "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'check_kernel_state')"
 expect "the opt-in case scores VERIFIED on FULL_LOG" "1" \
   "$(sed -n '/^checks_feature()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE "check_log_anywhere 'VERIFIED'")"
@@ -847,6 +850,9 @@ expect "check_stage_return_files does not read the raw transcript" "0" \
      | grep -cE 'stream\.jsonl' || true)"
 expect "check_delivery_close_file does not read the raw transcript" "0" \
   "$(sed -n '/^check_delivery_close_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'stream\.jsonl' || true)"
+expect "check_kernel_state does not read the raw transcript" "0" \
+  "$(sed -n '/^check_kernel_state()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'stream\.jsonl' || true)"
 expect "check_delivery_graph_file does not read the raw transcript" "0" \
   "$(sed -n '/^check_delivery_graph_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
@@ -1050,6 +1056,69 @@ expect "close file accepts STATUS stopped" "0" \
     echo "$CHECK_FAIL"
   ')"
 rm -rf "$CLOSE_STOPPED_DIR"
+
+KERNEL_MISS_DIR="$(mktemp -d)"
+mkdir -p "$KERNEL_MISS_DIR/docs/delivery/tag"
+expect "kernel state missing file fails" "1" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$KERNEL_MISS_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_kernel_state()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_kernel_state
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$KERNEL_MISS_DIR"
+
+KERNEL_PASS_DIR="$(mktemp -d)"
+mkdir -p "$KERNEL_PASS_DIR/docs/delivery/tag"
+python3 -c 'import json, pathlib, sys; pathlib.Path(sys.argv[1]).write_text(json.dumps({
+  "status": "running",
+  "stages": [
+    {"id": "a", "status": "done", "verified": [{"cmd": "php artisan test", "exit": 0}]},
+    {"id": "b", "status": "queued", "verified": []}
+  ]
+}) + "\n")' "$KERNEL_PASS_DIR/docs/delivery/tag/kernel.json"
+expect "kernel state accepts running with verified exit 0" "0" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$KERNEL_PASS_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_kernel_state()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_kernel_state
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$KERNEL_PASS_DIR"
+
+KERNEL_UNVERIFIED_DIR="$(mktemp -d)"
+mkdir -p "$KERNEL_UNVERIFIED_DIR/docs/delivery/tag"
+python3 -c 'import json, pathlib, sys; pathlib.Path(sys.argv[1]).write_text(json.dumps({
+  "status": "done",
+  "stages": [{"id": "a", "status": "done", "verified": []}]
+}) + "\n")' "$KERNEL_UNVERIFIED_DIR/docs/delivery/tag/kernel.json"
+expect "kernel state rejects done stage without verified exit 0" "1" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$KERNEL_UNVERIFIED_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_kernel_state()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_kernel_state
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$KERNEL_UNVERIFIED_DIR"
+
+KERNEL_STATUS_DIR="$(mktemp -d)"
+mkdir -p "$KERNEL_STATUS_DIR/docs/delivery/tag"
+python3 -c 'import json, pathlib, sys; pathlib.Path(sys.argv[1]).write_text(json.dumps({
+  "status": "in-progress",
+  "stages": []
+}) + "\n")' "$KERNEL_STATUS_DIR/docs/delivery/tag/kernel.json"
+expect "kernel state rejects status in-progress" "1" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$KERNEL_STATUS_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_kernel_state()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_kernel_state
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$KERNEL_STATUS_DIR"
 
 GRAPH_PASS_DIR="$(mktemp -d)"
 mkdir -p "$GRAPH_PASS_DIR/docs/delivery/tag"

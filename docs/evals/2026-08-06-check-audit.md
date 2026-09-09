@@ -58,6 +58,7 @@ answers that, check by check, so the classification is never re-derived.
 | feature | `check_stage_return_files` | artifact | sound — six-field returns on disk; basenames must match registered agent types; run 10 nested turns had no text |
 | feature | `check_delivery_close_file` | artifact | sound — coordinator close on disk; scored when the process dies before a closing `$LOG` |
 | feature | `check_delivery_graph_file` | artifact | sound — graph.md on disk; NODES/EDGES/PARALLEL/ON-FAIL; each NODES token is a registered agent type; Adaptive packet TO ∈ NODES when packets exist (same helper; Adaptive inherits via `checks_feature`) |
+| feature | `check_kernel_state` | artifact | sound — `docs/delivery/*/kernel.json` on disk; status is running\|done\|stopped; every done stage has a verified command with exit 0. Adaptive/resume inherit via `checks_feature`. Never the raw transcript. |
 | hygiene | `check_log 'duplicate'` | **free-prose → hardened-prose** | **FRAGILE — fixed this release.** A run classifying the UUID twins as "identical"/"redundant" fails the key while being right. Now `'duplicat\|identical\|redundan\|twin'` (stems cover duplicate/duplicated/duplication, redundant/redundancy). |
 | hygiene | `check_log 'conflict'` | **free-prose → hardened-prose** | **FRAGILE — fixed this release.** "Contradicts" fails the key. Now `'conflict\|contradict\|disagree\|mutually exclusive'`. |
 | hygiene | `check_log 'LegacyPayments'` | fixture-noun | sound |
@@ -83,7 +84,7 @@ answers that, check by check, so the classification is never re-derived.
 | feature-adaptive | `check_adaptive_peer_router` | artifact | sound — `docs/delivery/*/stages/peer-router.md` on disk; basename is a registered agent type; six stage-return labels present |
 | feature-resume | `check_agent_absent database-developer` | artifact | sound — `cost.json` attributed.agents plus launched_without_measured_turns must not name database-developer. Run 24: exact key missed `laravel-team:database-developer`; helper now also matches the last `:` segment. Intent unchanged. |
 
-Tally: 52 checks — 39 artifact, 5 fixture-noun, 6 format-contract, **2 hardened-prose (formerly free-prose; 0 free-prose remain)**. The rubric judge
+Tally: 53 checks — 40 artifact, 5 fixture-noun, 6 format-contract, **2 hardened-prose (formerly free-prose; 0 free-prose remain)**. The rubric judge
 (`EVAL_JUDGE=1`) stays on as the independent dissenter for the transcript-based
 checks; it has been right both times it disagreed with the key.
 

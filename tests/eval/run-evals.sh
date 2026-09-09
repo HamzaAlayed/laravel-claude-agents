@@ -515,6 +515,50 @@ check_adaptive_packet() { # ≥1 docs/delivery/*/packets/*-to-*.md with FROM:/TO
   fi
 }
 
+check_kernel_state() { # ≥1 docs/delivery/*/kernel.json; status running|done|stopped; done stages have verified exit 0
+  local n=0
+  local f
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    n=$((n + 1))
+    if ! python3 - "$f" <<'PYKERNEL' >/dev/null 2>&1
+import json, sys
+try:
+    data = json.load(open(sys.argv[1], encoding="utf-8"))
+except Exception:
+    sys.exit(1)
+if not isinstance(data, dict) or data.get("status") not in ("running", "done", "stopped"):
+    sys.exit(1)
+stages = data.get("stages") or []
+if not isinstance(stages, list):
+    sys.exit(1)
+for stage in stages:
+    if not isinstance(stage, dict):
+        sys.exit(1)
+    if stage.get("status") != "done":
+        continue
+    verified = stage.get("verified") or []
+    if not isinstance(verified, list):
+        sys.exit(1)
+    if not any(
+        isinstance(item, dict) and item.get("cmd") and item.get("exit") == 0
+        for item in verified
+    ):
+        sys.exit(1)
+sys.exit(0)
+PYKERNEL
+    then
+      record 1 "file:   kernel.json missing verified exit 0 ($(basename "$(dirname "$f")")/kernel.json)"
+      return
+    fi
+  done < <(find "$WORK/docs/delivery" -type f -name 'kernel.json' 2>/dev/null)
+  if [ "$n" -ge 1 ]; then
+    record 0 "file:   kernel.json with status and verified exit 0"
+  else
+    record 1 "file:   kernel.json with status and verified exit 0 (found $n)"
+  fi
+}
+
 check_delivery_close_file() { # ≥1 docs/delivery/*/close.md with VERIFIED:/NOT-CHECKED:/STATUS:
   local n=0
   local f label
@@ -766,6 +810,7 @@ checks_feature() {
   check_stage_return_files 
   check_delivery_close_file 
   check_delivery_graph_file 
+  check_kernel_state 
 }
 
 checks_feature_adaptive() {

@@ -28,6 +28,7 @@ class StageSpec:
     depends_on: list
     status: str = "queued"
     did: list = field(default_factory=list)
+    verified: list = field(default_factory=list)
 
 
 @dataclass
@@ -199,6 +200,7 @@ def report(root, name, path, runner):
                 raise ReportError(f"NOT-CHECKED names success criterion: {criterion}")
         stage.did = did_paths
         stage.status = "done"
+        stage.verified = [{"cmd": cmd, "exit": 0} for cmd in commands]
     delivery.spawns += 1
     if all(stage.status in ("done", "skipped") for stage in delivery.stages):
         delivery.status = "done"

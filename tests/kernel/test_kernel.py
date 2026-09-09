@@ -121,6 +121,15 @@ class ReportTest(unittest.TestCase):
         d = kernel.report(self.root, "tag", p, runner=runner)
         self.assertEqual(d.stages[0].status, "done")
         self.assertEqual(runner.calls[0][1], "php artisan test --filter=TagTest")
+        self.assertEqual(
+            d.stages[0].verified,
+            [{"cmd": "php artisan test --filter=TagTest", "exit": 0}],
+        )
+        saved = kernel.load(self.root, "tag")
+        self.assertEqual(
+            saved.stages[0].verified,
+            [{"cmd": "php artisan test --filter=TagTest", "exit": 0}],
+        )
 
     def test_not_checked_naming_criterion_is_rejected(self):
         self._plan_one()
