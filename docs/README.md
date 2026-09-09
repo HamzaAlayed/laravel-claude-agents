@@ -74,7 +74,9 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 
 ## Open
 
-None.
+| Item | Evidence |
+| --- | --- |
+| Guild 3.1.0 SDLC / Scrum kernel | [design](plans/2026-09-09-guild-v3-sdlc-scrum-design.md) — sprint owns many deliveries; light DoR on every `plan`; VERSION stays 3.0.0 until local gates. |
 
 ## How a new review should start
 
