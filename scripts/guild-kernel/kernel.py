@@ -4,6 +4,13 @@ import json
 import pathlib
 from dataclasses import asdict, dataclass
 
+_LABELS = ("STATUS", "DID", "VERIFIED", "NOT-CHECKED", "FLAGS", "NEXT")
+_COMMAND_MARKERS = ("/", "\\", "artisan", "vendor/bin", "php", "pint", "phpstan", "pest", "./")
+
+
+class ReportError(Exception):
+    pass
+
 
 @dataclass
 class StageSpec:
@@ -22,6 +29,7 @@ class Delivery:
     cap: int
     status: str
     stages: list
+    spawns: int = 0
 
 
 def _state_path(root, name):
@@ -47,6 +55,7 @@ def plan(*, root, name, done_when, stages):
         cap=len(stages) + 2,
         status="running",
         stages=list(stages),
+        spawns=0,
     )
     save(root, delivery)
     return delivery
@@ -64,3 +73,48 @@ def next_agent(root, name):
         if deps_met:
             return stage.agent
     return "STOP"
+
+
+def _parse_labels(text):
+    fields = {label: [] for label in _LABELS}
+    for line in text.splitlines():
+        for label in _LABELS:
+            prefix = f"{label}:"
+            if line.startswith(prefix):
+                fields[label].append(line[len(prefix):].strip())
+                break
+    return fields
+
+
+def _is_command(text):
+    return bool(text) and any(marker in text for marker in _COMMAND_MARKERS)
+
+
+def report(root, name, path, runner):
+    fields = _parse_labels(pathlib.Path(path).read_text())
+    commands = []
+    for raw in fields["VERIFIED"]:
+        cmd = raw.split(" →", 1)[0].strip()
+        if not _is_command(cmd):
+            raise ReportError("VERIFIED must be a command")
+        commands.append(cmd)
+    if not commands:
+        raise ReportError("VERIFIED must be a command")
+
+    for cmd in commands:
+        if runner.run(root, cmd) != 0:
+            raise ReportError(f"command failed: {cmd}")
+
+    delivery = load(root, name)
+    agent = pathlib.Path(path).stem
+    first_report = False
+    for stage in delivery.stages:
+        if stage.agent != agent:
+            continue
+        if stage.status != "done":
+            first_report = True
+        stage.status = "done"
+    if first_report:
+        delivery.spawns += 1
+    save(root, delivery)
+    return delivery
