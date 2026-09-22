@@ -524,5 +524,37 @@ class DorTest(unittest.TestCase):
         self.assertFalse((self.root / "docs/delivery/tag/kernel.json").is_file())
 
 
+class SprintStartTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_sprint_start_writes_json_and_helper_view(self):
+        sprint = kernel.sprint_start(
+            self.root, id="3.1", goal="SDLC/Scrum kernel", wip=2
+        )
+        self.assertEqual(sprint.status, "running")
+        self.assertEqual(sprint.stories, [])
+        self.assertTrue((self.root / "docs/sprints/3.1/sprint.json").is_file())
+        lines = (self.root / "docs/sprints/3.1/sprint.md").read_text().splitlines()
+        for label in ("GOAL:", "WIP:", "BOARD:", "STATUS:"):
+            self.assertTrue(any(line.startswith(label) for line in lines), label)
+
+    def test_second_sprint_start_does_not_reset_stories_or_wip(self):
+        kernel.sprint_start(self.root, id="3.1", goal="SDLC/Scrum kernel", wip=2)
+        sprint = kernel.load_sprint(self.root, "3.1")
+        sprint.stories = ["tag"]
+        sprint.wip = 9
+        kernel.save_sprint(self.root, sprint)
+        again = kernel.sprint_start(self.root, id="other", goal="nope", wip=1)
+        self.assertEqual(again.id, "3.1")
+        self.assertEqual(again.stories, ["tag"])
+        self.assertEqual(again.wip, 9)
+        self.assertFalse((self.root / "docs/sprints/other/sprint.json").is_file())
+
+
 if __name__ == "__main__":
     unittest.main()

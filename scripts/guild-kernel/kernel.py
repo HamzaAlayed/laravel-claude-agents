@@ -229,3 +229,65 @@ def report(root, name, path, runner):
         not_checked=not_checked or "none",
     )
     return delivery
+
+
+@dataclass
+class Sprint:
+    id: str
+    goal: str
+    wip: int
+    stories: list
+    status: str
+
+
+def _sprint_dir(root, sprint_id):
+    return pathlib.Path(root) / "docs" / "sprints" / sprint_id
+
+
+def save_sprint(root, sprint):
+    folder = _sprint_dir(root, sprint.id)
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "sprint.json").write_text(json.dumps(asdict(sprint), indent=2) + "\n")
+
+
+def load_sprint(root, sprint_id):
+    data = json.loads((_sprint_dir(root, sprint_id) / "sprint.json").read_text())
+    return Sprint(**data)
+
+
+def _running_sprint(root):
+    base = pathlib.Path(root) / "docs" / "sprints"
+    if not base.is_dir():
+        return None
+    for path in sorted(base.glob("*/sprint.json")):
+        sprint = Sprint(**json.loads(path.read_text()))
+        if sprint.status == "running":
+            return sprint
+    return None
+
+
+def render_sprint(sprint):
+    board = ", ".join(sprint.stories) if sprint.stories else "none"
+    return (
+        f"GOAL: {sprint.goal}\n"
+        f"WIP: {len(sprint.stories)}/{sprint.wip}\n"
+        f"BOARD: {board}\n"
+        f"STATUS: {sprint.status}\n"
+    )
+
+
+def write_sprint_view(root, sprint):
+    folder = _sprint_dir(root, sprint.id)
+    folder.mkdir(parents=True, exist_ok=True)
+    (folder / "sprint.md").write_text(render_sprint(sprint))
+
+
+def sprint_start(root, *, id, goal, wip):
+    existing = _running_sprint(root)
+    if existing is not None:
+        write_sprint_view(root, existing)
+        return existing
+    sprint = Sprint(id=id, goal=goal, wip=wip, stories=[], status="running")
+    save_sprint(root, sprint)
+    write_sprint_view(root, sprint)
+    return sprint
