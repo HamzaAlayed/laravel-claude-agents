@@ -417,7 +417,10 @@ def ingest(root, name, *, kind, stage_id, runner, check="", comment=""):
         raise PlanError(f"stage {stage_id} is missing")
     if kind != "check":
         raise PlanError(f"unknown ingest kind {kind}")
-    number = delivery.pr["number"]
+    try:
+        number = int(delivery.pr["number"])
+    except (TypeError, ValueError) as exc:
+        raise PlanError("pr number must be an integer") from exc
     cmd = f"gh pr checks {number} --json name,bucket,link"
     code, out = runner.capture(root, cmd)
     if code != 0:

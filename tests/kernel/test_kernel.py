@@ -1639,6 +1639,22 @@ class WorkplaceIngestTest(unittest.TestCase):
             )
         self.assertEqual(kernel.load(self.root, "tag").stages[0].status, "done")
 
+    def test_non_int_pr_number_rejects_before_capture(self):
+        delivery = kernel.load(self.root, "tag")
+        delivery.pr["number"] = "17; touch pwned"
+        kernel.save(self.root, delivery)
+        runner = FakeRunner({}, {CHECKS: (0, FAIL_CHECK)})
+        with self.assertRaises(kernel.PlanError):
+            kernel.ingest(
+                self.root,
+                "tag",
+                kind="check",
+                stage_id="a",
+                check="pint",
+                runner=runner,
+            )
+        self.assertEqual(runner.calls, [])
+
 
 if __name__ == "__main__":
     unittest.main()
