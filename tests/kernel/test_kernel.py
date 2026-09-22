@@ -863,6 +863,37 @@ class LessonTest(unittest.TestCase):
         self.assertEqual(lesson["status"], "seen")
         self.assertEqual(lesson["deliveries"], ["tag"])
 
+    def test_already_recorded_flag_refreshes_stale_view(self):
+        team = self.root / "docs/team"
+        team.mkdir(parents=True)
+        (team / "lessons.json").write_text(
+            json.dumps(
+                {
+                    "lessons": [
+                        {
+                            "norm": "do not call model::all()",
+                            "text": "Do not call Model::all()",
+                            "status": "taught",
+                            "scope": ["database-developer", "backend-developer"],
+                            "deliveries": ["tag", "post"],
+                        }
+                    ]
+                },
+                indent=2,
+            )
+            + "\n"
+        )
+        (team / "lessons.md").write_text("LESSONS: none\n")
+        kernel._record_lesson(
+            self.root, "tag", "database-developer", "Do not call Model::all()"
+        )
+        view = (team / "lessons.md").read_text()
+        self.assertIn("RULE: Do not call Model::all()", view)
+        self.assertIn("STATUS: taught", view)
+        lessons = json.loads((team / "lessons.json").read_text())
+        self.assertEqual(lessons["lessons"][0]["status"], "taught")
+        self.assertEqual(lessons["lessons"][0]["deliveries"], ["tag", "post"])
+
     def _cli_plan(self, name, agent):
         guild = REPO / "scripts/guild-kernel/guild.py"
         return subprocess.run(

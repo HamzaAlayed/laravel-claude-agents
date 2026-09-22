@@ -122,6 +122,7 @@ def _record_lesson(root, delivery_name, agent, text):
         if lesson.get("norm") != norm:
             continue
         if delivery_name in lesson.get("deliveries", []):
+            write_lessons_view(root, data)
             return
         lesson["deliveries"].append(delivery_name)
         if agent not in lesson["scope"]:
