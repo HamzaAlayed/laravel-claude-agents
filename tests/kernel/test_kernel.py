@@ -1320,5 +1320,94 @@ class WorkplacePlanTest(unittest.TestCase):
         self.assertEqual([call[1] for call in runner.calls], [ISSUE_CMD])
 
 
+REPO_CMD = "gh repo view --json nameWithOwner"
+REPO_OUT = json.dumps({"nameWithOwner": "acme/app"})
+PR_CMD = "gh pr view 17 --json number,url,state"
+PR_OUT = json.dumps(
+    {
+        "number": 17,
+        "url": "https://github.com/acme/app/pull/17",
+        "state": "OPEN",
+    }
+)
+
+
+class WorkplacePrTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _plan(self, runner, issue=42):
+        return kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="POST /api/tags creates a Tag",
+            stages=[kernel.StageSpec("a", "database-developer", "writer", ["m"], [])],
+            issue=issue,
+            runner=runner,
+        )
+
+    def _plant_issue(self, captured=None):
+        captured = dict(captured or {})
+        captured[ISSUE_CMD] = (0, ISSUE_OUT)
+        runner = FakeRunner({}, captured)
+        self._plan(runner)
+        runner.calls.clear()
+        return runner
+
+    def test_record_pr_stores_open_state_and_repo(self):
+        runner = self._plant_issue(
+            {REPO_CMD: (0, REPO_OUT), PR_CMD: (0, PR_OUT)}
+        )
+        delivery = kernel.record_pr(self.root, "tag", 17, runner)
+        self.assertEqual(delivery.repo, "acme/app")
+        self.assertEqual(delivery.pr["state"], "open")
+        self.assertEqual(delivery.pr["url"], "https://github.com/acme/app/pull/17")
+        close = (self.root / "docs/delivery/tag/close.md").read_text()
+        self.assertIn("PR: https://github.com/acme/app/pull/17\n", close)
+
+    def test_record_pr_without_issue_raises(self):
+        runner = FakeRunner(
+            {},
+            {REPO_CMD: (0, REPO_OUT), PR_CMD: (0, PR_OUT)},
+        )
+        kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="POST /api/tags creates a Tag",
+            stages=[kernel.StageSpec("a", "database-developer", "writer", ["m"], [])],
+            runner=runner,
+        )
+        runner.calls.clear()
+        with self.assertRaises(kernel.PlanError):
+            kernel.record_pr(self.root, "tag", 17, runner)
+        delivery = kernel.load(self.root, "tag")
+        self.assertEqual(delivery.pr, {})
+        self.assertEqual(runner.calls, [])
+
+    def test_failed_pr_view_leaves_pr_empty(self):
+        runner = self._plant_issue(
+            {REPO_CMD: (0, REPO_OUT), PR_CMD: (1, "")}
+        )
+        with self.assertRaises(kernel.PlanError):
+            kernel.record_pr(self.root, "tag", 17, runner)
+        delivery = kernel.load(self.root, "tag")
+        self.assertEqual(delivery.pr, {})
+        self.assertEqual(delivery.repo, "")
+
+    def test_malformed_pr_json_leaves_pr_empty(self):
+        runner = self._plant_issue(
+            {REPO_CMD: (0, REPO_OUT), PR_CMD: (0, "not-json")}
+        )
+        with self.assertRaises(kernel.PlanError):
+            kernel.record_pr(self.root, "tag", 17, runner)
+        delivery = kernel.load(self.root, "tag")
+        self.assertEqual(delivery.pr, {})
+        self.assertEqual(delivery.repo, "")
+
+
 if __name__ == "__main__":
     unittest.main()

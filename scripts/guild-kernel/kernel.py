@@ -346,6 +346,39 @@ def plan(*, root, name, done_when, stages, sprint="", issue=0, runner=None):
     return delivery
 
 
+def record_pr(root, name, number, runner):
+    delivery = load(root, name)
+    if not delivery.issue:
+        raise PlanError("record_pr requires a delivery issue")
+    repo_cmd = "gh repo view --json nameWithOwner"
+    code, out = runner.capture(root, repo_cmd)
+    if code != 0:
+        raise PlanError(f"gh repo view exited {code}")
+    try:
+        repo_payload = json.loads(out)
+        repo = repo_payload["nameWithOwner"]
+    except (json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise PlanError("gh repo view returned malformed JSON") from exc
+    pr_cmd = f"gh pr view {int(number)} --json number,url,state"
+    code, out = runner.capture(root, pr_cmd)
+    if code != 0:
+        raise PlanError(f"gh pr view exited {code}")
+    try:
+        pr_payload = json.loads(out)
+        pr_data = {
+            "number": int(pr_payload["number"]),
+            "url": pr_payload["url"],
+            "state": str(pr_payload["state"]).lower(),
+        }
+    except (json.JSONDecodeError, KeyError, TypeError, ValueError) as exc:
+        raise PlanError("gh pr view returned malformed JSON") from exc
+    delivery.repo = repo
+    delivery.pr = pr_data
+    save(root, delivery)
+    write_views(root, delivery, not_checked=delivery.done_when or "none")
+    return delivery
+
+
 def _did_on_disk(root, stage):
     root = pathlib.Path(root)
     return any((root / path).is_file() for path in stage.did if path)
