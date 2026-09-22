@@ -24,6 +24,11 @@ from urllib.parse import parse_qs, urlparse
 
 from catalog import load_catalog
 
+_GUILD_KERNEL = Path(__file__).resolve().parent.parent / "guild-kernel"
+if str(_GUILD_KERNEL) not in sys.path:
+    sys.path.insert(0, str(_GUILD_KERNEL))
+import kernel as guild_kernel  # noqa: E402
+
 LOCAL_ORIGIN = re.compile(r"^http://(localhost|127\.0\.0\.1)(:\d+)?$")
 RUN_ROUTE = re.compile(r"^/api/runs/(?P<run_id>[A-Za-z0-9_]+)(?P<rest>/[a-z]+)?$")
 KERNEL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
@@ -75,9 +80,11 @@ class _Server(ThreadingHTTPServer):
 
 
 def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
-                dist_dir: Path, *, kernel_cli=None) -> _Server:
+                dist_dir: Path, *, kernel_cli=None, kernel_root=None) -> _Server:
     if kernel_cli is None:
         kernel_cli = _default_kernel_cli
+    if kernel_root is None:
+        kernel_root = os.getcwd()
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "GuildConsole/1.0"
@@ -162,6 +169,55 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
                 return self._json(400, {"error": text})
             return self._json(200, {"text": text})
 
+        def _kernel_deliveries(self):
+            # Ignore any client-supplied root — kernel_root is the only allowed root.
+            delivery_root = Path(kernel_root) / "docs" / "delivery"
+            delivery_root_resolved = delivery_root.resolve()
+            rows = []
+            if delivery_root.is_dir():
+                for child in delivery_root.iterdir():
+                    if not child.is_dir():
+                        continue
+                    if not KERNEL_NAME.match(child.name):
+                        continue
+                    try:
+                        resolved = child.resolve()
+                        resolved.relative_to(delivery_root_resolved)
+                    except ValueError:
+                        continue
+                    kernel_path = resolved / "kernel.json"
+                    if not kernel_path.is_file():
+                        continue
+                    try:
+                        data = json.loads(kernel_path.read_text(encoding="utf-8"))
+                    except (OSError, ValueError):
+                        continue
+                    if not isinstance(data, dict):
+                        continue
+                    try:
+                        delivery = guild_kernel.load(kernel_root, child.name)
+                    except Exception:
+                        continue
+                    issue = data.get("issue") if isinstance(data.get("issue"), dict) else {}
+                    pr = data.get("pr") if isinstance(data.get("pr"), dict) else {}
+                    issue_number = issue.get("number")
+                    if not isinstance(issue_number, int):
+                        issue_number = None
+                    rows.append(
+                        {
+                            "name": data.get("name") if isinstance(data.get("name"), str) else child.name,
+                            "status": data.get("status") if isinstance(data.get("status"), str) else "",
+                            "done_when": data.get("done_when") if isinstance(data.get("done_when"), str) else "",
+                            "issue_url": issue.get("url") if isinstance(issue.get("url"), str) else "",
+                            "issue_number": issue_number,
+                            "pr_url": pr.get("url") if isinstance(pr.get("url"), str) else "",
+                            "pr_state": pr.get("state") if isinstance(pr.get("state"), str) else "",
+                            "board": guild_kernel.board_line(delivery),
+                        }
+                    )
+            rows.sort(key=lambda row: row["name"])
+            return self._json(200, {"deliveries": rows})
+
         def _kernel_ingest(self, body: dict):
             # Ignore any client-supplied root — cwd is the only allowed root.
             name = body.get("name") or ""
@@ -209,6 +265,8 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
                 return self._json(200, {"runs": manager.list_runs()})
             if parsed.path == "/api/kernel/board":
                 return self._kernel_board(query)
+            if parsed.path == "/api/kernel/deliveries":
+                return self._kernel_deliveries()
             match = RUN_ROUTE.match(parsed.path)
             if match and match.group("rest") is None:
                 return self._json(200, {"events": manager.snapshot(match.group("run_id"))})

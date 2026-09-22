@@ -341,6 +341,117 @@ class TestKernelRoutes(unittest.TestCase):
         self.assertEqual(self.calls, [])
 
 
+class TestKernelDeliveries(unittest.TestCase):
+    """Spin a second server with kernel_root — do not reuse the class server."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+        self.dist = self.root / "dist"
+        self.dist.mkdir()
+        (self.dist / "index.html").write_text("<h1>console</h1>", encoding="utf-8")
+
+        tag = self.root / "docs" / "delivery" / "tag"
+        tag.mkdir(parents=True)
+        (tag / "kernel.json").write_text(
+            json.dumps(
+                {
+                    "name": "tag",
+                    "done_when": "POST /api/tags creates a Tag",
+                    "cap": 3,
+                    "status": "running",
+                    "spawns": 0,
+                    "sprint": "",
+                    "rules_printed": [],
+                    "issue": {
+                        "number": 42,
+                        "title": "Add Tag API",
+                        "url": "https://github.com/acme/repo/issues/42",
+                    },
+                    "pr": {
+                        "number": 17,
+                        "url": "https://github.com/acme/repo/pull/17",
+                        "state": "open",
+                    },
+                    "stages": [
+                        {
+                            "id": "a",
+                            "agent": "database-developer",
+                            "role": "writer",
+                            "success_criteria": ["tags migration exists"],
+                            "depends_on": [],
+                            "status": "queued",
+                            "did": [],
+                            "verified": [],
+                            "flags": [],
+                            "pair": "",
+                            "awaiting_pair": False,
+                        }
+                    ],
+                }
+            ),
+            encoding="utf-8",
+        )
+
+        bad = self.root / "docs" / "delivery" / "bad name"
+        bad.mkdir(parents=True)
+        (bad / "kernel.json").write_text(
+            json.dumps({"name": "bad name", "status": "running", "done_when": "x", "cap": 1, "stages": []}),
+            encoding="utf-8",
+        )
+
+        self.httpd = server.make_server(
+            "127.0.0.1",
+            0,
+            TOKEN,
+            FakeManager(),
+            REPO,
+            self.dist,
+            kernel_root=str(self.root),
+        )
+        self.port = self.httpd.server_address[1]
+        self.thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
+        self.thread.start()
+
+    def tearDown(self):
+        self.httpd.shutdown()
+        self.httpd.server_close()
+        self.tmp.cleanup()
+
+    def url(self, path):
+        return f"http://127.0.0.1:{self.port}{path}"
+
+    def get(self, path, token=TOKEN):
+        request = urllib.request.Request(self.url(path))
+        if token:
+            request.add_header("X-Guild-Token", token)
+        return urllib.request.urlopen(request, timeout=5)
+
+    def test_list_deliveries_includes_tag_skips_invalid_name(self):
+        payload = json.loads(self.get("/api/kernel/deliveries").read())
+        names = [row["name"] for row in payload["deliveries"]]
+        self.assertIn("tag", names)
+        self.assertNotIn("bad name", names)
+        tag = next(row for row in payload["deliveries"] if row["name"] == "tag")
+        self.assertEqual(tag["status"], "running")
+        self.assertEqual(tag["done_when"], "POST /api/tags creates a Tag")
+        self.assertEqual(tag["issue_number"], 42)
+        self.assertEqual(tag["issue_url"], "https://github.com/acme/repo/issues/42")
+        self.assertEqual(tag["pr_url"], "https://github.com/acme/repo/pull/17")
+        self.assertEqual(tag["pr_state"], "open")
+        self.assertTrue(tag["board"])
+
+    def test_list_deliveries_ignores_client_root_query(self):
+        payload = json.loads(self.get("/api/kernel/deliveries?root=/tmp/evil").read())
+        names = [row["name"] for row in payload["deliveries"]]
+        self.assertEqual(names, ["tag"])
+
+    def test_list_deliveries_without_token_is_401(self):
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            self.get("/api/kernel/deliveries", token=None)
+        self.assertEqual(ctx.exception.code, 401)
+
+
 class TestWriteOrDrop(unittest.TestCase):
     def test_swallows_broken_pipe(self):
         wfile = mock.Mock()
