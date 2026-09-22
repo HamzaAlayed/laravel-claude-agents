@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.2.0] - 2026-09-22
+
+### Added
+
+- Independent console runs reduce routine approvals in trusted projects, load
+  project instructions and fresh manifest context, and reuse explicit preferences
+  from `.claude/guild-preferences.md`. See [the boundaries](docs/independent-runs.md).
+
 ## [4.1.0] - 2026-09-22
 
 ### Changed

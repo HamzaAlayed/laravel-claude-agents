@@ -38,6 +38,7 @@ const KINDS = [
 ] as const;
 
 const MODES = [
+  { value: "managed", label: "Work independently", caption: "Edits and standard project checks continue automatically. Other commands still ask. Use with trusted projects." },
   { value: "default", label: "Ask me", caption: "Asks before edits and commands." },
   { value: "acceptEdits", label: "Accept edits", caption: "Edits land without asking." },
   { value: "plan", label: "Plan only", caption: "Plans only and changes nothing." },
@@ -69,7 +70,7 @@ export function Launcher({
   const [kind, setKind] = useState<string>("prompt");
   const [target, setTarget] = useState("");
   const [text, setText] = useState("");
-  const [mode, setMode] = useState<string>("default");
+  const [mode, setMode] = useState<string>("managed");
 
   const targets =
     kind === "command"
@@ -256,6 +257,16 @@ export function Launcher({
                 />
               )}
             </label>
+            <details className="rounded-lg border border-border p-3 text-sm">
+              <summary className="cursor-pointer rounded-sm font-medium focus-visible:outline-2 focus-visible:outline-ring">
+                Project context and remembered preferences
+              </summary>
+              <p className="mt-3 text-muted-foreground">
+                Each run loads project instructions and refreshes package metadata. Keep explicit preferences in
+                {" "}<code>.claude/guild-preferences.md</code>, or ask the Guild to remember a preference there.
+                You can edit or remove that file at any time. Don’t store secrets in it.
+              </p>
+            </details>
           </CardContent>
 
           <CardFooter className="flex flex-col items-stretch gap-4 bg-muted/30 sm:flex-row sm:items-center">

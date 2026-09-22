@@ -453,6 +453,7 @@ export default function App() {
                 value={liveMode}
                 onChange={(event) => changeMode(event.target.value)}
               >
+                <option value="managed">Work independently</option>
                 <option value="default">Ask me</option>
                 <option value="acceptEdits">Accept edits</option>
                 <option value="plan">Plan only</option>

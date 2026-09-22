@@ -48,7 +48,7 @@ describe("the launcher explains itself", () => {
 
   it("captions the selected permission mode", async () => {
     const { user } = mount();
-    expect(screen.getByText(/Asks before edits and commands/)).toBeTruthy();
+    expect(screen.getByText(/Edits and standard project checks continue automatically/)).toBeTruthy();
 
     await user.selectOptions(screen.getByLabelText("Permission mode"), "plan");
     expect(screen.getByText(/changes nothing/)).toBeTruthy();
@@ -83,7 +83,7 @@ describe("Cmd/Ctrl+Enter", () => {
     await user.keyboard("{Meta>}{Enter}{/Meta}");
 
     expect(onLaunch).toHaveBeenCalledWith({
-      kind: "prompt", target: "", text: "ship it", mode: "default",
+      kind: "prompt", target: "", text: "ship it", mode: "managed",
     });
   });
 

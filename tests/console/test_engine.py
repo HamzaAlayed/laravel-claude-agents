@@ -529,6 +529,32 @@ class TestPreToolUseGate(EngineTestCase):
         output = self.gate("Bash", {"command": "echo hello"})
         self.assertEqual(self.decision(output), "ask")
 
+    def test_independent_validation_and_boundary(self):
+        run_id = self.mgr.start({"text": "fix it", "mode": "managed"})
+        self.assertEqual(self.clients[0].options["permission_mode"], "acceptEdits")
+        self.assertIn("Independent mode", self.clients[0].options["system_prompt"])
+        self.assertEqual(self.decision(self.gate("Bash", {"command": "npm test"})), "allow")
+        self.assertEqual(self.decision(self.gate("Bash", {"command": "npm publish"})), "ask")
+        self.assertEqual(self.decision(self.gate("mcp__mail__send", {})), "ask")
+        self.assertEqual(self.decision(self.gate("Write", {"file_path": "/outside.txt"})), "ask")
+        decision = self.run_coro(self.clients[0].can_use_tool("Bash", {"command": "npm test"}, _FakeContext()))
+        self.assertEqual(decision["behavior"], "allow")
+        self.assertFalse(self.mgr.runs[run_id].pending)
+        self.mgr.set_mode(run_id, "plan")
+        self.assertEqual(self.decision(self.gate("Bash", {"command": "npm test"})), "ask")
+        self.mgr.set_mode(run_id, "managed")
+        self.assertEqual(self.clients[0].modes, ["plan", "acceptEdits"])
+
+    def test_failed_mode_switch_keeps_policy(self):
+        run_id = self.mgr.start({"text": "fix it", "mode": "default"})
+        async def fail(mode):
+            raise RuntimeError("refused")
+        self.clients[0].set_permission_mode = fail
+        with self.assertRaises(RuntimeError):
+            self.mgr.set_mode(run_id, "managed")
+        self.assertEqual(self.mgr.runs[run_id].mode, "default")
+        self.assertEqual(self.decision(self.gate("Bash", {"command": "npm test"})), "ask")
+
     def test_the_ask_carries_a_reason_for_the_sheet_to_show(self):
         # The SDK forwards permissionDecisionReason to
         # ToolPermissionContext.decision_reason, i.e. into the same can_use_tool

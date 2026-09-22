@@ -994,7 +994,7 @@ describe("steering a live run", () => {
     await user.selectOptions(modeSelect(), "acceptEdits");
 
     expect(await screen.findByText(/the run has already finished/)).toBeTruthy();
-    expect(modeSelect().value).toBe("default");
+    expect(modeSelect().value).toBe("managed");
   });
 
   it("is not offered once the run is over", async () => {

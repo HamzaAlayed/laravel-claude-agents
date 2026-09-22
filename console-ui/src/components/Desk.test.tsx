@@ -79,7 +79,7 @@ describe("Desk", () => {
       kind: "command",
       target: "make-feature",
       text: "tag --issue 42",
-      mode: "default",
+      mode: "managed",
     });
     expect(payload).not.toHaveProperty("root");
   });

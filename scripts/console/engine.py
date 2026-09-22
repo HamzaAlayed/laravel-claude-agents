@@ -34,10 +34,11 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import events as events_mod
+from independence import instructions, routine_command
 
 # bypassPermissions is inherited by subagents and cannot be overridden per
 # subagent; dontAsk denies AskUserQuestion, which is how checkpoints arrive.
-ALLOWED_MODES = ("default", "acceptEdits", "plan")
+ALLOWED_MODES = ("default", "acceptEdits", "plan", "managed")
 FORBIDDEN_MODES = ("bypassPermissions", "dontAsk", "auto")
 SENTINEL = object()
 
@@ -84,6 +85,7 @@ class Run:
     def __init__(self, run_id: str, spec: dict, path: Path):
         self.run_id = run_id
         self.spec = spec
+        self.mode = _check_mode(spec.get("mode"))
         self.path = path
         self.state = events_mod.RunState(run_id)
         self.client = None
@@ -138,7 +140,8 @@ class RunManager:
         run = Run(run_id, spec, self.runs_dir / f"{run_id}.jsonl")
         options = {
             "cwd": str(self.root),
-            "permission_mode": mode,
+            "permission_mode": "acceptEdits" if mode == "managed" else mode,
+            "system_prompt": instructions(self.root, mode == "managed"),
             "can_use_tool": self._make_can_use_tool(run),
             "pre_tool_use": self._make_pre_tool_use(run),
         }
@@ -213,7 +216,11 @@ class RunManager:
     def set_mode(self, run_id: str, mode: str | None = None, model: str | None = None):
         run = self.runs[run_id]
         if mode is not None:
-            self.submit(run.client.set_permission_mode(_check_mode(mode))).result(timeout=10)
+            mode = _check_mode(mode)
+            async def change_mode():
+                await run.client.set_permission_mode("acceptEdits" if mode == "managed" else mode)
+                run.mode = mode
+            self.submit(change_mode()).result(timeout=10)
         if model is not None:
             self.submit(run.client.set_model(model)).result(timeout=10)
 
@@ -290,7 +297,16 @@ class RunManager:
             # remembered set -- so a Bash call whose input we cannot read is
             # asked about rather than waved through.
             remembered = _signature(tool_name, tool_input) in run.remembered
-            ask = tool_name in ASK_ALWAYS_TOOLS and not remembered
+            routine = run.mode == "managed" and tool_name == "Bash" and routine_command(tool_input)
+            ask = tool_name in ASK_ALWAYS_TOOLS and not remembered and not routine
+            if run.mode == "managed" and tool_name.startswith("mcp__"):
+                ask = True
+            if run.mode == "managed" and tool_name in ("Edit", "Write", "NotebookEdit"):
+                edit_input = tool_input if isinstance(tool_input, dict) else {}
+                path = edit_input.get("file_path") or edit_input.get("notebook_path")
+                candidate = self.root / path if isinstance(path, str) else None
+                if candidate is None or not candidate.resolve().is_relative_to(self.root.resolve()):
+                    ask = True
 
             lane = run.state.lane_for_tool_use(call_id)
             self._publish(run, {
@@ -304,18 +320,28 @@ class RunManager:
                 "asked": ask,
             })
 
+            if routine:
+                return {"hookSpecificOutput": {
+                    "hookEventName": "PreToolUse", "permissionDecision": "allow",
+                    "permissionDecisionReason": "Independent mode: standard project validation command.",
+                }}
             if not ask:
                 return {}
             return {"hookSpecificOutput": {
                 "hookEventName": "PreToolUse",
                 "permissionDecision": "ask",
-                "permissionDecisionReason": ASK_REASON,
+                "permissionDecisionReason": (
+                    "Independent mode requires review for this action."
+                    if run.mode == "managed" else ASK_REASON
+                ),
             }}
 
         return pre_tool_use
 
     def _make_can_use_tool(self, run: Run):
         async def can_use_tool(tool_name, input_data, context):
+            if run.mode == "managed" and tool_name == "Bash" and routine_command(input_data):
+                return {"behavior": "allow", "updated_input": input_data}
             prompt_id = f"p_{uuid.uuid4().hex[:10]}"
             agent, confidence = self._agent_for_prompt(run, context)
             future: asyncio.Future = asyncio.get_running_loop().create_future()

@@ -379,7 +379,7 @@ export function Desk({
       kind: "command",
       target: "make-feature",
       text: runText(row),
-      mode: "default",
+      mode: "managed",
     });
   };
 

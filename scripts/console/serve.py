@@ -104,6 +104,8 @@ def sdk_client_factory(options: dict):
     sdk_options = ClaudeAgentOptions(
         cwd=options["cwd"],
         permission_mode=options["permission_mode"],
+        setting_sources=["user", "project", "local"],
+        system_prompt={"type": "preset", "preset": "claude_code", "append": options["system_prompt"]},
         can_use_tool=can_use_tool,
         plugins=[{"type": "local", "path": str(pack_root())}],
         # The console's whole promise is that in `default` mode every call not

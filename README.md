@@ -53,7 +53,7 @@ N stages · done when: POST /api/donations creates a Donation
 
 Statuses are `✔ done / ▶ running / · queued / ✖ failed`. Each specialist returns `STATUS / DID / VERIFIED / NOT-CHECKED / FLAGS / NEXT`. After two or more specialists report, `docs/team/stack.md` and `docs/delivery/<name>/log.md` exist before the closing answer.
 
-In `/console`, stations take the dark floor as the company starts. A parked agent is marked on the floor (cue / needs you) — there is no amber bar. Every Bash call asks you.
+In `/console`, stations take the dark floor as the company starts. A parked agent is marked on the floor (cue / needs you). New runs default to **Work independently**: edits and a narrow set of routine checks continue automatically in trusted projects. Other shell commands still ask. Choose **Ask me** to retain approval for every Bash call. See [independent runs and project preferences](docs/independent-runs.md).
 
 ![Console board mid-run](docs/images/console-board-mid-run.png)
 
