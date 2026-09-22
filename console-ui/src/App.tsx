@@ -8,6 +8,7 @@ import { FocusRun } from "@/components/FocusRun";
 import { LanePanel } from "@/components/LanePanel";
 import { Launcher, type LaunchSpec } from "@/components/Launcher";
 import { Markdown } from "@/components/Markdown";
+import { KernelStrip } from "@/components/KernelStrip";
 import { ShowHeader } from "@/components/ShowHeader";
 import { Spotlight } from "@/components/Spotlight";
 import * as api from "@/lib/api";
@@ -352,6 +353,10 @@ export default function App() {
             )}
           </div>
         )}
+        {/* Visible without a live run — call sheet, not tied to Board/interrupt. */}
+        <div className="px-4 pt-4">
+          <KernelStrip />
+        </div>
         <Launcher
           catalog={catalog}
           busy={false}

@@ -60,6 +60,26 @@ export const interruptRun = (runId: string) => post(`/api/runs/${runId}/interrup
 export const setMode = (runId: string, mode?: string, model?: string) =>
   post(`/api/runs/${runId}/mode`, { mode, model });
 
+export const fetchKernelBoard = async (name: string): Promise<{ text: string }> => {
+  const response = await fetch(
+    `/api/kernel/board?name=${encodeURIComponent(name)}`,
+    { headers },
+  );
+  if (!response.ok) throw new Error((await response.json()).error ?? response.statusText);
+  return response.json();
+};
+
+export type KernelIngestBody = {
+  name: string;
+  kind: "check" | "review";
+  stage: string;
+  check?: string;
+  comment?: string;
+};
+
+export const ingestKernel = (body: KernelIngestBody) =>
+  post<{ ok: boolean; text: string }>("/api/kernel/ingest", body);
+
 /**
  * SSE with resume: EventSource cannot send headers, so the token rides the query.
  *

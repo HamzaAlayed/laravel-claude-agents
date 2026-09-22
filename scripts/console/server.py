@@ -11,10 +11,13 @@ from __future__ import annotations
 import concurrent.futures
 import json
 import mimetypes
+import os
 import posixpath
 import re
 import secrets
 import socketserver
+import subprocess
+import sys
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
@@ -23,6 +26,16 @@ from catalog import load_catalog
 
 LOCAL_ORIGIN = re.compile(r"^http://(localhost|127\.0\.0\.1)(:\d+)?$")
 RUN_ROUTE = re.compile(r"^/api/runs/(?P<run_id>[A-Za-z0-9_]+)(?P<rest>/[a-z]+)?$")
+KERNEL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+
+
+def _default_kernel_cli(argv: list[str]) -> tuple[int, str]:
+    """Run guild-kernel against the process cwd. Client never chooses root."""
+    cmd = [sys.executable, "scripts/guild-kernel/guild.py", *argv]
+    completed = subprocess.run(
+        cmd, cwd=os.getcwd(), capture_output=True, text=True
+    )
+    return completed.returncode, (completed.stdout or "") + (completed.stderr or "")
 
 # concurrent.futures.TimeoutError is an alias of the builtin from 3.11 on, but
 # not on 3.10 (serve.py's MIN_PYTHON) -- catch both so a wedged engine loop can
@@ -62,7 +75,10 @@ class _Server(ThreadingHTTPServer):
 
 
 def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
-                dist_dir: Path) -> _Server:
+                dist_dir: Path, *, kernel_cli=None) -> _Server:
+    if kernel_cli is None:
+        kernel_cli = _default_kernel_cli
+
     class Handler(BaseHTTPRequestHandler):
         server_version = "GuildConsole/1.0"
         protocol_version = "HTTP/1.1"
@@ -137,6 +153,48 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
                 return False
             return True
 
+        def _kernel_board(self, query: dict):
+            name = (query.get("name") or [""])[0]
+            if not name or not KERNEL_NAME.match(name):
+                return self._json(400, {"error": "name is required and must match [A-Za-z0-9][A-Za-z0-9_-]*"})
+            code, text = kernel_cli(["board", "--root", os.getcwd(), "--name", name])
+            if code != 0:
+                return self._json(400, {"error": text})
+            return self._json(200, {"text": text})
+
+        def _kernel_ingest(self, body: dict):
+            # Ignore any client-supplied root — cwd is the only allowed root.
+            name = body.get("name") or ""
+            stage = body.get("stage") or ""
+            kind = body.get("kind") or ""
+            if not isinstance(name, str) or not KERNEL_NAME.match(name):
+                return self._json(400, {"error": "invalid name"})
+            if not isinstance(stage, str) or not KERNEL_NAME.match(stage):
+                return self._json(400, {"error": "invalid stage"})
+            if kind not in ("check", "review"):
+                return self._json(400, {"error": "kind must be check or review"})
+            argv = [
+                "ingest",
+                "--root", os.getcwd(),
+                "--name", name,
+                "--kind", kind,
+                "--stage", stage,
+            ]
+            if kind == "check":
+                check = body.get("check") or ""
+                if not isinstance(check, str) or not check.strip():
+                    return self._json(400, {"error": "check is required for kind=check"})
+                argv.extend(["--check", check])
+            else:
+                comment = body.get("comment") or ""
+                if not isinstance(comment, str) or not comment.strip():
+                    return self._json(400, {"error": "comment is required for kind=review"})
+                argv.extend(["--comment", comment])
+            code, text = kernel_cli(argv)
+            if code != 0:
+                return self._json(400, {"error": text})
+            return self._json(200, {"ok": True, "text": text})
+
         # ---- GET ----
         def do_GET(self):
             parsed = urlparse(self.path)
@@ -149,6 +207,8 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
                 return self._json(200, load_catalog(catalog_root))
             if parsed.path == "/api/runs":
                 return self._json(200, {"runs": manager.list_runs()})
+            if parsed.path == "/api/kernel/board":
+                return self._kernel_board(query)
             match = RUN_ROUTE.match(parsed.path)
             if match and match.group("rest") is None:
                 return self._json(200, {"events": manager.snapshot(match.group("run_id"))})
@@ -190,6 +250,8 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
             if not self._guard(query):
                 return
             body = self._read_body()
+            if parsed.path == "/api/kernel/ingest":
+                return self._kernel_ingest(body)
             if parsed.path == "/api/runs":
                 if body.get("kind") not in ("command", "specialist", "prompt"):
                     return self._json(400, {"error": "kind must be command, specialist or prompt"})

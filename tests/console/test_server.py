@@ -1,6 +1,7 @@
 import concurrent.futures
 import http.client
 import json
+import os
 import pathlib
 import socket
 import sys
@@ -249,6 +250,95 @@ class TestServer(unittest.TestCase):
             self.post("/api/runs", {"kind": "prompt", "text": "hi", "model": "no-such-model"})
         self.assertEqual(ctx.exception.code, 400)
         self.assertIn("no-such-model", json.loads(ctx.exception.read())["error"])
+
+
+class TestKernelRoutes(unittest.TestCase):
+    """Spin a second server with a recording kernel_cli — do not reuse the class server."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.dist = pathlib.Path(self.tmp.name)
+        (self.dist / "index.html").write_text("<h1>console</h1>", encoding="utf-8")
+        self.calls = []
+
+        def kernel_cli(argv):
+            self.calls.append(list(argv))
+            return (0, "ok")
+
+        self.httpd = server.make_server(
+            "127.0.0.1", 0, TOKEN, FakeManager(), REPO, self.dist, kernel_cli=kernel_cli
+        )
+        self.port = self.httpd.server_address[1]
+        self.thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
+        self.thread.start()
+
+    def tearDown(self):
+        self.httpd.shutdown()
+        self.tmp.cleanup()
+
+    def url(self, path):
+        return f"http://127.0.0.1:{self.port}{path}"
+
+    def get(self, path, token=TOKEN):
+        request = urllib.request.Request(self.url(path))
+        if token:
+            request.add_header("X-Guild-Token", token)
+        return urllib.request.urlopen(request, timeout=5)
+
+    def post(self, path, body, token=TOKEN):
+        request = urllib.request.Request(
+            self.url(path), data=json.dumps(body).encode(), method="POST"
+        )
+        request.add_header("Content-Type", "application/json")
+        if token:
+            request.add_header("X-Guild-Token", token)
+        return urllib.request.urlopen(request, timeout=5)
+
+    def test_ingest_rejects_unknown_kind_without_calling_cli(self):
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            self.post(
+                "/api/kernel/ingest",
+                {"name": "tag", "kind": "nope", "stage": "a", "check": "pint"},
+            )
+        self.assertEqual(ctx.exception.code, 400)
+        self.assertEqual(self.calls, [])
+
+    def test_ingest_ignores_client_root_and_uses_getcwd(self):
+        payload = json.loads(
+            self.post(
+                "/api/kernel/ingest",
+                {
+                    "name": "tag",
+                    "kind": "check",
+                    "stage": "a",
+                    "check": "pint",
+                    "root": "/tmp/evil",
+                },
+            ).read()
+        )
+        self.assertEqual(payload, {"ok": True, "text": "ok"})
+        self.assertEqual(len(self.calls), 1)
+        argv = self.calls[0]
+        self.assertIn("ingest", argv)
+        root_idx = argv.index("--root")
+        self.assertEqual(argv[root_idx + 1], os.getcwd())
+        self.assertNotIn("/tmp/evil", argv)
+        self.assertEqual(argv[argv.index("--name") + 1], "tag")
+        self.assertEqual(argv[argv.index("--kind") + 1], "check")
+        self.assertEqual(argv[argv.index("--stage") + 1], "a")
+        self.assertEqual(argv[argv.index("--check") + 1], "pint")
+
+    def test_board_returns_cli_stdout(self):
+        payload = json.loads(self.get("/api/kernel/board?name=tag").read())
+        self.assertEqual(payload, {"text": "ok"})
+        self.assertEqual(self.calls[0][0], "board")
+        self.assertEqual(self.calls[0][self.calls[0].index("--name") + 1], "tag")
+
+    def test_board_without_token_is_401(self):
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            self.get("/api/kernel/board?name=tag", token=None)
+        self.assertEqual(ctx.exception.code, 401)
+        self.assertEqual(self.calls, [])
 
 
 class TestWriteOrDrop(unittest.TestCase):
