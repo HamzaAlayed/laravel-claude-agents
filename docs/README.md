@@ -72,12 +72,13 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 | Guild 2.3.0 resume | [design](plans/2026-09-04-guild-resume-design.md); [plan](plans/2026-09-04-guild-resume.md); [run 26](evals/2026-09-04-run-26.md) — billed `feature-resume` skip PASS (14/14, 703s). Same `/make-feature` continues a running close.md. |
 | Guild 3.0.0 kernel + Laravel truth | [design](plans/2026-09-08-guild-v3-kernel-design.md); [plan](plans/2026-09-08-guild-v3-kernel.md) — pack-local Python kernel; `VERIFIED` is a command exit 0. Shipped on local gates; billed `feature` is no longer a ship gate. |
 | Guild 3.1.0 SDLC / Scrum kernel | [design](plans/2026-09-09-guild-v3-sdlc-scrum-design.md); [plan](plans/2026-09-09-guild-v3-sdlc-scrum.md) — sprint owns many deliveries; light DoR on every `plan`. Shipped on local gates. |
+| Guild 3.2.0 craft layer | [design](plans/2026-09-22-guild-v3-craft-design.md); [plan](plans/2026-09-22-guild-v3-craft.md) — lessons from repeated FLAGS, optional `/pair`, opt-in `feature-replay`. Shipped on local gates. |
 
 ## Open
 
 | Item | Evidence |
 | --- | --- |
-| Guild 3.2.0 craft layer | [design](plans/2026-09-22-guild-v3-craft-design.md); [plan](plans/2026-09-22-guild-v3-craft.md) — lessons from repeated FLAGS, optional `/pair`, opt-in `feature-replay`. VERSION stays 3.1.0 until local gates. |
+| — | Nothing open. |
 
 ## How a new review should start
 

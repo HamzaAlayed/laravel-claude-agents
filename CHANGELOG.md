@@ -7,6 +7,32 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.2.0] - 2026-09-22
+
+A repeated `FLAGS` line becomes a taught lesson the next `plan` prints.
+`/pair` can hold one stage until a reviewer command exits 0. Solo
+`/make-feature` still does not pair unless you ask.
+
+### Added
+
+- **Lessons.** `report` stores a real `FLAGS` line. The same text on a
+  second delivery is `taught` in `docs/team/lessons.json`. The kernel
+  renders `docs/team/lessons.md`. `plan` prints `RULES:` for taught
+  lessons whose scope includes an agent on the board. `/teach` still
+  owns `docs/team/conventions.md`.
+- **`/pair`.** Sixteenth workflow command. Marks one stage with a
+  reviewer. The writer lane stays running until that reviewer's
+  `VERIFIED` command exits 0.
+- **Lessons-file hook.** Ninth production guardrail
+  (`enforce-lessons-file.sh`).
+- **`feature-replay`.** Opt-in eval. Not in the default sweep and not a
+  ship gate. Ceilings match `feature`.
+
+### Changed
+
+- **Interface.** The nine pipeline commands brief every `RULES:` line
+  and do not compose `lessons.md`.
+
 ## [3.1.0] - 2026-09-22
 
 A story cannot `plan` without a nonempty done-when and per-stage success
