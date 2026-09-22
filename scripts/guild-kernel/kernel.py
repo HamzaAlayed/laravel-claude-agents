@@ -94,15 +94,43 @@ def _save_lessons(root, data):
     path.write_text(json.dumps(data, indent=2) + "\n")
 
 
+def render_lessons(data):
+    taught = [lesson for lesson in data.get("lessons", []) if lesson.get("status") == "taught"]
+    if not taught:
+        return "LESSONS: none\n"
+    lines = ["LESSONS:"]
+    for lesson in taught:
+        scope = ", ".join(lesson.get("scope", []))
+        lines.append(f"RULE: {lesson['text']}")
+        lines.append(f"SCOPE: {scope}")
+        lines.append(f"STATUS: taught")
+    return "\n".join(lines) + "\n"
+
+
+def write_lessons_view(root, data):
+    path = pathlib.Path(root) / "docs" / "team" / "lessons.md"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(render_lessons(data))
+
+
 def _record_lesson(root, delivery_name, agent, text):
     norm = _norm_flag(text)
     if not norm or norm == "none":
         return
     data = _load_lessons(root)
     for lesson in data["lessons"]:
-        if lesson.get("norm") == norm:
-            # Same delivery again does not promote; promotion is Task 2.
+        if lesson.get("norm") != norm:
+            continue
+        if delivery_name in lesson.get("deliveries", []):
             return
+        lesson["deliveries"].append(delivery_name)
+        if agent not in lesson["scope"]:
+            lesson["scope"].append(agent)
+        if len(lesson["deliveries"]) >= 2:
+            lesson["status"] = "taught"
+        _save_lessons(root, data)
+        write_lessons_view(root, data)
+        return
     data["lessons"].append(
         {
             "norm": norm,
@@ -113,6 +141,7 @@ def _record_lesson(root, delivery_name, agent, text):
         }
     )
     _save_lessons(root, data)
+    write_lessons_view(root, data)
 
 
 def _taught_rules(root, stages):

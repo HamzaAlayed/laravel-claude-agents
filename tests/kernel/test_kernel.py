@@ -827,6 +827,75 @@ class LessonTest(unittest.TestCase):
         )
         self.assertEqual(again.rules_printed, [])
 
+    def test_second_delivery_teaches_and_view_shows_rule(self):
+        self._report("tag", "database-developer", "Do not call Model::all()")
+        self._report("post", "backend-developer", "Do not call Model::all()")
+        lessons = json.loads((self.root / "docs/team/lessons.json").read_text())
+        lesson = lessons["lessons"][0]
+        self.assertEqual(lesson["status"], "taught")
+        self.assertEqual(set(lesson["scope"]), {"database-developer", "backend-developer"})
+        self.assertEqual(lesson["deliveries"], ["tag", "post"])
+        view = (self.root / "docs/team/lessons.md").read_text()
+        for label in ("LESSONS:", "RULE:", "SCOPE:", "STATUS:"):
+            self.assertTrue(
+                any(line.startswith(label) for line in view.splitlines()),
+                f"lessons.md missing {label}",
+            )
+        self.assertIn("Do not call Model::all()", view)
+        self.assertIn("STATUS: taught", view)
+        taught_plan = kernel.plan(
+            root=self.root,
+            name="later",
+            done_when="POST /api/tags creates a Tag",
+            stages=[
+                kernel.StageSpec("a", "database-developer", "writer", ["m"], [])
+            ],
+        )
+        self.assertEqual(taught_plan.rules_printed, ["Do not call Model::all()"])
+
+    def test_same_delivery_twice_stays_seen(self):
+        self._report("tag", "database-developer", "Do not call Model::all()")
+        kernel._record_lesson(
+            self.root, "tag", "backend-developer", "Do not call Model::all()"
+        )
+        lessons = json.loads((self.root / "docs/team/lessons.json").read_text())
+        lesson = lessons["lessons"][0]
+        self.assertEqual(lesson["status"], "seen")
+        self.assertEqual(lesson["deliveries"], ["tag"])
+
+    def _cli_plan(self, name, agent):
+        guild = REPO / "scripts/guild-kernel/guild.py"
+        return subprocess.run(
+            [
+                sys.executable,
+                str(guild),
+                "plan",
+                "--root",
+                str(self.root),
+                "--name",
+                name,
+                "--done-when",
+                "POST /api/tags creates a Tag",
+                "--stage",
+                f"a,{agent},writer,,m",
+            ],
+            capture_output=True,
+            text=True,
+        )
+
+    def test_cli_plan_prints_rules_none_then_taught_rule(self):
+        proc = self._cli_plan("fresh", "database-developer")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+        self.assertEqual(proc.stdout.strip(), "RULES: none")
+
+        self._report("tag", "database-developer", "Do not call Model::all()")
+        self._report("post", "backend-developer", "Do not call Model::all()")
+        proc = self._cli_plan("later", "database-developer")
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        self.assertNotIn("Traceback", proc.stderr)
+        self.assertEqual(proc.stdout.strip(), "RULES: Do not call Model::all()")
+
 
 if __name__ == "__main__":
     unittest.main()

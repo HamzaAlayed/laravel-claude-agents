@@ -102,13 +102,18 @@ def main(argv=None):
     args = build_parser().parse_args(argv)
     try:
         if args.cmd == "plan":
-            kernel.plan(
+            delivery = kernel.plan(
                 root=args.root,
                 name=args.name,
                 done_when=args.done_when,
                 stages=_stages_from_args(args.stage),
                 sprint=args.sprint,
             )
+            if delivery.rules_printed:
+                for rule in delivery.rules_printed:
+                    print(f"RULES: {rule}")
+            else:
+                print("RULES: none")
             return 0
         if args.cmd == "next":
             print(kernel.next_agent(args.root, args.name))
