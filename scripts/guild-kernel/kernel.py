@@ -303,7 +303,7 @@ def _remember_story(root, sprint_id, name):
     write_sprint_view(root, sprint)
 
 
-def plan(*, root, name, done_when, stages, sprint=""):
+def plan(*, root, name, done_when, stages, sprint="", issue=0, runner=None):
     if _state_path(root, name).is_file():
         existing = load(root, name)
         existing.rules_printed = _taught_rules(root, existing.stages)
@@ -312,6 +312,22 @@ def plan(*, root, name, done_when, stages, sprint=""):
         return existing
     if not done_when.strip() or any(not _has_criteria(stage) for stage in stages):
         raise PlanError("plan requires nonempty done_when and success criteria")
+    issue_data = {}
+    if issue:
+        if runner is None or not hasattr(runner, "capture"):
+            raise PlanError("plan --issue requires a runner with capture")
+        cmd = f"gh issue view {int(issue)} --json number,title,url"
+        code, out = runner.capture(root, cmd)
+        if code != 0:
+            raise PlanError(f"gh issue view exited {code}")
+        payload = json.loads(out)
+        if int(payload["number"]) != int(issue):
+            raise PlanError("gh issue number does not match")
+        issue_data = {
+            "number": int(payload["number"]),
+            "title": payload["title"],
+            "url": payload["url"],
+        }
     sprint_id = _attach_sprint(root, name, sprint)
     delivery = Delivery(
         name=name,
@@ -321,6 +337,7 @@ def plan(*, root, name, done_when, stages, sprint=""):
         stages=list(stages),
         spawns=0,
         sprint=sprint_id,
+        issue=issue_data,
     )
     delivery.rules_printed = _taught_rules(root, delivery.stages)
     save(root, delivery)

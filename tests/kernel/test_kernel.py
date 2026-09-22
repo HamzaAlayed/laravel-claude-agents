@@ -12,13 +12,19 @@ import kernel  # noqa: E402
 
 
 class FakeRunner:
-    def __init__(self, codes):
+    def __init__(self, codes, captured=None):
         self.codes = codes
+        self.captured = captured or {}
         self.calls = []
 
     def run(self, cwd, cmd):
         self.calls.append((str(cwd), cmd))
         return self.codes[cmd]
+
+    def capture(self, cwd, cmd):
+        self.calls.append((str(cwd), cmd))
+        code, out = self.captured[cmd]
+        return code, out
 
 
 class PlanNextTest(unittest.TestCase):
@@ -1216,6 +1222,83 @@ class WorkplaceLoadTest(unittest.TestCase):
         close = (self.root / "docs/delivery/tag/close.md").read_text()
         self.assertIn("\nISSUE: none\n", close)
         self.assertTrue(close.endswith("PR: none\n"))
+
+
+ISSUE_CMD = "gh issue view 42 --json number,title,url"
+ISSUE_OUT = json.dumps(
+    {"number": 42, "title": "Add tags", "url": "https://github.com/acme/app/issues/42"}
+)
+
+
+class WorkplacePlanTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _plan(self, runner, issue=42):
+        return kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="POST /api/tags creates a Tag",
+            stages=[kernel.StageSpec("a", "database-developer", "writer", ["m"], [])],
+            issue=issue,
+            runner=runner,
+        )
+
+    def test_plan_issue_stores_number_title_url(self):
+        runner = FakeRunner({}, {ISSUE_CMD: (0, ISSUE_OUT)})
+        delivery = self._plan(runner)
+        self.assertEqual(delivery.issue["number"], 42)
+        self.assertEqual(delivery.issue["title"], "Add tags")
+        self.assertEqual(delivery.issue["url"], "https://github.com/acme/app/issues/42")
+        self.assertEqual(runner.calls, [(str(self.root), ISSUE_CMD)])
+
+    def test_plan_issue_nonzero_gh_writes_no_file(self):
+        runner = FakeRunner({}, {ISSUE_CMD: (1, "")})
+        with self.assertRaises(kernel.PlanError):
+            self._plan(runner)
+        self.assertFalse((self.root / "docs/delivery/tag/kernel.json").is_file())
+
+    def test_plan_without_issue_does_not_capture(self):
+        runner = FakeRunner({})
+        kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="POST /api/tags creates a Tag",
+            stages=[kernel.StageSpec("a", "database-developer", "writer", ["m"], [])],
+            runner=runner,
+        )
+        self.assertEqual(runner.calls, [])
+
+    def test_plan_issue_mismatched_number_writes_no_file(self):
+        out = json.dumps(
+            {
+                "number": 99,
+                "title": "Add tags",
+                "url": "https://github.com/acme/app/issues/99",
+            }
+        )
+        runner = FakeRunner({}, {ISSUE_CMD: (0, out)})
+        with self.assertRaises(kernel.PlanError):
+            self._plan(runner)
+        self.assertFalse((self.root / "docs/delivery/tag/kernel.json").is_file())
+
+    def test_plan_issue_without_runner_writes_no_file(self):
+        with self.assertRaises(kernel.PlanError):
+            kernel.plan(
+                root=self.root,
+                name="tag",
+                done_when="POST /api/tags creates a Tag",
+                stages=[
+                    kernel.StageSpec("a", "database-developer", "writer", ["m"], [])
+                ],
+                issue=42,
+                runner=None,
+            )
+        self.assertFalse((self.root / "docs/delivery/tag/kernel.json").is_file())
 
 
 if __name__ == "__main__":
