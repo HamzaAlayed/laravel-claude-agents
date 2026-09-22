@@ -77,7 +77,7 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 
 | Item | Evidence |
 | --- | --- |
-| — | Nothing open. |
+| Guild 3.2.0 craft layer | [design](plans/2026-09-22-guild-v3-craft-design.md) — lessons from repeated FLAGS, optional `/pair`, opt-in `feature-replay`. VERSION stays 3.1.0 until local gates. |
 
 ## How a new review should start
 
