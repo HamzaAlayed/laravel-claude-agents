@@ -438,6 +438,11 @@ expect "Interface block prints RULES" "9" \
 # shellcheck disable=SC2016 # literal lessons.md path backticks in the Interface needle
 expect "Interface block never composes lessons.md" "9" \
   "$(grep -l 'Never compose `docs/team/lessons.md`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal `plan` + `--issue` backticks in the Interface needle
+expect "Interface block plan passes --issue" "9" \
+  "$(grep -l '`plan` passes `--issue <n>`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block never merges" "9" \
+  "$(grep -l 'Never merge\.' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "/pair does not carry the pipeline Interface" "0" \
   "$(grep -c '> \*\*Interface:\*\*' "$SCRIPT_DIR/commands/pair.md")"
 expect "Interface block never invents a checkmark" "9" \
@@ -498,6 +503,8 @@ expect "coordinator Agents only the type next prints" "1" \
   "$(grep -c 'Agent only the type' "$COORD")"
 expect "coordinator does not Agent a type next did not return" "1" \
   "$(grep -c 'Do not Agent a type' "$COORD")"
+expect "coordinator does not merge" "1" \
+  "$(grep -c 'Do not merge\.' "$COORD")"
 expect "coordinator copies the stage-return stub when persisting read-only" "1" \
   "$(grep -c 'copy skills/delivery-templates/stage-return.md' "$COORD")"
 # shellcheck disable=SC2016 # literal `board` backticks in the coordinator Kernel needle

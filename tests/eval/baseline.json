@@ -92,9 +92,9 @@
     }
   },
   "coordinator_hash": {
-    "sha256": "39a08e125b02fe41c07da63d45fcae81027d4b16ddeb4e49abc8ea6b35dae604",
+    "sha256": "3136cd352925742302f1429d27aa6e500634972314cbcb172236f734ce91e977",
     "as_of": "2026-09-22",
-    "note": "Pinned after 3.2 craft Interface. Billed feature-replay is not a ship gate. Do not raise ceilings.",
+    "note": "Pinned after 3.3 workplace Interface. No billed pin. Do not raise ceilings.",
     "waivers": []
   }
 }
