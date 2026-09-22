@@ -19,6 +19,10 @@ class ReportError(Exception):
     pass
 
 
+class PlanError(Exception):
+    pass
+
+
 @dataclass
 class StageSpec:
     id: str
@@ -104,11 +108,17 @@ def write_views(root, delivery, *, verified="none", not_checked="none"):
     (folder / "graph.md").write_text(render_graph(delivery))
 
 
+def _has_criteria(stage):
+    return any(str(item).strip() for item in stage.success_criteria)
+
+
 def plan(*, root, name, done_when, stages):
     if _state_path(root, name).is_file():
         existing = load(root, name)
         write_views(root, existing, not_checked=existing.done_when or "none")
         return existing
+    if not done_when.strip() or any(not _has_criteria(stage) for stage in stages):
+        raise PlanError("plan requires nonempty done_when and success criteria")
     delivery = Delivery(
         name=name,
         done_when=done_when,

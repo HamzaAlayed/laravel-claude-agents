@@ -380,7 +380,7 @@ class ViewsCliTest(unittest.TestCase):
                 "--stage",
                 "b,backend-developer,writer,a,Tag HTTP",
                 "--stage",
-                "c,qa-engineer,reviewer,b",
+                "c,qa-engineer,reviewer,b,Pest covers Tag",
             ],
             capture_output=True,
             text=True,
@@ -393,7 +393,7 @@ class ViewsCliTest(unittest.TestCase):
         self.assertEqual(d.stages[0].depends_on, [])
         self.assertEqual(d.stages[1].success_criteria, ["Tag HTTP"])
         self.assertEqual(d.stages[1].depends_on, ["a"])
-        self.assertEqual(d.stages[2].success_criteria, [])
+        self.assertEqual(d.stages[2].success_criteria, ["Pest covers Tag"])
         self.assertEqual(d.stages[2].depends_on, ["b"])
 
     def test_cli_stage_too_few_fields_is_usage_error(self):
@@ -432,6 +432,8 @@ class ViewsCliTest(unittest.TestCase):
                 str(self.root),
                 "--name",
                 "tag",
+                "--done-when",
+                "POST /api/tags creates a Tag",
                 "--stage",
                 "a,database-developer,writer,,POST /api/tags creates a Tag, returns 201",
                 "--stage",
@@ -447,6 +449,39 @@ class ViewsCliTest(unittest.TestCase):
             ["POST /api/tags creates a Tag, returns 201"],
         )
         self.assertEqual(d.stages[1].success_criteria, ["hello, world", "other"])
+
+
+class DorTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_plan_rejects_empty_done_when(self):
+        with self.assertRaises(kernel.PlanError):
+            kernel.plan(
+                root=self.root,
+                name="tag",
+                done_when="",
+                stages=[
+                    kernel.StageSpec("a", "database-developer", "writer", ["m"], []),
+                ],
+            )
+        self.assertFalse((self.root / "docs/delivery/tag/kernel.json").is_file())
+
+    def test_plan_rejects_stage_without_criteria(self):
+        with self.assertRaises(kernel.PlanError):
+            kernel.plan(
+                root=self.root,
+                name="tag",
+                done_when="POST /api/tags creates a Tag",
+                stages=[
+                    kernel.StageSpec("a", "database-developer", "writer", [], []),
+                ],
+            )
+        self.assertFalse((self.root / "docs/delivery/tag/kernel.json").is_file())
 
 
 if __name__ == "__main__":
