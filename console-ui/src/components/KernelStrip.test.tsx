@@ -25,7 +25,7 @@ describe("KernelStrip", () => {
 
     expect(fetch).toHaveBeenCalled();
     const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls.find(
-      ([url]: [string]) => String(url).includes("/api/kernel/ingest"),
+      (call: unknown[]) => String(call[0]).includes("/api/kernel/ingest"),
     ) as [string, RequestInit];
     const body = JSON.parse(String(init.body));
     expect(body).toEqual({ name: "tag", kind: "check", stage: "a", check: "pint" });
