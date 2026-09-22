@@ -1161,5 +1161,62 @@ class PairTest(unittest.TestCase):
         self.assertEqual(kernel.next_agent(self.root, "tag"), "STOP")
 
 
+class WorkplaceLoadTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_v32_kernel_json_loads_empty_workplace_fields(self):
+        folder = self.root / "docs" / "delivery" / "tag"
+        folder.mkdir(parents=True)
+        folder.joinpath("kernel.json").write_text(
+            json.dumps(
+                {
+                    "name": "tag",
+                    "done_when": "POST /api/tags creates a Tag",
+                    "cap": 3,
+                    "status": "running",
+                    "spawns": 0,
+                    "sprint": "",
+                    "rules_printed": [],
+                    "stages": [
+                        {
+                            "id": "a",
+                            "agent": "database-developer",
+                            "role": "writer",
+                            "success_criteria": ["tags migration exists"],
+                            "depends_on": [],
+                            "status": "queued",
+                            "did": [],
+                            "verified": [],
+                            "flags": [],
+                            "pair": "",
+                            "awaiting_pair": False,
+                        }
+                    ],
+                }
+            )
+        )
+        delivery = kernel.load(self.root, "tag")
+        self.assertEqual(delivery.issue, {})
+        self.assertEqual(delivery.pr, {})
+        self.assertEqual(delivery.repo, "")
+        self.assertEqual(delivery.stages[0].reopens, 0)
+
+    def test_close_view_appends_issue_and_pr_none(self):
+        kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="POST /api/tags creates a Tag",
+            stages=[kernel.StageSpec("a", "database-developer", "writer", ["m"], [])],
+        )
+        close = (self.root / "docs/delivery/tag/close.md").read_text()
+        self.assertIn("\nISSUE: none\n", close)
+        self.assertTrue(close.endswith("PR: none\n"))
+
+
 if __name__ == "__main__":
     unittest.main()

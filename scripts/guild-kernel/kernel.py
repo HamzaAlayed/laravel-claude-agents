@@ -58,6 +58,7 @@ class StageSpec:
     flags: list = field(default_factory=list)
     pair: str = ""
     awaiting_pair: bool = False
+    reopens: int = 0
 
 
 @dataclass
@@ -70,6 +71,9 @@ class Delivery:
     spawns: int = 0
     sprint: str = ""
     rules_printed: list = field(default_factory=list)
+    issue: dict = field(default_factory=dict)
+    pr: dict = field(default_factory=dict)
+    repo: str = ""
 
 
 def _state_path(root, name):
@@ -86,11 +90,15 @@ def load(root, name):
     data = json.loads(_state_path(root, name).read_text())
     data.setdefault("sprint", "")
     data.setdefault("rules_printed", [])
+    data.setdefault("issue", {})
+    data.setdefault("pr", {})
+    data.setdefault("repo", "")
     stages = []
     for stage in data.pop("stages"):
         stage.setdefault("flags", [])
         stage.setdefault("pair", "")
         stage.setdefault("awaiting_pair", False)
+        stage.setdefault("reopens", 0)
         stages.append(StageSpec(**stage))
     return Delivery(stages=stages, **data)
 
@@ -193,11 +201,15 @@ def board_line(delivery):
 
 
 def render_close(delivery, *, verified="none", not_checked="none"):
+    issue_url = delivery.issue.get("url") or "none"
+    pr_url = delivery.pr.get("url") or "none"
     return (
         f"VERIFIED: {verified}\n"
         f"NOT-CHECKED: {not_checked}\n"
         f"STATUS: {delivery.status}\n"
         f"BOARD: {board_line(delivery)}\n"
+        f"ISSUE: {issue_url}\n"
+        f"PR: {pr_url}\n"
     )
 
 
