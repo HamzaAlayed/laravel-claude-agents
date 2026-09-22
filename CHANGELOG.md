@@ -7,6 +7,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.0] - 2026-09-22
+
+The console opens on a delivery desk; Run starts /make-feature for that
+delivery and passes --issue when the kernel has one; Watch reopens one
+stage from a failing check or a new review comment and stays off until
+toggled; the company floor stays the live run; merge stays a person.
+
 ## [3.3.0] - 2026-09-22
 
 Opt-in `--issue` makes a GitHub issue the delivery identity. The kernel

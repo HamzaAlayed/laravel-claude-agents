@@ -74,6 +74,7 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 | Guild 3.1.0 SDLC / Scrum kernel | [design](plans/2026-09-09-guild-v3-sdlc-scrum-design.md); [plan](plans/2026-09-09-guild-v3-sdlc-scrum.md) — sprint owns many deliveries; light DoR on every `plan`. Shipped on local gates. |
 | Guild 3.2.0 craft layer | [design](plans/2026-09-22-guild-v3-craft-design.md); [plan](plans/2026-09-22-guild-v3-craft.md) — lessons from repeated FLAGS, optional `/pair`, opt-in `feature-replay`. Shipped on local gates. |
 | Guild 3.3.0 workplace | [design](plans/2026-09-22-guild-v3-workplace-design.md); [plan](plans/2026-09-22-guild-v3-workplace.md) — opt-in `--issue`, kernel records PR via `gh`, reopen stage once on failing check or confirmed review. Merge stays a person. Shipped on local gates. |
+| Guild 4.0.0 delivery desk | [design](plans/2026-09-22-guild-v4-desk-design.md); [plan](plans/2026-09-22-guild-v4-desk.md) — console opens on a delivery desk; Run starts `/make-feature` (with `--issue` when the kernel has one); Watch reopens one stage and stays off until toggled. Company floor stays the live run; merge stays a person. Shipped on local gates. |
 
 ## Open
 
