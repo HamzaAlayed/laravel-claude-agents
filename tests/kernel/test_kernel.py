@@ -1775,5 +1775,117 @@ class WorkplaceIngestTest(unittest.TestCase):
         self.assertEqual(runner.calls, [])
 
 
+class WatchOnceTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+        self._plant()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _plant(self):
+        plan_runner = FakeRunner({}, {ISSUE_CMD: (0, ISSUE_OUT)})
+        kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="POST /api/tags creates a Tag",
+            stages=[
+                kernel.StageSpec("a", "database-developer", "writer", ["m"], [])
+            ],
+            issue=42,
+            runner=plan_runner,
+        )
+        path = self.root / "docs/delivery/tag/stages/database-developer.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(STAGE_BODY)
+        kernel.report(
+            self.root,
+            "tag",
+            path,
+            runner=FakeRunner({VERIFY_CMD: 0}),
+        )
+        pr_runner = FakeRunner(
+            {},
+            {REPO_CMD: (0, REPO_OUT), PR_CMD: (0, PR_OUT)},
+        )
+        delivery = kernel.record_pr(self.root, "tag", 17, pr_runner)
+        delivery.spawns = delivery.cap
+        kernel.save(self.root, delivery)
+
+    def test_watch_skips_without_pr(self):
+        self.tmp.cleanup()
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+        plan_runner = FakeRunner({}, {ISSUE_CMD: (0, ISSUE_OUT)})
+        kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="POST /api/tags creates a Tag",
+            stages=[
+                kernel.StageSpec("a", "database-developer", "writer", ["m"], [])
+            ],
+            issue=42,
+            runner=plan_runner,
+        )
+        runner = FakeRunner({}, {CHECKS: (0, FAIL_CHECK)})
+        result = kernel.watch_once(self.root, "tag", runner)
+        self.assertEqual(result, {"action": "skip"})
+        self.assertEqual(runner.calls, [])
+
+    def test_watch_reopens_one_failing_check(self):
+        runner = FakeRunner({}, {CHECKS: (0, FAIL_CHECK)})
+        result = kernel.watch_once(self.root, "tag", runner)
+        delivery = kernel.load(self.root, "tag")
+        self.assertEqual(result, {"action": "reopen", "check": "pint"})
+        self.assertEqual(delivery.stages[0].status, "running")
+        self.assertEqual(delivery.stages[0].reopens, 1)
+        self.assertEqual(delivery.seen_checks, ["pint"])
+        self.assertEqual(runner.calls, [(str(self.root), CHECKS)])
+
+    def test_watch_green_does_not_save(self):
+        before = (self.root / "docs/delivery/tag/kernel.json").read_bytes()
+        runner = FakeRunner({}, {CHECKS: (0, PASS_CHECK)})
+        result = kernel.watch_once(self.root, "tag", runner)
+        self.assertEqual(result, {"action": "noop"})
+        self.assertEqual(
+            (self.root / "docs/delivery/tag/kernel.json").read_bytes(), before
+        )
+
+    def test_watch_waits_while_stage_running(self):
+        runner = FakeRunner({}, {CHECKS: (0, FAIL_CHECK)})
+        kernel.watch_once(self.root, "tag", runner)
+        runner2 = FakeRunner({}, {CHECKS: (0, FAIL_CHECK)})
+        result = kernel.watch_once(self.root, "tag", runner2)
+        self.assertEqual(result, {"action": "wait"})
+        self.assertEqual(runner2.calls, [])
+        self.assertEqual(kernel.load(self.root, "tag").seen_checks, ["pint"])
+
+    def test_watch_second_failure_stops(self):
+        runner = FakeRunner({}, {CHECKS: (0, FAIL_CHECK)})
+        kernel.watch_once(self.root, "tag", runner)
+        delivery = kernel.load(self.root, "tag")
+        delivery.stages[0].status = "done"
+        kernel.save(self.root, delivery)
+        phpunit_fail = json.dumps(
+            [
+                {
+                    "name": "phpunit",
+                    "bucket": "fail",
+                    "link": "https://github.com/acme/app/runs/2",
+                }
+            ]
+        )
+        runner2 = FakeRunner(
+            {},
+            {"gh pr checks 17 --json name,bucket,link": (0, phpunit_fail)},
+        )
+        result = kernel.watch_once(self.root, "tag", runner2)
+        delivery = kernel.load(self.root, "tag")
+        self.assertEqual(result, {"action": "stopped", "check": "phpunit"})
+        self.assertEqual(delivery.status, "stopped")
+        self.assertIn("phpunit", delivery.seen_checks)
+
+
 if __name__ == "__main__":
     unittest.main()

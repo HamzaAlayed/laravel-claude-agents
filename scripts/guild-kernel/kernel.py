@@ -459,6 +459,62 @@ def ingest(root, name, *, kind, stage_id, runner, check="", comment=""):
     return _reopen(root, delivery, stage)
 
 
+def _watch_target(delivery):
+    writers = [
+        stage
+        for stage in delivery.stages
+        if stage.role == "writer" and stage.status in ("done", "running")
+    ]
+    if writers:
+        return writers[-1]
+    done = [stage for stage in delivery.stages if stage.status == "done"]
+    if done:
+        return done[-1]
+    return None
+
+
+def watch_once(root, name, runner):
+    delivery = load(root, name)
+    if not delivery.pr.get("number"):
+        return {"action": "skip"}
+    stage = _watch_target(delivery)
+    if stage is None:
+        return {"action": "skip"}
+    if stage.status == "running":
+        return {"action": "wait"}
+    try:
+        number = int(delivery.pr["number"])
+    except (TypeError, ValueError) as exc:
+        raise PlanError("pr number must be an integer") from exc
+    cmd = f"gh pr checks {number} --json name,bucket,link"
+    code, out = runner.capture(root, cmd)
+    if code != 0:
+        raise PlanError(f"gh pr checks exited {code}")
+    try:
+        payload = json.loads(out)
+    except json.JSONDecodeError as exc:
+        raise PlanError("gh pr checks returned malformed JSON") from exc
+    if not isinstance(payload, list):
+        raise PlanError("gh pr checks returned malformed JSON")
+    check = next(
+        (
+            item.get("name")
+            for item in payload
+            if item.get("bucket") == "fail"
+            and item.get("name") not in delivery.seen_checks
+        ),
+        None,
+    )
+    if check is None:
+        return {"action": "noop"}
+    _reopen(root, delivery, stage)
+    delivery.seen_checks.append(check)
+    save(root, delivery)
+    if delivery.status == "stopped":
+        return {"action": "stopped", "check": check}
+    return {"action": "reopen", "check": check}
+
+
 def _did_on_disk(root, stage):
     root = pathlib.Path(root)
     return any((root / path).is_file() for path in stage.did if path)
