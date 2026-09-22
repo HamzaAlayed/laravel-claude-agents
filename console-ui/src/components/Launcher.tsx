@@ -31,6 +31,7 @@ export function Launcher({
   busy,
   busyReason,
   onLaunch,
+  onBack,
   pastShows,
 }: {
   catalog: Catalog;
@@ -38,6 +39,8 @@ export function Launcher({
   /** Shown when Start is disabled — never refuse a press silently. */
   busyReason: string | null;
   onLaunch: (spec: LaunchSpec) => void;
+  /** Return to the delivery desk without launching. */
+  onBack?: () => void;
   /** Recorded-run picker — lives on the call sheet, not the floor. */
   pastShows?: ReactNode;
 }) {
@@ -179,6 +182,11 @@ export function Launcher({
           >
             <Play className="mr-1 size-4" aria-hidden /> Start
           </Button>
+          {onBack && (
+            <Button type="button" variant="ghost" onClick={onBack}>
+              Back to desk
+            </Button>
+          )}
           {busy && busyReason && <p className={captionClass}>{busyReason}</p>}
         </div>
 

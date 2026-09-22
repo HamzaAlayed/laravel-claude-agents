@@ -6,9 +6,9 @@ import { Input } from "@/components/ui/input";
 import { Board } from "@/components/Board";
 import { FocusRun } from "@/components/FocusRun";
 import { LanePanel } from "@/components/LanePanel";
+import { Desk } from "@/components/Desk";
 import { Launcher, type LaunchSpec } from "@/components/Launcher";
 import { Markdown } from "@/components/Markdown";
-import { KernelStrip } from "@/components/KernelStrip";
 import { ShowHeader } from "@/components/ShowHeader";
 import { Spotlight } from "@/components/Spotlight";
 import * as api from "@/lib/api";
@@ -80,6 +80,8 @@ export default function App() {
   const [recorded, setRecorded] = useState<string | null>(null);
   const [showTitle, setShowTitle] = useState("The Guild");
   const [runStartedAt, setRunStartedAt] = useState(0);
+  // Desk is idle home; composing opens the existing launcher from New run.
+  const [composing, setComposing] = useState(false);
   const lastSeq = useRef(0);
   // Survives close so LanePanel can animate out; written only while a lane is
   // selected. Declared with the other hooks — selectedLane is derived later.
@@ -189,6 +191,7 @@ export default function App() {
     lastSelectedLane.current = null;
     try {
       const { run_id } = await api.createRun(spec);
+      setComposing(false);
       setRunId(run_id);
       refreshRuns();
     } catch (e) {
@@ -211,6 +214,7 @@ export default function App() {
       lastSelectedLane.current = null;
       setView(events.reduce(reduce, emptyRun(kind)));
       setRecorded(id);
+      setComposing(false);
       setShowTitle(row ? formatRunLabel(row) : id);
     } catch (e) {
       setError(String((e as Error).message));
@@ -333,35 +337,43 @@ export default function App() {
     setSelected(lane);
   };
 
-  if (scene === "call") {
+  if (scene === "desk") {
+    const alerts = (error || view.failure) && (
+      <div className="mx-auto max-w-lg space-y-2 px-4 pt-6">
+        {error && (
+          <p role="alert" className="text-sm text-destructive">
+            {error}
+          </p>
+        )}
+        {view.failure && (
+          <section role="alert" className="rounded-xl border-2 border-destructive p-3">
+            <h2 className="mb-1 flex items-center gap-2 text-sm font-medium">
+              <AlertTriangle className="size-4" aria-hidden /> The run ended with an error
+            </h2>
+            <p className="whitespace-pre-wrap text-sm">{view.failure.message}</p>
+          </section>
+        )}
+      </div>
+    );
+
+    if (!composing) {
+      return (
+        <main>
+          {alerts}
+          <Desk onNewRun={() => setComposing(true)} />
+        </main>
+      );
+    }
+
     return (
       <main>
-        {(error || view.failure) && (
-          <div className="mx-auto max-w-lg space-y-2 px-4 pt-6">
-            {error && (
-              <p role="alert" className="text-sm text-destructive">
-                {error}
-              </p>
-            )}
-            {view.failure && (
-              <section role="alert" className="rounded-xl border-2 border-destructive p-3">
-                <h2 className="mb-1 flex items-center gap-2 text-sm font-medium">
-                  <AlertTriangle className="size-4" aria-hidden /> The run ended with an error
-                </h2>
-                <p className="whitespace-pre-wrap text-sm">{view.failure.message}</p>
-              </section>
-            )}
-          </div>
-        )}
-        {/* Visible without a live run — call sheet, not tied to Board/interrupt. */}
-        <div className="px-4 pt-4">
-          <KernelStrip />
-        </div>
+        {alerts}
         <Launcher
           catalog={catalog}
           busy={false}
           busyReason={null}
           onLaunch={launch}
+          onBack={() => setComposing(false)}
           pastShows={
             runs.length > 0 ? (
               <label className="flex flex-col gap-1.5">

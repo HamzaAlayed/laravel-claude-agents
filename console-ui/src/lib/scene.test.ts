@@ -9,8 +9,12 @@ const idle = {
 };
 
 describe("sceneOf", () => {
-  it("is call when nothing is running", () => {
-    expect(sceneOf(idle)).toBe("call");
+  it("is desk when nothing is running", () => {
+    expect(sceneOf(idle)).toBe("desk");
+  });
+
+  it("is floor for a recorded run", () => {
+    expect(sceneOf({ ...idle, recorded: true })).toBe("floor");
   });
 
   it("is floor for a live run with no spotlight", () => {

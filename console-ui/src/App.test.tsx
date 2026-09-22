@@ -23,8 +23,17 @@ afterEach(() => {
 
 const runButton = () => screen.getByRole("button", { name: "Start" }) as HTMLButtonElement;
 
+const newRunButton = () => screen.getByRole("button", { name: "New run" }) as HTMLButtonElement;
+
 const button = (name: string | RegExp) =>
   screen.getByRole("button", { name }) as HTMLButtonElement;
+
+/** From the delivery desk, open the call sheet. */
+async function openLauncher(user: UserEvent) {
+  await screen.findByRole("button", { name: "New run" });
+  await user.click(newRunButton());
+  await screen.findByLabelText("Run kind");
+}
 
 /**
  * Render the console and wait for the catalog to land. `seed` runs before the
@@ -48,7 +57,7 @@ async function launch(
   seed?: (server: FakeServer) => void,
 ): Promise<{ server: FakeServer; user: UserEvent }> {
   const opened = await open(testCatalog, seed);
-  await screen.findByLabelText("Run kind");
+  await openLauncher(opened.user);
   await opened.user.type(
     screen.getByPlaceholderText("describe the task"),
     "ship the invoice export",
@@ -123,7 +132,7 @@ describe("the run is launched", () => {
       duration_ms: 1,
       total_cost_usd: 0,
     });
-    await screen.findByLabelText("Run kind");
+    await openLauncher(user);
 
     const release = server.hold("/api/runs");
     await user.type(screen.getByPlaceholderText("describe the task"), "another export");
@@ -146,7 +155,7 @@ describe("the run is launched", () => {
       duration_ms: 1,
       total_cost_usd: 0,
     });
-    await screen.findByLabelText("Run kind");
+    await openLauncher(user);
     server.failNext("/api/runs", "could not start");
 
     await user.type(screen.getByPlaceholderText("describe the task"), "another export");
@@ -291,7 +300,7 @@ describe("two-act scenes", () => {
         },
       ]),
     );
-    await screen.findByLabelText("Run kind");
+    await openLauncher(opened.user);
     await waitFor(() => expect(screen.getByLabelText("Open a recorded run")).toBeTruthy());
     await opened.user.selectOptions(screen.getByLabelText("Open a recorded run"), "run_parked");
 
@@ -618,13 +627,14 @@ describe("a question prompt", () => {
 
 describe("a run that ends badly", () => {
   it("reports an errored run as ended and lets another one start", async () => {
-    const { server } = await launch();
+    const { server, user } = await launch();
     expect(document.getElementById("guild-call-sheet")).toBeNull();
 
     server.emit({ type: "error", message: "CLINotConnectedError: transport closed" });
 
     expect(screen.getByText(/The run ended with an error/)).toBeTruthy();
     expect(screen.getByText(/transport closed/)).toBeTruthy();
+    await openLauncher(user);
     expect(runButton().disabled).toBe(false);
     // No result, so nothing may claim there is a final answer.
     expect(screen.queryByText("Final answer")).toBeNull();
@@ -637,6 +647,7 @@ describe("a run that ends badly", () => {
     await user.click(button(/interrupt the running agent/i));
 
     expect(await screen.findByText(/treating this run as ended/)).toBeTruthy();
+    await openLauncher(user);
     await waitFor(() => expect(runButton().disabled).toBe(false));
   });
 
@@ -645,6 +656,7 @@ describe("a run that ends badly", () => {
     await user.click(button(/interrupt the running agent/i));
 
     await waitFor(() => expect(server.postsTo("/interrupt")).toHaveLength(1));
+    await openLauncher(user);
     await waitFor(() => expect(runButton().disabled).toBe(false));
     expect(screen.queryByRole("alert")).toBeNull();
   });
@@ -827,7 +839,7 @@ describe("recorded runs", () => {
         { type: "result", subtype: "success", result: "shipped it", duration_ms: 10, total_cost_usd: 0.2 },
       ]),
     );
-    await screen.findByLabelText("Run kind");
+    await openLauncher(opened.user);
     await waitFor(() => expect(picker()).toBeTruthy());
 
     await opened.user.selectOptions(picker(), "run_old");
@@ -845,7 +857,7 @@ describe("recorded runs", () => {
           input: { command: "ls" }, is_question: false, suggestions: [] },
       ]),
     );
-    await screen.findByLabelText("Run kind");
+    await openLauncher(opened.user);
     await waitFor(() => expect(picker()).toBeTruthy());
 
     await opened.user.selectOptions(picker(), "run_parked");
@@ -861,19 +873,20 @@ describe("recorded runs", () => {
     expect(screen.queryByLabelText("Open a recorded run")).toBeNull();
   });
 
-  it("returns to the call sheet from Back", async () => {
+  it("returns to the desk from Back", async () => {
     const opened = await open(testCatalog, (s) =>
       s.addRecordedRun({ run_id: "run_old", spec: { kind: "prompt" } }, [
         { type: "result", subtype: "success", result: "old news", duration_ms: 1, total_cost_usd: 0 },
       ]),
     );
-    await screen.findByLabelText("Run kind");
+    await openLauncher(opened.user);
     await waitFor(() => expect(picker()).toBeTruthy());
     await opened.user.selectOptions(picker(), "run_old");
     await screen.findByText("old news");
 
     await opened.user.click(screen.getByRole("button", { name: "Back — close recording" }));
-    expect(document.getElementById("guild-call-sheet")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "New run" })).toBeTruthy();
+    expect(document.getElementById("guild-call-sheet")).toBeNull();
     expect(screen.queryByText(/Viewing a recorded run/)).toBeNull();
   });
 
@@ -905,7 +918,7 @@ describe("recorded runs", () => {
         },
       ]),
     );
-    await screen.findByLabelText("Run kind");
+    await openLauncher(opened.user);
     await waitFor(() => expect(picker()).toBeTruthy());
     await opened.user.selectOptions(picker(), "run_parked");
     await screen.findByText(/Viewing a recorded run/);
@@ -925,13 +938,13 @@ describe("recorded runs", () => {
         { type: "result", subtype: "success", result: "old news", duration_ms: 1, total_cost_usd: 0 },
       ]),
     );
-    await screen.findByLabelText("Run kind");
+    await openLauncher(opened.user);
     await waitFor(() => expect(picker()).toBeTruthy());
     await opened.user.selectOptions(picker(), "run_old");
     await screen.findByText("old news");
 
     await opened.user.click(screen.getByRole("button", { name: "Back — close recording" }));
-    await screen.findByLabelText("Run kind");
+    await openLauncher(opened.user);
     await opened.user.type(screen.getByPlaceholderText("describe the task"), "something new");
     await opened.user.click(runButton());
 
@@ -945,10 +958,11 @@ describe("the event stream giving out", () => {
     // What a 404 does: the run is no longer live in this console process, which
     // is what a console restart looks like from the browser. It used to be
     // completely silent — the page just stopped updating.
-    const { server } = await launch();
+    const { server, user } = await launch();
     server.killStream();
 
     expect(await screen.findByText(/event stream/i)).toBeTruthy();
+    await openLauncher(user);
     await waitFor(() => expect(runButton().disabled).toBe(false));
   });
 
@@ -1019,14 +1033,15 @@ describe("the follow-up composer", () => {
   });
 
   it("is gone once the run is over", async () => {
-    const { server } = await launch();
+    const { server, user } = await launch();
     server.emit({ type: "result", subtype: "success", result: "shipped", duration_ms: 10, total_cost_usd: 0.1 });
 
     expect(screen.queryByLabelText("Follow-up message")).toBeNull();
+    await openLauncher(user);
     expect(runButton().disabled).toBe(false);
   });
 
-  it("returns to the call sheet instead of keeping the floor after a result", async () => {
+  it("returns to the desk instead of keeping the floor after a result", async () => {
     const { server } = await launch();
     server.emit({
       type: "result",
@@ -1036,7 +1051,8 @@ describe("the follow-up composer", () => {
       total_cost_usd: 0.1,
     });
 
-    expect(document.getElementById("guild-call-sheet")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "New run" })).toBeTruthy();
+    expect(document.getElementById("guild-call-sheet")).toBeNull();
     expect(screen.queryByRole("heading", { name: "Done" })).toBeNull();
   });
 });
@@ -1052,28 +1068,31 @@ describe("the header status chip", () => {
     expect(screen.getByText(/running ·/)).toBeTruthy();
   });
 
-  it("returns to the call sheet when the result lands", async () => {
+  it("returns to the desk when the result lands", async () => {
     const { server } = await launch();
     server.emit({ type: "result", subtype: "success", result: "shipped", duration_ms: 10, total_cost_usd: 0 });
 
-    expect(document.getElementById("guild-call-sheet")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "New run" })).toBeTruthy();
+    expect(document.getElementById("guild-call-sheet")).toBeNull();
     expect(screen.queryByText(/running ·/)).toBeNull();
     expect(screen.queryByText("done")).toBeNull();
   });
 
-  it("returns to the call sheet when the run dies", async () => {
+  it("returns to the desk when the run dies", async () => {
     const { server } = await launch();
     server.emit({ type: "error", message: "CLINotConnectedError: transport closed" });
 
-    expect(document.getElementById("guild-call-sheet")).toBeTruthy();
+    expect(await screen.findByRole("button", { name: "New run" })).toBeTruthy();
+    expect(document.getElementById("guild-call-sheet")).toBeNull();
     expect(screen.queryByRole("heading", { name: "ship the invoice export" })).toBeNull();
   });
 
-  it("returns to the call sheet after an interrupt", async () => {
+  it("returns to the desk after an interrupt", async () => {
     const { user } = await launch();
     await user.click(button(/interrupt the running agent/i));
 
-    await waitFor(() => expect(document.getElementById("guild-call-sheet")).toBeTruthy());
+    await waitFor(() => expect(screen.getByRole("button", { name: "New run" })).toBeTruthy());
+    expect(document.getElementById("guild-call-sheet")).toBeNull();
     expect(screen.queryByText("stopped")).toBeNull();
   });
 
@@ -1083,7 +1102,7 @@ describe("the header status chip", () => {
         { type: "result", subtype: "success", result: "old news", duration_ms: 1, total_cost_usd: 0 },
       ]),
     );
-    await screen.findByLabelText("Run kind");
+    await openLauncher(opened.user);
     // The runs list lands async — every recorded-run test waits for the picker.
     await waitFor(() =>
       expect(screen.getByLabelText("Open a recorded run")).toBeTruthy(),
