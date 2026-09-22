@@ -1136,6 +1136,30 @@ class PairTest(unittest.TestCase):
             [{"cmd": "php artisan test --filter=TagTest", "exit": 0}],
         )
 
+    def test_cap_while_waiting_stops_and_next_is_stop(self):
+        delivery = self._plan()
+        kernel.pair(self.root, "tag", "a", reviewer="tech-lead")
+        delivery = kernel.load(self.root, "tag")
+        delivery.spawns = delivery.cap - 1
+        kernel.save(self.root, delivery)
+        path = self.root / "docs/delivery/tag/stages/database-developer.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            "STATUS: done\nDID: app/Models/Tag.php\n"
+            "VERIFIED: php artisan test --filter=TagTest\n"
+            "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
+        )
+        reported = kernel.report(
+            self.root,
+            "tag",
+            path,
+            runner=FakeRunner({"php artisan test --filter=TagTest": 0}),
+        )
+        self.assertEqual(reported.status, "stopped")
+        self.assertEqual(reported.stages[0].status, "running")
+        self.assertTrue(reported.stages[0].awaiting_pair)
+        self.assertEqual(kernel.next_agent(self.root, "tag"), "STOP")
+
 
 if __name__ == "__main__":
     unittest.main()
