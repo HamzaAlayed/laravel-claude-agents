@@ -505,14 +505,30 @@ def watch_once(root, name, runner):
         ),
         None,
     )
-    if check is None:
-        return {"action": "noop"}
-    _reopen(root, delivery, stage)
-    delivery.seen_checks.append(check)
-    save(root, delivery)
-    if delivery.status == "stopped":
-        return {"action": "stopped", "check": check}
-    return {"action": "reopen", "check": check}
+    if check is not None:
+        _reopen(root, delivery, stage)
+        delivery.seen_checks.append(check)
+        save(root, delivery)
+        if delivery.status == "stopped":
+            return {"action": "stopped", "check": check}
+        return {"action": "reopen", "check": check}
+    if not _REPO_RE.fullmatch(delivery.repo or ""):
+        raise PlanError("repo must be owner/name")
+    review_cmd = f"gh api repos/{delivery.repo}/pulls/{number}/comments --jq .[].id"
+    code, out = runner.capture(root, review_cmd)
+    if code != 0:
+        raise PlanError(f"gh api comments exited {code}")
+    for line in out.splitlines():
+        comment = line.strip()
+        if not comment or comment in delivery.seen_comments:
+            continue
+        _reopen(root, delivery, stage)
+        delivery.seen_comments.append(str(comment))
+        save(root, delivery)
+        if delivery.status == "stopped":
+            return {"action": "stopped", "comment": comment}
+        return {"action": "reopen", "comment": comment}
+    return {"action": "noop"}
 
 
 def _did_on_disk(root, stage):

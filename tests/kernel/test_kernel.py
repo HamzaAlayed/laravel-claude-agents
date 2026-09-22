@@ -1845,7 +1845,7 @@ class WatchOnceTest(unittest.TestCase):
 
     def test_watch_green_does_not_save(self):
         before = (self.root / "docs/delivery/tag/kernel.json").read_bytes()
-        runner = FakeRunner({}, {CHECKS: (0, PASS_CHECK)})
+        runner = FakeRunner({}, {CHECKS: (0, PASS_CHECK), REVIEW: (0, "")})
         result = kernel.watch_once(self.root, "tag", runner)
         self.assertEqual(result, {"action": "noop"})
         self.assertEqual(
@@ -1885,6 +1885,38 @@ class WatchOnceTest(unittest.TestCase):
         self.assertEqual(result, {"action": "stopped", "check": "phpunit"})
         self.assertEqual(delivery.status, "stopped")
         self.assertIn("phpunit", delivery.seen_checks)
+
+    def test_failing_check_skips_review_api(self):
+        runner = FakeRunner(
+            {},
+            {CHECKS: (0, FAIL_CHECK), REVIEW: (0, "99\n")},
+        )
+        result = kernel.watch_once(self.root, "tag", runner)
+        self.assertEqual(result, {"action": "reopen", "check": "pint"})
+        self.assertNotIn(REVIEW, [call[1] for call in runner.calls])
+
+    def test_new_comment_reopens_when_checks_pass(self):
+        runner = FakeRunner({}, {CHECKS: (0, PASS_CHECK), REVIEW: (0, "99\n")})
+        result = kernel.watch_once(self.root, "tag", runner)
+        delivery = kernel.load(self.root, "tag")
+        self.assertEqual(result, {"action": "reopen", "comment": "99"})
+        self.assertEqual(delivery.stages[0].status, "running")
+        self.assertEqual(delivery.seen_comments, ["99"])
+        self.assertEqual(
+            runner.calls,
+            [(str(self.root), CHECKS), (str(self.root), REVIEW)],
+        )
+
+    def test_seen_comment_does_not_reopen(self):
+        delivery = kernel.load(self.root, "tag")
+        delivery.seen_comments = ["99"]
+        kernel.save(self.root, delivery)
+        runner = FakeRunner({}, {CHECKS: (0, PASS_CHECK), REVIEW: (0, "99\n")})
+        result = kernel.watch_once(self.root, "tag", runner)
+        delivery = kernel.load(self.root, "tag")
+        self.assertEqual(result, {"action": "noop"})
+        self.assertEqual(delivery.stages[0].status, "done")
+        self.assertEqual(delivery.seen_comments, ["99"])
 
 
 if __name__ == "__main__":
