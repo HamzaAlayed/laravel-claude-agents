@@ -540,6 +540,119 @@ class TestKernelDeliverySymlinks(unittest.TestCase):
         self.assertNotIn("tag", names)
 
 
+class TestKernelWatch(unittest.TestCase):
+    """Second server with temp kernel_root — watch toggle and tick_watches."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+        self.dist = self.root / "dist"
+        self.dist.mkdir()
+        (self.dist / "index.html").write_text("<h1>console</h1>", encoding="utf-8")
+
+        tag = self.root / "docs" / "delivery" / "tag"
+        tag.mkdir(parents=True)
+        (tag / "kernel.json").write_text(json.dumps(_VALID_TAG_KERNEL), encoding="utf-8")
+
+        no_pr = self.root / "docs" / "delivery" / "nopr"
+        no_pr.mkdir(parents=True)
+        bare = dict(_VALID_TAG_KERNEL)
+        bare["name"] = "nopr"
+        bare["pr"] = {}
+        (no_pr / "kernel.json").write_text(json.dumps(bare), encoding="utf-8")
+
+        self.watch_calls = []
+
+        def watch_once(root, name):
+            self.watch_calls.append((root, name))
+            return {"action": "noop"}
+
+        self.httpd = server.make_server(
+            "127.0.0.1",
+            0,
+            TOKEN,
+            FakeManager(),
+            REPO,
+            self.dist,
+            kernel_root=str(self.root),
+            watch_once=watch_once,
+        )
+        self.port = self.httpd.server_address[1]
+        self.thread = threading.Thread(target=self.httpd.serve_forever, daemon=True)
+        self.thread.start()
+
+    def tearDown(self):
+        self.httpd.shutdown()
+        self.httpd.server_close()
+        self.tmp.cleanup()
+
+    def url(self, path):
+        return f"http://127.0.0.1:{self.port}{path}"
+
+    def get(self, path, token=TOKEN):
+        request = urllib.request.Request(self.url(path))
+        if token:
+            request.add_header("X-Guild-Token", token)
+        return urllib.request.urlopen(request, timeout=5)
+
+    def post(self, path, body, token=TOKEN):
+        request = urllib.request.Request(
+            self.url(path), data=json.dumps(body).encode(), method="POST"
+        )
+        request.add_header("Content-Type", "application/json")
+        if token:
+            request.add_header("X-Guild-Token", token)
+        return urllib.request.urlopen(request, timeout=5)
+
+    def _watching(self, name):
+        payload = json.loads(self.get("/api/kernel/deliveries").read())
+        row = next(r for r in payload["deliveries"] if r["name"] == name)
+        return row["watching"]
+
+    def test_enable_watch_with_pr_number(self):
+        payload = json.loads(
+            self.post("/api/kernel/watch", {"name": "tag", "enabled": True}).read()
+        )
+        self.assertEqual(payload, {"ok": True, "watching": True})
+        self.assertTrue(self._watching("tag"))
+
+    def test_enable_watch_without_pr_is_400(self):
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            self.post("/api/kernel/watch", {"name": "nopr", "enabled": True})
+        self.assertEqual(ctx.exception.code, 400)
+        self.assertFalse(self._watching("nopr"))
+
+    def test_tick_watches_stopped_removes_name(self):
+        self.post("/api/kernel/watch", {"name": "tag", "enabled": True})
+
+        def watch_once(root, name):
+            return {"action": "stopped"}
+
+        self.httpd.watch_once = watch_once
+        self.httpd.tick_watches()
+        self.assertFalse(self._watching("tag"))
+
+    def test_tick_watches_reopen_leaves_name(self):
+        self.post("/api/kernel/watch", {"name": "tag", "enabled": True})
+
+        def watch_once(root, name):
+            return {"action": "reopen"}
+
+        self.httpd.watch_once = watch_once
+        self.httpd.tick_watches()
+        self.assertTrue(self._watching("tag"))
+
+    def test_watch_post_ignores_client_root(self):
+        payload = json.loads(
+            self.post(
+                "/api/kernel/watch",
+                {"name": "tag", "enabled": True, "root": "/tmp/evil"},
+            ).read()
+        )
+        self.assertEqual(payload, {"ok": True, "watching": True})
+        self.assertTrue(self._watching("tag"))
+
+
 class TestWriteOrDrop(unittest.TestCase):
     def test_swallows_broken_pipe(self):
         wfile = mock.Mock()

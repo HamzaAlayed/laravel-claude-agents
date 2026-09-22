@@ -17,6 +17,7 @@ import socket
 import subprocess
 import sys
 import threading
+import time
 import webbrowser
 from pathlib import Path
 
@@ -171,6 +172,13 @@ def main() -> int:
     manager = RunManager(ROOT, sdk_client_factory)
     httpd = make_server("127.0.0.1", port, token, manager, pack_root(), dist)
     url = f"http://127.0.0.1:{port}/?token={token}"
+
+    def _watch_loop():
+        while True:
+            httpd.tick_watches()
+            time.sleep(60)
+
+    threading.Thread(target=_watch_loop, daemon=True).start()
 
     print(f"guild-console: serving {ROOT}")
     print(f"guild-console: {url}")

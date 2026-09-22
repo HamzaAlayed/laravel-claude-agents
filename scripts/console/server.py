@@ -27,6 +27,7 @@ from catalog import load_catalog
 _GUILD_KERNEL = Path(__file__).resolve().parent.parent / "guild-kernel"
 if str(_GUILD_KERNEL) not in sys.path:
     sys.path.insert(0, str(_GUILD_KERNEL))
+import guild as guild_cli  # noqa: E402
 import kernel as guild_kernel  # noqa: E402
 
 LOCAL_ORIGIN = re.compile(r"^http://(localhost|127\.0\.0\.1)(:\d+)?$")
@@ -41,6 +42,11 @@ def _default_kernel_cli(argv: list[str]) -> tuple[int, str]:
         cmd, cwd=os.getcwd(), capture_output=True, text=True
     )
     return completed.returncode, (completed.stdout or "") + (completed.stderr or "")
+
+
+def _default_watch_once(root, name):
+    """One watch tick via guild-kernel with a capture-capable ProcessRunner."""
+    return guild_kernel.watch_once(root, name, guild_cli.ProcessRunner())
 
 # concurrent.futures.TimeoutError is an alias of the builtin from 3.11 on, but
 # not on 3.10 (serve.py's MIN_PYTHON) -- catch both so a wedged engine loop can
@@ -78,13 +84,26 @@ class _Server(ThreadingHTTPServer):
         socketserver.TCPServer.server_bind(self)
         self.server_name, self.server_port = self.server_address[:2]
 
+    def tick_watches(self):
+        """Run one watch_once for each enabled delivery. No sleep here."""
+        for name in list(self.watched):
+            try:
+                result = self.watch_once(self.kernel_root, name)
+            except Exception:
+                continue
+            if isinstance(result, dict) and result.get("action") == "stopped":
+                self.watched.discard(name)
+
 
 def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
-                dist_dir: Path, *, kernel_cli=None, kernel_root=None) -> _Server:
+                dist_dir: Path, *, kernel_cli=None, kernel_root=None,
+                watch_once=None) -> _Server:
     if kernel_cli is None:
         kernel_cli = _default_kernel_cli
     if kernel_root is None:
         kernel_root = os.getcwd()
+    if watch_once is None:
+        watch_once = _default_watch_once
 
     class Handler(BaseHTTPRequestHandler):
         server_version = "GuildConsole/1.0"
@@ -224,10 +243,60 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
                         "pr_url": pr.get("url") if isinstance(pr.get("url"), str) else "",
                         "pr_state": pr.get("state") if isinstance(pr.get("state"), str) else "",
                         "board": guild_kernel.board_line(delivery),
+                        "watching": child.name in self.server.watched,
                     }
                 )
             rows.sort(key=lambda row: row["name"])
             return self._json(200, {"deliveries": rows})
+
+        def _kernel_watch(self, body: dict):
+            # Ignore any client-supplied root — kernel_root is the only allowed root.
+            name = body.get("name") or ""
+            if not isinstance(name, str) or not KERNEL_NAME.match(name):
+                return self._json(400, {"error": "invalid name"})
+            enabled = body.get("enabled")
+            if enabled is False:
+                self.server.watched.discard(name)
+                return self._json(200, {"ok": True, "watching": False})
+            if enabled is not True:
+                return self._json(400, {"error": "enabled must be true or false"})
+
+            root_resolved = Path(kernel_root).resolve()
+            delivery_root = Path(kernel_root) / "docs" / "delivery"
+            try:
+                delivery_root_resolved = delivery_root.resolve()
+                delivery_root_resolved.relative_to(root_resolved)
+            except ValueError:
+                return self._json(400, {"error": "delivery is not watchable"})
+            child = delivery_root / name
+            if not child.is_dir():
+                return self._json(400, {"error": "delivery is not watchable"})
+            try:
+                resolved = child.resolve()
+                resolved.relative_to(delivery_root_resolved)
+            except ValueError:
+                return self._json(400, {"error": "delivery is not watchable"})
+            kernel_path = resolved / "kernel.json"
+            try:
+                kernel_resolved = kernel_path.resolve()
+                kernel_resolved.relative_to(resolved)
+            except ValueError:
+                return self._json(400, {"error": "delivery is not watchable"})
+            if not kernel_resolved.is_file():
+                return self._json(400, {"error": "delivery is not watchable"})
+            try:
+                data = json.loads(kernel_resolved.read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                return self._json(400, {"error": "delivery is not watchable"})
+            if not isinstance(data, dict):
+                return self._json(400, {"error": "delivery is not watchable"})
+            pr = data.get("pr") if isinstance(data.get("pr"), dict) else {}
+            try:
+                int(pr.get("number"))
+            except (TypeError, ValueError):
+                return self._json(400, {"error": "delivery is not watchable"})
+            self.server.watched.add(name)
+            return self._json(200, {"ok": True, "watching": True})
 
         def _kernel_ingest(self, body: dict):
             # Ignore any client-supplied root — cwd is the only allowed root.
@@ -319,6 +388,8 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
             if not self._guard(query):
                 return
             body = self._read_body()
+            if parsed.path == "/api/kernel/watch":
+                return self._kernel_watch(body)
             if parsed.path == "/api/kernel/ingest":
                 return self._kernel_ingest(body)
             if parsed.path == "/api/runs":
@@ -394,4 +465,8 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
             self.end_headers()
             write_or_drop(self.wfile, data)
 
-    return _Server((host, port), Handler)
+    httpd = _Server((host, port), Handler)
+    httpd.kernel_root = kernel_root
+    httpd.watch_once = watch_once
+    httpd.watched = set()
+    return httpd
