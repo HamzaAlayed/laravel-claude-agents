@@ -76,6 +76,8 @@ class Delivery:
     issue: dict = field(default_factory=dict)
     pr: dict = field(default_factory=dict)
     repo: str = ""
+    seen_checks: list = field(default_factory=list)
+    seen_comments: list = field(default_factory=list)
 
 
 def _state_path(root, name):
@@ -95,6 +97,8 @@ def load(root, name):
     data.setdefault("issue", {})
     data.setdefault("pr", {})
     data.setdefault("repo", "")
+    data.setdefault("seen_checks", [])
+    data.setdefault("seen_comments", [])
     stages = []
     for stage in data.pop("stages"):
         stage.setdefault("flags", [])

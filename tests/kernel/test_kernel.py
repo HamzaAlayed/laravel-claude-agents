@@ -1224,6 +1224,50 @@ class WorkplaceLoadTest(unittest.TestCase):
         self.assertTrue(close.endswith("PR: none\n"))
 
 
+class DeskLoadTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_v33_kernel_json_loads_empty_seen_fields(self):
+        folder = self.root / "docs" / "delivery" / "tag"
+        folder.mkdir(parents=True)
+        folder.joinpath("kernel.json").write_text(
+            json.dumps(
+                {
+                    "name": "tag",
+                    "done_when": "POST /api/tags creates a Tag",
+                    "cap": 3,
+                    "status": "running",
+                    "spawns": 0,
+                    "sprint": "",
+                    "rules_printed": [],
+                    "stages": [
+                        {
+                            "id": "a",
+                            "agent": "database-developer",
+                            "role": "writer",
+                            "success_criteria": ["tags migration exists"],
+                            "depends_on": [],
+                            "status": "queued",
+                            "did": [],
+                            "verified": [],
+                            "flags": [],
+                            "pair": "",
+                            "awaiting_pair": False,
+                        }
+                    ],
+                }
+            )
+        )
+        delivery = kernel.load(self.root, "tag")
+        self.assertEqual(delivery.seen_checks, [])
+        self.assertEqual(delivery.seen_comments, [])
+
+
 ISSUE_CMD = "gh issue view 42 --json number,title,url"
 ISSUE_OUT = json.dumps(
     {"number": 42, "title": "Add tags", "url": "https://github.com/acme/app/issues/42"}
