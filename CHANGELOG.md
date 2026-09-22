@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-09-22
+
+A story cannot `plan` without a nonempty done-when and per-stage success
+criteria. An optional sprint owns Goal, WIP, and the deliveries attached
+to it. Solo `/make-feature` still works with no sprint on disk.
+
+### Added
+
+- **Light definition of ready.** `plan` rejects an empty `--done-when` or a
+  stage with no success criterion, and it does not write `kernel.json`.
+- **Definition of done.** A delivery cannot become `done` while any finished
+  stage lacks a `verified` command that exited 0.
+- **Sprint kernel.** `python3 scripts/guild-kernel/guild.py sprint`
+  `start|board|status|close`. State is `docs/sprints/<id>/sprint.json`.
+  The board view is `sprint.md` (`GOAL` / `WIP` / `BOARD` / `STATUS`).
+  One running sprint attaches on `plan`. WIP full, a missing sprint, or
+  two running sprints reject. `close --force` stops a sprint that still
+  has a running story.
+- **`/sprint`.** Fifteenth workflow command. It does not carry the pipeline
+  Interface block.
+- **Sprint-file hook.** Eighth production guardrail
+  (`enforce-sprint-file.sh`). Write|Edit of `docs/sprints/*/sprint.md`
+  that is not helper shape is bounced; Bash writes of that path are denied.
+
+### Changed
+
+- **Interface.** The nine pipeline commands require criteria on `plan` and
+  tell the coordinator not to compose `sprint.md`.
+
 ## [3.0.0] - 2026-09-09
 
 The delivery board is kernel state, not a prompt. `VERIFIED` is a command

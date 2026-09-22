@@ -1,0 +1,19 @@
+---
+description: Start, inspect, or close an optional sprint that owns delivery stories — Goal, WIP, and a kernel-rendered board.
+argument-hint: <start|board|status|close> [id]
+allowed-tools: Agent, Read, Write, Edit, Bash, Grep, Glob, AskUserQuestion
+---
+
+# Sprint — `{{args}}`
+
+Call `python3 scripts/guild-kernel/guild.py sprint` for start, board, status, and close. Do not compose `docs/sprints/<id>/sprint.md`; the kernel renders that view.
+
+## What you do
+
+1. **start** — `python3 scripts/guild-kernel/guild.py sprint start --root . --id <id> --goal "<goal>" --wip <n>`. A second start while one sprint is running is a no-op. Then print `sprint board`.
+2. **board** — `python3 scripts/guild-kernel/guild.py sprint board --root . --id <id>`. Print the kernel output. Marks come from each story's `kernel.json`.
+3. **status** — `python3 scripts/guild-kernel/guild.py sprint status --root . --id <id>`.
+4. **close** — `python3 scripts/guild-kernel/guild.py sprint close --root . --id <id>`. If a story is still running, stop and offer `--force` (that sets the sprint `stopped`). When every attached story is `done` or `stopped`, close marks the sprint `done`.
+5. **Retro** — when the human wants one, persist `docs/sprints/<id>/retro.md`. That file is not a kernel view. Delegate `scrum-master` or `product-owner` for the essay. They do not invent sprint state in `sprint.md`.
+
+Solo `/make-feature` does not require a sprint. Do not Write `sprint.md`.

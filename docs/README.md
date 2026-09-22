@@ -71,12 +71,13 @@ Shipped or fully resolved. Read these; do not re-open them without a new spec.
 | Guild v2 — 2.2.2 close print | [design](plans/2026-09-02-guild-v2-close-print-design.md); [plan](plans/2026-09-02-guild-v2-close-print.md); [run 23](evals/2026-09-02-run-23.md) — billed default `feature` close print + `$LOG` VERIFIED/NOT-CHECKED PASS (13/13, 1114s). |
 | Guild 2.3.0 resume | [design](plans/2026-09-04-guild-resume-design.md); [plan](plans/2026-09-04-guild-resume.md); [run 26](evals/2026-09-04-run-26.md) — billed `feature-resume` skip PASS (14/14, 703s). Same `/make-feature` continues a running close.md. |
 | Guild 3.0.0 kernel + Laravel truth | [design](plans/2026-09-08-guild-v3-kernel-design.md); [plan](plans/2026-09-08-guild-v3-kernel.md) — pack-local Python kernel; `VERIFIED` is a command exit 0. Shipped on local gates; billed `feature` is no longer a ship gate. |
+| Guild 3.1.0 SDLC / Scrum kernel | [design](plans/2026-09-09-guild-v3-sdlc-scrum-design.md); [plan](plans/2026-09-09-guild-v3-sdlc-scrum.md) — sprint owns many deliveries; light DoR on every `plan`. Shipped on local gates. |
 
 ## Open
 
 | Item | Evidence |
 | --- | --- |
-| Guild 3.1.0 SDLC / Scrum kernel | [design](plans/2026-09-09-guild-v3-sdlc-scrum-design.md); [plan](plans/2026-09-09-guild-v3-sdlc-scrum.md) — sprint owns many deliveries; light DoR on every `plan`; VERSION stays 3.0.0 until local gates. |
+| — | Nothing open. |
 
 ## How a new review should start
 

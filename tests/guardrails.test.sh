@@ -161,6 +161,18 @@ expect "stage return php artisan test allows" "$ALLOW" \
 expect "FALLBACK (no jq/python3): stage return Bash write still blocks" "$BLOCK" \
   "$(run_hook_noparsers enforce-stage-return.sh '{"tool_input":{"command":"cat > docs/delivery/tag/stages/database-developer.md <<EOF\nx\nEOF"}}')"
 
+echo "enforce-sprint-file.sh"
+expect "sprint.md stub Write allows" "$ALLOW" \
+  "$(run_hook enforce-sprint-file.sh '{"tool_input":{"path":"docs/sprints/3.1/sprint.md","contents":"GOAL: x\nWIP: 0/2\nBOARD: none\nSTATUS: running\n"}}')"
+expect "sprint.md journal Write blocks" "$BLOCK" \
+  "$(run_hook enforce-sprint-file.sh '{"tool_input":{"path":"docs/sprints/3.1/sprint.md","contents":"# Sprint\n\nI started the sprint\n"}}')"
+expect "non-sprint.md Write allows" "$ALLOW" \
+  "$(run_hook enforce-sprint-file.sh '{"tool_input":{"path":"docs/sprints/3.1/retro.md","contents":"# Retro\n"}}')"
+expect "sprint.md Bash cat-redirect blocks" "$BLOCK" \
+  "$(run_hook enforce-sprint-file.sh '{"tool_input":{"command":"cat > docs/sprints/3.1/sprint.md <<EOF\njournal\nEOF"}}')"
+expect "sprint.md Bash read allows" "$ALLOW" \
+  "$(run_hook enforce-sprint-file.sh '{"tool_input":{"command":"cat docs/sprints/3.1/sprint.md"}}')"
+
 echo "codex-protect-env-files.sh (Codex apply_patch-aware)"
 expect "apply_patch adding .env.production blocks" "$BLOCK" \
   "$(run_hook codex-protect-env-files.sh '{"tool_input":{"command":"*** Begin Patch\n*** Add File: .env.production\n+SECRET=x\n*** End Patch"}}')"
@@ -400,6 +412,14 @@ expect "Interface block persists read-only stage files" "9" \
 # shellcheck disable=SC2016 # literal close.md path backticks in the Interface needle
 expect "Interface block never composes close.md" "9" \
   "$(grep -l 'never compose `docs/delivery/<name>/close.md`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal --done-when backticks in the Interface needle
+expect "Interface block requires nonempty --done-when" "9" \
+  "$(grep -l 'nonempty `--done-when`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal sprint.md path backticks in the Interface needle
+expect "Interface block never composes sprint.md" "9" \
+  "$(grep -l 'Never compose `docs/sprints/<id>/sprint.md`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "/sprint does not carry the pipeline Interface" "0" \
+  "$(grep -c '> \*\*Interface:\*\*' "$SCRIPT_DIR/commands/sprint.md")"
 expect "Interface block never invents a checkmark" "9" \
   "$(grep -l 'Never invent a checkmark' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block never writes a writer stage file" "9" \
@@ -448,6 +468,8 @@ expect "coordinator Reads the stage file before a checkmark" "1" \
   "$(grep -c 'Read that file before' "$COORD")"
 expect "coordinator does not Write close.md; the kernel renders it" "1" \
   "$(grep -c 'Do not Write close.md; the kernel renders it' "$COORD")"
+expect "coordinator does not Write sprint.md; the kernel renders it" "1" \
+  "$(grep -c 'Do not Write sprint.md; the kernel renders it' "$COORD")"
 expect "coordinator plans via the guild kernel" "1" \
   "$(grep -c 'python3 scripts/guild-kernel/guild.py plan' "$COORD")"
 expect "coordinator Agents only the type next prints" "1" \

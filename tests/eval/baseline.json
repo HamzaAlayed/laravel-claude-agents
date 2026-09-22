@@ -86,9 +86,9 @@
     }
   },
   "coordinator_hash": {
-    "sha256": "2280868360c203e172e6242b3b9a92c4b17ad13eb44583cd8103fe0b4621d5cd",
-    "as_of": "2026-09-09",
-    "note": "Pinned after kernel Interface (2026-09-09). Billed feature is no longer a ship gate. VERSION 3.0.0. Do not raise ceilings.",
+    "sha256": "20593c55a6366796b587b5babdae2911412440da9be2ca246b84919e5c402808",
+    "as_of": "2026-09-22",
+    "note": "Pinned after 3.1 SDLC Interface. Billed feature is not a ship gate. Do not raise ceilings.",
     "waivers": []
   }
 }
