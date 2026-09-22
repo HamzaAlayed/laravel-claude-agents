@@ -1300,6 +1300,25 @@ class WorkplacePlanTest(unittest.TestCase):
             )
         self.assertFalse((self.root / "docs/delivery/tag/kernel.json").is_file())
 
+    def test_second_plan_does_not_refetch_or_replace_issue(self):
+        runner = FakeRunner({}, {ISSUE_CMD: (0, ISSUE_OUT)})
+        self._plan(runner)
+        other = "gh issue view 7 --json number,title,url"
+        runner.captured[other] = (
+            0,
+            json.dumps({"number": 7, "title": "Other", "url": "https://example.test/7"}),
+        )
+        again = kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="POST /api/tags creates a Tag",
+            stages=[kernel.StageSpec("a", "database-developer", "writer", ["m"], [])],
+            issue=7,
+            runner=runner,
+        )
+        self.assertEqual(again.issue["number"], 42)
+        self.assertEqual([call[1] for call in runner.calls], [ISSUE_CMD])
+
 
 if __name__ == "__main__":
     unittest.main()
