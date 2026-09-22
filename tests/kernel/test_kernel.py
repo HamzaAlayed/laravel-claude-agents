@@ -1409,5 +1409,101 @@ class WorkplacePrTest(unittest.TestCase):
         self.assertEqual(delivery.repo, "")
 
 
+STAGE_BODY = (
+    "STATUS: done\nDID: app/Models/Tag.php\n"
+    "VERIFIED: php artisan test --filter=TagTest\n"
+    "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
+)
+VERIFY_CMD = "php artisan test --filter=TagTest"
+
+
+class WorkplaceDoneTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _plan_workplace(self):
+        runner = FakeRunner({}, {ISSUE_CMD: (0, ISSUE_OUT)})
+        return kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="POST /api/tags creates a Tag",
+            stages=[
+                kernel.StageSpec("a", "database-developer", "writer", ["m"], [])
+            ],
+            issue=42,
+            runner=runner,
+        )
+
+    def _write_stage(self):
+        path = self.root / "docs/delivery/tag/stages/database-developer.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(STAGE_BODY)
+        return path
+
+    def _finish_stages(self):
+        self._plan_workplace()
+        path = self._write_stage()
+        return kernel.report(
+            self.root,
+            "tag",
+            path,
+            runner=FakeRunner({VERIFY_CMD: 0}),
+        )
+
+    def test_workplace_stays_running_until_pr_is_open(self):
+        d = self._finish_stages()
+        self.assertEqual(d.stages[0].status, "done")
+        self.assertEqual(d.status, "running")
+        self.assertEqual(kernel.next_agent(self.root, "tag"), "STOP")
+
+    def test_record_pr_promotes_finished_workplace_delivery(self):
+        self._finish_stages()
+        runner = FakeRunner(
+            {},
+            {REPO_CMD: (0, REPO_OUT), PR_CMD: (0, PR_OUT)},
+        )
+        delivery = kernel.record_pr(self.root, "tag", 17, runner)
+        self.assertEqual(delivery.status, "done")
+
+    def test_record_pr_merged_does_not_promote(self):
+        self._finish_stages()
+        merged = json.dumps(
+            {
+                "number": 17,
+                "url": "https://github.com/acme/app/pull/17",
+                "state": "MERGED",
+            }
+        )
+        runner = FakeRunner(
+            {},
+            {REPO_CMD: (0, REPO_OUT), PR_CMD: (0, merged)},
+        )
+        delivery = kernel.record_pr(self.root, "tag", 17, runner)
+        self.assertEqual(delivery.status, "running")
+
+    def test_delivery_without_issue_can_finish_with_empty_pr(self):
+        kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="POST /api/tags creates a Tag",
+            stages=[
+                kernel.StageSpec("a", "database-developer", "writer", ["m"], [])
+            ],
+        )
+        path = self._write_stage()
+        delivery = kernel.report(
+            self.root,
+            "tag",
+            path,
+            runner=FakeRunner({VERIFY_CMD: 0}),
+        )
+        self.assertEqual(delivery.status, "done")
+        self.assertEqual(delivery.pr, {})
+
+
 if __name__ == "__main__":
     unittest.main()

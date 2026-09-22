@@ -346,6 +346,16 @@ def plan(*, root, name, done_when, stages, sprint="", issue=0, runner=None):
     return delivery
 
 
+def _dod_met(delivery):
+    if not all(stage.status in ("done", "skipped") for stage in delivery.stages):
+        return False
+    return all(
+        stage.status == "skipped"
+        or any(entry.get("exit") == 0 for entry in stage.verified)
+        for stage in delivery.stages
+    )
+
+
 def record_pr(root, name, number, runner):
     delivery = load(root, name)
     if not delivery.issue:
@@ -374,6 +384,8 @@ def record_pr(root, name, number, runner):
         raise PlanError("gh pr view returned malformed JSON") from exc
     delivery.repo = repo
     delivery.pr = pr_data
+    if pr_data["state"] == "open" and _dod_met(delivery):
+        delivery.status = "done"
     save(root, delivery)
     write_views(root, delivery, not_checked=delivery.done_when or "none")
     return delivery
@@ -395,6 +407,8 @@ def next_agent(root, name):
             delivery.status = "stopped"
             save(root, delivery)
             write_views(root, delivery)
+        return "STOP"
+    if _dod_met(delivery):
         return "STOP"
     by_id = {stage.id: stage for stage in delivery.stages}
     for stage in delivery.stages:
@@ -512,13 +526,10 @@ def report(root, name, path, runner):
         raise ReportError(f"no stage matched report agent {agent}")
     delivery.spawns += 1
     if all(stage.status in ("done", "skipped") for stage in delivery.stages):
-        if any(
-            stage.status != "skipped"
-            and not any(entry.get("exit") == 0 for entry in stage.verified)
-            for stage in delivery.stages
-        ):
+        if not _dod_met(delivery):
             raise ReportError("DoD requires verified exit 0 on every done stage")
-        delivery.status = "done"
+        if not (delivery.issue and delivery.pr.get("state") != "open"):
+            delivery.status = "done"
     elif _cap_hit(delivery):
         delivery.status = "stopped"
     save(root, delivery)
