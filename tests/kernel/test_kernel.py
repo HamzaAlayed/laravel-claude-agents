@@ -1811,6 +1811,7 @@ class WatchOnceTest(unittest.TestCase):
         )
         delivery = kernel.record_pr(self.root, "tag", 17, pr_runner)
         delivery.spawns = delivery.cap
+        delivery.status = "running"
         kernel.save(self.root, delivery)
 
     def test_watch_skips_without_pr(self):
@@ -1917,6 +1918,23 @@ class WatchOnceTest(unittest.TestCase):
         self.assertEqual(result, {"action": "noop"})
         self.assertEqual(delivery.stages[0].status, "done")
         self.assertEqual(delivery.seen_comments, ["99"])
+
+    def test_watch_skips_done_delivery_without_gh(self):
+        delivery = kernel.load(self.root, "tag")
+        delivery.status = "done"
+        kernel.save(self.root, delivery)
+        runner = FakeRunner({}, {CHECKS: (0, FAIL_CHECK)})
+        result = kernel.watch_once(self.root, "tag", runner)
+        self.assertEqual(result, {"action": "skip"})
+        self.assertEqual(runner.calls, [])
+
+        delivery = kernel.load(self.root, "tag")
+        delivery.status = "stopped"
+        kernel.save(self.root, delivery)
+        runner = FakeRunner({}, {CHECKS: (0, FAIL_CHECK)})
+        result = kernel.watch_once(self.root, "tag", runner)
+        self.assertEqual(result, {"action": "skip"})
+        self.assertEqual(runner.calls, [])
 
 
 if __name__ == "__main__":

@@ -475,6 +475,8 @@ def _watch_target(delivery):
 
 def watch_once(root, name, runner):
     delivery = load(root, name)
+    if delivery.status in ("stopped", "done"):
+        return {"action": "skip"}
     if not delivery.pr.get("number"):
         return {"action": "skip"}
     stage = _watch_target(delivery)
