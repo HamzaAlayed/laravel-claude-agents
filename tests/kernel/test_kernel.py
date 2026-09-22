@@ -726,6 +726,22 @@ class SprintAttachTest(unittest.TestCase):
         path.write_text(json.dumps(data))
         self.assertEqual(kernel.load(self.root, "tag").sprint, "")
 
+    def test_load_defaults_missing_craft_keys(self):
+        self._plan()
+        path = self.root / "docs/delivery/tag/kernel.json"
+        data = json.loads(path.read_text())
+        del data["rules_printed"]
+        for stage in data["stages"]:
+            del stage["flags"]
+            del stage["pair"]
+            del stage["awaiting_pair"]
+        path.write_text(json.dumps(data))
+        delivery = kernel.load(self.root, "tag")
+        self.assertEqual(delivery.rules_printed, [])
+        self.assertEqual(delivery.stages[0].flags, [])
+        self.assertEqual(delivery.stages[0].pair, "")
+        self.assertFalse(delivery.stages[0].awaiting_pair)
+
 
 class SprintCloseTest(unittest.TestCase):
     def setUp(self):

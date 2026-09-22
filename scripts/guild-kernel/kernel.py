@@ -242,6 +242,7 @@ def plan(*, root, name, done_when, stages, sprint=""):
     if _state_path(root, name).is_file():
         existing = load(root, name)
         existing.rules_printed = _taught_rules(root, existing.stages)
+        save(root, existing)
         write_views(root, existing, not_checked=existing.done_when or "none")
         return existing
     if not done_when.strip() or any(not _has_criteria(stage) for stage in stages):
