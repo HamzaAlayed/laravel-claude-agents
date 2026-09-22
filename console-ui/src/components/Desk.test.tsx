@@ -12,7 +12,8 @@ const tagRow = (over: Partial<DeliveryRow> = {}): DeliveryRow => ({
   issue_number: 42,
   pr_url: "https://github.com/acme/repo/pull/17",
   pr_state: "open",
-  board: "a database-developer queued",
+  board: "1 stages · cap: 3 spawns · done when: POST /api/tags creates a Tag · a · database-developer",
+  steps: [{ who: "Database Developer", state: "Waiting" }],
   watching: false,
   ...over,
 });
@@ -54,11 +55,13 @@ describe("Desk", () => {
   it("renders a row from the mocked list", async () => {
     render(<Desk onNewRun={() => {}} onLaunch={() => {}} />);
 
-    expect(await screen.findByText("tag")).toBeTruthy();
-    expect(screen.getByText("running")).toBeTruthy();
-    expect(screen.getByText("https://github.com/acme/repo/issues/42")).toBeTruthy();
-    expect(screen.getByText("https://github.com/acme/repo/pull/17")).toBeTruthy();
-    expect(screen.getByText("a database-developer queued")).toBeTruthy();
+    expect(await screen.findByRole("heading", { name: "tag" })).toBeTruthy();
+    expect(screen.getByText("In progress")).toBeTruthy();
+    expect(screen.getByText("Finished when POST /api/tags creates a Tag")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "GitHub issue 42" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Pull request (open)" })).toBeTruthy();
+    expect(screen.getByText("Database Developer")).toBeTruthy();
+    expect(screen.getByText("Waiting")).toBeTruthy();
     expect(screen.getByRole("button", { name: "New run" })).toBeTruthy();
   });
 
@@ -68,7 +71,7 @@ describe("Desk", () => {
     render(<Desk onNewRun={() => {}} onLaunch={onLaunch} />);
 
     await screen.findByText("tag");
-    await user.click(screen.getByRole("button", { name: /^run$/i }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
 
     expect(onLaunch).toHaveBeenCalledTimes(1);
     const payload = onLaunch.mock.calls[0][0];
@@ -87,7 +90,7 @@ describe("Desk", () => {
 
     await screen.findByText("tag");
     expect(
-      (screen.getByRole("button", { name: /^watch$/i }) as HTMLButtonElement).disabled,
+      (screen.getByRole("button", { name: "Watch GitHub" }) as HTMLButtonElement).disabled,
     ).toBe(true);
   });
 
@@ -96,7 +99,7 @@ describe("Desk", () => {
     render(<Desk onNewRun={() => {}} onLaunch={() => {}} />);
 
     await screen.findByText("tag");
-    await user.click(screen.getByRole("button", { name: /^watch$/i }));
+    await user.click(screen.getByRole("button", { name: "Watch GitHub" }));
 
     await waitFor(() => expect(fetch).toHaveBeenCalled());
     const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls.find(

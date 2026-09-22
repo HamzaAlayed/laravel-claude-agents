@@ -436,6 +436,7 @@ class TestKernelDeliveries(unittest.TestCase):
         self.assertEqual(tag["status"], "running")
         self.assertEqual(tag["done_when"], "POST /api/tags creates a Tag")
         self.assertEqual(tag["issue_number"], 42)
+        self.assertEqual(tag["steps"], [{"who": "Database Developer", "state": "Waiting"}])
         self.assertEqual(tag["issue_url"], "https://github.com/acme/repo/issues/42")
         self.assertEqual(tag["pr_url"], "https://github.com/acme/repo/pull/17")
         self.assertEqual(tag["pr_state"], "open")

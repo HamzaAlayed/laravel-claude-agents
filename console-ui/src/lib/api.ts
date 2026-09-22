@@ -89,6 +89,7 @@ export type DeliveryRow = {
   pr_url: string;
   pr_state: string;
   board: string;
+  steps?: { who: string; state: string }[];
   watching: boolean;
 };
 

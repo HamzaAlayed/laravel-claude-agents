@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.0.1] - 2026-09-22
+
+The delivery desk speaks in plain language. Each delivery shows who is working and whether they are waiting, and the sentence it is finished when. Continue, Watch GitHub, and Start something new replace the kernel form.
+
 ## [4.0.0] - 2026-09-22
 
 The console opens on a delivery desk; Run starts /make-feature for that

@@ -33,6 +33,23 @@ import kernel as guild_kernel  # noqa: E402
 LOCAL_ORIGIN = re.compile(r"^http://(localhost|127\.0\.0\.1)(:\d+)?$")
 RUN_ROUTE = re.compile(r"^/api/runs/(?P<run_id>[A-Za-z0-9_]+)(?P<rest>/[a-z]+)?$")
 KERNEL_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+_STEP_STATE = {
+    "queued": "Waiting",
+    "running": "Working now",
+    "done": "Done",
+    "failed": "Failed",
+    "skipped": "Skipped",
+}
+
+
+def _delivery_steps(delivery):
+    """People-facing steps. The board line is a kernel sentence, not a label."""
+    steps = []
+    for stage in delivery.stages:
+        agent = stage.pair if stage.awaiting_pair and stage.pair else stage.agent
+        who = " ".join(part.capitalize() for part in str(agent).split("-"))
+        steps.append({"who": who, "state": _STEP_STATE.get(stage.status, stage.status)})
+    return steps
 
 
 def _default_kernel_cli(argv: list[str]) -> tuple[int, str]:
@@ -243,6 +260,7 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
                         "pr_url": pr.get("url") if isinstance(pr.get("url"), str) else "",
                         "pr_state": pr.get("state") if isinstance(pr.get("state"), str) else "",
                         "board": guild_kernel.board_line(delivery),
+                        "steps": _delivery_steps(delivery),
                         "watching": child.name in self.server.watched,
                     }
                 )
