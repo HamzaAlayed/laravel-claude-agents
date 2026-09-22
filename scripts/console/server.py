@@ -171,50 +171,61 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
 
         def _kernel_deliveries(self):
             # Ignore any client-supplied root — kernel_root is the only allowed root.
+            root_resolved = Path(kernel_root).resolve()
             delivery_root = Path(kernel_root) / "docs" / "delivery"
-            delivery_root_resolved = delivery_root.resolve()
             rows = []
-            if delivery_root.is_dir():
-                for child in delivery_root.iterdir():
-                    if not child.is_dir():
-                        continue
-                    if not KERNEL_NAME.match(child.name):
-                        continue
-                    try:
-                        resolved = child.resolve()
-                        resolved.relative_to(delivery_root_resolved)
-                    except ValueError:
-                        continue
-                    kernel_path = resolved / "kernel.json"
-                    if not kernel_path.is_file():
-                        continue
-                    try:
-                        data = json.loads(kernel_path.read_text(encoding="utf-8"))
-                    except (OSError, ValueError):
-                        continue
-                    if not isinstance(data, dict):
-                        continue
-                    try:
-                        delivery = guild_kernel.load(kernel_root, child.name)
-                    except Exception:
-                        continue
-                    issue = data.get("issue") if isinstance(data.get("issue"), dict) else {}
-                    pr = data.get("pr") if isinstance(data.get("pr"), dict) else {}
-                    issue_number = issue.get("number")
-                    if not isinstance(issue_number, int):
-                        issue_number = None
-                    rows.append(
-                        {
-                            "name": data.get("name") if isinstance(data.get("name"), str) else child.name,
-                            "status": data.get("status") if isinstance(data.get("status"), str) else "",
-                            "done_when": data.get("done_when") if isinstance(data.get("done_when"), str) else "",
-                            "issue_url": issue.get("url") if isinstance(issue.get("url"), str) else "",
-                            "issue_number": issue_number,
-                            "pr_url": pr.get("url") if isinstance(pr.get("url"), str) else "",
-                            "pr_state": pr.get("state") if isinstance(pr.get("state"), str) else "",
-                            "board": guild_kernel.board_line(delivery),
-                        }
-                    )
+            try:
+                delivery_root_resolved = delivery_root.resolve()
+                delivery_root_resolved.relative_to(root_resolved)
+            except ValueError:
+                return self._json(200, {"deliveries": []})
+            if not delivery_root.is_dir():
+                return self._json(200, {"deliveries": rows})
+            for child in delivery_root.iterdir():
+                if not child.is_dir():
+                    continue
+                if not KERNEL_NAME.match(child.name):
+                    continue
+                try:
+                    resolved = child.resolve()
+                    resolved.relative_to(delivery_root_resolved)
+                except ValueError:
+                    continue
+                kernel_path = resolved / "kernel.json"
+                try:
+                    kernel_resolved = kernel_path.resolve()
+                    kernel_resolved.relative_to(resolved)
+                except ValueError:
+                    continue
+                if not kernel_resolved.is_file():
+                    continue
+                try:
+                    data = json.loads(kernel_resolved.read_text(encoding="utf-8"))
+                except (OSError, ValueError):
+                    continue
+                if not isinstance(data, dict):
+                    continue
+                try:
+                    delivery = guild_kernel.load(kernel_root, child.name)
+                except Exception:
+                    continue
+                issue = data.get("issue") if isinstance(data.get("issue"), dict) else {}
+                pr = data.get("pr") if isinstance(data.get("pr"), dict) else {}
+                issue_number = issue.get("number")
+                if not isinstance(issue_number, int):
+                    issue_number = None
+                rows.append(
+                    {
+                        "name": data.get("name") if isinstance(data.get("name"), str) else child.name,
+                        "status": data.get("status") if isinstance(data.get("status"), str) else "",
+                        "done_when": data.get("done_when") if isinstance(data.get("done_when"), str) else "",
+                        "issue_url": issue.get("url") if isinstance(issue.get("url"), str) else "",
+                        "issue_number": issue_number,
+                        "pr_url": pr.get("url") if isinstance(pr.get("url"), str) else "",
+                        "pr_state": pr.get("state") if isinstance(pr.get("state"), str) else "",
+                        "board": guild_kernel.board_line(delivery),
+                    }
+                )
             rows.sort(key=lambda row: row["name"])
             return self._json(200, {"deliveries": rows})
 

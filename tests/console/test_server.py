@@ -452,6 +452,94 @@ class TestKernelDeliveries(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 401)
 
 
+_VALID_TAG_KERNEL = {
+    "name": "tag",
+    "done_when": "POST /api/tags creates a Tag",
+    "cap": 3,
+    "status": "running",
+    "spawns": 0,
+    "sprint": "",
+    "rules_printed": [],
+    "issue": {"number": 42, "title": "Add Tag API", "url": "https://github.com/acme/repo/issues/42"},
+    "pr": {"number": 17, "url": "https://github.com/acme/repo/pull/17", "state": "open"},
+    "stages": [
+        {
+            "id": "a",
+            "agent": "database-developer",
+            "role": "writer",
+            "success_criteria": ["tags migration exists"],
+            "depends_on": [],
+            "status": "queued",
+            "did": [],
+            "verified": [],
+            "flags": [],
+            "pair": "",
+            "awaiting_pair": False,
+        }
+    ],
+}
+
+
+class TestKernelDeliverySymlinks(unittest.TestCase):
+    """Second server: refuse docs/delivery and kernel.json that symlink out of root."""
+
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name) / "kernel"
+        self.root.mkdir()
+        self.outside = pathlib.Path(self.tmp.name) / "outside"
+        self.outside.mkdir()
+        self.dist = self.root / "dist"
+        self.dist.mkdir()
+        (self.dist / "index.html").write_text("<h1>console</h1>", encoding="utf-8")
+        self.httpd = None
+
+    def tearDown(self):
+        if self.httpd is not None:
+            self.httpd.shutdown()
+            self.httpd.server_close()
+        self.tmp.cleanup()
+
+    def _start(self):
+        self.httpd = server.make_server(
+            "127.0.0.1",
+            0,
+            TOKEN,
+            FakeManager(),
+            REPO,
+            self.dist,
+            kernel_root=str(self.root),
+        )
+        self.port = self.httpd.server_address[1]
+        threading.Thread(target=self.httpd.serve_forever, daemon=True).start()
+
+    def _get(self, path):
+        request = urllib.request.Request(f"http://127.0.0.1:{self.port}{path}")
+        request.add_header("X-Guild-Token", TOKEN)
+        return urllib.request.urlopen(request, timeout=5)
+
+    def test_delivery_root_symlink_outside_lists_empty(self):
+        escaped = self.outside / "delivery" / "tag"
+        escaped.mkdir(parents=True)
+        (escaped / "kernel.json").write_text(json.dumps(_VALID_TAG_KERNEL), encoding="utf-8")
+        (self.root / "docs").mkdir()
+        (self.root / "docs" / "delivery").symlink_to(self.outside / "delivery")
+        self._start()
+        payload = json.loads(self._get("/api/kernel/deliveries").read())
+        self.assertEqual(payload["deliveries"], [])
+
+    def test_kernel_json_symlink_outside_skips_row(self):
+        secret = self.outside / "stolen.json"
+        secret.write_text(json.dumps(_VALID_TAG_KERNEL), encoding="utf-8")
+        tag = self.root / "docs" / "delivery" / "tag"
+        tag.mkdir(parents=True)
+        (tag / "kernel.json").symlink_to(secret)
+        self._start()
+        payload = json.loads(self._get("/api/kernel/deliveries").read())
+        names = [row["name"] for row in payload["deliveries"]]
+        self.assertNotIn("tag", names)
+
+
 class TestWriteOrDrop(unittest.TestCase):
     def test_swallows_broken_pipe(self):
         wfile = mock.Mock()
