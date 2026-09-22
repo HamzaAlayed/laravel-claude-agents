@@ -1522,6 +1522,7 @@ FAIL_CHECK = json.dumps(
 PASS_CHECK = json.dumps(
     [{"name": "pint", "bucket": "pass", "link": "https://github.com/acme/app/runs/1"}]
 )
+REVIEW = "gh api repos/acme/app/pulls/17/comments --jq .[].id"
 
 
 class WorkplaceIngestTest(unittest.TestCase):
@@ -1651,6 +1652,74 @@ class WorkplaceIngestTest(unittest.TestCase):
                 kind="check",
                 stage_id="a",
                 check="pint",
+                runner=runner,
+            )
+        self.assertEqual(runner.calls, [])
+
+    def test_review_id_in_stdout_reopens(self):
+        runner = FakeRunner({}, {REVIEW: (0, "99\n100\n")})
+        delivery = kernel.ingest(
+            self.root,
+            "tag",
+            kind="review",
+            stage_id="a",
+            comment="99",
+            runner=runner,
+        )
+        self.assertEqual(delivery.stages[0].status, "running")
+
+    def test_missing_review_id_rejects(self):
+        runner = FakeRunner({}, {REVIEW: (0, "100\n")})
+        with self.assertRaises(kernel.PlanError):
+            kernel.ingest(
+                self.root,
+                "tag",
+                kind="review",
+                stage_id="a",
+                comment="99",
+                runner=runner,
+            )
+        self.assertEqual(kernel.load(self.root, "tag").stages[0].status, "done")
+
+    def test_ingest_without_pr_rejects(self):
+        self.tmp.cleanup()
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+        plan_runner = FakeRunner({}, {ISSUE_CMD: (0, ISSUE_OUT)})
+        kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="POST /api/tags creates a Tag",
+            stages=[
+                kernel.StageSpec("a", "database-developer", "writer", ["m"], [])
+            ],
+            issue=42,
+            runner=plan_runner,
+        )
+        runner = FakeRunner({}, {})
+        with self.assertRaises(kernel.PlanError):
+            kernel.ingest(
+                self.root,
+                "tag",
+                kind="check",
+                stage_id="a",
+                check="pint",
+                runner=runner,
+            )
+        self.assertEqual(runner.calls, [])
+
+    def test_unsafe_repo_rejects_before_capture(self):
+        delivery = kernel.load(self.root, "tag")
+        delivery.repo = "acme/app; touch pwned"
+        kernel.save(self.root, delivery)
+        runner = FakeRunner({}, {REVIEW: (0, "99\n")})
+        with self.assertRaises(kernel.PlanError):
+            kernel.ingest(
+                self.root,
+                "tag",
+                kind="review",
+                stage_id="a",
+                comment="99",
                 runner=runner,
             )
         self.assertEqual(runner.calls, [])

@@ -2,10 +2,12 @@ from __future__ import annotations
 
 import json
 import pathlib
+import re
 from dataclasses import asdict, dataclass, field
 
 _LABELS = ("STATUS", "DID", "VERIFIED", "NOT-CHECKED", "FLAGS", "NEXT")
 _COMMAND_MARKERS = ("/", "\\", "artisan", "vendor/bin", "php", "pint", "phpstan", "pest", "./")
+_REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
 _BOARD_MARK = {
     "done": "✔",
     "running": "▶",
@@ -415,27 +417,38 @@ def ingest(root, name, *, kind, stage_id, runner, check="", comment=""):
     stage = next((item for item in delivery.stages if item.id == stage_id), None)
     if stage is None:
         raise PlanError(f"stage {stage_id} is missing")
-    if kind != "check":
+    if kind not in ("check", "review"):
         raise PlanError(f"unknown ingest kind {kind}")
     try:
         number = int(delivery.pr["number"])
     except (TypeError, ValueError) as exc:
         raise PlanError("pr number must be an integer") from exc
-    cmd = f"gh pr checks {number} --json name,bucket,link"
+    if kind == "check":
+        cmd = f"gh pr checks {number} --json name,bucket,link"
+        code, out = runner.capture(root, cmd)
+        if code != 0:
+            raise PlanError(f"gh pr checks exited {code}")
+        try:
+            payload = json.loads(out)
+        except json.JSONDecodeError as exc:
+            raise PlanError("gh pr checks returned malformed JSON") from exc
+        if not isinstance(payload, list):
+            raise PlanError("gh pr checks returned malformed JSON")
+        match = next((item for item in payload if item.get("name") == check), None)
+        if match is None:
+            raise PlanError(f"check {check} not found")
+        if match.get("bucket") != "fail":
+            return delivery
+        return _reopen(root, delivery, stage)
+    if not _REPO_RE.fullmatch(delivery.repo or ""):
+        raise PlanError("repo must be owner/name")
+    cmd = f"gh api repos/{delivery.repo}/pulls/{number}/comments --jq .[].id"
     code, out = runner.capture(root, cmd)
     if code != 0:
-        raise PlanError(f"gh pr checks exited {code}")
-    try:
-        payload = json.loads(out)
-    except json.JSONDecodeError as exc:
-        raise PlanError("gh pr checks returned malformed JSON") from exc
-    if not isinstance(payload, list):
-        raise PlanError("gh pr checks returned malformed JSON")
-    match = next((item for item in payload if item.get("name") == check), None)
-    if match is None:
-        raise PlanError(f"check {check} not found")
-    if match.get("bucket") != "fail":
-        return delivery
+        raise PlanError(f"gh api comments exited {code}")
+    ids = {line.strip() for line in out.splitlines() if line.strip()}
+    if str(comment) not in ids:
+        raise PlanError(f"review comment {comment} not found")
     return _reopen(root, delivery, stage)
 
 
