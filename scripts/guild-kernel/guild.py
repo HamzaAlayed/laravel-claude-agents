@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Guild kernel CLI — plan, next, report, board, status, sprint."""
+"""Guild kernel CLI — plan, next, report, board, status, sprint, pair."""
 
 from __future__ import annotations
 
@@ -45,6 +45,9 @@ def build_parser():
     report.add_argument("--path", required=True)
     sub.add_parser("board", parents=[common])
     sub.add_parser("status", parents=[common])
+    pair = sub.add_parser("pair", parents=[common])
+    pair.add_argument("--stage", required=True)
+    pair.add_argument("--reviewer", default="tech-lead")
     sprint_common = argparse.ArgumentParser(add_help=False)
     sprint_common.add_argument("--root", required=True)
     sprint_common.add_argument("--id", required=True)
@@ -126,6 +129,9 @@ def main(argv=None):
             return 0
         if args.cmd == "status":
             print(kernel.load(args.root, args.name).status)
+            return 0
+        if args.cmd == "pair":
+            kernel.pair(args.root, args.name, args.stage, reviewer=args.reviewer)
             return 0
         if args.cmd == "sprint":
             return _sprint_main(args)

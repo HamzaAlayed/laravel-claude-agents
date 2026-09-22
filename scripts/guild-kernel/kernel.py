@@ -13,6 +13,28 @@ _BOARD_MARK = {
     "failed": "✖",
     "skipped": "·",
 }
+AGENTS = frozenset(
+    {
+        "backend-developer",
+        "business-analyst",
+        "database-developer",
+        "delivery-coordinator",
+        "devops-engineer",
+        "frontend-developer",
+        "mobile-developer",
+        "package-developer",
+        "peer-router",
+        "performance-engineer",
+        "product-owner",
+        "qa-engineer",
+        "scrum-master",
+        "security-engineer",
+        "solution-architect",
+        "tech-lead",
+        "technical-writer",
+        "ui-ux-designer",
+    }
+)
 
 
 class ReportError(Exception):
@@ -327,6 +349,26 @@ def next_agent(root, name):
         ):
             return stage.agent
     return "STOP"
+
+
+def pair(root, name, stage_id, *, reviewer="tech-lead"):
+    delivery = load(root, name)
+    stage = next((item for item in delivery.stages if item.id == stage_id), None)
+    if stage is None:
+        raise PlanError(f"stage {stage_id} is missing")
+    if stage.status not in ("queued", "running"):
+        raise PlanError(f"stage {stage_id} is {stage.status}")
+    if reviewer not in AGENTS:
+        raise PlanError(f"unknown reviewer {reviewer}")
+    if reviewer == stage.agent:
+        raise PlanError(f"reviewer cannot be the stage agent {reviewer}")
+    if stage.pair and stage.pair != reviewer:
+        raise PlanError(f"stage {stage_id} already paired with {stage.pair}")
+    if stage.pair == reviewer:
+        return delivery
+    stage.pair = reviewer
+    save(root, delivery)
+    return delivery
 
 
 def _parse_labels(text):

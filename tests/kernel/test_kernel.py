@@ -928,5 +928,83 @@ class LessonTest(unittest.TestCase):
         self.assertEqual(proc.stdout.strip(), "RULES: Do not call Model::all()")
 
 
+class PairTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _plan(self):
+        return kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="POST /api/tags creates a Tag",
+            stages=[
+                kernel.StageSpec("a", "database-developer", "writer", ["m"], []),
+            ],
+        )
+
+    def test_pair_sets_reviewer(self):
+        self._plan()
+        kernel.pair(self.root, "tag", "a", reviewer="tech-lead")
+        self.assertEqual(kernel.load(self.root, "tag").stages[0].pair, "tech-lead")
+
+    def test_pair_rejects_unknown_self_missing_and_done(self):
+        self._plan()
+        cases = [
+            ("nope", "a", None),
+            ("database-developer", "a", None),
+            ("tech-lead", "missing", None),
+            ("tech-lead", "a", "done"),
+        ]
+        for reviewer, stage_id, status in cases:
+            with self.subTest(reviewer=reviewer, stage_id=stage_id, status=status):
+                delivery = kernel.load(self.root, "tag")
+                delivery.stages[0].pair = ""
+                if status is not None:
+                    delivery.stages[0].status = status
+                else:
+                    delivery.stages[0].status = "queued"
+                kernel.save(self.root, delivery)
+                with self.assertRaises(kernel.PlanError):
+                    kernel.pair(self.root, "tag", stage_id, reviewer=reviewer)
+                self.assertEqual(kernel.load(self.root, "tag").stages[0].pair, "")
+
+    def test_pair_same_reviewer_is_noop_conflict_rejects(self):
+        self._plan()
+        kernel.pair(self.root, "tag", "a", reviewer="tech-lead")
+        kernel.pair(self.root, "tag", "a", reviewer="tech-lead")
+        self.assertEqual(kernel.load(self.root, "tag").stages[0].pair, "tech-lead")
+        with self.assertRaises(kernel.PlanError):
+            kernel.pair(self.root, "tag", "a", reviewer="qa-engineer")
+        self.assertEqual(kernel.load(self.root, "tag").stages[0].pair, "tech-lead")
+
+    def test_cli_pair_unknown_reviewer_exits_nonzero(self):
+        self._plan()
+        guild = REPO / "scripts/guild-kernel/guild.py"
+        proc = subprocess.run(
+            [
+                sys.executable,
+                str(guild),
+                "pair",
+                "--root",
+                str(self.root),
+                "--name",
+                "tag",
+                "--stage",
+                "a",
+                "--reviewer",
+                "nope",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertNotIn("Traceback", proc.stderr)
+        self.assertNotIn("Traceback", proc.stdout)
+
+
 if __name__ == "__main__":
     unittest.main()
