@@ -1504,6 +1504,16 @@ class WorkplaceDoneTest(unittest.TestCase):
         self.assertEqual(delivery.status, "done")
         self.assertEqual(delivery.pr, {})
 
+    def test_waiting_for_pr_at_cap_stays_running(self):
+        d = self._finish_stages()
+        self.assertEqual(d.cap, 3)
+        self.assertEqual(d.spawns, 1)
+        self.assertEqual(d.status, "running")
+        d.spawns = d.cap
+        kernel.save(self.root, d)
+        self.assertEqual(kernel.next_agent(self.root, "tag"), "STOP")
+        self.assertEqual(kernel.load(self.root, "tag").status, "running")
+
 
 if __name__ == "__main__":
     unittest.main()

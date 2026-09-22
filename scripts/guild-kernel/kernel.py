@@ -402,13 +402,13 @@ def _cap_hit(delivery):
 
 def next_agent(root, name):
     delivery = load(root, name)
+    if _dod_met(delivery):
+        return "STOP"
     if delivery.status in ("stopped", "done") or _cap_hit(delivery):
         if _cap_hit(delivery) and delivery.status not in ("stopped", "done"):
             delivery.status = "stopped"
             save(root, delivery)
             write_views(root, delivery)
-        return "STOP"
-    if _dod_met(delivery):
         return "STOP"
     by_id = {stage.id: stage for stage in delivery.stages}
     for stage in delivery.stages:
