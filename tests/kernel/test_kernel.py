@@ -1515,5 +1515,128 @@ class WorkplaceDoneTest(unittest.TestCase):
         self.assertEqual(kernel.load(self.root, "tag").status, "running")
 
 
+CHECKS = "gh pr checks 17 --json name,bucket,link"
+FAIL_CHECK = json.dumps(
+    [{"name": "pint", "bucket": "fail", "link": "https://github.com/acme/app/runs/1"}]
+)
+PASS_CHECK = json.dumps(
+    [{"name": "pint", "bucket": "pass", "link": "https://github.com/acme/app/runs/1"}]
+)
+
+
+class WorkplaceIngestTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+        self._plant()
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _plant(self):
+        plan_runner = FakeRunner({}, {ISSUE_CMD: (0, ISSUE_OUT)})
+        kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="POST /api/tags creates a Tag",
+            stages=[
+                kernel.StageSpec("a", "database-developer", "writer", ["m"], [])
+            ],
+            issue=42,
+            runner=plan_runner,
+        )
+        path = self.root / "docs/delivery/tag/stages/database-developer.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(STAGE_BODY)
+        kernel.report(
+            self.root,
+            "tag",
+            path,
+            runner=FakeRunner({VERIFY_CMD: 0}),
+        )
+        pr_runner = FakeRunner(
+            {},
+            {REPO_CMD: (0, REPO_OUT), PR_CMD: (0, PR_OUT)},
+        )
+        delivery = kernel.record_pr(self.root, "tag", 17, pr_runner)
+        delivery.spawns = delivery.cap
+        kernel.save(self.root, delivery)
+
+    def test_failing_check_reopens_once_and_allows_one_spawn(self):
+        runner = FakeRunner({}, {CHECKS: (0, FAIL_CHECK)})
+        delivery = kernel.ingest(
+            self.root,
+            "tag",
+            kind="check",
+            stage_id="a",
+            check="pint",
+            runner=runner,
+        )
+        self.assertEqual(delivery.stages[0].status, "running")
+        self.assertEqual(delivery.stages[0].reopens, 1)
+        self.assertEqual(delivery.status, "running")
+        self.assertGreaterEqual(delivery.cap, delivery.spawns + 1)
+        self.assertEqual(kernel.next_agent(self.root, "tag"), "database-developer")
+
+    def test_green_check_does_not_write(self):
+        before = (self.root / "docs/delivery/tag/kernel.json").read_text()
+        runner = FakeRunner({}, {CHECKS: (0, PASS_CHECK)})
+        kernel.ingest(
+            self.root,
+            "tag",
+            kind="check",
+            stage_id="a",
+            check="pint",
+            runner=runner,
+        )
+        self.assertEqual(
+            (self.root / "docs/delivery/tag/kernel.json").read_text(), before
+        )
+
+    def test_second_check_stops_the_delivery(self):
+        runner = FakeRunner({}, {CHECKS: (0, FAIL_CHECK)})
+        kernel.ingest(
+            self.root,
+            "tag",
+            kind="check",
+            stage_id="a",
+            check="pint",
+            runner=runner,
+        )
+        delivery = kernel.ingest(
+            self.root,
+            "tag",
+            kind="check",
+            stage_id="a",
+            check="pint",
+            runner=runner,
+        )
+        self.assertEqual(delivery.status, "stopped")
+        self.assertEqual(delivery.stages[0].reopens, 1)
+        self.assertEqual(kernel.next_agent(self.root, "tag"), "STOP")
+
+    def test_missing_check_name_rejects(self):
+        other = json.dumps(
+            [
+                {
+                    "name": "phpunit",
+                    "bucket": "fail",
+                    "link": "https://github.com/acme/app/runs/2",
+                }
+            ]
+        )
+        runner = FakeRunner({}, {CHECKS: (0, other)})
+        with self.assertRaises(kernel.PlanError):
+            kernel.ingest(
+                self.root,
+                "tag",
+                kind="check",
+                stage_id="a",
+                check="pint",
+                runner=runner,
+            )
+        self.assertEqual(kernel.load(self.root, "tag").stages[0].status, "done")
+
+
 if __name__ == "__main__":
     unittest.main()

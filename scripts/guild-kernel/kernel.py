@@ -391,6 +391,50 @@ def record_pr(root, name, number, runner):
     return delivery
 
 
+def _reopen(root, delivery, stage):
+    if stage.reopens >= 1:
+        delivery.status = "stopped"
+        save(root, delivery)
+        return delivery
+    if stage.status != "done":
+        raise PlanError(f"stage {stage.id} is {stage.status}")
+    stage.status = "running"
+    stage.reopens = 1
+    delivery.status = "running"
+    delivery.cap = max(delivery.cap, delivery.spawns + 1)
+    save(root, delivery)
+    write_views(root, delivery, not_checked=delivery.done_when or "none")
+    return delivery
+
+
+def ingest(root, name, *, kind, stage_id, runner, check="", comment=""):
+    delivery = load(root, name)
+    if not delivery.issue or not delivery.pr.get("number"):
+        raise PlanError("ingest requires issue and recorded PR")
+    stage = next((item for item in delivery.stages if item.id == stage_id), None)
+    if stage is None:
+        raise PlanError(f"stage {stage_id} is missing")
+    if kind != "check":
+        raise PlanError(f"unknown ingest kind {kind}")
+    number = delivery.pr["number"]
+    cmd = f"gh pr checks {number} --json name,bucket,link"
+    code, out = runner.capture(root, cmd)
+    if code != 0:
+        raise PlanError(f"gh pr checks exited {code}")
+    try:
+        payload = json.loads(out)
+    except json.JSONDecodeError as exc:
+        raise PlanError("gh pr checks returned malformed JSON") from exc
+    if not isinstance(payload, list):
+        raise PlanError("gh pr checks returned malformed JSON")
+    match = next((item for item in payload if item.get("name") == check), None)
+    if match is None:
+        raise PlanError(f"check {check} not found")
+    if match.get("bucket") != "fail":
+        return delivery
+    return _reopen(root, delivery, stage)
+
+
 def _did_on_disk(root, stage):
     root = pathlib.Path(root)
     return any((root / path).is_file() for path in stage.did if path)
