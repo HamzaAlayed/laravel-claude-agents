@@ -1033,6 +1033,109 @@ class PairTest(unittest.TestCase):
         self.assertNotIn("Traceback", proc.stderr)
         self.assertNotIn("Traceback", proc.stdout)
 
+    def _waiting_pair(self):
+        self._plan()
+        kernel.pair(self.root, "tag", "a", reviewer="tech-lead")
+        p = self.root / "docs/delivery/tag/stages/database-developer.md"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(
+            "STATUS: done\nDID: app/Models/Tag.php\n"
+            "VERIFIED: php artisan test --filter=TagTest\n"
+            "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
+        )
+        return kernel.report(
+            self.root,
+            "tag",
+            p,
+            runner=FakeRunner({"php artisan test --filter=TagTest": 0}),
+        )
+
+    def _reviewer_path(self, *, verified):
+        p = self.root / "docs/delivery/tag/stages/tech-lead.md"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(
+            "STATUS: done\nDID: review notes\n"
+            f"VERIFIED: {verified}\n"
+            "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
+        )
+        return p
+
+    def test_reviewer_exit_zero_finishes_paired_stage(self):
+        self._waiting_pair()
+        p = self._reviewer_path(verified="php artisan test --filter=TagReview")
+        d = kernel.report(
+            self.root,
+            "tag",
+            p,
+            runner=FakeRunner({"php artisan test --filter=TagReview": 0}),
+        )
+        stage = d.stages[0]
+        self.assertEqual(stage.status, "done")
+        self.assertFalse(stage.awaiting_pair)
+        self.assertEqual(
+            stage.verified,
+            [
+                {"cmd": "php artisan test --filter=TagTest", "exit": 0},
+                {"cmd": "php artisan test --filter=TagReview", "exit": 0},
+            ],
+        )
+
+    def test_reviewer_prose_or_exit_one_keeps_waiting(self):
+        self._waiting_pair()
+        cases = [
+            ("the review looks fine", {}),
+            (
+                "php artisan test --filter=TagReview",
+                {"php artisan test --filter=TagReview": 1},
+            ),
+        ]
+        for verified, codes in cases:
+            with self.subTest(verified=verified):
+                p = self._reviewer_path(verified=verified)
+                with self.assertRaises(kernel.ReportError):
+                    kernel.report(self.root, "tag", p, runner=FakeRunner(codes))
+                stage = kernel.load(self.root, "tag").stages[0]
+                self.assertEqual(stage.status, "running")
+                self.assertTrue(stage.awaiting_pair)
+
+    def test_reviewer_without_awaiting_pair_is_rejected(self):
+        self._plan()
+        kernel.pair(self.root, "tag", "a", reviewer="tech-lead")
+        p = self._reviewer_path(verified="php artisan test --filter=TagReview")
+        with self.assertRaises(kernel.ReportError):
+            kernel.report(
+                self.root,
+                "tag",
+                p,
+                runner=FakeRunner({"php artisan test --filter=TagReview": 0}),
+            )
+        stage = kernel.load(self.root, "tag").stages[0]
+        self.assertFalse(stage.awaiting_pair)
+        self.assertNotEqual(stage.status, "done")
+
+    def test_second_writer_report_while_awaiting_pair_is_rejected(self):
+        self._waiting_pair()
+        p = self.root / "docs/delivery/tag/stages/database-developer.md"
+        p.write_text(
+            "STATUS: done\nDID: app/Models/Tag.php\n"
+            "VERIFIED: php artisan test --filter=TagTest\n"
+            "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
+        )
+        with self.assertRaises(kernel.ReportError):
+            kernel.report(
+                self.root,
+                "tag",
+                p,
+                runner=FakeRunner({"php artisan test --filter=TagTest": 0}),
+            )
+        stage = kernel.load(self.root, "tag").stages[0]
+        self.assertEqual(stage.status, "running")
+        self.assertTrue(stage.awaiting_pair)
+        self.assertEqual(
+            stage.verified,
+            [{"cmd": "php artisan test --filter=TagTest", "exit": 0}],
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

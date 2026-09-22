@@ -413,9 +413,26 @@ def report(root, name, path, runner):
         for raw in fields["FLAGS"]
         if _norm_flag(raw) and _norm_flag(raw) != "none"
     ]
+    matched = False
     for stage in delivery.stages:
+        if stage.awaiting_pair and stage.pair == agent:
+            matched = True
+            for criterion in stage.success_criteria:
+                if criterion and criterion in not_checked:
+                    raise ReportError(f"NOT-CHECKED names success criterion: {criterion}")
+            stage.verified = list(stage.verified) + [
+                {"cmd": cmd, "exit": 0} for cmd in commands
+            ]
+            stage.awaiting_pair = False
+            stage.status = "done"
+            for flag_text in flag_texts:
+                _record_lesson(root, name, agent, flag_text)
+            continue
         if stage.agent != agent:
             continue
+        if stage.awaiting_pair:
+            raise ReportError(f"stage {stage.id} is awaiting pair {stage.pair}")
+        matched = True
         for criterion in stage.success_criteria:
             if criterion and criterion in not_checked:
                 raise ReportError(f"NOT-CHECKED names success criterion: {criterion}")
@@ -429,6 +446,8 @@ def report(root, name, path, runner):
             stage.status = "done"
         for flag_text in flag_texts:
             _record_lesson(root, name, agent, flag_text)
+    if not matched:
+        raise ReportError(f"no stage matched report agent {agent}")
     delivery.spawns += 1
     if all(stage.status in ("done", "skipped") for stage in delivery.stages):
         if any(
