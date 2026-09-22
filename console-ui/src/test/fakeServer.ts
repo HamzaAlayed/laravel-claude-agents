@@ -138,6 +138,7 @@ export function installFakeServer(catalog: Catalog | null = testCatalog): FakeSe
     // Reads, before the POST path claims everything else.
     if ((init?.method ?? "GET") === "GET") {
       if (url === "/api/runs") return respond({ runs });
+      if (url.startsWith("/api/kernel/deliveries")) return respond({ deliveries: [] });
       const match = /^\/api\/runs\/([^/]+)$/.exec(url);
       if (match) {
         const events = snapshots.get(match[1]);

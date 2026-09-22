@@ -80,6 +80,28 @@ export type KernelIngestBody = {
 export const ingestKernel = (body: KernelIngestBody) =>
   post<{ ok: boolean; text: string }>("/api/kernel/ingest", body);
 
+export type DeliveryRow = {
+  name: string;
+  status: string;
+  done_when: string;
+  issue_url: string;
+  issue_number: number | null;
+  pr_url: string;
+  pr_state: string;
+  board: string;
+  watching: boolean;
+};
+
+export const listDeliveries = async (): Promise<{ deliveries: DeliveryRow[] }> => {
+  const response = await fetch("/api/kernel/deliveries", { headers });
+  if (!response.ok) throw new Error((await response.json()).error ?? response.statusText);
+  return response.json();
+};
+
+/** Enable or disable PR watch for one delivery. Never sends a client root. */
+export const setWatch = (name: string, enabled: boolean) =>
+  post<{ ok: boolean; watching: boolean }>("/api/kernel/watch", { name, enabled });
+
 /**
  * SSE with resume: EventSource cannot send headers, so the token rides the query.
  *

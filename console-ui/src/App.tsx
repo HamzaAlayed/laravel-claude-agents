@@ -360,7 +360,7 @@ export default function App() {
       return (
         <main>
           {alerts}
-          <Desk onNewRun={() => setComposing(true)} />
+          <Desk onNewRun={() => setComposing(true)} onLaunch={launch} />
         </main>
       );
     }
