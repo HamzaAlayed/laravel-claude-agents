@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Guild kernel CLI — plan, next, report, board, status, sprint, pair."""
+"""Guild kernel CLI — plan, next, report, board, status, sprint, pair, pr, ingest."""
 
 from __future__ import annotations
 
@@ -18,6 +18,12 @@ class ProcessRunner:
     def run(self, cwd, cmd):
         completed = subprocess.run(cmd, cwd=cwd, shell=True)
         return completed.returncode
+
+    def capture(self, cwd, cmd):
+        completed = subprocess.run(
+            cmd, cwd=cwd, shell=True, capture_output=True, text=True
+        )
+        return completed.returncode, completed.stdout
 
 
 def _common():
@@ -40,6 +46,7 @@ def build_parser():
         default=[],
         help="id,agent,role[,dep+dep][,criterion|criterion] — repeatable",
     )
+    plan.add_argument("--issue", type=int, default=0)
     sub.add_parser("next", parents=[common])
     report = sub.add_parser("report", parents=[common])
     report.add_argument("--path", required=True)
@@ -48,6 +55,13 @@ def build_parser():
     pair = sub.add_parser("pair", parents=[common])
     pair.add_argument("--stage", required=True)
     pair.add_argument("--reviewer", default="tech-lead")
+    pr = sub.add_parser("pr", parents=[common])
+    pr.add_argument("--number", type=int, required=True)
+    ingest = sub.add_parser("ingest", parents=[common])
+    ingest.add_argument("--kind", required=True)
+    ingest.add_argument("--stage", required=True)
+    ingest.add_argument("--check", default="")
+    ingest.add_argument("--comment", default="")
     sprint_common = argparse.ArgumentParser(add_help=False)
     sprint_common.add_argument("--root", required=True)
     sprint_common.add_argument("--id", required=True)
@@ -105,12 +119,15 @@ def main(argv=None):
     args = build_parser().parse_args(argv)
     try:
         if args.cmd == "plan":
+            runner = ProcessRunner() if args.issue else None
             delivery = kernel.plan(
                 root=args.root,
                 name=args.name,
                 done_when=args.done_when,
                 stages=_stages_from_args(args.stage),
                 sprint=args.sprint,
+                issue=args.issue,
+                runner=runner,
             )
             if delivery.rules_printed:
                 for rule in delivery.rules_printed:
@@ -132,6 +149,20 @@ def main(argv=None):
             return 0
         if args.cmd == "pair":
             kernel.pair(args.root, args.name, args.stage, reviewer=args.reviewer)
+            return 0
+        if args.cmd == "pr":
+            kernel.record_pr(args.root, args.name, args.number, ProcessRunner())
+            return 0
+        if args.cmd == "ingest":
+            kernel.ingest(
+                args.root,
+                args.name,
+                kind=args.kind,
+                stage_id=args.stage,
+                check=args.check,
+                comment=args.comment,
+                runner=ProcessRunner(),
+            )
             return 0
         if args.cmd == "sprint":
             return _sprint_main(args)

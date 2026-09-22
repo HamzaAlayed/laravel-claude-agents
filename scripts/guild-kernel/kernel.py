@@ -322,7 +322,10 @@ def plan(*, root, name, done_when, stages, sprint="", issue=0, runner=None):
         code, out = runner.capture(root, cmd)
         if code != 0:
             raise PlanError(f"gh issue view exited {code}")
-        payload = json.loads(out)
+        try:
+            payload = json.loads(out)
+        except json.JSONDecodeError as exc:
+            raise PlanError("gh issue view returned malformed JSON") from exc
         if int(payload["number"]) != int(issue):
             raise PlanError("gh issue number does not match")
         issue_data = {

@@ -1262,6 +1262,12 @@ class WorkplacePlanTest(unittest.TestCase):
             self._plan(runner)
         self.assertFalse((self.root / "docs/delivery/tag/kernel.json").is_file())
 
+    def test_plan_issue_malformed_json_raises_plan_error(self):
+        runner = FakeRunner({}, {ISSUE_CMD: (0, "not-json")})
+        with self.assertRaises(kernel.PlanError):
+            self._plan(runner)
+        self.assertFalse((self.root / "docs/delivery/tag/kernel.json").is_file())
+
     def test_plan_without_issue_does_not_capture(self):
         runner = FakeRunner({})
         kernel.plan(
