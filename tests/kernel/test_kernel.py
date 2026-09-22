@@ -451,6 +451,46 @@ class ViewsCliTest(unittest.TestCase):
         self.assertEqual(d.stages[1].success_criteria, ["hello, world", "other"])
 
 
+class DodTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def test_delivery_not_done_when_a_done_stage_lacks_verified_exit_0(self):
+        kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="POST /api/tags creates a Tag",
+            stages=[
+                kernel.StageSpec("a", "database-developer", "writer", ["m"], []),
+                kernel.StageSpec("b", "backend-developer", "writer", ["h"], ["a"]),
+            ],
+        )
+        delivery = kernel.load(self.root, "tag")
+        delivery.stages[0].status = "done"
+        delivery.stages[0].verified = []
+        kernel.save(self.root, delivery)
+        path = self.root / "docs/delivery/tag/stages/backend-developer.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            "STATUS: done\nDID: app/Http/Controllers/TagController.php\n"
+            "VERIFIED: php artisan test --filter=TagTest\n"
+            "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
+        )
+        with self.assertRaises(kernel.ReportError):
+            kernel.report(
+                self.root,
+                "tag",
+                path,
+                runner=FakeRunner({"php artisan test --filter=TagTest": 0}),
+            )
+        saved = kernel.load(self.root, "tag")
+        self.assertNotEqual(saved.status, "done")
+
+
 class DorTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

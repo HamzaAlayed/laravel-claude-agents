@@ -212,6 +212,12 @@ def report(root, name, path, runner):
         stage.verified = [{"cmd": cmd, "exit": 0} for cmd in commands]
     delivery.spawns += 1
     if all(stage.status in ("done", "skipped") for stage in delivery.stages):
+        if any(
+            stage.status != "skipped"
+            and not any(entry.get("exit") == 0 for entry in stage.verified)
+            for stage in delivery.stages
+        ):
+            raise ReportError("DoD requires verified exit 0 on every done stage")
         delivery.status = "done"
     elif _cap_hit(delivery):
         delivery.status = "stopped"
