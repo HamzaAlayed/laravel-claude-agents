@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [3.3.0] - 2026-09-22
+
+Opt-in `--issue` makes a GitHub issue the delivery identity. The kernel
+re-runs `gh` to record the pull request. A failing check or a confirmed
+review comment reopens that stage once. The console strip can show the
+kernel board and post that ingest. Merge stays a person. Local
+`/make-feature` without `--issue` is unchanged.
+
 ## [3.2.0] - 2026-09-22
 
 A repeated `FLAGS` line becomes a taught lesson the next `plan` prints.
