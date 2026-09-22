@@ -1,12 +1,6 @@
-import { Square } from "lucide-react";
+import { ArrowLeft, CircleAlert, Square } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { StatusChip, type RunOutcome } from "@/components/StatusChip";
-
-const headerActionClass =
-  "border-[color-mix(in_oklab,var(--paper)_24%,transparent)] bg-transparent text-[var(--paper)] hover:bg-[color-mix(in_oklab,var(--paper)_10%,transparent)] hover:text-[var(--paper)]";
-
-const cueActionClass =
-  "border-[color-mix(in_oklab,var(--cue)_50%,transparent)] bg-[color-mix(in_oklab,var(--cue)_22%,transparent)] text-[var(--paper)] hover:bg-[color-mix(in_oklab,var(--cue)_32%,transparent)] hover:text-[var(--paper)]";
 
 export function ShowHeader({
   title,
@@ -32,47 +26,50 @@ export function ShowHeader({
   cueTool?: string;
 }) {
   return (
-    <div className="contents">
-      <h1
-        className="font-heading truncate text-lg font-extrabold text-[var(--paper)]"
-        title={title}
-      >
-        {title}
-      </h1>
-      <StatusChip live={live} startedAt={startedAt} outcome={outcome} />
-      {onCue && (
-        <Button
-          size="sm"
-          variant="outline"
-          className={cueActionClass}
-          aria-label={cueTool ? `Needs you — ${cueTool}` : "Needs you"}
-          onClick={onCue}
-        >
-          Needs you
-        </Button>
-      )}
-      {onStop && (
-        <Button
-          size="sm"
-          variant="outline"
-          className={headerActionClass}
-          aria-label="Stop — interrupt the running agent"
-          onClick={onStop}
-        >
-          <Square className="mr-1 size-3.5" aria-hidden /> Stop
-        </Button>
-      )}
+    <div className="flex min-w-0 flex-1 flex-wrap items-center gap-3">
       {onBack && (
         <Button
-          size="sm"
-          variant="outline"
-          className={headerActionClass}
+          size="icon-sm"
+          variant="ghost"
           aria-label="Back — close recording"
           onClick={onBack}
         >
-          Back
+          <ArrowLeft aria-hidden />
         </Button>
       )}
+      <div className="min-w-0 flex-1">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-muted-foreground">
+          {onBack ? "Recorded run" : live ? "Live run" : "Run summary"}
+        </p>
+        <h1 className="truncate font-heading text-base font-semibold text-foreground sm:text-lg" title={title}>
+          {title}
+        </h1>
+      </div>
+      <StatusChip live={live} startedAt={startedAt} outcome={outcome} />
+      <div className="flex items-center gap-2">
+        {onCue && (
+          <Button
+            size="sm"
+            variant="destructive"
+            aria-label={cueTool ? `Needs you — ${cueTool}` : "Needs you"}
+            onClick={onCue}
+          >
+            <CircleAlert aria-hidden />
+            Needs you
+          </Button>
+        )}
+        {onStop && (
+          <Button
+            size="sm"
+            variant="outline"
+            aria-label="Stop — interrupt the running agent"
+            onClick={onStop}
+          >
+            <Square aria-hidden />
+            Stop
+          </Button>
+        )}
+      </div>
     </div>
   );
 }

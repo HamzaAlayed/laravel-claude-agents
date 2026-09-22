@@ -134,9 +134,256 @@
 }
 
 html[data-scene="floor"],
-html[data-scene="spotlight"] {
-    --background: var(--floor);
-    --foreground: var(--paper);
+html[data-scene="spotlight"],
+html[data-scene="desk"] {
+    color-scheme: dark;
+    --floor: #070b12;
+    --paper: #edf4f8;
+    --ink: #041510;
+    --tungsten: #6ee7c7;
+    --cue: #ff7b86;
+    --background: #070b12;
+    --foreground: #edf4f8;
+    --card: #0c131e;
+    --card-foreground: #edf4f8;
+    --popover: #0c131e;
+    --popover-foreground: #edf4f8;
+    --primary: #6ee7c7;
+    --primary-foreground: #041510;
+    --secondary: #162536;
+    --secondary-foreground: #dce9ef;
+    --muted: #131d2a;
+    --muted-foreground: #8fa1af;
+    --accent: #18293a;
+    --accent-foreground: #edf4f8;
+    --destructive: #ff7b86;
+    --border: #1c2a39;
+    --input: #26384a;
+    --ring: #6ee7c7;
+}
+
+html[data-scene="desk"],
+html[data-scene="desk"] body,
+html[data-scene="desk"] #root,
+html[data-scene="floor"],
+html[data-scene="floor"] body,
+html[data-scene="floor"] #root,
+html[data-scene="spotlight"],
+html[data-scene="spotlight"] body,
+html[data-scene="spotlight"] #root {
+    min-height: 100%;
+    background: var(--background);
+}
+
+.console-loading {
+    background: #070b12;
+    color: #edf4f8;
+}
+
+.guild-desk {
+    background-image:
+        radial-gradient(circle at 72% -10%, color-mix(in oklab, var(--primary) 9%, transparent), transparent 32rem),
+        linear-gradient(180deg, #080d15 0%, var(--background) 38rem);
+}
+
+.run-console {
+    background-image:
+        radial-gradient(circle at 88% -10%, color-mix(in oklab, var(--primary) 8%, transparent), transparent 30rem),
+        linear-gradient(180deg, #080d15 0%, var(--background) 34rem);
+}
+
+.run-console-grid {
+    background-image:
+        linear-gradient(color-mix(in oklab, var(--border) 30%, transparent) 1px, transparent 1px),
+        linear-gradient(90deg, color-mix(in oklab, var(--border) 30%, transparent) 1px, transparent 1px);
+    background-size: 3rem 3rem;
+    mask-image: linear-gradient(to bottom, black, transparent 38rem);
+    pointer-events: none;
+}
+
+.skip-link {
+    position: fixed;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 50;
+    transform: translateY(-200%);
+    border-radius: 0.5rem;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    padding: 0.6rem 0.8rem;
+    font-size: 0.875rem;
+    font-weight: 700;
+    transition: transform 120ms ease;
+}
+
+.skip-link:focus {
+    transform: translateY(0);
+}
+
+.desk-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 20;
+    width: 16rem;
+    flex-direction: column;
+    border-right: 1px solid var(--border);
+    background: color-mix(in oklab, var(--background) 92%, transparent);
+    padding: 1.5rem 1.25rem;
+    backdrop-filter: blur(18px);
+}
+
+.guild-mark {
+    display: inline-flex;
+    width: 2.25rem;
+    height: 2.25rem;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid color-mix(in oklab, var(--primary) 32%, var(--border));
+    border-radius: 0.75rem;
+    background: color-mix(in oklab, var(--primary) 11%, var(--card));
+    color: var(--primary);
+    box-shadow: inset 0 0 20px color-mix(in oklab, var(--primary) 8%, transparent);
+}
+
+.guild-mark svg {
+    width: 1.1rem;
+    height: 1.1rem;
+}
+
+.desk-nav-item {
+    display: flex;
+    min-height: 2.75rem;
+    align-items: center;
+    gap: 0.75rem;
+    border: 1px solid color-mix(in oklab, var(--primary) 18%, var(--border));
+    border-radius: 0.75rem;
+    background: color-mix(in oklab, var(--primary) 8%, var(--card));
+    padding: 0.65rem 0.75rem;
+    color: var(--foreground);
+    font-size: 0.875rem;
+    font-weight: 600;
+    transition: background-color 140ms ease, border-color 140ms ease;
+}
+
+.desk-nav-item:hover {
+    border-color: color-mix(in oklab, var(--primary) 34%, var(--border));
+    background: color-mix(in oklab, var(--primary) 13%, var(--card));
+}
+
+.desk-nav-item:focus-visible,
+.desk-link:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 3px;
+}
+
+.desk-nav-item svg {
+    width: 1rem;
+    height: 1rem;
+    color: var(--primary);
+}
+
+.desk-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    min-height: 4rem;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    border-bottom: 1px solid var(--border);
+    background: color-mix(in oklab, var(--background) 88%, transparent);
+    padding: 0.75rem 1rem;
+    backdrop-filter: blur(18px);
+}
+
+@media (min-width: 640px) {
+    .desk-topbar { padding-inline: 1.5rem; }
+}
+
+@media (min-width: 1024px) {
+    .desk-topbar { padding-inline: 2rem; }
+}
+
+.desk-network {
+    background-image:
+        linear-gradient(color-mix(in oklab, var(--border) 58%, transparent) 1px, transparent 1px),
+        linear-gradient(90deg, color-mix(in oklab, var(--border) 58%, transparent) 1px, transparent 1px),
+        radial-gradient(circle at 62% 42%, color-mix(in oklab, var(--primary) 11%, transparent), transparent 17rem);
+    background-size: 2.5rem 2.5rem, 2.5rem 2.5rem, auto;
+}
+
+.desk-network-lines {
+    fill: none;
+    stroke: color-mix(in oklab, var(--primary) 24%, var(--border));
+    stroke-width: 1.2;
+    stroke-dasharray: 4 7;
+}
+
+.desk-network-dots {
+    fill: color-mix(in oklab, var(--primary) 78%, white);
+    stroke: color-mix(in oklab, var(--primary) 24%, transparent);
+    stroke-width: 12;
+}
+
+.desk-node {
+    position: absolute;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    background: color-mix(in oklab, var(--card) 92%, transparent);
+    padding: 0.25rem 0.55rem;
+    color: var(--muted-foreground);
+    font-family: var(--font-mono);
+    font-size: 0.65rem;
+    letter-spacing: 0.04em;
+    box-shadow: 0 10px 32px rgb(0 0 0 / 30%);
+}
+
+.desk-link {
+    display: inline-flex;
+    min-height: 1.75rem;
+    align-items: center;
+    gap: 0.3rem;
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.25rem 0.55rem;
+    color: var(--muted-foreground);
+    transition: border-color 140ms ease, color 140ms ease, background-color 140ms ease;
+}
+
+.desk-link:hover {
+    border-color: color-mix(in oklab, var(--primary) 36%, var(--border));
+    background: color-mix(in oklab, var(--primary) 7%, transparent);
+    color: var(--primary);
+}
+
+.desk-link svg {
+    width: 0.75rem;
+    height: 0.75rem;
+}
+
+.delivery-card {
+    content-visibility: auto;
+    contain-intrinsic-size: 34rem;
+}
+
+.delivery-status[data-status="running"] {
+    border-color: color-mix(in oklab, var(--primary) 34%, var(--border));
+    background: color-mix(in oklab, var(--primary) 10%, transparent);
+    color: var(--primary);
+}
+
+.delivery-status[data-status="done"] {
+    border-color: color-mix(in oklab, #7dd3fc 35%, var(--border));
+    background: color-mix(in oklab, #7dd3fc 10%, transparent);
+    color: #a5e3ff;
+}
+
+.delivery-status[data-status="stopped"] {
+    border-color: color-mix(in oklab, var(--destructive) 38%, var(--border));
+    background: color-mix(in oklab, var(--destructive) 10%, transparent);
+    color: var(--destructive);
 }
 
 /* Floor stays mounted under spotlight; dim the stage, not the cue. Under

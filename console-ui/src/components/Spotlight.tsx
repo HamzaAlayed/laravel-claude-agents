@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { XIcon } from "lucide-react";
+import { ShieldCheck, XIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -12,9 +12,8 @@ import {
 } from "@/components/DecisionSheet";
 import type { Agent, PendingPrompt } from "@/lib/types";
 
-const captionClass = "text-xs text-[color-mix(in_oklab,var(--ink)_70%,transparent)]";
-const fieldClass =
-  "border-[color-mix(in_oklab,var(--ink)_18%,transparent)] bg-[var(--paper)] text-[var(--ink)]";
+const captionClass = "text-xs text-muted-foreground";
+const fieldClass = "border-input bg-background text-foreground";
 
 export function Spotlight({
   pending,
@@ -74,28 +73,35 @@ export function Spotlight({
     });
 
   return (
-    <section className="relative flex min-h-dvh flex-col bg-[var(--paper)] px-8 py-10 text-[var(--ink)]">
+    <section className="relative min-h-dvh bg-background px-4 py-8 text-foreground sm:px-8 sm:py-12">
+      <div className="mx-auto w-full max-w-3xl rounded-2xl border border-border bg-card p-5 shadow-2xl shadow-black/40 sm:p-8">
       <Button
         ref={closeRef}
         type="button"
         variant="ghost"
         size="icon-sm"
-        className="absolute top-3 right-3 text-[var(--ink)]"
+        className="absolute top-3 right-3 text-muted-foreground hover:text-foreground"
         onClick={onClose}
       >
         <XIcon />
         <span className="sr-only">Close</span>
       </Button>
 
-      <header className="mb-8 flex flex-col items-start gap-4">
-        <Actor
-          pose="needs"
-          color={agent?.color ?? "#64748b"}
-          slug={pending.agent ?? undefined}
-          size="lg"
-        />
+      <header className="mb-8 flex items-start gap-4 border-b border-border pb-6">
+        <div className="relative">
+          <Actor
+            pose="needs"
+            color={agent?.color ?? "#64748b"}
+            slug={pending.agent ?? undefined}
+            size="lg"
+          />
+          <span className="absolute -right-1 -bottom-1 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground ring-2 ring-card">
+            <ShieldCheck className="size-3" aria-hidden />
+          </span>
+        </div>
         <div className="space-y-1">
-          <h2 className="font-heading text-2xl font-medium">
+          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-primary">Approval required</p>
+          <h2 className="font-heading text-xl font-semibold sm:text-2xl">
             {pending.is_question ? "The Guild has questions" : `Allow ${pending.tool}?`}
           </h2>
           {queueLength > 1 && <p className={captionClass}>{queueLength} remaining</p>}
@@ -166,13 +172,13 @@ export function Spotlight({
         </div>
       ) : (
         <div className="space-y-4">
-          <pre className={`overflow-x-auto border p-3 text-xs leading-relaxed font-mono font-normal ${fieldClass}`}>
+          <pre className={`max-h-[45vh] overflow-auto rounded-xl border p-4 text-xs leading-relaxed font-mono font-normal ${fieldClass}`}>
             {JSON.stringify(pending.input, null, 2).split("\n").map((line, index) => {
               const { key, rest } = splitJsonKey(line);
               return (
                 <div key={index}>
                   {key && (
-                    <span className="text-[color-mix(in_oklab,var(--ink)_70%,transparent)]">
+                    <span className="text-muted-foreground">
                       {key}
                     </span>
                   )}
@@ -228,6 +234,7 @@ export function Spotlight({
           </div>
         </div>
       )}
+      </div>
     </section>
   );
 }

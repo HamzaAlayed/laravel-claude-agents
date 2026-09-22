@@ -21,7 +21,7 @@ afterEach(() => {
   server = null;
 });
 
-const runButton = () => screen.getByRole("button", { name: "Start" }) as HTMLButtonElement;
+const runButton = () => screen.getByRole("button", { name: "Start run" }) as HTMLButtonElement;
 
 const newRunButton = () => screen.getByRole("button", { name: "New run" }) as HTMLButtonElement;
 
@@ -59,7 +59,7 @@ async function launch(
   const opened = await open(testCatalog, seed);
   await openLauncher(opened.user);
   await opened.user.type(
-    screen.getByPlaceholderText("describe the task"),
+    screen.getByPlaceholderText(/Describe the task/),
     "ship the invoice export",
   );
   await opened.user.click(runButton());
@@ -135,7 +135,7 @@ describe("the run is launched", () => {
     await openLauncher(user);
 
     const release = server.hold("/api/runs");
-    await user.type(screen.getByPlaceholderText("describe the task"), "another export");
+    await user.type(screen.getByPlaceholderText(/Describe the task/), "another export");
     await user.click(runButton());
 
     expect(document.getElementById("guild-call-sheet")).toBeTruthy();
@@ -158,7 +158,7 @@ describe("the run is launched", () => {
     await openLauncher(user);
     server.failNext("/api/runs", "could not start");
 
-    await user.type(screen.getByPlaceholderText("describe the task"), "another export");
+    await user.type(screen.getByPlaceholderText(/Describe the task/), "another export");
     await user.click(runButton());
 
     expect(await screen.findByText(/could not start/)).toBeTruthy();
@@ -945,7 +945,7 @@ describe("recorded runs", () => {
 
     await opened.user.click(screen.getByRole("button", { name: "Back — close recording" }));
     await openLauncher(opened.user);
-    await opened.user.type(screen.getByPlaceholderText("describe the task"), "something new");
+    await opened.user.type(screen.getByPlaceholderText(/Describe the task/), "something new");
     await opened.user.click(runButton());
 
     await waitFor(() => expect(screen.queryByText("old news")).toBeNull());

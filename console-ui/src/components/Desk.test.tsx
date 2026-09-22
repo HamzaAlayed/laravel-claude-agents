@@ -57,9 +57,9 @@ describe("Desk", () => {
 
     expect(await screen.findByRole("heading", { name: "tag" })).toBeTruthy();
     expect(screen.getByText("In progress")).toBeTruthy();
-    expect(screen.getByText("Finished when POST /api/tags creates a Tag")).toBeTruthy();
-    expect(screen.getByRole("link", { name: "GitHub issue 42" })).toBeTruthy();
-    expect(screen.getByRole("link", { name: "Pull request (open)" })).toBeTruthy();
+    expect(screen.getByText("Done when POST /api/tags creates a Tag")).toBeTruthy();
+    expect(screen.getByRole("link", { name: "Issue #42" })).toBeTruthy();
+    expect(screen.getByRole("link", { name: "PR · open" })).toBeTruthy();
     expect(screen.getByText("Database Developer")).toBeTruthy();
     expect(screen.getByText("Waiting")).toBeTruthy();
     expect(screen.getByRole("button", { name: "New run" })).toBeTruthy();
@@ -71,7 +71,7 @@ describe("Desk", () => {
     render(<Desk onNewRun={() => {}} onLaunch={onLaunch} />);
 
     await screen.findByText("tag");
-    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(screen.getByRole("button", { name: "Continue delivery" }));
 
     expect(onLaunch).toHaveBeenCalledTimes(1);
     const payload = onLaunch.mock.calls[0][0];
@@ -90,7 +90,7 @@ describe("Desk", () => {
 
     await screen.findByText("tag");
     expect(
-      (screen.getByRole("button", { name: "Watch GitHub" }) as HTMLButtonElement).disabled,
+      (screen.getByRole("button", { name: "Monitor PR" }) as HTMLButtonElement).disabled,
     ).toBe(true);
   });
 
@@ -99,7 +99,7 @@ describe("Desk", () => {
     render(<Desk onNewRun={() => {}} onLaunch={() => {}} />);
 
     await screen.findByText("tag");
-    await user.click(screen.getByRole("button", { name: "Watch GitHub" }));
+    await user.click(screen.getByRole("button", { name: "Monitor PR" }));
 
     await waitFor(() => expect(fetch).toHaveBeenCalled());
     const [, init] = (fetch as ReturnType<typeof vi.fn>).mock.calls.find(

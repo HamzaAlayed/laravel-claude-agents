@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useRef, useState, type FormEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { AlertTriangle, Send } from "lucide-react";
+import { AlertTriangle, Bot, CheckCircle2, History, Send, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Board } from "@/components/Board";
 import { FocusRun } from "@/components/FocusRun";
@@ -30,6 +31,11 @@ function restoreConsoleFocus() {
   const cue = document.getElementById("cue-line");
   if (cue) {
     cue.focus({ preventScroll: true });
+    return;
+  }
+  const workspace = document.getElementById("run-workspace");
+  if (workspace) {
+    workspace.focus({ preventScroll: true });
     return;
   }
   document.getElementById("guild-call-sheet")?.focus({ preventScroll: true });
@@ -232,7 +238,7 @@ export default function App() {
 
   if (!catalog) {
     return (
-      <main className="mx-auto max-w-md p-8 text-sm">
+      <main className="console-loading flex min-h-dvh items-center justify-center px-8 text-sm">
         {error ? `Could not reach the console API: ${error}` : "Loading the Guild…"}
       </main>
     );
@@ -339,14 +345,14 @@ export default function App() {
 
   if (scene === "desk") {
     const alerts = (error || view.failure) && (
-      <div className="mx-auto max-w-lg space-y-2 px-4 pt-6">
+      <div className="fixed top-4 right-4 z-50 flex w-[min(28rem,calc(100vw-2rem))] flex-col gap-2">
         {error && (
-          <p role="alert" className="text-sm text-destructive">
+          <p role="alert" className="rounded-xl border border-destructive/40 bg-background/95 px-4 py-3 text-sm text-destructive shadow-xl backdrop-blur">
             {error}
           </p>
         )}
         {view.failure && (
-          <section role="alert" className="rounded-xl border-2 border-destructive p-3">
+          <section role="alert" className="rounded-xl border border-destructive/40 bg-background/95 p-4 shadow-xl backdrop-blur">
             <h2 className="mb-1 flex items-center gap-2 text-sm font-medium">
               <AlertTriangle className="size-4" aria-hidden /> The run ended with an error
             </h2>
@@ -380,7 +386,7 @@ export default function App() {
                 <span className="text-xs">Past shows</span>
                 <select
                   aria-label="Open a recorded run"
-                  className="h-9 w-full rounded-md border border-[color-mix(in_oklab,var(--ink)_18%,transparent)] bg-[var(--paper)] px-2 text-sm text-[var(--ink)]"
+                  className="h-10 w-full rounded-lg border border-input bg-background px-2.5 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50"
                   value=""
                   onChange={(event) => {
                     if (event.target.value) void openRecorded(event.target.value);
@@ -402,63 +408,81 @@ export default function App() {
   }
 
   return (
-    <main className="min-h-dvh bg-[var(--floor)]">
+    <main className="run-console relative min-h-dvh bg-background text-foreground">
+      <div className="run-console-grid fixed inset-0" aria-hidden />
       <div
         data-floor=""
+        className="relative min-h-dvh"
         inert={scene === "spotlight" ? true : undefined}
         aria-hidden={scene === "spotlight" || undefined}
       >
-      <header className="mb-4 flex items-baseline gap-3 bg-[var(--floor)] px-4 pt-4 md:px-6">
-        <ShowHeader
-          title={showTitle}
-          live={live}
-          startedAt={runStartedAt}
-          outcome={
-            runId && !recorded
-              ? view.result
-                ? "done"
-                : view.failure
-                  ? "error"
-                  : stopped
-                    ? "stopped"
-                    : null
-              : null
-          }
-          onStop={live ? interrupt : undefined}
-          onBack={recorded ? closeRecorded : undefined}
-          onCue={
-            scene === "floor" && head ? () => setSpotlightOpen(true) : undefined
-          }
-          cueTool={head?.tool}
-        />
-        {live && (
-          <div className="ml-auto flex items-center gap-2">
-            <select
-              aria-label="Change this run's permission mode"
-              className="h-8 rounded-md border bg-background px-2 text-sm"
-              value={liveMode}
-              onChange={(event) => changeMode(event.target.value)}
-            >
-              <option value="default">Ask me</option>
-              <option value="acceptEdits">Accept edits</option>
-              <option value="plan">Plan only</option>
-            </select>
-          </div>
-        )}
+      <header className="sticky top-0 z-20 border-b border-border bg-background/88 backdrop-blur-xl">
+        <div className="mx-auto flex min-h-16 max-w-[96rem] items-center gap-3 px-4 py-2.5 sm:px-6 lg:px-8">
+          <span className="guild-mark hidden sm:inline-flex" aria-hidden>
+            <Bot />
+          </span>
+          <ShowHeader
+            title={showTitle}
+            live={live}
+            startedAt={runStartedAt}
+            outcome={
+              recorded
+                ? null
+                : view.result
+                  ? "done"
+                  : view.failure
+                    ? "error"
+                    : stopped
+                      ? "stopped"
+                      : null
+            }
+            onStop={live ? interrupt : undefined}
+            onBack={recorded ? closeRecorded : undefined}
+            onCue={
+              scene === "floor" && head ? () => setSpotlightOpen(true) : undefined
+            }
+            cueTool={head?.tool}
+          />
+          {live && (
+            <label className="flex shrink-0 items-center gap-2 rounded-lg border border-border bg-card px-2.5 py-1.5 text-xs text-muted-foreground">
+              <ShieldCheck className="size-3.5 text-primary" aria-hidden />
+              <span className="sr-only sm:not-sr-only">Permissions</span>
+              <select
+                aria-label="Change this run's permission mode"
+                className="max-w-28 bg-transparent text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring sm:max-w-none"
+                value={liveMode}
+                onChange={(event) => changeMode(event.target.value)}
+              >
+                <option value="default">Ask me</option>
+                <option value="acceptEdits">Accept edits</option>
+                <option value="plan">Plan only</option>
+              </select>
+            </label>
+          )}
+        </div>
       </header>
+
+      <div
+        id="run-workspace"
+        tabIndex={-1}
+        className="mx-auto w-full max-w-[96rem] space-y-4 px-4 py-5 outline-none sm:px-6 lg:px-8 lg:py-7"
+      >
 
       {/* Deliberately not "it has finished": GET /api/runs lists live runs too, so
           the one being replayed may still be running elsewhere. What is reliably
           true is that this view is a replay and cannot act on it. */}
       <AnimatePresence>
         {recorded && (
-          <motion.p
+          <motion.div
             {...fadeRise}
-            className="mb-3 rounded-lg border px-3 py-2 text-sm text-muted-foreground"
+            className="flex items-start gap-3 rounded-xl border border-border bg-card/75 px-4 py-3 text-sm text-muted-foreground shadow-sm"
           >
-            Viewing a recorded run — {recorded}. Read-only replay: approvals and
-            interrupts are not available here.
-          </motion.p>
+            <History className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
+            <span>
+              <strong className="font-medium text-foreground">Viewing a recorded run</strong>
+              {` — ${recorded}. Read-only replay: approvals and interrupts are not available here.`}
+            </span>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -467,7 +491,7 @@ export default function App() {
           <motion.p
             role="alert"
             {...fadeRise}
-            className="mb-3 flex items-center gap-2 rounded-lg border-2 border-destructive px-3 py-2 text-sm"
+            className="flex items-center gap-2 rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive"
           >
             <AlertTriangle className="size-4" aria-hidden />
             The Guild pack did not load cleanly — agents may be missing.
@@ -476,7 +500,7 @@ export default function App() {
       </AnimatePresence>
       <AnimatePresence>
         {error && (
-          <motion.p role="alert" {...fadeRise} className="mb-3 text-sm text-destructive">
+          <motion.p role="alert" {...fadeRise} className="rounded-xl border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
             {error}
           </motion.p>
         )}
@@ -485,14 +509,14 @@ export default function App() {
           where most tool calls happen. */}
       <AnimatePresence>
         {view.unasked > 0 && (
-          <motion.p {...fadeRise} className="mb-3 text-xs text-muted-foreground">
+          <motion.p {...fadeRise} className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
             {`${view.unasked} ran unasked on the main thread`}
           </motion.p>
         )}
       </AnimatePresence>
       <AnimatePresence>
         {view.retry && (
-          <motion.p {...fadeRise} className="mb-3 text-xs text-muted-foreground">
+          <motion.p {...fadeRise} className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-xs text-muted-foreground">
             Retrying after {view.retry.error} — attempt {view.retry.attempt} of {view.retry.max_retries}
           </motion.p>
         )}
@@ -526,12 +550,21 @@ export default function App() {
 
       <AnimatePresence>
         {view.result && (
-          <motion.section {...fadeRise} className="mt-4 rounded-xl border bg-muted/30 p-3">
-            <h2 className="mb-1 text-sm font-medium">Final answer</h2>
+          <motion.div {...fadeRise}>
+            <Card className="border-t-2 border-t-primary bg-card/90 shadow-xl shadow-black/10">
+              <CardHeader className="border-b border-border/70">
+                <CardTitle className="flex items-center gap-2">
+                  <CheckCircle2 className="size-4 text-primary" aria-hidden />
+                  Final answer
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="prose-invert max-w-none">
             {/* Agents answer in markdown — headings, bullets, fenced diffs. As
                 pre-wrapped text it read as a wall of asterisks and backticks. */}
-            <Markdown>{view.result.result}</Markdown>
-          </motion.section>
+                <Markdown>{view.result.result}</Markdown>
+              </CardContent>
+            </Card>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -541,7 +574,7 @@ export default function App() {
           <motion.section
             role="alert"
             {...fadeRise}
-            className="mt-4 rounded-xl border-2 border-destructive p-3"
+            className="rounded-xl border border-destructive/50 bg-destructive/10 p-4 text-destructive"
           >
             <h2 className="mb-1 flex items-center gap-2 text-sm font-medium">
               <AlertTriangle className="size-4" aria-hidden /> The run ended with an error
@@ -556,11 +589,11 @@ export default function App() {
         <form
           id="cue-line"
           tabIndex={-1}
-          className="mt-4 flex items-center gap-2 bg-[var(--floor)] px-4 pb-4 text-[var(--paper)] md:px-6"
+          className="sticky bottom-3 z-10 flex items-center gap-2 rounded-2xl border border-border bg-card/95 p-2 shadow-2xl shadow-black/30 backdrop-blur-xl"
           onSubmit={sendFollowUp}
         >
           <Input
-            className="flex-1 border-[color-mix(in_oklab,var(--paper)_18%,transparent)] bg-transparent text-[var(--paper)] placeholder:text-[color-mix(in_oklab,var(--paper)_70%,transparent)]"
+            className="flex-1 border-0 bg-transparent shadow-none focus-visible:ring-0"
             aria-label="Follow-up message"
             placeholder="Reply to the Guild, or add context…"
             value={followUp}
@@ -568,15 +601,15 @@ export default function App() {
           />
           <Button
             type="submit"
-            variant="secondary"
-            className="bg-[var(--paper)] text-[var(--ink)] hover:bg-[var(--paper)]"
+            variant="default"
             disabled={!followUp.trim()}
           >
-            <Send className="mr-1 size-4" aria-hidden /> Send
+            <Send aria-hidden /> Send
           </Button>
         </form>
       )}
 
+      </div>
       </div>
 
       {scene === "spotlight" && head && (

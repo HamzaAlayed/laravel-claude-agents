@@ -21,7 +21,7 @@ const outcomeOf = (lane: Lane, parked: boolean) => {
   return null;
 };
 
-const captionClass = "text-[color-mix(in_oklab,var(--paper)_70%,transparent)]";
+const captionClass = "text-muted-foreground";
 
 export function AgentCard({ lane, agent, parked, onSelect }: Props) {
   const elapsed = useElapsed(lane.startedAt, lane.endedAt);
@@ -37,10 +37,10 @@ export function AgentCard({ lane, agent, parked, onSelect }: Props) {
       initial={{ opacity: 0, y: 8, scale: 0.97 }}
       animate={{ opacity: lane.status === "done" ? 0.7 : 1, y: 0, scale: 1 }}
       transition={{ type: "spring", stiffness: 380, damping: 30 }}
-      className={`w-full p-2.5 text-left text-[var(--paper)] focus-visible:ring-2 focus-visible:ring-[var(--paper)] ${
+      className={`w-full rounded-xl border bg-card p-3 text-left text-foreground shadow-sm transition-[background-color,border-color,box-shadow] hover:border-primary/30 hover:bg-accent/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
         parked
-          ? "animate-attention border-2 shadow-[inset_0_-3px_0_0_var(--cue)]"
-          : "border-2 border-transparent"
+          ? "animate-attention border-destructive/60 shadow-[inset_0_-3px_0_0_var(--destructive)]"
+          : "border-border"
       }`}
       style={{
         ["--lane-color" as string]: color,
@@ -65,7 +65,7 @@ export function AgentCard({ lane, agent, parked, onSelect }: Props) {
       </div>
       <p className={`mt-1 truncate text-xs ${captionClass}`}>{lane.task || "working…"}</p>
       <p
-        className={`mt-0.5 text-[11px] tabular-nums ${parked ? "text-[var(--paper)]" : captionClass}`}
+        className={`mt-0.5 text-[11px] tabular-nums ${parked ? "font-semibold text-destructive" : captionClass}`}
       >
         {parked ? "needs you" : elapsed}
       </p>

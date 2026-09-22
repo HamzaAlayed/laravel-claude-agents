@@ -7,6 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [4.1.0] - 2026-09-22
+
+### Changed
+
+- The delivery desk, run launcher, live run, approval screen, recorded replay,
+  and final answer now use one responsive dark workspace with clearer hierarchy,
+  plain-language actions, and consistent status treatment.
+- Run activity separates messages, reasoning, tool calls, and tool results into a
+  compact chronological feed. Long output stays contained instead of taking over
+  the page.
+- Agent lanes, permission controls, alerts, follow-up input, and recorded-run
+  notices now use the same card and focus system across the console.
+
+### Fixed
+
+- Keyboard focus returns to the run workspace after closing an agent lane or
+  approval surface, and interactive controls retain visible focus states.
+
 ## [4.0.1] - 2026-09-22
 
 The delivery desk speaks in plain language. Each delivery shows who is working and whether they are waiting, and the sentence it is finished when. Continue, Watch GitHub, and Start something new replace the kernel form.

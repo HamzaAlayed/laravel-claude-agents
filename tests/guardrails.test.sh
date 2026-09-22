@@ -544,6 +544,8 @@ expect "coordinator prints handoff colon line" "1" \
   "$(grep -c 'handoff:' "$COORD")"
 expect "coordinator spawns peer-router when a packet exists" "1" \
   "$(grep -c 'when a packet exists' "$COORD")"
+# The backticks are literal prompt text, not shell interpolation.
+# shellcheck disable=SC2016
 expect "coordinator never spawns a -fixes suffix" "1" \
   "$(grep -c 'never spawn a `-fixes` suffix' "$COORD")"
 expect "coordinator never pastes another specialist diff into a brief" "1" \

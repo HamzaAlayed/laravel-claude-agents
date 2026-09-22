@@ -28,17 +28,17 @@ describe("the call sheet", () => {
 describe("the launcher explains itself", () => {
   it("captions the selected kind, and follows a switch", async () => {
     const { user } = mount();
-    expect(screen.getByText(/task in your own words/)).toBeTruthy();
+    expect(screen.getByText(/outcome in your own words/)).toBeTruthy();
 
-    await user.click(screen.getByRole("button", { name: "Command" }));
-    expect(screen.getByText(/pack's slash commands/)).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Command" }).getAttribute("aria-pressed")).toBe("true");
-    expect(screen.getByRole("button", { name: "Freeform" }).getAttribute("aria-pressed")).toBe("false");
+    await user.click(screen.getByRole("radio", { name: /Command/ }));
+    expect(screen.getByText(/focused workflows/)).toBeTruthy();
+    expect((screen.getByRole("radio", { name: /Command/ }) as HTMLInputElement).checked).toBe(true);
+    expect((screen.getByRole("radio", { name: /Freeform/ }) as HTMLInputElement).checked).toBe(false);
   });
 
   it("lists specialists by name and role, coordinator excluded", async () => {
     const { user } = mount();
-    await user.click(screen.getByRole("button", { name: "Specialist" }));
+    await user.click(screen.getByRole("radio", { name: /Specialist/ }));
 
     expect(
       screen.getByRole("option", { name: "Adam — backend developer" }),
@@ -56,20 +56,20 @@ describe("the launcher explains itself", () => {
 
   it("names the target select with the same word the user sees", async () => {
     const { user } = mount();
-    await user.click(screen.getByRole("button", { name: "Command" }));
+    await user.click(screen.getByRole("radio", { name: /Command/ }));
     expect(screen.getByRole("combobox", { name: "Command" })).toBeTruthy();
     expect(screen.queryByRole("combobox", { name: "Target" })).toBeNull();
   });
 
   it("resets the target when the kind changes", async () => {
     const { user } = mount();
-    await user.click(screen.getByRole("button", { name: "Command" }));
+    await user.click(screen.getByRole("radio", { name: /Command/ }));
     await user.selectOptions(screen.getByRole("combobox", { name: "Command" }), "review-pr");
     expect((screen.getByRole("combobox", { name: "Command" }) as HTMLSelectElement).value).toBe(
       "review-pr",
     );
 
-    await user.click(screen.getByRole("button", { name: "Specialist" }));
+    await user.click(screen.getByRole("radio", { name: /Specialist/ }));
     expect((screen.getByRole("combobox", { name: "Specialist" }) as HTMLSelectElement).value).toBe(
       "",
     );
@@ -79,7 +79,7 @@ describe("the launcher explains itself", () => {
 describe("Cmd/Ctrl+Enter", () => {
   it("launches from the text field", async () => {
     const { onLaunch, user } = mount();
-    await user.type(screen.getByPlaceholderText("describe the task"), "ship it");
+    await user.type(screen.getByPlaceholderText(/Describe the task/), "ship it");
     await user.keyboard("{Meta>}{Enter}{/Meta}");
 
     expect(onLaunch).toHaveBeenCalledWith({
@@ -89,7 +89,7 @@ describe("Cmd/Ctrl+Enter", () => {
 
   it("does nothing while a run is live", async () => {
     const { onLaunch, user } = mount({ busy: true, busyReason: "A run is in flight" });
-    await user.type(screen.getByPlaceholderText("describe the task"), "ship it");
+    await user.type(screen.getByPlaceholderText(/Describe the task/), "ship it");
     await user.keyboard("{Control>}{Enter}{/Control}");
 
     expect(onLaunch).not.toHaveBeenCalled();
