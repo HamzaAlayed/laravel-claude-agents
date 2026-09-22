@@ -1,3 +1,4 @@
+import json
 import pathlib
 import subprocess
 import sys
@@ -554,6 +555,214 @@ class SprintStartTest(unittest.TestCase):
         self.assertEqual(again.stories, ["tag"])
         self.assertEqual(again.wip, 9)
         self.assertFalse((self.root / "docs/sprints/other/sprint.json").is_file())
+
+
+class SprintCliTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+        self.guild = REPO / "scripts/guild-kernel/guild.py"
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _run(self, *args):
+        return subprocess.run(
+            [sys.executable, str(self.guild), *args],
+            capture_output=True,
+            text=True,
+        )
+
+    def test_plan_without_done_when_or_criteria_exits_nonzero(self):
+        missing_done = self._run(
+            "plan",
+            "--root",
+            str(self.root),
+            "--name",
+            "tag",
+            "--stage",
+            "a,database-developer,writer,,migration exists",
+        )
+        self.assertNotEqual(missing_done.returncode, 0)
+        self.assertNotIn("Traceback", missing_done.stderr)
+        missing_criteria = self._run(
+            "plan",
+            "--root",
+            str(self.root),
+            "--name",
+            "tag",
+            "--done-when",
+            "POST /api/tags creates a Tag",
+            "--stage",
+            "a,database-developer,writer",
+        )
+        self.assertNotEqual(missing_criteria.returncode, 0)
+        self.assertNotIn("Traceback", missing_criteria.stderr)
+
+    def test_sprint_start_then_board_prints_goal_and_wip(self):
+        started = self._run(
+            "sprint",
+            "start",
+            "--root",
+            str(self.root),
+            "--id",
+            "3.1",
+            "--goal",
+            "SDLC/Scrum kernel",
+            "--wip",
+            "2",
+        )
+        self.assertEqual(started.returncode, 0, started.stderr)
+        board = self._run(
+            "sprint", "board", "--root", str(self.root), "--id", "3.1"
+        )
+        self.assertEqual(board.returncode, 0, board.stderr)
+        self.assertIn("GOAL:", board.stdout)
+        self.assertIn("WIP:", board.stdout)
+
+    def test_plan_sprint_attaches(self):
+        started = self._run(
+            "sprint",
+            "start",
+            "--root",
+            str(self.root),
+            "--id",
+            "3.1",
+            "--goal",
+            "SDLC/Scrum kernel",
+            "--wip",
+            "2",
+        )
+        self.assertEqual(started.returncode, 0, started.stderr)
+        planned = self._run(
+            "plan",
+            "--root",
+            str(self.root),
+            "--name",
+            "tag",
+            "--sprint",
+            "3.1",
+            "--done-when",
+            "POST /api/tags creates a Tag",
+            "--stage",
+            "a,database-developer,writer,,migration exists",
+        )
+        self.assertEqual(planned.returncode, 0, planned.stderr)
+        delivery = kernel.load(self.root, "tag")
+        self.assertEqual(delivery.sprint, "3.1")
+        self.assertEqual(kernel.load_sprint(self.root, "3.1").stories, ["tag"])
+
+
+class SprintAttachTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _stages(self):
+        return [kernel.StageSpec("a", "database-developer", "writer", ["m"], [])]
+
+    def _plan(self, name="tag", sprint=""):
+        return kernel.plan(
+            root=self.root,
+            name=name,
+            done_when="POST /api/tags creates a Tag",
+            stages=self._stages(),
+            sprint=sprint,
+        )
+
+    def test_plan_attaches_named_sprint(self):
+        kernel.sprint_start(self.root, id="3.1", goal="SDLC/Scrum kernel", wip=2)
+        delivery = self._plan(sprint="3.1")
+        self.assertEqual(delivery.sprint, "3.1")
+        self.assertEqual(kernel.load_sprint(self.root, "3.1").stories, ["tag"])
+
+    def test_wip_full_rejects_second_plan(self):
+        kernel.sprint_start(self.root, id="3.1", goal="SDLC/Scrum kernel", wip=1)
+        self._plan(name="one", sprint="3.1")
+        with self.assertRaises(kernel.PlanError):
+            self._plan(name="two", sprint="3.1")
+        self.assertFalse((self.root / "docs/delivery/two/kernel.json").is_file())
+
+    def test_plan_without_a_running_sprint_stays_solo(self):
+        delivery = self._plan()
+        self.assertEqual(delivery.sprint, "")
+        self.assertTrue((self.root / "docs/delivery/tag/kernel.json").is_file())
+
+    def test_plan_attaches_the_single_running_sprint(self):
+        kernel.sprint_start(self.root, id="3.1", goal="SDLC/Scrum kernel", wip=2)
+        delivery = self._plan()
+        self.assertEqual(delivery.sprint, "3.1")
+        self.assertIn("tag", kernel.load_sprint(self.root, "3.1").stories)
+
+    def test_two_running_sprints_reject_plan(self):
+        kernel.sprint_start(self.root, id="3.1", goal="SDLC/Scrum kernel", wip=2)
+        kernel.save_sprint(
+            self.root,
+            kernel.Sprint(id="other", goal="x", wip=2, stories=[], status="running"),
+        )
+        with self.assertRaises(kernel.PlanError):
+            self._plan()
+        self.assertFalse((self.root / "docs/delivery/tag/kernel.json").is_file())
+
+    def test_missing_or_stopped_sprint_rejects(self):
+        with self.assertRaises(kernel.PlanError):
+            self._plan(sprint="missing")
+        self.assertFalse((self.root / "docs/delivery/tag/kernel.json").is_file())
+        kernel.sprint_start(self.root, id="3.1", goal="SDLC/Scrum kernel", wip=2)
+        sprint = kernel.load_sprint(self.root, "3.1")
+        sprint.status = "stopped"
+        kernel.save_sprint(self.root, sprint)
+        with self.assertRaises(kernel.PlanError):
+            self._plan(sprint="3.1")
+
+    def test_load_defaults_missing_sprint_key(self):
+        self._plan()
+        path = self.root / "docs/delivery/tag/kernel.json"
+        data = json.loads(path.read_text())
+        del data["sprint"]
+        path.write_text(json.dumps(data))
+        self.assertEqual(kernel.load(self.root, "tag").sprint, "")
+
+
+class SprintCloseTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _running_story(self):
+        kernel.sprint_start(self.root, id="3.1", goal="SDLC/Scrum kernel", wip=2)
+        kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="POST /api/tags creates a Tag",
+            stages=[kernel.StageSpec("a", "database-developer", "writer", ["m"], [])],
+            sprint="3.1",
+        )
+
+    def test_close_rejects_a_running_story(self):
+        self._running_story()
+        with self.assertRaises(kernel.PlanError):
+            kernel.sprint_close(self.root, "3.1")
+        self.assertEqual(kernel.load_sprint(self.root, "3.1").status, "running")
+
+    def test_force_sets_sprint_stopped(self):
+        self._running_story()
+        closed = kernel.sprint_close(self.root, "3.1", force=True)
+        self.assertEqual(closed.status, "stopped")
+
+    def test_close_marks_done_when_stories_are_done(self):
+        self._running_story()
+        delivery = kernel.load(self.root, "tag")
+        delivery.status = "done"
+        kernel.save(self.root, delivery)
+        closed = kernel.sprint_close(self.root, "3.1")
+        self.assertEqual(closed.status, "done")
 
 
 if __name__ == "__main__":

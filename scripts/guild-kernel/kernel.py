@@ -43,6 +43,7 @@ class Delivery:
     status: str
     stages: list
     spawns: int = 0
+    sprint: str = ""
 
 
 def _state_path(root, name):
@@ -58,6 +59,7 @@ def save(root, delivery):
 def load(root, name):
     data = json.loads(_state_path(root, name).read_text())
     stages = [StageSpec(**stage) for stage in data.pop("stages")]
+    data.setdefault("sprint", "")
     return Delivery(stages=stages, **data)
 
 
@@ -112,13 +114,74 @@ def _has_criteria(stage):
     return any(str(item).strip() for item in stage.success_criteria)
 
 
-def plan(*, root, name, done_when, stages):
+def _wip_count(root, sprint):
+    count = 0
+    for name in sprint.stories:
+        if not _state_path(root, name).is_file():
+            continue
+        if load(root, name).status == "running":
+            count += 1
+    return count
+
+
+def running_sprints(root):
+    base = pathlib.Path(root) / "docs" / "sprints"
+    if not base.is_dir():
+        return []
+    found = []
+    for path in sorted(base.glob("*/sprint.json")):
+        sprint = Sprint(**json.loads(path.read_text()))
+        if sprint.status == "running":
+            found.append(sprint)
+    return found
+
+
+def _resolve_sprint(root, sprint_id):
+    running = running_sprints(root)
+    if len(running) > 1:
+        raise PlanError("two or more sprints are running")
+    if sprint_id:
+        path = _sprint_dir(root, sprint_id) / "sprint.json"
+        if not path.is_file():
+            raise PlanError(f"sprint {sprint_id} is missing")
+        chosen = load_sprint(root, sprint_id)
+        if chosen.status != "running":
+            raise PlanError(f"sprint {sprint_id} is {chosen.status}")
+        if any(sprint.id != chosen.id for sprint in running):
+            raise PlanError("two or more sprints are running")
+        return chosen
+    if len(running) == 1:
+        return running[0]
+    return None
+
+
+def _attach_sprint(root, name, sprint_id):
+    chosen = _resolve_sprint(root, sprint_id)
+    if chosen is None:
+        return ""
+    if _wip_count(root, chosen) >= chosen.wip:
+        raise PlanError("sprint WIP is full")
+    return chosen.id
+
+
+def _remember_story(root, sprint_id, name):
+    if not sprint_id:
+        return
+    sprint = load_sprint(root, sprint_id)
+    if name not in sprint.stories:
+        sprint.stories.append(name)
+        save_sprint(root, sprint)
+    write_sprint_view(root, sprint)
+
+
+def plan(*, root, name, done_when, stages, sprint=""):
     if _state_path(root, name).is_file():
         existing = load(root, name)
         write_views(root, existing, not_checked=existing.done_when or "none")
         return existing
     if not done_when.strip() or any(not _has_criteria(stage) for stage in stages):
         raise PlanError("plan requires nonempty done_when and success criteria")
+    sprint_id = _attach_sprint(root, name, sprint)
     delivery = Delivery(
         name=name,
         done_when=done_when,
@@ -126,9 +189,11 @@ def plan(*, root, name, done_when, stages):
         status="running",
         stages=list(stages),
         spawns=0,
+        sprint=sprint_id,
     )
     save(root, delivery)
     write_views(root, delivery, not_checked=done_when or "none")
+    _remember_story(root, sprint_id, name)
     return delivery
 
 
@@ -228,6 +293,8 @@ def report(root, name, path, runner):
         verified=" ".join(commands) if commands else "none",
         not_checked=not_checked or "none",
     )
+    if delivery.sprint and (_sprint_dir(root, delivery.sprint) / "sprint.json").is_file():
+        write_sprint_view(root, load_sprint(root, delivery.sprint))
     return delivery
 
 
@@ -256,21 +323,22 @@ def load_sprint(root, sprint_id):
 
 
 def _running_sprint(root):
-    base = pathlib.Path(root) / "docs" / "sprints"
-    if not base.is_dir():
-        return None
-    for path in sorted(base.glob("*/sprint.json")):
-        sprint = Sprint(**json.loads(path.read_text()))
-        if sprint.status == "running":
-            return sprint
-    return None
+    found = running_sprints(root)
+    return found[0] if found else None
 
 
-def render_sprint(sprint):
-    board = ", ".join(sprint.stories) if sprint.stories else "none"
+def render_sprint(root, sprint):
+    lanes = []
+    for name in sprint.stories:
+        if not _state_path(root, name).is_file():
+            lanes.append(f"· {name}")
+            continue
+        mark = _BOARD_MARK.get(load(root, name).status, "·")
+        lanes.append(f"{mark} {name}")
+    board = " ".join(lanes) if lanes else "none"
     return (
         f"GOAL: {sprint.goal}\n"
-        f"WIP: {len(sprint.stories)}/{sprint.wip}\n"
+        f"WIP: {_wip_count(root, sprint)}/{sprint.wip}\n"
         f"BOARD: {board}\n"
         f"STATUS: {sprint.status}\n"
     )
@@ -279,7 +347,7 @@ def render_sprint(sprint):
 def write_sprint_view(root, sprint):
     folder = _sprint_dir(root, sprint.id)
     folder.mkdir(parents=True, exist_ok=True)
-    (folder / "sprint.md").write_text(render_sprint(sprint))
+    (folder / "sprint.md").write_text(render_sprint(root, sprint))
 
 
 def sprint_start(root, *, id, goal, wip):
@@ -291,3 +359,29 @@ def sprint_start(root, *, id, goal, wip):
     save_sprint(root, sprint)
     write_sprint_view(root, sprint)
     return sprint
+
+
+def _sprint_blocked(root, sprint):
+    for name in sprint.stories:
+        if not _state_path(root, name).is_file():
+            return True
+        if load(root, name).status == "running":
+            return True
+    return False
+
+
+def sprint_close(root, sprint_id, *, force=False):
+    sprint = load_sprint(root, sprint_id)
+    blocked = _sprint_blocked(root, sprint)
+    if blocked and not force:
+        raise PlanError("sprint close rejected: a story is still running")
+    sprint.status = "stopped" if blocked else "done"
+    save_sprint(root, sprint)
+    write_sprint_view(root, sprint)
+    return sprint
+
+
+def sprint_text(root, sprint_id):
+    sprint = load_sprint(root, sprint_id)
+    write_sprint_view(root, sprint)
+    return (_sprint_dir(root, sprint_id) / "sprint.md").read_text()

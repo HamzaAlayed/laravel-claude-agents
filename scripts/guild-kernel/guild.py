@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Guild kernel CLI — plan, next, report, board, status."""
+"""Guild kernel CLI — plan, next, report, board, status, sprint."""
 
 from __future__ import annotations
 
@@ -33,6 +33,7 @@ def build_parser():
     sub = parser.add_subparsers(dest="cmd", required=True)
     plan = sub.add_parser("plan", parents=[common])
     plan.add_argument("--done-when", default="")
+    plan.add_argument("--sprint", default="")
     plan.add_argument(
         "--stage",
         action="append",
@@ -44,6 +45,18 @@ def build_parser():
     report.add_argument("--path", required=True)
     sub.add_parser("board", parents=[common])
     sub.add_parser("status", parents=[common])
+    sprint_common = argparse.ArgumentParser(add_help=False)
+    sprint_common.add_argument("--root", required=True)
+    sprint_common.add_argument("--id", required=True)
+    sprint = sub.add_parser("sprint")
+    sprint_cmds = sprint.add_subparsers(dest="sprint_cmd", required=True)
+    start = sprint_cmds.add_parser("start", parents=[sprint_common])
+    start.add_argument("--goal", required=True)
+    start.add_argument("--wip", type=int, required=True)
+    sprint_cmds.add_parser("board", parents=[sprint_common])
+    sprint_cmds.add_parser("status", parents=[sprint_common])
+    close = sprint_cmds.add_parser("close", parents=[sprint_common])
+    close.add_argument("--force", action="store_true")
     return parser
 
 
@@ -69,28 +82,50 @@ def _stages_from_args(raw_stages):
     return stages
 
 
+def _sprint_main(args):
+    if args.sprint_cmd == "start":
+        kernel.sprint_start(args.root, id=args.id, goal=args.goal, wip=args.wip)
+        return 0
+    if args.sprint_cmd == "board":
+        print(kernel.sprint_text(args.root, args.id), end="")
+        return 0
+    if args.sprint_cmd == "status":
+        print(kernel.load_sprint(args.root, args.id).status)
+        return 0
+    if args.sprint_cmd == "close":
+        kernel.sprint_close(args.root, args.id, force=args.force)
+        return 0
+    raise SystemExit(2)
+
+
 def main(argv=None):
     args = build_parser().parse_args(argv)
-    if args.cmd == "plan":
-        kernel.plan(
-            root=args.root,
-            name=args.name,
-            done_when=args.done_when,
-            stages=_stages_from_args(args.stage),
-        )
-        return 0
-    if args.cmd == "next":
-        print(kernel.next_agent(args.root, args.name))
-        return 0
-    if args.cmd == "report":
-        kernel.report(args.root, args.name, args.path, runner=ProcessRunner())
-        return 0
-    if args.cmd == "board":
-        print(kernel.board_line(kernel.load(args.root, args.name)))
-        return 0
-    if args.cmd == "status":
-        print(kernel.load(args.root, args.name).status)
-        return 0
+    try:
+        if args.cmd == "plan":
+            kernel.plan(
+                root=args.root,
+                name=args.name,
+                done_when=args.done_when,
+                stages=_stages_from_args(args.stage),
+                sprint=args.sprint,
+            )
+            return 0
+        if args.cmd == "next":
+            print(kernel.next_agent(args.root, args.name))
+            return 0
+        if args.cmd == "report":
+            kernel.report(args.root, args.name, args.path, runner=ProcessRunner())
+            return 0
+        if args.cmd == "board":
+            print(kernel.board_line(kernel.load(args.root, args.name)))
+            return 0
+        if args.cmd == "status":
+            print(kernel.load(args.root, args.name).status)
+            return 0
+        if args.cmd == "sprint":
+            return _sprint_main(args)
+    except kernel.PlanError as exc:
+        raise SystemExit(str(exc)) from None
     raise SystemExit(2)
 
 
