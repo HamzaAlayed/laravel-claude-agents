@@ -176,8 +176,12 @@ expect "sprint.md Bash read allows" "$ALLOW" \
 echo "enforce-lessons-file.sh"
 expect "lessons.md none Write allows" "$ALLOW" \
   "$(run_hook enforce-lessons-file.sh '{"tool_input":{"path":"docs/team/lessons.md","contents":"LESSONS: none\n"}}')"
-expect "lessons.md taught Write allows" "$ALLOW" \
-  "$(run_hook enforce-lessons-file.sh '{"tool_input":{"path":"docs/team/lessons.md","contents":"LESSONS:\nRULE: x\nSCOPE: database-developer\nSTATUS: taught\n"}}')"
+expect "lessons.md approved Write allows" "$ALLOW" \
+  "$(run_hook enforce-lessons-file.sh '{"tool_input":{"path":"docs/team/lessons.md","contents":"LESSONS:\nID: abc\nRULE: x\nSCOPE: database-developer\nSTATUS: approved\nPROVENANCE: stage_flag (2 observations)\nAPPROVED-BY: user at 2026-09-22T00:00:00+00:00\n"}}')"
+expect "lessons.md candidate Write allows without approval" "$ALLOW" \
+  "$(run_hook enforce-lessons-file.sh '{"tool_input":{"path":"docs/team/lessons.md","contents":"LESSONS:\nID: abc\nRULE: x\nSCOPE: database-developer\nSTATUS: candidate\nPROVENANCE: stage_flag (2 observations)\n"}}')"
+expect "lessons.md legacy taught status blocks" "$BLOCK" \
+  "$(run_hook enforce-lessons-file.sh '{"tool_input":{"path":"docs/team/lessons.md","contents":"LESSONS:\nID: abc\nRULE: x\nSCOPE: database-developer\nSTATUS: taught\nPROVENANCE: stage_flag (2 observations)\n"}}')"
 expect "lessons.md journal Write blocks" "$BLOCK" \
   "$(run_hook enforce-lessons-file.sh '{"tool_input":{"path":"docs/team/lessons.md","contents":"# Lessons\n\nI learned something\n"}}')"
 expect "conventions.md Write allows" "$ALLOW" \
@@ -417,8 +421,12 @@ expect "every command with the harvest clause also grants Write + Edit" "9" \
 # Interface block.
 expect "Interface block refuses to build or patch specialist files" "9" \
   "$(grep -l 'You do not build and you do not patch' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
-expect "Interface block binds VERIFIED to kernel re-runs" "9" \
-  "$(grep -l 'lines are shell commands the kernel re-runs' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block binds VERIFIED to registered JSON runners" "9" \
+  "$(grep -l 'lines are JSON verification records' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "kernel verification subprocesses never use a shell" "1" \
+  "$(grep -c 'subprocess.run(list(argv), cwd=cwd, shell=False)' "$SCRIPT_DIR/scripts/guild-kernel/guild.py")"
+expect "kernel rejects legacy free-form VERIFIED commands" "1" \
+  "$(grep -c 'VERIFIED must be JSON' "$SCRIPT_DIR/scripts/guild-kernel/kernel.py")"
 expect "Interface block persists read-only stage files" "9" \
   "$(grep -l 'persist their stage file from the report you already file' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # shellcheck disable=SC2016 # literal close.md path backticks in the Interface needle
@@ -463,9 +471,15 @@ expect "Interface block requires writers to Write six fields" "9" \
 # shellcheck disable=SC2016 # literal `plan` backticks in the Interface needle
 expect "Interface block plans before any Agent" "9" \
   "$(grep -l '`plan` before any Agent' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
-# shellcheck disable=SC2016 # literal `next` backticks in the Interface needle
-expect "Interface block uses next to choose whom to Agent" "9" \
-  "$(grep -l '`next` to choose whom to Agent' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal command backticks in the Interface needle
+expect "Interface block fetches a bounded ready wave" "9" \
+  "$(grep -l '`ready` to fetch the bounded dependency-ready wave' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal command backticks in the Interface needle
+expect "Interface block claims every lane before Agent" "9" \
+  "$(grep -l '`claim --stage <id>` before each Agent' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal field backticks in the Interface needle
+expect "Interface block uses typed stages with path ownership" "9" \
+  "$(grep -l 'typed `--stage-json`.*`owned_paths`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # shellcheck disable=SC2016 # literal `board` backticks in the Interface needle
 expect "Interface block prints the kernel board" "9" \
   "$(grep -l '`board` to print' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
@@ -499,17 +513,19 @@ expect "coordinator does not Write lessons.md; the kernel renders it" "1" \
   "$(grep -c 'Do not Write lessons.md; the kernel renders it' "$COORD")"
 expect "coordinator plans via the guild kernel" "1" \
   "$(grep -c 'python3 scripts/guild-kernel/guild.py plan' "$COORD")"
-expect "coordinator Agents only the type next prints" "1" \
-  "$(grep -c 'Agent only the type' "$COORD")"
-expect "coordinator does not Agent a type next did not return" "1" \
-  "$(grep -c 'Do not Agent a type' "$COORD")"
+# shellcheck disable=SC2016 # literal command backticks in the coordinator needle
+expect "coordinator fetches ready waves" "1" \
+  "$(grep -c 'Call `ready`' "$COORD")"
+# shellcheck disable=SC2016 # literal command backticks in the coordinator needle
+expect "coordinator atomically claims each ready lane" "1" \
+  "$(grep -c 'atomically `claim --stage <id>`' "$COORD")"
 expect "coordinator does not merge" "1" \
   "$(grep -c 'Do not merge\.' "$COORD")"
 expect "coordinator copies the stage-return stub when persisting read-only" "1" \
   "$(grep -c 'copy skills/delivery-templates/stage-return.md' "$COORD")"
 # shellcheck disable=SC2016 # literal `board` backticks in the coordinator Kernel needle
 expect "coordinator prints the kernel board" "1" \
-  "$(grep -c 'Print `board`' "$COORD")"
+  "$(grep -c 'print `board`' "$COORD")"
 expect "coordinator reports the stage path after each return" "1" \
   "$(grep -c 'report` the stage path' "$COORD")"
 expect "coordinator copies the Adaptive packet stub" "1" \
@@ -650,6 +666,17 @@ expect "hygiene conflict check accepts synonyms (2026-08-06 audit)" "1" \
 # still green. The stage budget lived exactly this failure until v1.36.0.
 expect "coordinator hash gate is wired into check_inventory_sync main()" "1" \
   "$(grep -c 'if check_coordinator_hash(ROOT):' "$SCRIPT_DIR/scripts/check_inventory_sync.py")"
+# shellcheck disable=SC2016 # literal field backticks in the agent needle
+expect "agent FLAGS are hypotheses, not user intent" "17" \
+  "$(grep -l 'Agent `FLAGS` are learned hypotheses only' "$SCRIPT_DIR"/agents/*.md | wc -l | tr -d ' ')"
+expect "kernel plans only from approved learned rules" "1" \
+  "$(grep -c 'lesson.get("status") != "approved"' "$SCRIPT_DIR/scripts/guild-kernel/kernel.py")"
+expect "kernel exposes explicit lesson approval" "1" \
+  "$(grep -c 'def approve_lesson' "$SCRIPT_DIR/scripts/guild-kernel/kernel.py")"
+expect "kernel exposes bounded ready waves" "1" \
+  "$(grep -c 'def ready_stages' "$SCRIPT_DIR/scripts/guild-kernel/kernel.py")"
+expect "kernel exposes atomic lane claims" "1" \
+  "$(grep -c 'def claim_stage' "$SCRIPT_DIR/scripts/guild-kernel/kernel.py")"
 
 echo "console (static ratchets)"
 
@@ -714,6 +741,16 @@ expect "console registers the PreToolUse gate" "1" \
 expect "console still forces Bash through the browser" "1" \
   "$(sed 's/#.*//' "$SCRIPT_DIR"/scripts/console/engine.py \
      | grep -cE '^ASK_ALWAYS_TOOLS = \("Bash",\)')"
+expect "console raw SDK persistence is opt-in" "1" \
+  "$(grep -c 'persist_raw=False' "$SCRIPT_DIR/scripts/console/engine.py")"
+expect "console has hard runtime budgets" "1" \
+  "$(grep -c '^DEFAULT_BUDGET = {' "$SCRIPT_DIR/scripts/console/engine.py")"
+expect "console interrupts on budget breach" "1" \
+  "$(grep -c 'async def _budget_interrupt' "$SCRIPT_DIR/scripts/console/engine.py")"
+expect "console trace retention is bounded" "1" \
+  "$(grep -c '^DEFAULT_RETENTION_DAYS = 14' "$SCRIPT_DIR/scripts/console/engine.py")"
+expect "console exposes durable resume" "1" \
+  "$(grep -c 'manager.resume(run_id)' "$SCRIPT_DIR/scripts/console/server.py")"
 # The harness copies the fixture into every eval workdir, so anything left in
 # tests/fixture-app/.claude leaks into EVERY case's feed. Run 5 was analysed with
 # two qa-engineer stages that never happened, in all five cases, from a local
@@ -755,6 +792,12 @@ expect "the log is rebuilt from the transcript's result field" "1" \
 expect "the eval harness writes a per-case cost summary" "1" \
   "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE '>"\$results/\$name\.cost\.json"')"
+expect "the eval harness hard-gates committed ceilings" "1" \
+  "$(grep -c 'scripts/check-eval-budget.py' "$SCRIPT_DIR/tests/eval/run-evals.sh")"
+expect "CI continuously replays recorded traces" "1" \
+  "$(grep -c 'scripts/replay-console-traces.py' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "scheduled live evals require an explicit repository opt-in" "1" \
+  "$(grep -c "vars.ENABLE_SCHEDULED_LIVE_EVALS == 'true'" "$SCRIPT_DIR/.github/workflows/live-evals.yml")"
 # Megabytes per case, and tests/eval/results/ is committed. The derived summary
 # is the artifact; the raw stream is scaffolding.
 # shellcheck disable=SC2016 # literal \$vars in the grep pattern, not expansions
@@ -774,7 +817,7 @@ print(" ".join(c for c in cases if "max_tokens" not in base["cases"].get(c, {}))
 PY
 )"
 expect "the harness compares tokens against the ceiling" "1" \
-  "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" | grep -cE 'max_tokens')"
+  "$(grep -c 'max_tokens' "$SCRIPT_DIR/scripts/check-eval-budget.py")"
 # Dollars ratchet too, because tokens alone cannot see a model-mix regression: a
 # sonnet -> opus re-tier keeps token counts flat and triples the bill. Run 6 also
 # measured token totals at >99% cache reads, so tokens track context volume far
@@ -788,7 +831,7 @@ print(" ".join(c for c in cases if "max_usd" not in base["cases"].get(c, {})))
 PY
 )"
 expect "the harness compares billed dollars against the ceiling" "1" \
-  "$(sed 's/#.*//' "$SCRIPT_DIR/tests/eval/run-evals.sh" | grep -cE 'max_usd')"
+  "$(grep -c 'max_usd' "$SCRIPT_DIR/scripts/check-eval-budget.py")"
 # Seeded, not null: run 6 was accepted (5/5, 19/19), so leaving a ceiling
 # unseeded now would waste the only clean measurement the suite has.
 # `git diff` omits untracked files, so a case whose job is CREATING a class handed

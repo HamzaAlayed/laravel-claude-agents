@@ -124,9 +124,13 @@ BODY="$(extract_body)"
 
 if printf '%s' "$BODY" | grep -qE '^LESSONS:'; then
   if printf '%s' "$BODY" | grep -qE '^LESSONS: none$' \
-     || { printf '%s' "$BODY" | grep -qE '^RULE:' \
+     || { printf '%s' "$BODY" | grep -qE '^ID:' \
+          && printf '%s' "$BODY" | grep -qE '^RULE:' \
           && printf '%s' "$BODY" | grep -qE '^SCOPE:' \
-          && printf '%s' "$BODY" | grep -qE '^STATUS:'; }; then
+          && printf '%s' "$BODY" | grep -qE '^STATUS: (observed|candidate|approved)$' \
+          && printf '%s' "$BODY" | grep -qE '^PROVENANCE:' \
+          && { ! printf '%s' "$BODY" | grep -qE '^STATUS: approved$' \
+               || printf '%s' "$BODY" | grep -qE '^APPROVED-BY: user at '; }; }; then
     exit 0
   fi
 fi

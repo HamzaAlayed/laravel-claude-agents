@@ -167,6 +167,8 @@ jobs:
       - uses: actions/checkout@v5
       - name: Run eval-cost unit tests (parses the recorded stream-json fixtures)
         run: python3 -m unittest discover -s tests/eval -t tests/eval -p 'test_*.py' -v
+      - name: Replay recorded SDK traces through the production console normalizer
+        run: python3 scripts/replay-console-traces.py tests/eval/fixtures/stream-json-sample.jsonl tests/eval/fixtures/stream-json-subagent.jsonl
 
   console-ui:
     name: console ui

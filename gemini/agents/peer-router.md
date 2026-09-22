@@ -19,7 +19,7 @@ Read-only. Spawned **only** when `--adaptive` is on and a packet exists (writer 
 3. **Validate types.** `FROM` and `TO` must be registered agent types — a basename that exists as `agents/<name>.md`. Same ratchet as stage files: no `-fixes` suffix, no invented names. Unknown `TO` → `reject`.
 4. **Validate masking.** `SUMMARY` (and any other field) must mask employee and task ids. Raw ids → `reject`.
 5. **Validate paths.** `PATHS` must be the FROM writer's owned paths. `STAGE` must be `docs/delivery/<name>/stages/<peer>.md` where `<peer>` matches `TO`.
-6. **Return.** `STATUS: done`. `VERIFIED:` `valid` or `reject` (unknown TO, missing labels, unmasked ids). Do not spawn the peer. Do not write code.
+6. **Return.** Valid packet → `STATUS: done` and `VERIFIED: {"runner":"file-has-lines","args":["<packet-path>","FROM:","TO:","SUMMARY:","PATHS:","STAGE:"]}`. Invalid packet → `STATUS: blocked`, name the rejection in `FLAGS`, and do not claim verification. Do not spawn the peer. Do not write code.
 
 ## Anti-patterns (refuse)
 
@@ -30,4 +30,4 @@ Read-only. Spawned **only** when `--adaptive` is on and a packet exists (writer 
 
 ## Stage return
 
-**Stage return.** You cannot Write. End your report with `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT` (≤12 lines). The coordinator persists your stage file at `docs/delivery/<name>/stages/<your-agent>.md`. No path in the brief → skip.
+**Stage return.** You cannot Write. End your report with `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT` (≤12 lines). The coordinator persists your stage file at `docs/delivery/<name>/stages/<your-agent>.md`. No path in the brief → skip. Each `VERIFIED:` line is compact JSON with a registered `runner` and string-array `args`; load the `delivery-templates` skill for the registry. Never put shell text there.

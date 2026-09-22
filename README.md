@@ -55,6 +55,21 @@ Statuses are `✔ done / ▶ running / · queued / ✖ failed`. Each specialist 
 
 In `/console`, stations take the dark floor as the company starts. A parked agent is marked on the floor (cue / needs you). New runs default to **Work independently**: edits and a narrow set of routine checks continue automatically in trusted projects. Other shell commands still ask. Choose **Ask me** to retain approval for every Bash call. See [independent runs and project preferences](docs/independent-runs.md).
 
+Console runs have hard default ceilings (30 minutes, 200 tool calls, 5M tokens,
+$10 estimated/actual spend), with lower per-run overrides accepted in the launch
+spec. A breach denies the next tool, interrupts the SDK run, and emits a
+`budget_exceeded` event. Run metadata is checkpointed before execution, so an
+interrupted historical run can resume as a new run via
+`POST /api/runs/<run_id>/resume` after inspecting the current workspace and
+kernel state.
+
+Persisted JSONL is a bounded diagnostic trace, not a permanent memory store:
+raw SDK messages are omitted by default, secret-shaped fields and values are
+redacted, long values and files are capped,
+every event carries trace/span correlation IDs, and startup retains at most 100
+runs for 14 days. Set narrower limits by constructing `RunManager` with the
+retention options; do not use traces as an authority source.
+
 ![Console board mid-run](docs/images/console-board-mid-run.png)
 
 Fixture-driven capture of the Guild console company floor (Adam + Dina, parked cue) — not a billed live `/console` run.
@@ -160,7 +175,7 @@ Every agent answers to a human name. Address them either way: `@backend-develope
 
 ## Proven against a planted-flaw app
 
-The pack is evaluated against a fixture Laravel app with documented planted flaws ([tests/eval/](tests/eval/)) — real headless `claude -p` runs scored by an answer key the agents can't read, with per-agent tokens, tool-call counts and cost derived from each run's own transcript. Findings docs live in [docs/evals/](docs/evals/); soft per-case ceilings for duration, tokens and dollars live in [tests/eval/baseline.json](tests/eval/baseline.json).
+The pack is evaluated against a fixture Laravel app with documented planted flaws ([tests/eval/](tests/eval/)) — real headless `claude -p` runs scored by an answer key the agents can't read, with per-agent tokens, tool-call counts and cost derived from each run's own transcript. Findings docs live in [docs/evals/](docs/evals/); hard per-case ceilings for duration, tokens and dollars live in [tests/eval/baseline.json](tests/eval/baseline.json). A ceiling breach or missing cost evidence fails the run; parallel sweeps waive only the duration comparison.
 
 | Run | Cases | Checks | Findings |
 | --- | ----- | ------ | -------- |
@@ -188,11 +203,19 @@ Each run's misses become levers, ship in the next release, and get re-measured �
 
 **You can see the team working.** The `delivery-coordinator` and all nine orchestrating commands print a progress board after planning and after every stage (`✔ done / ▶ running / · queued / ✖ failed / ⏸ checkpoint`), demand one stage-return shape from every specialist (`STATUS / DID / VERIFIED / NOT-CHECKED / FLAGS / NEXT` — evidence required, gaps named, claims rejected), and present human checkpoints as numbered options with a recommended default (via `AskUserQuestion` when running main-thread). And `/board` opens a live HTML dashboard — the `emit-agent-events` hook streams every subagent start/finish (agent, task, duration, tokens) to `.claude/agents-board.jsonl` deterministically, so the board fills up no matter which command or agent is orchestrating. Agents spawned from inside another agent nest under their spawner (the hook records the calling agent as `parent`), and async-launched agents get a real completion event via `SubagentStop` — background work shows its true duration instead of vanishing at launch. A multi-agent run reads like a dashboard, not a silence.
 
+**Verification is structured data, not executable prose.** Stage `VERIFIED:` lines contain a JSON runner record such as `{"runner":"artisan-test","args":["--filter=DonationTest"]}`. The kernel accepts only its registered verification runners and executes argument arrays without a shell. Unknown runners, extra fields, and legacy command strings fail closed, so a stage report cannot smuggle a second shell command through the coordinator's `report` call.
+
+**Parallel work is kernel state, not prompt optimism.** Plans use typed
+`--stage-json` records with dependencies, success criteria, and owned paths.
+`ready` returns a bounded wave, and each lane must be atomically `claim`ed before
+dispatch. The kernel refuses dependency violations, WIP overflow, and overlapping
+path ownership; `graph.md` renders the actual parallel waves and ceiling.
+
 **Every agent can run its own gates.** No agent uses `isolation: worktree`, and a guardrails test keeps it that way. A fresh git worktree contains tracked files only — no `vendor/`, no `node_modules/`, no `.env` — so an isolated agent cannot run `pint`, `phpstan`, or the test suite it just wrote, and under Sail it tests the wrong tree entirely. [Eval run 4](docs/evals/2026-07-28-run-4.md) caught exactly that: a full test suite written and never executed, verification silently deferred to the main thread. Writers share the working tree and stay in their lane by contract instead — the brief names the paths each owns, the coordinator gives parallel lanes disjoint paths, and anything spotted outside scope is reported rather than edited. A gate that can actually run beats isolation that hides the fact it can't.
 
 **Project memory where it earns its keep.** Writing roles — the architect, data layer, product, discovery, and orchestration agents — persist context (ADRs, conventions, schema decisions, requirements) across sessions. Read-only reviewers keep memory for cross-session recall but never write it; the orchestrator persists their findings.
 
-**The team keeps a knowledge base — in your repo, not in a hidden store.** Three files under `docs/team/`, all human-readable, PR-reviewable, and deletable: `conventions.md` (rules you teach via `/teach` — every agent applies them as overrides), `stack.md` (verified project facts + where-things-live; every fact carries a **Verify** command so agents trust-but-verify instead of re-deriving configs each invocation), and `decisions.md` (approaches tried and rejected, with why — the one thing neither git nor the code can tell an agent). The coordinator harvests all three at delivery end, and `/team-hygiene` sweeps the ledger for duplicates, conflicts, facts whose Verify fails, and dead scopes — proposing a keep/merge/evict table that applies nothing without your approval. Agents propose, the human approves, the repo remembers. The design rule: store what the repo can't answer (intent, taste, rejections); derive what it can (hot paths, naming, current state). A captured live instance — seeded ledger, obeyed rules, harvest confirmed working in headless command-driven runs as of v1.41.0 — lives in [docs/examples/team-memory/](docs/examples/team-memory/).
+**The team keeps a knowledge base — in your repo, not in a hidden store.** Files under `docs/team/` are human-readable, PR-reviewable, and deletable: `conventions.md` contains only rules directly taught through `/teach`; `stack.md` holds verified project facts; `decisions.md` records rejected approaches; and `lessons.json` stores agent observations with provenance. One observation is `observed`, repetition may make it a `candidate`, and neither is authoritative. Only `guild lesson approve --id <id>` records user approval and makes the rule eligible for `plan` output. `/team-hygiene` proposes cleanup but applies nothing without approval. Agents propose, the human approves, the repo remembers.
 
 **Laravel-aware, not Laravel-flavored.** Every applicable agent references concrete Laravel primitives — Form Requests, API Resources, Policies, Eloquent relationships, Pint, Larastan, Pest, Horizon, Octane, Sanctum, Filament — and names the antipatterns they refuse to ship.
 
@@ -249,7 +272,7 @@ Wire these as Claude Code `PreToolUse` hooks for `Bash` and `Write|Edit`. They e
 | `enforce-close-file.sh`         | Write\|Edit of `docs/delivery/*/close.md` that is not helper shape (`VERIFIED:` / `NOT-CHECKED:` / `STATUS: running\|done\|stopped` / `BOARD:`); also Bash writes of that path (`>`, `>>`, `tee`, heredoc `<<`) — use the Write tool and copy `skills/delivery-templates/close.md` |
 | `enforce-stage-return.sh`       | Write\|Edit of `docs/delivery/*/stages/*.md` that is not helper shape (`STATUS:` / `DID:` / `VERIFIED:` / `NOT-CHECKED:` / `FLAGS:` / `NEXT:`); also Bash writes of that path (`>`, `>>`, `tee`, heredoc `<<`) — use the Write tool and copy `skills/delivery-templates/stage-return.md` |
 | `enforce-sprint-file.sh`        | Write\|Edit of `docs/sprints/*/sprint.md` that is not helper shape (`GOAL:` / `WIP:` / `BOARD:` / `STATUS:`); also Bash writes of that path (`>`, `>>`, `tee`, heredoc `<<`) — the kernel renders that view |
-| `enforce-lessons-file.sh`       | Write\|Edit of `docs/team/lessons.md` that is not helper shape (`LESSONS:` plus either `none` or `RULE:` / `SCOPE:` / `STATUS:`); also Bash writes of that path — the kernel renders that view |
+| `enforce-lessons-file.sh`       | Write\|Edit of `docs/team/lessons.md` that is not helper shape (`LESSONS:` plus either `none` or `ID:` / `RULE:` / `SCOPE:` / `STATUS:` / `PROVENANCE:`); also Bash writes of that path — the kernel renders that view |
 | `enforce-reviewer-readonly.sh`  | File-mutating Bash (`sed -i`, redirects, `tee`, mutating `git`/`artisan`/`composer`, `pint` without `--test`, `rm`/`mv`/`cp`) **from the read-only reviewers only** — scoped via the hook input's `agent_type`; builders and the main thread are untouched. Claude Code only. |
 | `enforce-sail.sh`               | Bare `php artisan` / `composer` / `vendor/bin/{pint,pest,phpunit,phpstan}` on a **Sail** project — the block message carries the exact `./vendor/bin/sail …` rewrite, so the agent self-corrects in one turn. Active only when both `vendor/bin/sail` and a compose file exist (the sail *dependency* alone — the Herd/Valet shape — stays untouched). Opt out with `LARAVEL_AGENTS_SAIL=0`. |
 | `emit-agent-events.sh`          | Nothing — an **observer**, not a guard: wired as `PreToolUse` **and** `PostToolUse` on the subagent tool (`Agent\|Task`), it streams every subagent start / finish (agent, task, duration, tokens) to `.claude/agents-board.jsonl` for the `/board` live dashboard. Always exits 0. Claude Code only. |

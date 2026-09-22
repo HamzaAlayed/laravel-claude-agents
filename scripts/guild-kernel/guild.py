@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Guild kernel CLI — plan, next, report, board, status, sprint, pair, pr, ingest."""
+"""Guild kernel CLI — delivery state, explicit lesson approval, and sprints."""
 
 from __future__ import annotations
 
 import argparse
+import json
 import pathlib
 import subprocess
 import sys
@@ -15,13 +16,17 @@ import kernel  # noqa: E402
 
 
 class ProcessRunner:
-    def run(self, cwd, cmd):
-        completed = subprocess.run(cmd, cwd=cwd, shell=True)
+    def run(self, cwd, argv):
+        if not isinstance(argv, (list, tuple)) or not argv:
+            raise TypeError("verification runner requires a nonempty argument array")
+        completed = subprocess.run(list(argv), cwd=cwd, shell=False)
         return completed.returncode
 
-    def capture(self, cwd, cmd):
+    def capture(self, cwd, argv):
+        if not isinstance(argv, (list, tuple)) or not argv:
+            raise TypeError("capture runner requires a nonempty argument array")
         completed = subprocess.run(
-            cmd, cwd=cwd, shell=True, capture_output=True, text=True
+            list(argv), cwd=cwd, shell=False, capture_output=True, text=True
         )
         return completed.returncode, completed.stdout
 
@@ -46,8 +51,18 @@ def build_parser():
         default=[],
         help="id,agent,role[,dep+dep][,criterion|criterion] — repeatable",
     )
+    plan.add_argument(
+        "--stage-json",
+        action="append",
+        default=[],
+        help="typed stage object with id, agent, role, success_criteria, depends_on, owned_paths",
+    )
+    plan.add_argument("--max-parallel", type=int, default=3)
     plan.add_argument("--issue", type=int, default=0)
     sub.add_parser("next", parents=[common])
+    sub.add_parser("ready", parents=[common])
+    claim = sub.add_parser("claim", parents=[common])
+    claim.add_argument("--stage", required=True)
     report = sub.add_parser("report", parents=[common])
     report.add_argument("--path", required=True)
     sub.add_parser("board", parents=[common])
@@ -74,10 +89,17 @@ def build_parser():
     sprint_cmds.add_parser("status", parents=[sprint_common])
     close = sprint_cmds.add_parser("close", parents=[sprint_common])
     close.add_argument("--force", action="store_true")
+    lesson = sub.add_parser("lesson")
+    lesson_cmds = lesson.add_subparsers(dest="lesson_cmd", required=True)
+    lesson_list = lesson_cmds.add_parser("list")
+    lesson_list.add_argument("--root", required=True)
+    lesson_approve = lesson_cmds.add_parser("approve")
+    lesson_approve.add_argument("--root", required=True)
+    lesson_approve.add_argument("--id", required=True)
     return parser
 
 
-def _stages_from_args(raw_stages):
+def _stages_from_args(raw_stages, raw_json_stages=()):
     stages = []
     help_form = "id,agent,role[,dep+dep][,criterion|criterion]"
     for raw in raw_stages:
@@ -96,6 +118,31 @@ def _stages_from_args(raw_stages):
         criteria_raw = ",".join(parts[4:])
         criteria = [item.strip() for item in criteria_raw.split("|") if item.strip()]
         stages.append(kernel.StageSpec(sid, agent, role, criteria, depends))
+    allowed = {
+        "id", "agent", "role", "success_criteria", "depends_on", "owned_paths"
+    }
+    for raw in raw_json_stages:
+        try:
+            spec = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise SystemExit(f"--stage-json is invalid JSON: {exc.msg}") from None
+        if not isinstance(spec, dict) or set(spec) - allowed:
+            raise SystemExit("--stage-json contains unknown fields")
+        missing = {"id", "agent", "success_criteria"} - set(spec)
+        if missing:
+            raise SystemExit(
+                f"--stage-json missing required fields: {', '.join(sorted(missing))}"
+            )
+        stages.append(
+            kernel.StageSpec(
+                id=spec["id"],
+                agent=spec["agent"],
+                role=spec.get("role", "writer"),
+                success_criteria=spec["success_criteria"],
+                depends_on=spec.get("depends_on", []),
+                owned_paths=spec.get("owned_paths", []),
+            )
+        )
     return stages
 
 
@@ -124,10 +171,11 @@ def main(argv=None):
                 root=args.root,
                 name=args.name,
                 done_when=args.done_when,
-                stages=_stages_from_args(args.stage),
+                stages=_stages_from_args(args.stage, args.stage_json),
                 sprint=args.sprint,
                 issue=args.issue,
                 runner=runner,
+                max_parallel=args.max_parallel,
             )
             if delivery.rules_printed:
                 for rule in delivery.rules_printed:
@@ -137,6 +185,22 @@ def main(argv=None):
             return 0
         if args.cmd == "next":
             print(kernel.next_agent(args.root, args.name))
+            return 0
+        if args.cmd == "ready":
+            ready = [
+                {
+                    "id": stage.id,
+                    "agent": stage.agent,
+                    "role": stage.role,
+                    "owned_paths": stage.owned_paths,
+                }
+                for stage in kernel.ready_stages(args.root, args.name)
+            ]
+            print(json.dumps(ready, separators=(",", ":")))
+            return 0
+        if args.cmd == "claim":
+            stage = kernel.claim_stage(args.root, args.name, args.stage)
+            print(f"AGENT: {stage.agent}")
             return 0
         if args.cmd == "report":
             kernel.report(args.root, args.name, args.path, runner=ProcessRunner())
@@ -166,6 +230,14 @@ def main(argv=None):
             return 0
         if args.cmd == "sprint":
             return _sprint_main(args)
+        if args.cmd == "lesson":
+            if args.lesson_cmd == "list":
+                print(kernel.render_lessons(kernel._load_lessons(args.root)), end="")
+                return 0
+            if args.lesson_cmd == "approve":
+                lesson = kernel.approve_lesson(args.root, args.id)
+                print(f"APPROVED: {lesson['id']} {lesson['text']}")
+                return 0
     except kernel.PlanError as exc:
         raise SystemExit(str(exc)) from None
     raise SystemExit(2)

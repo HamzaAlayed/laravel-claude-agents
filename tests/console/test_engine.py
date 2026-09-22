@@ -1,6 +1,7 @@
 import asyncio
 import dataclasses
 import json
+import os
 import pathlib
 import sys
 import tempfile
@@ -182,6 +183,26 @@ class TestRunLifecycle(EngineTestCase):
         run_id = self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
         rows = self.mgr.list_runs()
         self.assertEqual([r["run_id"] for r in rows], [run_id])
+        self.assertEqual(rows[0]["budget"], engine.DEFAULT_BUDGET)
+
+    def test_resume_uses_durable_metadata_and_current_workspace(self):
+        run_id = self.mgr.start(
+            {"kind": "prompt", "target": "", "text": "finish tags"}
+        )
+        self.mgr.interrupt(run_id)
+        resumed = self.mgr.resume(run_id)
+        self.assertNotEqual(resumed, run_id)
+        self.assertIn(f"Resume interrupted run {run_id}", self.clients[1].queries[0])
+        self.assertIn("finish tags", self.clients[1].queries[0])
+        self.assertEqual(self.mgr.runs[resumed].spec["resumes_run_id"], run_id)
+
+    def test_invalid_or_excessive_budget_is_refused_before_launch(self):
+        with self.assertRaisesRegex(ValueError, "budget accepts only"):
+            self.mgr.start({"kind": "prompt", "text": "x", "budget": {"turns": 1}})
+        with self.assertRaisesRegex(ValueError, "exceeds hard ceiling"):
+            self.mgr.start(
+                {"kind": "prompt", "text": "x", "budget": {"max_usd": 101}}
+            )
 
     def test_a_rejected_client_option_leaves_no_zombie_run(self):
         """The run used to be registered BEFORE client_factory ran, so a factory
@@ -643,10 +664,27 @@ class TestPreToolUseGate(EngineTestCase):
 
 
 class TestRunJsonlSize(EngineTestCase):
-    def test_the_raw_message_is_recorded_once_per_message_not_per_event(self):
+    def test_raw_messages_are_omitted_by_default(self):
+        run_id = self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
+        self.run_coro(
+            self.clients[0].push(
+                {
+                    "type": "assistant",
+                    "parent_tool_use_id": None,
+                    "message": {"content": [{"type": "text", "text": "hello"}]},
+                }
+            )
+        )
+        self.drain(run_id, ["text"])
+        path = self.root / ".claude" / "console" / "runs" / f"{run_id}.jsonl"
+        records = [json.loads(line) for line in path.read_text().splitlines()]
+        self.assertTrue(all(record.get("raw") is None for record in records))
+
+    def test_opted_in_raw_message_is_recorded_once_per_message_not_per_event(self):
         """One SDK message can normalize to several events, and every line used to
         carry a full copy of it -- so an Agent call (tool_use + agent_start) wrote
         the whole message twice, and a multi-block assistant turn once per block."""
+        self.mgr.persist_raw = True
         run_id = self.mgr.start({"kind": "prompt", "target": "", "text": "x"})
         self.run_coro(self.clients[0].push(
             {"type": "assistant", "parent_tool_use_id": None,
@@ -660,11 +698,174 @@ class TestRunJsonlSize(EngineTestCase):
 
         path = self.root / ".claude" / "console" / "runs" / f"{run_id}.jsonl"
         lines = [json.loads(line) for line in path.read_text().splitlines()]
-        self.assertEqual(len(lines), 3)
+        self.assertEqual(len(lines), 4)
+        self.assertIn("meta", lines[0])
         with_raw = [line for line in lines if line.get("raw")]
         self.assertEqual(len(with_raw), 1, "raw should ride the first event only")
         # Still recoverable: the message is on disk, once.
         self.assertEqual(with_raw[0]["raw"]["type"], "assistant")
+
+
+class TestRuntimeBudgetsAndTraces(EngineTestCase):
+    def test_tool_call_limit_denies_and_interrupts(self):
+        run_id = self.mgr.start(
+            {
+                "kind": "prompt",
+                "text": "x",
+                "budget": {"max_tool_calls": 1},
+            }
+        )
+        hook = self.clients[0].options["pre_tool_use"]
+        first = self.run_coro(
+            hook(
+                {"tool_name": "Read", "tool_input": {"file_path": "README.md"}},
+                "t1",
+                _FakeContext(),
+            )
+        )
+        self.assertEqual(first, {})
+        second = self.run_coro(
+            hook(
+                {"tool_name": "Read", "tool_input": {"file_path": "README.md"}},
+                "t2",
+                _FakeContext(),
+            )
+        )
+        self.assertEqual(
+            second["hookSpecificOutput"]["permissionDecision"], "deny"
+        )
+        self.run_coro(asyncio.sleep(0))
+        self.assertEqual(self.clients[0].interrupts, 1)
+        self.assertEqual(self.mgr.runs[run_id].status, "budget_exceeded")
+
+    def test_token_budget_interrupts_from_assistant_usage(self):
+        run_id = self.mgr.start(
+            {"kind": "prompt", "text": "x", "budget": {"max_tokens": 10}}
+        )
+        self.run_coro(
+            self.clients[0].push(
+                AssistantMessage(
+                    content=[TextBlock(text="done")],
+                    model="claude-opus-5",
+                    usage={"input_tokens": 8, "output_tokens": 2},
+                )
+            )
+        )
+        events_seen = self.drain(run_id, ["text", "budget_exceeded"])
+        self.assertEqual(events_seen[-1]["reason"], "max_tokens")
+        self.assertEqual(self.clients[0].interrupts, 1)
+
+    def test_cost_budget_interrupts_from_priced_assistant_usage(self):
+        run_id = self.mgr.start(
+            {"kind": "prompt", "text": "x", "budget": {"max_usd": 0.0001}}
+        )
+        self.run_coro(
+            self.clients[0].push(
+                AssistantMessage(
+                    content=[TextBlock(text="done")],
+                    model="claude-opus-5",
+                    usage={"input_tokens": 100, "output_tokens": 0},
+                )
+            )
+        )
+        events_seen = self.drain(run_id, ["text", "budget_exceeded"])
+        self.assertEqual(events_seen[-1]["reason"], "max_usd")
+        self.assertGreaterEqual(
+            self.mgr.runs[run_id].usage["cost_usd"], 0.0001
+        )
+
+    def test_elapsed_budget_denies_next_tool_and_interrupts(self):
+        run_id = self.mgr.start(
+            {"kind": "prompt", "text": "x", "budget": {"max_seconds": 10}}
+        )
+        run = self.mgr.runs[run_id]
+        run.started_at -= 11_000
+        hook = self.clients[0].options["pre_tool_use"]
+        decision = self.run_coro(
+            hook(
+                {"tool_name": "Read", "tool_input": {"file_path": "README.md"}},
+                "t1",
+                _FakeContext(),
+            )
+        )
+        self.assertEqual(
+            decision["hookSpecificOutput"]["permissionDecision"], "deny"
+        )
+        self.run_coro(asyncio.sleep(0))
+        self.assertEqual(run.budget_reason, "max_seconds")
+        self.assertEqual(self.clients[0].interrupts, 1)
+
+    def test_trace_redacts_secrets_truncates_values_and_has_correlation_ids(self):
+        run_id = self.mgr.start({"kind": "prompt", "text": "x"})
+        secret = "sk-ant-never-write-this"
+        self.run_coro(
+            self.clients[0].push(
+                {
+                    "type": "assistant",
+                    "parent_tool_use_id": None,
+                    "message": {
+                        "content": [
+                            {
+                                "type": "tool_use",
+                                "id": "t1",
+                                "name": "Bash",
+                                "input": {"authorization": secret, "command": f"TOKEN={secret}"},
+                            }
+                        ]
+                    },
+                }
+            )
+        )
+        event = self.drain(run_id, ["tool_use"])[0]
+        self.assertEqual(event["trace_id"], run_id)
+        self.assertEqual(event["span_id"], "t1")
+        persisted = (self.mgr.runs_dir / f"{run_id}.jsonl").read_text()
+        self.assertNotIn(secret, persisted)
+        self.assertIn("[REDACTED]", persisted)
+
+    def test_trace_file_cap_is_a_hard_byte_limit(self):
+        run_id = self.mgr.start({"kind": "prompt", "text": "x"})
+        run = self.mgr.runs[run_id]
+        initial_size = run.path.stat().st_size
+        self.mgr.max_trace_bytes = initial_size + 16
+        self.run_coro(
+            self.clients[0].push(
+                {
+                    "type": "assistant",
+                    "parent_tool_use_id": None,
+                    "message": {
+                        "content": [{"type": "text", "text": "x" * 2000}]
+                    },
+                }
+            )
+        )
+        self.drain(run_id, ["text"])
+        self.assertEqual(run.path.stat().st_size, initial_size)
+        self.assertTrue(run.trace_persistence_capped)
+
+
+class TestTraceRetention(unittest.TestCase):
+    def test_startup_prunes_expired_and_excess_run_traces(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = pathlib.Path(tmp)
+            runs = root / ".claude/console/runs"
+            runs.mkdir(parents=True)
+            paths = []
+            for index in range(3):
+                path = runs / f"run_{index}.jsonl"
+                path.write_text("{}\n")
+                os.utime(path, (time := 1_700_000_000 + index, time))
+                paths.append(path)
+            manager = engine.RunManager(
+                root, lambda options: FakeClient(options), retention_days=100000,
+                max_runs=2,
+            )
+            try:
+                self.assertFalse(paths[0].exists())
+                self.assertTrue(paths[1].exists())
+                self.assertTrue(paths[2].exists())
+            finally:
+                manager.shutdown()
 
 
 class TestLaneScopedEvents(unittest.TestCase):

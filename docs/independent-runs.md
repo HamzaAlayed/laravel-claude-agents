@@ -13,6 +13,13 @@ such as `git push`, `npm publish` and deletion commands still require review.
 External MCP tool calls and edits outside the project also require review.
 The complete allowlist is `routine_command` in `scripts/console/independence.py`.
 
+Independence is still bounded. Every run receives hard wall-clock, tool-call,
+token, and dollar ceilings; reaching one interrupts the SDK run and leaves a
+`budget_exceeded` event. The run's launch spec and budget are checkpointed in a
+redacted JSONL metadata record before the first query, so the resume endpoint can
+start a new run that inspects the current workspace and kernel state rather than
+replaying completed work. Raw SDK messages are not persisted by default.
+
 This is **not a sandbox**. Test and build commands execute project code, including
 package lifecycle scripts. Only use this mode in a trusted checkout. A malicious
 test can still cause external effects. Select **Ask me** when you want to inspect

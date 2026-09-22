@@ -40,7 +40,9 @@
 #
 # Headless runs use --dangerously-skip-permissions INSIDE the throwaway
 # workdir only. Real agent runs are billed — this is a manual harness, not CI.
-# Results land in tests/eval/results/<run-id>/ (gitignored).
+# Results land in tests/eval/results/<run-id>/ (gitignored). Committed duration,
+# token, and dollar ceilings are hard gates; parallel mode ignores only duration
+# because API contention makes that metric incomparable.
 
 set -uo pipefail
 
@@ -223,7 +225,7 @@ EOF
     feature-replay) cat <<'EOF'
 - A Tag API feature is scaffolded across schema, model, HTTP entry, route,
   and a feature test, via specialists.
-- docs/team/lessons.json already teaches "Do not call Model::all()".
+- docs/team/lessons.json contains a user-approved "Do not call Model::all()" rule.
   The delivery records that plan printed that rule.
 - No PHP file calls Model::all().
 EOF
@@ -311,11 +313,18 @@ seed_feature_replay_fixture() { # seed_feature_replay_fixture <workdir>
 {
   "lessons": [
     {
+      "id": "2e76ad2e1db9",
+      "kind": "learned_hypothesis",
       "norm": "do not call model::all()",
       "text": "Do not call Model::all()",
       "scope": ["backend-developer"],
-      "status": "taught",
-      "deliveries": ["prior"]
+      "status": "approved",
+      "deliveries": ["prior"],
+      "provenance": {
+        "source": "stage_flag",
+        "observations": [{"delivery": "prior", "agent": "backend-developer"}],
+        "approval": {"by": "user", "at": "2026-09-22T00:00:00+00:00"}
+      }
     }
   ]
 }
@@ -1192,6 +1201,16 @@ run_case() { # run_case <name> <results-dir>
   printf '%s\n' "${CHECK_LINES[@]}"
   local verdict=PASS
   [ "$CHECK_FAIL" -gt 0 ] && verdict=FAIL
+  local -a budget_args=(
+    --case "$name"
+    --duration "$dur"
+    --baseline "$ROOT/tests/eval/baseline.json"
+    --cost "$results/$name.cost.json"
+  )
+  [ "$MODE" = "parallel" ] && budget_args+=(--ignore-duration)
+  if ! python3 "$ROOT/scripts/check-eval-budget.py" "${budget_args[@]}"; then
+    verdict=FAIL
+  fi
   echo "   $verdict — $CHECK_PASS/$((CHECK_PASS + CHECK_FAIL)) checks, ${dur}s"
 
   if [ -s "$results/$name.cost.json" ] && command -v python3 >/dev/null 2>&1; then
@@ -1228,54 +1247,6 @@ PY
   JUDGE_CELL=""
   [ "$EVAL_JUDGE" = "1" ] && judge_case "$name" "$results" "$verdict"
 
-  # Soft timing ratchet: sequential runs only (parallel contention inflates
-  # durations 2-6x — see tests/eval/README.md). Warns, never fails: timings
-  # are machine- and API-load-dependent. Ceilings live in baseline.json.
-  if [ "$MODE" = "sequential" ] && [ -f "$ROOT/tests/eval/baseline.json" ] \
-     && command -v python3 >/dev/null 2>&1; then
-    python3 - "$name" "$dur" "$ROOT/tests/eval/baseline.json" "$results/$name.cost.json" <<'PY' || true
-import json, sys
-name, dur, path = sys.argv[1], int(sys.argv[2]), sys.argv[3]
-cost_path = sys.argv[4] if len(sys.argv) > 4 else None
-try:
-    case = json.load(open(path)).get("cases", {}).get(name)
-except Exception:
-    sys.exit(0)
-cap = (case or {}).get("max_seconds")
-if cap is not None:
-    state = "within" if dur <= cap else "REGRESSED vs"
-    print(f"   baseline: {state} {cap}s ceiling ({dur}s)")
-# Cost ratchets: dollars AND tokens. Each catches a regression the other misses
-# -- a sonnet -> opus re-tier keeps tokens flat and triples the bill, while
-# dollars drift with published prices and tokens do not. See baseline.json's
-# _metrics. Token totals are >99% cache reads (run-6 finding), so read tokens as
-# work volume and let dollars speak for cost.
-summary = None
-if cost_path:
-    try:
-        summary = json.load(open(cost_path))
-    except Exception:
-        summary = None
-if summary is not None:
-    usd_cap = (case or {}).get("max_usd")
-    billed = (summary.get("billed") or {}).get("usd")
-    if billed is None:
-        pass
-    elif usd_cap is None:
-        print(f"   baseline: cost ceiling unseeded (${billed:.2f} billed this run)")
-    else:
-        state = "within" if billed <= usd_cap else "REGRESSED vs"
-        print(f"   baseline: {state} ${usd_cap:.2f} cost ceiling (${billed:.2f} billed)")
-
-    tok_cap = (case or {}).get("max_tokens")
-    actual = summary["attributed"]["total"]["tokens"]
-    if tok_cap is None:
-        print(f"   baseline: token ceiling unseeded ({actual:,} tokens this run)")
-    else:
-        state = "within" if actual <= tok_cap else "REGRESSED vs"
-        print(f"   baseline: {state} {tok_cap:,}-token ceiling ({actual:,} tokens)")
-PY
-  fi
   echo
 
   if [ "$EVAL_JUDGE" = "1" ]; then

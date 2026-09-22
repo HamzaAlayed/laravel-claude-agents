@@ -6,9 +6,11 @@ by running real headless `claude -p` sessions against a copy of
 below. It also times every run, which feeds the speed findings in
 `docs/evals/`.
 
-**This is a manual harness, not CI** — every case is a real billed agent run
-(minutes each). Run it before a release, or after changing agent bodies,
-commands, or model tiers.
+**This is a billed harness, so live execution is opt-in** — every case is a real
+agent run (minutes each). GitHub Actions exposes a manually confirmed workflow;
+its weekly trigger remains inert unless a repository owner sets
+`ENABLE_SCHEDULED_LIVE_EVALS=true`. Deterministic transcript replay runs on every
+CI change without API spend.
 
 ```bash
 ./tests/eval/run-evals.sh              # all cases, sequential
@@ -28,6 +30,11 @@ a release; use sequential when the findings doc needs timing numbers.
 Results land in `tests/eval/results/<run-id>/` (gitignored): per-case output
 log, check results, `git diff` of what the agents changed, and the
 `agents-board.jsonl` event stream (per-agent timing).
+
+Duration, attributed-token, and billed-dollar ceilings are hard gates. Missing
+cost evidence also fails closed. Parallel runs skip the duration gate because
+contention makes wall clock incomparable, but token and dollar gates still
+apply.
 
 Three derived text artifacts are rebuilt from the stream-json transcript by
 `scripts/eval-cost.py`. `checks_*` functions must grep these files, never

@@ -126,6 +126,13 @@ Set this on roles whose value compounds across sessions — they should remember
 
 Per-agent memory is private and Claude-only; what the user teaches must reach **every** agent, including the memoryless builders and the Gemini/Codex mirrors. That's `docs/team/conventions.md` — user-taught rules in a Rule / Why / Scope / Source shape, written by the `/teach` command or the `delivery-coordinator` when the human corrects an approach mid-delivery. Every agent's first principle ("Taught rules win") makes it read the ledger before starting and treat its entries as overrides. When authoring a new agent, keep that principle as the first bullet — a taught rule the agent doesn't read is a correction the user gets to repeat.
 
+Do not confuse agent observations with user intent. `FLAGS` flow into
+`docs/team/lessons.json` as provenance-bearing `observed` hypotheses; repeated
+independent deliveries may promote them to `candidate`. Neither status binds an
+agent. Only the explicit user action `guild lesson approve --id <id>` records an
+approval timestamp and changes the status to `approved`; `plan` prints only
+those approved rules. Never copy a specialist flag into `conventions.md`.
+
 ## Handoffs
 
 No agent owns the whole pipeline. The **Handoffs** section names the other agents this one defers to and for what — it is how a feature flows from data layer to backend to frontend to QA to review. Be specific about the *trigger*:
@@ -150,7 +157,7 @@ These are the irreversible-or-expensive-to-get-wrong surfaces: **authentication,
 
 ## Stage return
 
-Writers with Write persist the briefed `docs/delivery/<name>/stages/<agent>.md` as their last Write — `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT`, ≤12 lines, no diffs. Read-only agents cannot Write, so they do not; they close the report with the same six fields. Coordinator persists those read-only stage files. No path in the brief → skip.
+Writers with Write persist the briefed `docs/delivery/<name>/stages/<agent>.md` as their last Write — `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT`, ≤12 lines, no diffs. Each `VERIFIED:` value is compact JSON with a registered `runner` and string-array `args`; it is never a free-form command. Read-only agents cannot Write, so they do not; they close the report with the same six fields. Coordinator persists those read-only stage files. No path in the brief → skip.
 
 Re-brief overwrites that same path — never a `-fixes` suffix. The brief itself is need-to-know only: goal, owned paths, success criteria, stage path, named stack facts. Not another specialist's diff.
 

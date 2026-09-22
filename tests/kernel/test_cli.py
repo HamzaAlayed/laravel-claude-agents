@@ -136,10 +136,23 @@ class GuildCliTest(unittest.TestCase):
 
     def test_process_runner_capture_returns_stdout(self):
         code, out = guild.ProcessRunner().capture(
-            self.root, "python3 -c 'print(123)'"
+            self.root, ["python3", "-c", "print(123)"]
         )
         self.assertEqual(code, 0)
         self.assertEqual(out.strip(), "123")
+
+    def test_process_runner_executes_verification_without_a_shell(self):
+        completed = types.SimpleNamespace(returncode=0)
+        with mock.patch.object(guild.subprocess, "run", return_value=completed) as run:
+            code = guild.ProcessRunner().run(
+                self.root, ["php", "artisan", "test", "--filter=TagTest"]
+            )
+        self.assertEqual(code, 0)
+        run.assert_called_once_with(
+            ["php", "artisan", "test", "--filter=TagTest"],
+            cwd=self.root,
+            shell=False,
+        )
 
 
 if __name__ == "__main__":

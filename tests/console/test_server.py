@@ -26,6 +26,7 @@ class FakeManager:
         self.answered = []
         self.interrupted = []
         self.sent = []
+        self.resumed = []
 
     def start(self, spec):
         # Two failure shapes the engine really produces, keyed off `model` so
@@ -52,6 +53,10 @@ class FakeManager:
 
     def interrupt(self, run_id):
         self.interrupted.append(run_id)
+
+    def resume(self, run_id):
+        self.resumed.append(run_id)
+        return "run_resumed"
 
     def set_mode(self, run_id, mode=None, model=None):
         self.mode = (run_id, mode, model)
@@ -190,6 +195,13 @@ class TestServer(unittest.TestCase):
     def test_interrupt(self):
         self.post("/api/runs/run_abc/interrupt", {})
         self.assertIn("run_abc", self.manager.interrupted)
+
+    def test_resume(self):
+        response = self.post("/api/runs/run_abc/resume", {})
+        body = json.loads(response.read())
+        self.assertEqual(response.status, 200)
+        self.assertEqual(body["run_id"], "run_resumed")
+        self.assertIn("run_abc", self.manager.resumed)
 
     def test_message(self):
         self.post("/api/runs/run_abc/message", {"text": "more"})

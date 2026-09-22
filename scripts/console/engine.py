@@ -26,7 +26,9 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 import queue
+import re
 import threading
 import time
 import uuid
@@ -59,6 +61,124 @@ ASK_REASON = "The console asks about every Bash call, including read-only ones."
 # instantaneous once scheduled; this only guards against a wedged/closed loop.
 ANSWER_TIMEOUT = 5.0
 
+DEFAULT_BUDGET = {
+    "max_seconds": 1800,
+    "max_tool_calls": 200,
+    "max_tokens": 5_000_000,
+    "max_usd": 10.0,
+}
+HARD_BUDGET_CEILINGS = {
+    "max_seconds": 14_400,
+    "max_tool_calls": 1_000,
+    "max_tokens": 20_000_000,
+    "max_usd": 100.0,
+}
+DEFAULT_RETENTION_DAYS = 14
+DEFAULT_MAX_RUNS = 100
+DEFAULT_MAX_TRACE_BYTES = 25 * 1024 * 1024
+MAX_TRACE_VALUE_CHARS = 8192
+_SENSITIVE_KEY = re.compile(
+    r"(?:^|[_-])(?:authorization|cookie|password|passwd|secret|token|api[_-]?key|apikey|private[_-]?key)(?:$|[_-])",
+    re.IGNORECASE,
+)
+_SECRET_VALUE = re.compile(
+    r"(?i)(bearer\s+)[A-Za-z0-9._~+/=-]+|"
+    r"(?:sk-ant-|ghp_|github_pat_)[A-Za-z0-9_-]+|"
+    r"((?:password|passwd|secret|token|api[_-]?key)\s*[=:]\s*)[^\s,;]+"
+)
+_MODEL_RATES = {
+    "claude-fable-5": (10.0, 50.0),
+    "claude-opus-5": (5.0, 25.0),
+    "claude-opus-4-8": (5.0, 25.0),
+    "claude-opus-4-7": (5.0, 25.0),
+    "claude-sonnet-5": (3.0, 15.0),
+    "sonnet": (3.0, 15.0),
+    "claude-haiku-4-5": (1.0, 5.0),
+    "haiku": (1.0, 5.0),
+}
+
+
+def _normalize_budget(value) -> dict:
+    if value is None:
+        return dict(DEFAULT_BUDGET)
+    if not isinstance(value, dict) or set(value) - set(DEFAULT_BUDGET):
+        raise ValueError(f"budget accepts only {', '.join(DEFAULT_BUDGET)}")
+    budget = dict(DEFAULT_BUDGET)
+    for key, raw in value.items():
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)) or raw <= 0:
+            raise ValueError(f"budget {key} must be a positive number")
+        if key != "max_usd" and not isinstance(raw, int):
+            raise ValueError(f"budget {key} must be a positive integer")
+        if raw > HARD_BUDGET_CEILINGS[key]:
+            raise ValueError(
+                f"budget {key} exceeds hard ceiling {HARD_BUDGET_CEILINGS[key]}"
+            )
+        budget[key] = raw
+    budget["max_seconds"] = int(budget["max_seconds"])
+    budget["max_tool_calls"] = int(budget["max_tool_calls"])
+    budget["max_tokens"] = int(budget["max_tokens"])
+    budget["max_usd"] = float(budget["max_usd"])
+    return budget
+
+
+def _redact(value, key=""):
+    if _SENSITIVE_KEY.search(str(key)):
+        return "[REDACTED]"
+    if isinstance(value, dict):
+        return {str(k): _redact(v, str(k)) for k, v in value.items()}
+    if isinstance(value, list):
+        return [_redact(item) for item in value]
+    if isinstance(value, tuple):
+        return [_redact(item) for item in value]
+    if isinstance(value, str):
+        text = _SECRET_VALUE.sub(
+            lambda match: (match.group(1) or "") + "[REDACTED]", value
+        )
+        if len(text) > MAX_TRACE_VALUE_CHARS:
+            return text[:MAX_TRACE_VALUE_CHARS] + "…[TRUNCATED]"
+        return text
+    return value
+
+
+def _number(value) -> float:
+    return float(value) if isinstance(value, (int, float)) and not isinstance(value, bool) else 0.0
+
+
+def _rates_for(model) -> tuple[float, float]:
+    name = str(model or "")
+    for alias, rates in _MODEL_RATES.items():
+        if name == alias or name.startswith(alias + "-") or name.startswith(alias + "["):
+            return rates
+    # Unknown models use the most expensive known rate so the runtime never
+    # silently understates spend.
+    return (10.0, 50.0)
+
+
+def _usage_cost(usage: dict, model) -> float:
+    if not isinstance(usage, dict):
+        return 0.0
+    input_rate, output_rate = _rates_for(model)
+    input_tokens = _number(usage.get("input_tokens"))
+    output_tokens = _number(usage.get("output_tokens"))
+    cache_read = _number(usage.get("cache_read_input_tokens"))
+    cache_write = _number(usage.get("cache_creation_input_tokens"))
+    return (
+        input_tokens * input_rate
+        + output_tokens * output_rate
+        + cache_read * input_rate * 0.1
+        + cache_write * input_rate * 2.0
+    ) / 1_000_000
+
+
+def _usage_tokens(usage: dict) -> int:
+    if not isinstance(usage, dict):
+        return 0
+    keys = (
+        "input_tokens", "output_tokens", "cache_read_input_tokens",
+        "cache_creation_input_tokens",
+    )
+    return int(sum(_number(usage.get(key)) for key in keys))
+
 
 def build_prompt(spec: dict) -> str:
     kind = spec.get("kind")
@@ -85,6 +205,7 @@ class Run:
     def __init__(self, run_id: str, spec: dict, path: Path):
         self.run_id = run_id
         self.spec = spec
+        self.budget = spec["budget"]
         self.mode = _check_mode(spec.get("mode"))
         self.path = path
         self.state = events_mod.RunState(run_id)
@@ -98,19 +219,44 @@ class Run:
         self.remembered: set[tuple[str, str]] = set()
         self.status = "running"
         self.started_at = int(time.time() * 1000)
+        self.usage = {"tokens": 0, "tool_calls": 0, "cost_usd": 0.0}
+        self.budget_reason = None
+        self.watchdog = None
+        self.trace_persistence_capped = False
         self.lock = threading.Lock()
 
 
 class RunManager:
-    def __init__(self, root: Path, client_factory):
+    def __init__(
+        self, root: Path, client_factory, *, retention_days=DEFAULT_RETENTION_DAYS,
+        max_runs=DEFAULT_MAX_RUNS, max_trace_bytes=DEFAULT_MAX_TRACE_BYTES,
+        persist_raw=False
+    ):
         self.root = Path(root)
         self.client_factory = client_factory
         self.runs_dir = self.root / ".claude" / "console" / "runs"
         self.runs_dir.mkdir(parents=True, exist_ok=True)
+        self.retention_days = retention_days
+        self.max_runs = max_runs
+        self.max_trace_bytes = max_trace_bytes
+        self.persist_raw = persist_raw
+        self._prune_traces()
         self.runs: dict[str, Run] = {}
         self.loop = asyncio.new_event_loop()
         self.thread = threading.Thread(target=self._run_loop, name="guild-engine", daemon=True)
         self.thread.start()
+
+    def _prune_traces(self):
+        now = time.time()
+        paths = sorted(
+            self.runs_dir.glob("run_*.jsonl"),
+            key=lambda path: path.stat().st_mtime,
+            reverse=True,
+        )
+        for index, path in enumerate(paths):
+            expired = now - path.stat().st_mtime > self.retention_days * 86400
+            if expired or index >= self.max_runs:
+                path.unlink(missing_ok=True)
 
     # ---- loop plumbing -----------------------------------------------------
 
@@ -131,10 +277,14 @@ class RunManager:
                     pass
         self.loop.call_soon_threadsafe(self.loop.stop)
         self.thread.join(timeout=3)
+        if not self.thread.is_alive() and not self.loop.is_closed():
+            self.loop.close()
 
     # ---- run lifecycle -----------------------------------------------------
 
-    def start(self, spec: dict) -> str:
+    def start(self, spec: dict, *, _prompt_override=None) -> str:
+        spec = dict(spec)
+        spec["budget"] = _normalize_budget(spec.get("budget"))
         mode = _check_mode(spec.get("mode"))
         run_id = f"run_{uuid.uuid4().hex[:12]}"
         run = Run(run_id, spec, self.runs_dir / f"{run_id}.jsonl")
@@ -155,16 +305,45 @@ class RunManager:
         # Raising here instead makes POST /api/runs answer 400 with the reason.
         run.client = self.client_factory(options)
         self.runs[run_id] = run
+        self._append_record(
+            run,
+            {
+                "meta": {
+                    "version": 1,
+                    "run_id": run_id,
+                    "started_at": run.started_at,
+                    "spec": spec,
+                }
+            },
+        )
         # A _boot failure deliberately KEEPS the registration: the client exists
         # and may hold a live CLI subprocess, so shutdown() must still be able
         # to disconnect it. _pump reports the failure as an `error` event.
-        self.submit(self._boot(run, build_prompt(spec))).result(timeout=30)
+        prompt = _prompt_override if _prompt_override is not None else build_prompt(spec)
+        self.submit(self._boot(run, prompt)).result(timeout=30)
         return run_id
+
+    def resume(self, run_id: str) -> str:
+        if run_id in self.runs and self.runs[run_id].status == "running":
+            raise ValueError("a running run cannot be resumed")
+        metadata = self._load_metadata(run_id)
+        if metadata is None or not isinstance(metadata.get("spec"), dict):
+            raise ValueError("run has no resumable metadata")
+        spec = dict(metadata["spec"])
+        spec["resumes_run_id"] = run_id
+        original = build_prompt(spec)
+        prompt = (
+            f"Resume interrupted run {run_id}. Inspect the current workspace and any "
+            "guild kernel state before continuing; do not repeat completed work. "
+            f"Original request: {original}"
+        )
+        return self.start(spec, _prompt_override=prompt)
 
     async def _boot(self, run: Run, text: str):
         try:
             await run.client.connect()
             asyncio.create_task(self._pump(run))
+            run.watchdog = asyncio.create_task(self._budget_watchdog(run))
             if text:
                 await run.client.query(text)
         except Exception as exc:
@@ -191,6 +370,10 @@ class RunManager:
                 raw = _as_dict(message)
                 for index, event in enumerate(events_mod.normalize(raw, run.state)):
                     self._publish(run, event, raw=raw if index == 0 else None)
+                reason = self._record_usage(run, raw)
+                if reason:
+                    await self._budget_interrupt(run, reason)
+                    break
         except Exception as exc:  # never let a dead client kill the loop
             self._publish(run, {
                 "seq": run.state.next_seq(), "run_id": run.run_id,
@@ -198,14 +381,94 @@ class RunManager:
                 "agent": None, "message": str(exc),
             })
         finally:
-            run.status = "finished"
+            if run.watchdog is not None:
+                run.watchdog.cancel()
+            if run.status == "running":
+                run.status = "finished"
+
+    async def _budget_watchdog(self, run: Run):
+        try:
+            await asyncio.sleep(run.budget["max_seconds"])
+            if run.status == "running":
+                await self._budget_interrupt(run, "max_seconds")
+        except asyncio.CancelledError:
+            return
+
+    def _record_usage(self, run: Run, raw: dict):
+        kind = raw.get("type") if isinstance(raw, dict) else None
+        if kind == "assistant":
+            usage = raw.get("usage") or (raw.get("message") or {}).get("usage") or {}
+            run.usage["tokens"] += _usage_tokens(usage)
+            run.usage["cost_usd"] += _usage_cost(
+                usage, raw.get("model") or (raw.get("message") or {}).get("model")
+            )
+        elif kind == "result":
+            usage = raw.get("usage") or {}
+            if run.usage["tokens"] == 0:
+                run.usage["tokens"] = _usage_tokens(usage)
+            actual = _number(raw.get("total_cost_usd"))
+            if actual:
+                run.usage["cost_usd"] = max(run.usage["cost_usd"], actual)
+        return self._budget_reason(run)
+
+    def _budget_reason(self, run: Run):
+        elapsed = (int(time.time() * 1000) - run.started_at) / 1000
+        if elapsed >= run.budget["max_seconds"]:
+            return "max_seconds"
+        if run.usage["tool_calls"] >= run.budget["max_tool_calls"]:
+            return "max_tool_calls"
+        if run.usage["tokens"] >= run.budget["max_tokens"]:
+            return "max_tokens"
+        if run.usage["cost_usd"] >= run.budget["max_usd"]:
+            return "max_usd"
+        return None
+
+    async def _budget_interrupt(self, run: Run, reason: str):
+        if run.budget_reason is not None:
+            return
+        run.budget_reason = reason
+        self._publish(
+            run,
+            {
+                "seq": run.state.next_seq(),
+                "run_id": run.run_id,
+                "ts": int(time.time() * 1000),
+                "type": "budget_exceeded",
+                "agent": None,
+                "reason": reason,
+                "budget": run.budget,
+                "usage": run.usage,
+            },
+        )
+        await self._interrupt(run, reason=f"Runtime budget exceeded: {reason}.")
+        run.status = "budget_exceeded"
+
+    def _append_record(self, run: Run, record: dict):
+        if run.trace_persistence_capped:
+            return
+        safe = _redact(record)
+        line = (json.dumps(safe, separators=(",", ":")) + "\n").encode("utf-8")
+        current_size = run.path.stat().st_size if run.path.exists() else 0
+        if current_size + len(line) > self.max_trace_bytes:
+            run.trace_persistence_capped = True
+            return
+        with run.path.open("ab") as handle:
+            handle.write(line)
 
     def _publish(self, run: Run, event: dict, raw: dict | None = None):
+        event = _redact(dict(event))
+        event.setdefault("trace_id", run.run_id)
+        event.setdefault(
+            "span_id",
+            event.get("tool_use_id") or event.get("lane_id") or f"event-{event.get('seq', 0)}",
+        )
+        event.setdefault("parent_span_id", event.get("lane_id"))
         with run.lock:
             run.buffer.append(event)
             subscribers = list(run.subscribers)
-        with run.path.open("a", encoding="utf-8") as handle:
-            handle.write(json.dumps({"event": event, "raw": raw}, separators=(",", ":")) + "\n")
+        self._append_record(
+            run, {"event": event, "raw": raw if self.persist_raw else None}
+        )
         for sub in subscribers:
             sub.put(event)
 
@@ -228,15 +491,16 @@ class RunManager:
         run = self.runs[run_id]
         self.submit(self._interrupt(run)).result(timeout=15)
 
-    async def _interrupt(self, run: Run):
+    async def _interrupt(self, run: Run, reason="Run interrupted by the user."):
         # Deny pending prompts FIRST — otherwise the loop stays parked.
         for prompt_id, future in list(run.pending.items()):
             if not future.done():
                 future.set_result({"behavior": "deny",
-                                   "message": "Run interrupted by the user."})
+                                   "message": reason})
             run.pending.pop(prompt_id, None)
         await run.client.interrupt()
-        run.status = "interrupted"
+        if run.budget_reason is None:
+            run.status = "interrupted"
 
     # ---- approvals ---------------------------------------------------------
 
@@ -293,6 +557,15 @@ class RunManager:
             # The hook's own tool_use_id is authoritative; the positional one is
             # the SDK's convenience copy and may be None.
             call_id = data.get("tool_use_id") or tool_use_id or ""
+            reason = self._budget_reason(run)
+            if reason:
+                asyncio.create_task(self._budget_interrupt(run, reason))
+                return {"hookSpecificOutput": {
+                    "hookEventName": "PreToolUse",
+                    "permissionDecision": "deny",
+                    "permissionDecisionReason": f"Runtime budget exceeded: {reason}.",
+                }}
+            run.usage["tool_calls"] += 1
             # An unparseable signature yields None, which is never in the
             # remembered set -- so a Bash call whose input we cannot read is
             # asked about rather than waved through.
@@ -467,6 +740,20 @@ class RunManager:
                 continue
         return out
 
+    def _load_metadata(self, run_id: str):
+        path = self.runs_dir / f"{run_id}.jsonl"
+        if not path.is_file():
+            return None
+        try:
+            with path.open(encoding="utf-8") as handle:
+                for line in handle:
+                    record = json.loads(line)
+                    if isinstance(record.get("meta"), dict):
+                        return record["meta"]
+        except (OSError, ValueError):
+            return None
+        return None
+
     def list_runs(self) -> list[dict]:
         # UNION of live in-memory runs (authoritative for status/spec/started_at)
         # and disk-derived runs for runs not owned by this process. No duplicates.
@@ -481,6 +768,8 @@ class RunManager:
                 "status": run.status,
                 "spec": run.spec,
                 "started_at": run.started_at,
+                "budget": run.budget,
+                "usage": dict(run.usage),
             })
             seen.add(run_id)
 
@@ -490,11 +779,14 @@ class RunManager:
         for path in sorted(self.runs_dir.glob("run_*.jsonl")):
             run_id = path.stem
             if run_id not in seen:
+                metadata = self._load_metadata(run_id) or {}
                 rows.append({
                     "run_id": run_id,
                     "status": "interrupted",
-                    "spec": None,
-                    "started_at": int(path.stat().st_mtime * 1000),
+                    "spec": metadata.get("spec"),
+                    "started_at": metadata.get("started_at") or int(path.stat().st_mtime * 1000),
+                    "budget": (metadata.get("spec") or {}).get("budget"),
+                    "usage": None,
                 })
                 seen.add(run_id)
 
@@ -617,6 +909,8 @@ def _as_dict(message) -> dict:
         return {
             "type": "assistant",
             "parent_tool_use_id": _getattr(message, "parent_tool_use_id"),
+            "model": _getattr(message, "model"),
+            "usage": _getattr(message, "usage") or {},
             "message": {"content": [_block_to_dict(b) for b in content]},
         }
 

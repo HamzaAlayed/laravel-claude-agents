@@ -437,6 +437,8 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
                 if rest == "/interrupt":
                     manager.interrupt(run_id)
                     return self._json(200, {"ok": True})
+                if rest == "/resume":
+                    return self._json(200, {"run_id": manager.resume(run_id)})
                 if rest == "/mode":
                     manager.set_mode(run_id, mode=body.get("mode"), model=body.get("model"))
                     return self._json(200, {"ok": True})

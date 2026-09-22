@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.0.0] - 2026-09-22
+
+### Added
+
+- Delivery plans can declare typed stages with dependencies, success criteria,
+  and owned paths. The kernel exposes bounded ready waves and atomic claims so
+  independent stages can run concurrently without overlapping file ownership.
+- Console runs enforce wall-clock, tool-call, token, and estimated-dollar
+  budgets. Interrupted runs retain their launch metadata and can be resumed
+  through the console API without repeating completed workspace work.
+- Learned hypotheses now carry stable IDs, observation provenance, scope, and
+  explicit approval metadata. `guild lesson list` shows candidates and
+  `guild lesson approve --id <id>` is the only path that makes one authoritative.
+- CI replays recorded SDK traces through the production event normalizer. A
+  separately gated live-eval workflow supports explicitly authorized manual
+  runs and repository-opted-in schedules.
+
+### Changed
+
+- **Breaking:** Stage `VERIFIED:` values must be JSON runner records such as
+  `{"runner":"artisan-test","args":["--filter=TagTest"]}`. Legacy shell
+  command strings are rejected; update persisted stage reports before replaying
+  them.
+- **Breaking:** Repeated `FLAGS:` observations become candidates, not team
+  rules. Review and approve valid candidates explicitly before expecting a new
+  plan to print them under `RULES:`.
+- Delivery graph views now describe actual dependency-derived parallel lanes
+  and the configured concurrency limit.
+- Evaluation duration, token, and dollar ceilings are hard release gates. A
+  parallel eval may waive only the duration comparison, never spend evidence.
+
+### Security
+
+- Verification and GitHub CLI subprocesses execute fixed argument arrays with
+  `shell=False`; reports cannot inject extra commands through verification text.
+- Console traces omit raw SDK messages by default, recursively redact common
+  credential fields and secret patterns, attach trace/span identifiers, and
+  enforce hard per-file, age, and run-count retention limits.
+- Parallel stage reports and learned-memory updates use file locks and atomic
+  state replacement so concurrent workers cannot silently overwrite each other.
+
 ## [4.2.0] - 2026-09-22
 
 ### Added

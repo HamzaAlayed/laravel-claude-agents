@@ -1,0 +1,60 @@
+name: live agent evals
+
+on:
+  workflow_dispatch:
+    inputs:
+      case:
+        description: Billed eval case to run
+        required: true
+        default: n-plus-one
+        type: choice
+        options:
+          - n-plus-one
+          - policy
+          - action
+          - tests
+          - hygiene
+          - feature
+          - feature-adaptive
+          - feature-resume
+          - feature-replay
+          - teach
+          - teach-delivery
+      confirm_spend:
+        description: I authorize this billed live eval run
+        required: true
+        default: false
+        type: boolean
+  schedule:
+    - cron: "17 4 * * 1"
+
+permissions:
+  contents: read
+
+jobs:
+  live-eval:
+    if: >-
+      (github.event_name == 'workflow_dispatch' && inputs.confirm_spend) ||
+      (github.event_name == 'schedule' && vars.ENABLE_SCHEDULED_LIVE_EVALS == 'true')
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+      - name: Install Claude Code
+        run: npm install -g @anthropic-ai/claude-code
+      - name: Run one hard-gated live case
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          EVAL_CASE: ${{ github.event.inputs.case || 'n-plus-one' }}
+          KEEP_TRANSCRIPT: "0"
+        run: ./tests/eval/run-evals.sh "$EVAL_CASE"
+      - name: Upload derived evaluation artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: live-eval-${{ github.run_id }}
+          path: tests/eval/results/
+          retention-days: 14

@@ -1,13 +1,42 @@
 from __future__ import annotations
 
 import json
+import hashlib
+import fcntl
 import pathlib
 import re
+import tempfile
+from contextlib import contextmanager
+from datetime import datetime, timezone
 from dataclasses import asdict, dataclass, field
 
 _LABELS = ("STATUS", "DID", "VERIFIED", "NOT-CHECKED", "FLAGS", "NEXT")
-_COMMAND_MARKERS = ("/", "\\", "artisan", "vendor/bin", "php", "pint", "phpstan", "pest", "./")
 _REPO_RE = re.compile(r"^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$")
+_VERIFICATION_RUNNERS = {
+    "artisan-test": ("php", "artisan", "test"),
+    "artisan-route-list": ("php", "artisan", "route:list"),
+    "composer-audit": ("composer", "audit"),
+    "git-diff-check": ("git", "diff", "--check"),
+    "git-status": ("git", "status", "--short"),
+    "npm-build": ("npm", "run", "build"),
+    "npm-lint": ("npm", "run", "lint"),
+    "npm-test": ("npm", "test", "--"),
+    "phpstan": ("vendor/bin/phpstan",),
+    "phpunit": ("vendor/bin/phpunit",),
+    "pint-test": ("vendor/bin/pint", "--test"),
+    "pnpm-build": ("pnpm", "build"),
+    "pnpm-lint": ("pnpm", "lint"),
+    "pnpm-test": ("pnpm", "test"),
+    "pest": ("vendor/bin/pest",),
+    "python-unittest": ("python3", "-m", "unittest"),
+    "sail-artisan-test": ("./vendor/bin/sail", "artisan", "test"),
+    "sail-artisan-route-list": ("./vendor/bin/sail", "artisan", "route:list"),
+    "sail-phpstan": ("./vendor/bin/sail", "bin", "phpstan"),
+    "sail-phpunit": ("./vendor/bin/sail", "bin", "phpunit"),
+    "sail-pint-test": ("./vendor/bin/sail", "bin", "pint", "--test"),
+    "sail-pest": ("./vendor/bin/sail", "bin", "pest"),
+}
+_INTERNAL_VERIFICATION_RUNNERS = {"file-exists", "file-has-lines"}
 _BOARD_MARK = {
     "done": "✔",
     "running": "▶",
@@ -61,6 +90,7 @@ class StageSpec:
     pair: str = ""
     awaiting_pair: bool = False
     reopens: int = 0
+    owned_paths: list = field(default_factory=list)
 
 
 @dataclass
@@ -78,16 +108,45 @@ class Delivery:
     repo: str = ""
     seen_checks: list = field(default_factory=list)
     seen_comments: list = field(default_factory=list)
+    max_parallel: int = 3
 
 
 def _state_path(root, name):
     return pathlib.Path(root) / "docs" / "delivery" / name / "kernel.json"
 
 
+@contextmanager
+def _file_lock(path):
+    path = pathlib.Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with path.open("a+") as handle:
+        fcntl.flock(handle.fileno(), fcntl.LOCK_EX)
+        yield
+
+
+def _write_text_atomic(path, text):
+    path = pathlib.Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            mode="w",
+            encoding="utf-8",
+            dir=path.parent,
+            prefix=f".{path.name}.",
+            delete=False,
+        ) as handle:
+            handle.write(text)
+            temporary = pathlib.Path(handle.name)
+        temporary.replace(path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
+
+
 def save(root, delivery):
     path = _state_path(root, delivery.name)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(asdict(delivery), indent=2) + "\n")
+    _write_text_atomic(path, json.dumps(asdict(delivery), indent=2) + "\n")
 
 
 def load(root, name):
@@ -99,18 +158,24 @@ def load(root, name):
     data.setdefault("repo", "")
     data.setdefault("seen_checks", [])
     data.setdefault("seen_comments", [])
+    data.setdefault("max_parallel", 1)
     stages = []
     for stage in data.pop("stages"):
         stage.setdefault("flags", [])
         stage.setdefault("pair", "")
         stage.setdefault("awaiting_pair", False)
         stage.setdefault("reopens", 0)
+        stage.setdefault("owned_paths", [])
         stages.append(StageSpec(**stage))
     return Delivery(stages=stages, **data)
 
 
 def _norm_flag(text):
     return " ".join(text.strip().lower().split())
+
+
+def _lesson_id(norm):
+    return hashlib.sha256(norm.encode("utf-8")).hexdigest()[:12]
 
 
 def _lessons_path(root):
@@ -121,25 +186,64 @@ def _load_lessons(root):
     path = _lessons_path(root)
     if not path.is_file():
         return {"lessons": []}
-    return json.loads(path.read_text())
+    data = json.loads(path.read_text())
+    for lesson in data.get("lessons", []):
+        norm = lesson.setdefault("norm", _norm_flag(lesson.get("text", "")))
+        lesson.setdefault("id", _lesson_id(norm))
+        lesson.setdefault("kind", "learned_hypothesis")
+        deliveries = lesson.setdefault("deliveries", [])
+        scope = lesson.setdefault("scope", [])
+        provenance = lesson.setdefault(
+            "provenance",
+            {
+                "source": "stage_flag",
+                "observations": [
+                    {"delivery": delivery, "agent": "unknown"}
+                    for delivery in deliveries
+                ],
+            },
+        )
+        provenance.setdefault("source", "stage_flag")
+        provenance.setdefault("observations", [])
+        # Pre-provenance stores used `taught` as an automatic promotion. They
+        # are hypotheses, not human instructions, until explicitly approved.
+        status = lesson.get("status", "observed")
+        if status == "seen":
+            status = "candidate" if len(deliveries) >= 2 else "observed"
+        elif status == "taught":
+            approval = provenance.get("approval")
+            status = "approved" if approval and approval.get("by") == "user" else "candidate"
+        lesson["status"] = status
+        if status == "approved" and not provenance.get("approval"):
+            lesson["status"] = "candidate"
+        if not scope:
+            lesson["scope"] = ["unknown"]
+    return data
 
 
 def _save_lessons(root, data):
     path = _lessons_path(root)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2) + "\n")
+    _write_text_atomic(path, json.dumps(data, indent=2) + "\n")
 
 
 def render_lessons(data):
-    taught = [lesson for lesson in data.get("lessons", []) if lesson.get("status") == "taught"]
-    if not taught:
+    lessons = data.get("lessons", [])
+    if not lessons:
         return "LESSONS: none\n"
     lines = ["LESSONS:"]
-    for lesson in taught:
+    for lesson in lessons:
         scope = ", ".join(lesson.get("scope", []))
+        observations = lesson.get("provenance", {}).get("observations", [])
+        approval = lesson.get("provenance", {}).get("approval") or {}
+        lines.append(f"ID: {lesson['id']}")
         lines.append(f"RULE: {lesson['text']}")
         lines.append(f"SCOPE: {scope}")
-        lines.append(f"STATUS: taught")
+        lines.append(f"STATUS: {lesson['status']}")
+        lines.append(f"PROVENANCE: stage_flag ({len(observations)} observations)")
+        if lesson["status"] == "approved":
+            lines.append(
+                f"APPROVED-BY: {approval['by']} at {approval['at']}"
+            )
     return "\n".join(lines) + "\n"
 
 
@@ -153,40 +257,76 @@ def _record_lesson(root, delivery_name, agent, text):
     norm = _norm_flag(text)
     if not norm or norm == "none":
         return
+    with _file_lock(_lessons_path(root).with_suffix(".lock")):
+        _record_lesson_unlocked(root, delivery_name, agent, text, norm)
+
+
+def _record_lesson_unlocked(root, delivery_name, agent, text, norm):
     data = _load_lessons(root)
     for lesson in data["lessons"]:
         if lesson.get("norm") != norm:
             continue
         if delivery_name in lesson.get("deliveries", []):
+            _save_lessons(root, data)
             write_lessons_view(root, data)
             return
         lesson["deliveries"].append(delivery_name)
         if agent not in lesson["scope"]:
             lesson["scope"].append(agent)
-        if len(lesson["deliveries"]) >= 2:
-            lesson["status"] = "taught"
+        lesson["provenance"]["observations"].append(
+            {"delivery": delivery_name, "agent": agent}
+        )
+        if len(lesson["deliveries"]) >= 2 and lesson["status"] != "approved":
+            lesson["status"] = "candidate"
         _save_lessons(root, data)
         write_lessons_view(root, data)
         return
     data["lessons"].append(
         {
+            "id": _lesson_id(norm),
+            "kind": "learned_hypothesis",
             "norm": norm,
             "text": text,
-            "status": "seen",
+            "status": "observed",
             "scope": [agent],
             "deliveries": [delivery_name],
+            "provenance": {
+                "source": "stage_flag",
+                "observations": [{"delivery": delivery_name, "agent": agent}],
+            },
         }
     )
     _save_lessons(root, data)
     write_lessons_view(root, data)
 
 
-def _taught_rules(root, stages):
-    data = _load_lessons(root)
+def approve_lesson(root, lesson_id, *, approved_by="user"):
+    if approved_by != "user":
+        raise PlanError("learned rules can only be approved by the user")
+    with _file_lock(_lessons_path(root).with_suffix(".lock")):
+        data = _load_lessons(root)
+        for lesson in data.get("lessons", []):
+            if lesson.get("id") != lesson_id:
+                continue
+            lesson["status"] = "approved"
+            lesson["provenance"]["approval"] = {
+                "by": "user",
+                "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+            }
+            _save_lessons(root, data)
+            write_lessons_view(root, data)
+            return lesson
+    raise PlanError(f"unknown lesson id: {lesson_id}")
+
+
+def _approved_rules(root, stages):
+    with _file_lock(_lessons_path(root).with_suffix(".lock")):
+        data = _load_lessons(root)
     agents = {stage.agent for stage in stages}
     rules = []
     for lesson in data.get("lessons", []):
-        if lesson.get("status") != "taught":
+        approval = lesson.get("provenance", {}).get("approval") or {}
+        if lesson.get("status") != "approved" or approval.get("by") != "user":
             continue
         if agents.intersection(lesson.get("scope", [])):
             rules.append(lesson["text"])
@@ -228,10 +368,29 @@ def render_graph(delivery):
             upstream = by_id.get(dep)
             if upstream:
                 edges.append(f"{upstream.agent} -> {stage.agent}")
+    levels = {}
+    remaining = list(delivery.stages)
+    while remaining:
+        progressed = False
+        for stage in list(remaining):
+            if all(dep in levels for dep in stage.depends_on):
+                levels[stage.id] = (
+                    max((levels[dep] for dep in stage.depends_on), default=-1) + 1
+                )
+                remaining.remove(stage)
+                progressed = True
+        if not progressed:
+            break
+    parallel = []
+    for level in sorted(set(levels.values())):
+        agents = [stage.agent for stage in delivery.stages if levels.get(stage.id) == level]
+        if len(agents) > 1:
+            parallel.append(" + ".join(agents))
     return (
         f"NODES: {nodes}\n"
         f"EDGES: {', '.join(edges) if edges else 'none'}\n"
-        f"PARALLEL: none\n"
+        f"PARALLEL: {'; '.join(parallel) if parallel else 'none'}\n"
+        f"MAX-PARALLEL: {delivery.max_parallel}\n"
         f"ON-FAIL: stop\n"
     )
 
@@ -247,6 +406,40 @@ def write_views(root, delivery, *, verified="none", not_checked="none"):
 
 def _has_criteria(stage):
     return any(str(item).strip() for item in stage.success_criteria)
+
+
+def _validate_stages(stages):
+    if not stages:
+        raise PlanError("plan requires at least one stage")
+    ids = [stage.id for stage in stages]
+    if any(not isinstance(stage_id, str) or not stage_id.strip() for stage_id in ids):
+        raise PlanError("stage ids must be nonempty strings")
+    if len(ids) != len(set(ids)):
+        raise PlanError("stage ids must be unique")
+    by_id = {stage.id: stage for stage in stages}
+    for stage in stages:
+        if stage.agent not in AGENTS:
+            raise PlanError(f"unknown stage agent {stage.agent}")
+        missing = [dep for dep in stage.depends_on if dep not in by_id]
+        if missing:
+            raise PlanError(f"stage {stage.id} has unknown dependency {missing[0]}")
+
+    visiting = set()
+    visited = set()
+
+    def visit(stage_id):
+        if stage_id in visiting:
+            raise PlanError("stage dependency graph contains a cycle")
+        if stage_id in visited:
+            return
+        visiting.add(stage_id)
+        for dependency in by_id[stage_id].depends_on:
+            visit(dependency)
+        visiting.remove(stage_id)
+        visited.add(stage_id)
+
+    for stage_id in ids:
+        visit(stage_id)
 
 
 def _wip_count(root, sprint):
@@ -309,20 +502,31 @@ def _remember_story(root, sprint_id, name):
     write_sprint_view(root, sprint)
 
 
-def plan(*, root, name, done_when, stages, sprint="", issue=0, runner=None):
+def plan(
+    *, root, name, done_when, stages, sprint="", issue=0, runner=None,
+    max_parallel=3
+):
     if _state_path(root, name).is_file():
         existing = load(root, name)
-        existing.rules_printed = _taught_rules(root, existing.stages)
+        existing.rules_printed = _approved_rules(root, existing.stages)
         save(root, existing)
         write_views(root, existing, not_checked=existing.done_when or "none")
         return existing
+    _validate_stages(stages)
     if not done_when.strip() or any(not _has_criteria(stage) for stage in stages):
         raise PlanError("plan requires nonempty done_when and success criteria")
+    if not isinstance(max_parallel, int) or not 1 <= max_parallel <= 8:
+        raise PlanError("max_parallel must be between 1 and 8")
+    for stage in stages:
+        for owned_path in stage.owned_paths:
+            path = pathlib.PurePosixPath(owned_path)
+            if path.is_absolute() or ".." in path.parts or not owned_path.strip():
+                raise PlanError(f"invalid owned path for stage {stage.id}: {owned_path}")
     issue_data = {}
     if issue:
         if runner is None or not hasattr(runner, "capture"):
             raise PlanError("plan --issue requires a runner with capture")
-        cmd = f"gh issue view {int(issue)} --json number,title,url"
+        cmd = ["gh", "issue", "view", str(int(issue)), "--json", "number,title,url"]
         code, out = runner.capture(root, cmd)
         if code != 0:
             raise PlanError(f"gh issue view exited {code}")
@@ -347,8 +551,9 @@ def plan(*, root, name, done_when, stages, sprint="", issue=0, runner=None):
         spawns=0,
         sprint=sprint_id,
         issue=issue_data,
+        max_parallel=max_parallel,
     )
-    delivery.rules_printed = _taught_rules(root, delivery.stages)
+    delivery.rules_printed = _approved_rules(root, delivery.stages)
     save(root, delivery)
     write_views(root, delivery, not_checked=done_when or "none")
     _remember_story(root, sprint_id, name)
@@ -369,7 +574,7 @@ def record_pr(root, name, number, runner):
     delivery = load(root, name)
     if not delivery.issue:
         raise PlanError("record_pr requires a delivery issue")
-    repo_cmd = "gh repo view --json nameWithOwner"
+    repo_cmd = ["gh", "repo", "view", "--json", "nameWithOwner"]
     code, out = runner.capture(root, repo_cmd)
     if code != 0:
         raise PlanError(f"gh repo view exited {code}")
@@ -378,7 +583,7 @@ def record_pr(root, name, number, runner):
         repo = repo_payload["nameWithOwner"]
     except (json.JSONDecodeError, KeyError, TypeError) as exc:
         raise PlanError("gh repo view returned malformed JSON") from exc
-    pr_cmd = f"gh pr view {int(number)} --json number,url,state"
+    pr_cmd = ["gh", "pr", "view", str(int(number)), "--json", "number,url,state"]
     code, out = runner.capture(root, pr_cmd)
     if code != 0:
         raise PlanError(f"gh pr view exited {code}")
@@ -431,7 +636,7 @@ def ingest(root, name, *, kind, stage_id, runner, check="", comment=""):
     except (TypeError, ValueError) as exc:
         raise PlanError("pr number must be an integer") from exc
     if kind == "check":
-        cmd = f"gh pr checks {number} --json name,bucket,link"
+        cmd = ["gh", "pr", "checks", str(number), "--json", "name,bucket,link"]
         code, out = runner.capture(root, cmd)
         if code != 0:
             raise PlanError(f"gh pr checks exited {code}")
@@ -449,7 +654,10 @@ def ingest(root, name, *, kind, stage_id, runner, check="", comment=""):
         return _reopen(root, delivery, stage)
     if not _REPO_RE.fullmatch(delivery.repo or ""):
         raise PlanError("repo must be owner/name")
-    cmd = f"gh api repos/{delivery.repo}/pulls/{number}/comments --jq .[].id"
+    cmd = [
+        "gh", "api", f"repos/{delivery.repo}/pulls/{number}/comments",
+        "--jq", ".[].id",
+    ]
     code, out = runner.capture(root, cmd)
     if code != 0:
         raise PlanError(f"gh api comments exited {code}")
@@ -488,7 +696,7 @@ def watch_once(root, name, runner):
         number = int(delivery.pr["number"])
     except (TypeError, ValueError) as exc:
         raise PlanError("pr number must be an integer") from exc
-    cmd = f"gh pr checks {number} --json name,bucket,link"
+    cmd = ["gh", "pr", "checks", str(number), "--json", "name,bucket,link"]
     code, out = runner.capture(root, cmd)
     if code != 0:
         raise PlanError(f"gh pr checks exited {code}")
@@ -516,7 +724,10 @@ def watch_once(root, name, runner):
         return {"action": "reopen", "check": check}
     if not _REPO_RE.fullmatch(delivery.repo or ""):
         raise PlanError("repo must be owner/name")
-    review_cmd = f"gh api repos/{delivery.repo}/pulls/{number}/comments --jq .[].id"
+    review_cmd = [
+        "gh", "api", f"repos/{delivery.repo}/pulls/{number}/comments",
+        "--jq", ".[].id",
+    ]
     code, out = runner.capture(root, review_cmd)
     if code != 0:
         raise PlanError(f"gh api comments exited {code}")
@@ -540,6 +751,80 @@ def _did_on_disk(root, stage):
 
 def _cap_hit(delivery):
     return delivery.spawns >= delivery.cap and delivery.status != "done"
+
+
+def _paths_overlap(left, right):
+    left_parts = pathlib.PurePosixPath(left).parts
+    right_parts = pathlib.PurePosixPath(right).parts
+    shortest = min(len(left_parts), len(right_parts))
+    return left_parts[:shortest] == right_parts[:shortest]
+
+
+def _ownership_collision(stage, others):
+    for other in others:
+        for owned in stage.owned_paths:
+            if any(_paths_overlap(owned, active) for active in other.owned_paths):
+                return other
+    return None
+
+
+def ready_stages(root, name):
+    """Return a deterministic, bounded wave of dependency-ready stages."""
+    delivery = load(root, name)
+    return _ready_for_delivery(delivery)
+
+
+def _ready_for_delivery(delivery):
+    if (
+        _dod_met(delivery)
+        or delivery.status in ("stopped", "done")
+        or _cap_hit(delivery)
+    ):
+        return []
+    active = [stage for stage in delivery.stages if stage.status == "running"]
+    free = max(0, delivery.max_parallel - len(active))
+    if not free:
+        return []
+    by_id = {stage.id: stage for stage in delivery.stages}
+    selected = []
+    for stage in delivery.stages:
+        if stage.status != "queued":
+            continue
+        if not all(
+            dep in by_id and by_id[dep].status in ("done", "skipped")
+            for dep in stage.depends_on
+        ):
+            continue
+        if _ownership_collision(stage, [*active, *selected]):
+            continue
+        selected.append(stage)
+        if len(selected) >= free:
+            break
+    return selected
+
+
+def claim_stage(root, name, stage_id):
+    """Atomically claim one ready lane before dispatching its agent."""
+    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with _file_lock(lock_path):
+        delivery = load(root, name)
+        stage = next((item for item in delivery.stages if item.id == stage_id), None)
+        if stage is None:
+            raise PlanError(f"stage {stage_id} is missing")
+        ready_ids = {item.id for item in _ready_for_delivery(delivery)}
+        if stage_id not in ready_ids:
+            active = [item for item in delivery.stages if item.status == "running"]
+            collision = _ownership_collision(stage, active)
+            if collision:
+                raise PlanError(
+                    f"stage {stage_id} path ownership collides with running stage {collision.id}"
+                )
+            raise PlanError(f"stage {stage_id} is not ready or parallel capacity is full")
+        stage.status = "running"
+        save(root, delivery)
+        write_views(root, delivery, not_checked=delivery.done_when or "none")
+        return stage
 
 
 def next_agent(root, name):
@@ -603,25 +888,87 @@ def _parse_labels(text):
     return fields
 
 
-def _is_command(text):
-    return bool(text) and any(marker in text for marker in _COMMAND_MARKERS)
+def _parse_verification(raw):
+    payload = raw.split(" →", 1)[0].strip()
+    try:
+        spec = json.loads(payload)
+    except json.JSONDecodeError as exc:
+        raise ReportError(
+            "VERIFIED must be JSON: "
+            '{"runner":"artisan-test","args":["--filter=TagTest"]}'
+        ) from exc
+    if not isinstance(spec, dict) or set(spec) - {"runner", "args"}:
+        raise ReportError("VERIFIED JSON accepts only runner and args")
+    runner = spec.get("runner")
+    args = spec.get("args", [])
+    allowed_runners = set(_VERIFICATION_RUNNERS) | _INTERNAL_VERIFICATION_RUNNERS
+    if runner not in allowed_runners:
+        allowed = ", ".join(sorted(allowed_runners))
+        raise ReportError(f"unknown verification runner {runner!r}; choose one of: {allowed}")
+    if not isinstance(args, list) or any(not isinstance(arg, str) for arg in args):
+        raise ReportError("VERIFIED args must be a JSON array of strings")
+    if len(args) > 32:
+        raise ReportError("VERIFIED args exceeds the 32-argument limit")
+    for arg in args:
+        if not arg or len(arg) > 512 or any(char in arg for char in ("\x00", "\n", "\r")):
+            raise ReportError("VERIFIED args must be nonempty single-line strings up to 512 characters")
+    if runner == "file-exists" and not args:
+        raise ReportError("file-exists requires at least one project-relative path")
+    if runner == "file-has-lines" and len(args) < 2:
+        raise ReportError("file-has-lines requires a project-relative path and at least one prefix")
+    return {"runner": runner, "args": args}
+
+
+def _verification_argv(spec):
+    return [*_VERIFICATION_RUNNERS[spec["runner"]], *spec["args"]]
+
+
+def _verification_text(spec):
+    return json.dumps(spec, separators=(",", ":"), sort_keys=True)
+
+
+def _project_file(root, raw_path):
+    root = pathlib.Path(root).resolve()
+    candidate = (root / raw_path).resolve()
+    try:
+        candidate.relative_to(root)
+    except ValueError as exc:
+        raise ReportError("verification paths must stay inside the project") from exc
+    return candidate
+
+
+def _run_verification(root, spec, runner):
+    if spec["runner"] == "file-exists":
+        return 0 if all(_project_file(root, path).is_file() for path in spec["args"]) else 1
+    if spec["runner"] == "file-has-lines":
+        path = _project_file(root, spec["args"][0])
+        if not path.is_file():
+            return 1
+        try:
+            lines = path.read_text(encoding="utf-8").splitlines()
+        except (OSError, UnicodeError):
+            return 1
+        return 0 if all(any(line.startswith(prefix) for line in lines) for prefix in spec["args"][1:]) else 1
+    return runner.run(root, _verification_argv(spec))
 
 
 def report(root, name, path, runner):
     fields = _parse_labels(pathlib.Path(path).read_text())
-    commands = []
+    verifications = []
     for raw in fields["VERIFIED"]:
-        cmd = raw.split(" →", 1)[0].strip()
-        if not _is_command(cmd):
-            raise ReportError("VERIFIED must be a command")
-        commands.append(cmd)
-    if not commands:
-        raise ReportError("VERIFIED must be a command")
+        verifications.append(_parse_verification(raw))
+    if not verifications:
+        raise ReportError("VERIFIED must contain a structured verification record")
 
-    for cmd in commands:
-        if runner.run(root, cmd) != 0:
-            raise ReportError(f"command failed: {cmd}")
+    for spec in verifications:
+        if _run_verification(root, spec, runner) != 0:
+            raise ReportError(f"verification failed: {_verification_text(spec)}")
 
+    with _file_lock(_state_path(root, name).with_suffix(".lock")):
+        return _commit_report(root, name, path, fields, verifications)
+
+
+def _commit_report(root, name, path, fields, verifications):
     delivery = load(root, name)
     agent = pathlib.Path(path).stem
     not_checked = " ".join(fields["NOT-CHECKED"])
@@ -639,7 +986,7 @@ def report(root, name, path, runner):
                 if criterion and criterion in not_checked:
                     raise ReportError(f"NOT-CHECKED names success criterion: {criterion}")
             stage.verified = list(stage.verified) + [
-                {"cmd": cmd, "exit": 0} for cmd in commands
+                {**spec, "exit": 0} for spec in verifications
             ]
             stage.awaiting_pair = False
             stage.status = "done"
@@ -655,7 +1002,7 @@ def report(root, name, path, runner):
             if criterion and criterion in not_checked:
                 raise ReportError(f"NOT-CHECKED names success criterion: {criterion}")
         stage.did = did_paths
-        stage.verified = [{"cmd": cmd, "exit": 0} for cmd in commands]
+        stage.verified = [{**spec, "exit": 0} for spec in verifications]
         stage.flags = list(flag_texts)
         if stage.pair:
             stage.awaiting_pair = True
@@ -678,7 +1025,7 @@ def report(root, name, path, runner):
     write_views(
         root,
         delivery,
-        verified=" ".join(commands) if commands else "none",
+        verified=" ".join(_verification_text(spec) for spec in verifications),
         not_checked=not_checked or "none",
     )
     if delivery.sprint and (_sprint_dir(root, delivery.sprint) / "sprint.json").is_file():

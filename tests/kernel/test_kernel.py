@@ -3,6 +3,7 @@ import pathlib
 import subprocess
 import sys
 import tempfile
+import threading
 import unittest
 
 REPO = pathlib.Path(__file__).resolve().parents[2]
@@ -11,17 +12,29 @@ sys.path.insert(0, str(REPO / "scripts" / "guild-kernel"))
 import kernel  # noqa: E402
 
 
+def verify_artisan(filter_name):
+    return json.dumps(
+        {"runner": "artisan-test", "args": [f"--filter={filter_name}"]},
+        separators=(",", ":"),
+    )
+
+
+VERIFY_TAG = verify_artisan("TagTest")
+VERIFY_TAG_ARGV = ["php", "artisan", "test", "--filter=TagTest"]
+
+
 class FakeRunner:
     def __init__(self, codes, captured=None):
         self.codes = codes
         self.captured = captured or {}
         self.calls = []
 
-    def run(self, cwd, cmd):
-        self.calls.append((str(cwd), cmd))
-        return self.codes[cmd]
+    def run(self, cwd, argv):
+        self.calls.append((str(cwd), argv))
+        return self.codes[" ".join(argv)]
 
-    def capture(self, cwd, cmd):
+    def capture(self, cwd, argv):
+        cmd = " ".join(argv)
         self.calls.append((str(cwd), cmd))
         code, out = self.captured[cmd]
         return code, out
@@ -77,6 +90,152 @@ class PlanNextTest(unittest.TestCase):
         self.assertNotEqual(kernel.next_agent(self.root, "tag"), "backend-developer")
 
 
+class ParallelDispatchTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _stage(self, sid, agent, *, depends=(), owns=()):
+        return kernel.StageSpec(
+            sid,
+            agent,
+            "writer",
+            [f"{sid} complete"],
+            list(depends),
+            owned_paths=list(owns),
+        )
+
+    def test_ready_returns_bounded_parallel_wave(self):
+        kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="x",
+            stages=[
+                self._stage("a", "database-developer"),
+                self._stage("b", "backend-developer"),
+                self._stage("c", "frontend-developer"),
+            ],
+            max_parallel=2,
+        )
+        self.assertEqual(
+            [stage.id for stage in kernel.ready_stages(self.root, "tag")],
+            ["a", "b"],
+        )
+        kernel.claim_stage(self.root, "tag", "a")
+        kernel.claim_stage(self.root, "tag", "b")
+        self.assertEqual(kernel.ready_stages(self.root, "tag"), [])
+        self.assertEqual(
+            [stage.status for stage in kernel.load(self.root, "tag").stages],
+            ["running", "running", "queued"],
+        )
+
+    def test_path_ownership_prevents_parallel_collision(self):
+        kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="x",
+            stages=[
+                self._stage("a", "database-developer", owns=["app/Models"]),
+                self._stage("b", "backend-developer", owns=["app/Models/Tag.php"]),
+            ],
+        )
+        self.assertEqual(
+            [stage.id for stage in kernel.ready_stages(self.root, "tag")], ["a"]
+        )
+        kernel.claim_stage(self.root, "tag", "a")
+        with self.assertRaisesRegex(kernel.PlanError, "collides with running stage a"):
+            kernel.claim_stage(self.root, "tag", "b")
+
+    def test_concurrent_reports_preserve_both_stage_results(self):
+        kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="x",
+            stages=[
+                self._stage("a", "database-developer"),
+                self._stage("b", "backend-developer"),
+            ],
+            max_parallel=2,
+        )
+        kernel.claim_stage(self.root, "tag", "a")
+        kernel.claim_stage(self.root, "tag", "b")
+        reports = []
+        for agent in ("database-developer", "backend-developer"):
+            artifact = self.root / f"{agent}.txt"
+            artifact.write_text("done\n")
+            report_path = self.root / "docs/delivery/tag/stages" / f"{agent}.md"
+            report_path.parent.mkdir(parents=True, exist_ok=True)
+            report_path.write_text(
+                f"STATUS: done\nDID: {artifact.name}\n"
+                f'VERIFIED: {{"runner":"file-exists","args":["{artifact.name}"]}}\n'
+                "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
+            )
+            reports.append(report_path)
+
+        barrier = threading.Barrier(2)
+        failures = []
+
+        def submit(report_path):
+            try:
+                barrier.wait()
+                kernel.report(self.root, "tag", report_path, runner=FakeRunner({}))
+            except Exception as exc:  # pragma: no cover - asserted below
+                failures.append(exc)
+
+        threads = [threading.Thread(target=submit, args=(path,)) for path in reports]
+        for thread in threads:
+            thread.start()
+        for thread in threads:
+            thread.join()
+
+        self.assertEqual(failures, [])
+        delivery = kernel.load(self.root, "tag")
+        self.assertEqual([stage.status for stage in delivery.stages], ["done", "done"])
+        self.assertEqual(delivery.spawns, 2)
+
+    def test_dependency_blocks_ready_stage(self):
+        kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="x",
+            stages=[
+                self._stage("a", "database-developer"),
+                self._stage("b", "backend-developer", depends=["a"]),
+            ],
+        )
+        self.assertEqual(
+            [stage.id for stage in kernel.ready_stages(self.root, "tag")], ["a"]
+        )
+
+    def test_graph_names_parallel_lanes_and_limit(self):
+        delivery = kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="x",
+            stages=[
+                self._stage("a", "database-developer"),
+                self._stage("b", "backend-developer"),
+                self._stage("c", "qa-engineer", depends=["a", "b"]),
+            ],
+            max_parallel=2,
+        )
+        graph = kernel.render_graph(delivery)
+        self.assertIn("PARALLEL: database-developer + backend-developer", graph)
+        self.assertIn("MAX-PARALLEL: 2", graph)
+
+    def test_invalid_owned_path_is_rejected(self):
+        with self.assertRaisesRegex(kernel.PlanError, "invalid owned path"):
+            kernel.plan(
+                root=self.root,
+                name="tag",
+                done_when="x",
+                stages=[self._stage("a", "database-developer", owns=["../app"])],
+            )
+
+
 class ReportTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()
@@ -104,12 +263,75 @@ class ReportTest(unittest.TestCase):
         with self.assertRaises(kernel.ReportError):
             kernel.report(self.root, "tag", p, runner=FakeRunner({}))
 
+    def test_unknown_verification_runner_is_rejected_without_execution(self):
+        self._plan_one()
+        p = self.root / "docs/delivery/tag/stages/database-developer.md"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(
+            'STATUS: done\nDID: app/Models/Tag.php\n'
+            'VERIFIED: {"runner":"shell","args":["rm","-rf","."]}\n'
+            'NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n'
+        )
+        runner = FakeRunner({})
+        with self.assertRaisesRegex(kernel.ReportError, "unknown verification runner"):
+            kernel.report(self.root, "tag", p, runner=runner)
+        self.assertEqual(runner.calls, [])
+
+    def test_legacy_shell_command_is_rejected_without_execution(self):
+        self._plan_one()
+        p = self.root / "docs/delivery/tag/stages/database-developer.md"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(
+            "STATUS: done\nDID: app/Models/Tag.php\n"
+            "VERIFIED: php artisan test; touch escaped\n"
+            "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
+        )
+        runner = FakeRunner({})
+        with self.assertRaisesRegex(kernel.ReportError, "VERIFIED must be JSON"):
+            kernel.report(self.root, "tag", p, runner=runner)
+        self.assertEqual(runner.calls, [])
+
+    def test_file_has_lines_verifier_stays_inside_project(self):
+        self._plan_one()
+        packet = self.root / "docs/delivery/tag/packets/a-to-b.md"
+        packet.parent.mkdir(parents=True, exist_ok=True)
+        packet.write_text("FROM: a\nTO: b\n")
+        stage = self.root / "docs/delivery/tag/stages/database-developer.md"
+        stage.parent.mkdir(parents=True, exist_ok=True)
+        spec = json.dumps(
+            {
+                "runner": "file-has-lines",
+                "args": ["docs/delivery/tag/packets/a-to-b.md", "FROM:", "TO:"],
+            },
+            separators=(",", ":"),
+        )
+        stage.write_text(
+            f"STATUS: done\nDID: {packet.relative_to(self.root)}\nVERIFIED: {spec}\n"
+            "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
+        )
+        runner = FakeRunner({})
+        delivery = kernel.report(self.root, "tag", stage, runner=runner)
+        self.assertEqual(delivery.stages[0].status, "done")
+        self.assertEqual(runner.calls, [])
+
+    def test_file_verifier_rejects_path_escape(self):
+        self._plan_one()
+        stage = self.root / "docs/delivery/tag/stages/database-developer.md"
+        stage.parent.mkdir(parents=True, exist_ok=True)
+        stage.write_text(
+            'STATUS: done\nDID: none\n'
+            'VERIFIED: {"runner":"file-exists","args":["../outside"]}\n'
+            'NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n'
+        )
+        with self.assertRaisesRegex(kernel.ReportError, "paths must stay inside"):
+            kernel.report(self.root, "tag", stage, runner=FakeRunner({}))
+
     def test_command_exit_nonzero_is_rejected(self):
         self._plan_one()
         p = self.root / "docs/delivery/tag/stages/database-developer.md"
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(
-            "STATUS: done\nDID: app/Models/Tag.php\nVERIFIED: php artisan test --filter=TagTest\n"
+            f"STATUS: done\nDID: app/Models/Tag.php\nVERIFIED: {VERIFY_TAG}\n"
             "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
         )
         runner = FakeRunner({"php artisan test --filter=TagTest": 1})
@@ -121,21 +343,21 @@ class ReportTest(unittest.TestCase):
         p = self.root / "docs/delivery/tag/stages/database-developer.md"
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(
-            "STATUS: done\nDID: app/Models/Tag.php\nVERIFIED: php artisan test --filter=TagTest\n"
+            f"STATUS: done\nDID: app/Models/Tag.php\nVERIFIED: {VERIFY_TAG}\n"
             "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
         )
         runner = FakeRunner({"php artisan test --filter=TagTest": 0})
         d = kernel.report(self.root, "tag", p, runner=runner)
         self.assertEqual(d.stages[0].status, "done")
-        self.assertEqual(runner.calls[0][1], "php artisan test --filter=TagTest")
+        self.assertEqual(runner.calls[0][1], VERIFY_TAG_ARGV)
         self.assertEqual(
             d.stages[0].verified,
-            [{"cmd": "php artisan test --filter=TagTest", "exit": 0}],
+            [{"runner": "artisan-test", "args": ["--filter=TagTest"], "exit": 0}],
         )
         saved = kernel.load(self.root, "tag")
         self.assertEqual(
             saved.stages[0].verified,
-            [{"cmd": "php artisan test --filter=TagTest", "exit": 0}],
+            [{"runner": "artisan-test", "args": ["--filter=TagTest"], "exit": 0}],
         )
 
     def test_not_checked_naming_criterion_is_rejected(self):
@@ -143,7 +365,7 @@ class ReportTest(unittest.TestCase):
         p = self.root / "docs/delivery/tag/stages/database-developer.md"
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(
-            "STATUS: done\nDID: app/Models/Tag.php\nVERIFIED: php artisan test --filter=TagTest\n"
+            f"STATUS: done\nDID: app/Models/Tag.php\nVERIFIED: {VERIFY_TAG}\n"
             "NOT-CHECKED: tags migration exists\nFLAGS: none\nNEXT: none\n"
         )
         with self.assertRaises(kernel.ReportError):
@@ -182,7 +404,7 @@ class SkipCapTest(unittest.TestCase):
         p = self.root / f"docs/delivery/tag/stages/{agent}.md"
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(
-            f"STATUS: done\nDID: {did}\nVERIFIED: php artisan test --filter=TagTest\n"
+            f"STATUS: done\nDID: {did}\nVERIFIED: {VERIFY_TAG}\n"
             "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
         )
         return p
@@ -329,7 +551,7 @@ class ViewsCliTest(unittest.TestCase):
         p = self.root / "docs/delivery/tag/stages/database-developer.md"
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(
-            "STATUS: done\nDID: app/Models/Tag.php\nVERIFIED: php artisan test --filter=TagTest\n"
+            f"STATUS: done\nDID: app/Models/Tag.php\nVERIFIED: {VERIFY_TAG}\n"
             "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
         )
         kernel.report(
@@ -457,6 +679,49 @@ class ViewsCliTest(unittest.TestCase):
         )
         self.assertEqual(d.stages[1].success_criteria, ["hello, world", "other"])
 
+    def test_cli_stage_json_ready_and_claim(self):
+        guild = REPO / "scripts/guild-kernel/guild.py"
+        stage = json.dumps(
+            {
+                "id": "a",
+                "agent": "database-developer",
+                "role": "writer",
+                "success_criteria": ["migration exists"],
+                "depends_on": [],
+                "owned_paths": ["database/migrations"],
+            }
+        )
+        planned = subprocess.run(
+            [
+                sys.executable, str(guild), "plan", "--root", str(self.root),
+                "--name", "tag", "--done-when", "x", "--stage-json", stage,
+            ],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(planned.returncode, 0, planned.stderr)
+        ready = subprocess.run(
+            [
+                sys.executable, str(guild), "ready", "--root", str(self.root),
+                "--name", "tag",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(
+            json.loads(ready.stdout)[0]["owned_paths"], ["database/migrations"]
+        )
+        claimed = subprocess.run(
+            [
+                sys.executable, str(guild), "claim", "--root", str(self.root),
+                "--name", "tag", "--stage", "a",
+            ],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(claimed.returncode, 0, claimed.stderr)
+        self.assertEqual(claimed.stdout.strip(), "AGENT: database-developer")
+
 
 class DodTest(unittest.TestCase):
     def setUp(self):
@@ -484,7 +749,7 @@ class DodTest(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
             "STATUS: done\nDID: app/Http/Controllers/TagController.php\n"
-            "VERIFIED: php artisan test --filter=TagTest\n"
+            f"VERIFIED: {VERIFY_TAG}\n"
             "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
         )
         with self.assertRaises(kernel.ReportError):
@@ -529,6 +794,29 @@ class DorTest(unittest.TestCase):
                 ],
             )
         self.assertFalse((self.root / "docs/delivery/tag/kernel.json").is_file())
+
+    def test_plan_rejects_empty_duplicate_unknown_and_cyclic_stages(self):
+        invalid_sets = [
+            [],
+            [
+                kernel.StageSpec("a", "database-developer", "writer", ["m"], []),
+                kernel.StageSpec("a", "backend-developer", "writer", ["h"], []),
+            ],
+            [kernel.StageSpec("a", "unknown-agent", "writer", ["m"], [])],
+            [kernel.StageSpec("a", "database-developer", "writer", ["m"], ["z"])],
+            [
+                kernel.StageSpec("a", "database-developer", "writer", ["m"], ["b"]),
+                kernel.StageSpec("b", "backend-developer", "writer", ["h"], ["a"]),
+            ],
+        ]
+        for index, stages in enumerate(invalid_sets):
+            with self.subTest(index=index), self.assertRaises(kernel.PlanError):
+                kernel.plan(
+                    root=self.root,
+                    name=f"tag-{index}",
+                    done_when="x",
+                    stages=stages,
+                )
 
 
 class SprintStartTest(unittest.TestCase):
@@ -806,7 +1094,7 @@ class LessonTest(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
             "STATUS: done\nDID: app/Models/Tag.php\n"
-            "VERIFIED: php artisan test --filter=TagTest\n"
+            f"VERIFIED: {VERIFY_TAG}\n"
             f"NOT-CHECKED: none\nFLAGS: {flags}\nNEXT: none\n"
         )
         return kernel.report(
@@ -820,10 +1108,14 @@ class LessonTest(unittest.TestCase):
         self._report("tag", "database-developer", "none")
         self.assertFalse((self.root / "docs/team/lessons.json").is_file())
 
-    def test_first_flag_is_seen_and_plan_prints_no_rule(self):
+    def test_first_flag_is_observed_and_plan_prints_no_rule(self):
         self._report("tag", "database-developer", "Do not call Model::all()")
         lessons = json.loads((self.root / "docs/team/lessons.json").read_text())
-        self.assertEqual(lessons["lessons"][0]["status"], "seen")
+        self.assertEqual(lessons["lessons"][0]["status"], "observed")
+        self.assertEqual(lessons["lessons"][0]["kind"], "learned_hypothesis")
+        self.assertEqual(
+            lessons["lessons"][0]["provenance"]["source"], "stage_flag"
+        )
         self.assertEqual(lessons["lessons"][0]["deliveries"], ["tag"])
         again = kernel.plan(
             root=self.root,
@@ -833,12 +1125,12 @@ class LessonTest(unittest.TestCase):
         )
         self.assertEqual(again.rules_printed, [])
 
-    def test_second_delivery_teaches_and_view_shows_rule(self):
+    def test_second_delivery_creates_candidate_but_does_not_print_rule(self):
         self._report("tag", "database-developer", "Do not call Model::all()")
         self._report("post", "backend-developer", "Do not call Model::all()")
         lessons = json.loads((self.root / "docs/team/lessons.json").read_text())
         lesson = lessons["lessons"][0]
-        self.assertEqual(lesson["status"], "taught")
+        self.assertEqual(lesson["status"], "candidate")
         self.assertEqual(set(lesson["scope"]), {"database-developer", "backend-developer"})
         self.assertEqual(lesson["deliveries"], ["tag", "post"])
         view = (self.root / "docs/team/lessons.md").read_text()
@@ -848,8 +1140,8 @@ class LessonTest(unittest.TestCase):
                 f"lessons.md missing {label}",
             )
         self.assertIn("Do not call Model::all()", view)
-        self.assertIn("STATUS: taught", view)
-        taught_plan = kernel.plan(
+        self.assertIn("STATUS: candidate", view)
+        candidate_plan = kernel.plan(
             root=self.root,
             name="later",
             done_when="POST /api/tags creates a Tag",
@@ -857,19 +1149,48 @@ class LessonTest(unittest.TestCase):
                 kernel.StageSpec("a", "database-developer", "writer", ["m"], [])
             ],
         )
-        self.assertEqual(taught_plan.rules_printed, ["Do not call Model::all()"])
+        self.assertEqual(candidate_plan.rules_printed, [])
 
-    def test_same_delivery_twice_stays_seen(self):
+    def test_explicit_user_approval_makes_candidate_authoritative(self):
+        self._report("tag", "database-developer", "Do not call Model::all()")
+        self._report("post", "backend-developer", "Do not call Model::all()")
+        data = json.loads((self.root / "docs/team/lessons.json").read_text())
+        lesson_id = data["lessons"][0]["id"]
+        approved = kernel.approve_lesson(self.root, lesson_id)
+        self.assertEqual(approved["status"], "approved")
+        self.assertEqual(approved["provenance"]["approval"]["by"], "user")
+        plan = kernel.plan(
+            root=self.root,
+            name="later",
+            done_when="POST /api/tags creates a Tag",
+            stages=[
+                kernel.StageSpec("a", "database-developer", "writer", ["m"], [])
+            ],
+        )
+        self.assertEqual(plan.rules_printed, ["Do not call Model::all()"])
+        view = (self.root / "docs/team/lessons.md").read_text()
+        self.assertIn("STATUS: approved", view)
+        self.assertIn("APPROVED-BY: user at ", view)
+
+    def test_approval_rejects_unknown_id(self):
+        with self.assertRaisesRegex(kernel.PlanError, "unknown lesson id"):
+            kernel.approve_lesson(self.root, "missing")
+
+    def test_non_user_cannot_approve_lesson(self):
+        with self.assertRaisesRegex(kernel.PlanError, "only be approved by the user"):
+            kernel.approve_lesson(self.root, "missing", approved_by="agent")
+
+    def test_same_delivery_twice_stays_observed(self):
         self._report("tag", "database-developer", "Do not call Model::all()")
         kernel._record_lesson(
             self.root, "tag", "backend-developer", "Do not call Model::all()"
         )
         lessons = json.loads((self.root / "docs/team/lessons.json").read_text())
         lesson = lessons["lessons"][0]
-        self.assertEqual(lesson["status"], "seen")
+        self.assertEqual(lesson["status"], "observed")
         self.assertEqual(lesson["deliveries"], ["tag"])
 
-    def test_already_recorded_flag_refreshes_stale_view(self):
+    def test_legacy_auto_taught_lesson_is_demoted_to_candidate(self):
         team = self.root / "docs/team"
         team.mkdir(parents=True)
         (team / "lessons.json").write_text(
@@ -895,9 +1216,9 @@ class LessonTest(unittest.TestCase):
         )
         view = (team / "lessons.md").read_text()
         self.assertIn("RULE: Do not call Model::all()", view)
-        self.assertIn("STATUS: taught", view)
+        self.assertIn("STATUS: candidate", view)
         lessons = json.loads((team / "lessons.json").read_text())
-        self.assertEqual(lessons["lessons"][0]["status"], "taught")
+        self.assertEqual(lessons["lessons"][0]["status"], "candidate")
         self.assertEqual(lessons["lessons"][0]["deliveries"], ["tag", "post"])
 
     def _cli_plan(self, name, agent):
@@ -920,7 +1241,7 @@ class LessonTest(unittest.TestCase):
             text=True,
         )
 
-    def test_cli_plan_prints_rules_none_then_taught_rule(self):
+    def test_cli_plan_prints_rule_only_after_explicit_approval(self):
         proc = self._cli_plan("fresh", "database-developer")
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertNotIn("Traceback", proc.stderr)
@@ -928,6 +1249,28 @@ class LessonTest(unittest.TestCase):
 
         self._report("tag", "database-developer", "Do not call Model::all()")
         self._report("post", "backend-developer", "Do not call Model::all()")
+        proc = self._cli_plan("candidate", "database-developer")
+        self.assertEqual(proc.stdout.strip(), "RULES: none")
+
+        lessons = json.loads((self.root / "docs/team/lessons.json").read_text())
+        lesson_id = lessons["lessons"][0]["id"]
+        guild = REPO / "scripts/guild-kernel/guild.py"
+        approved = subprocess.run(
+            [
+                sys.executable,
+                str(guild),
+                "lesson",
+                "approve",
+                "--root",
+                str(self.root),
+                "--id",
+                lesson_id,
+            ],
+            capture_output=True,
+            text=True,
+        )
+        self.assertEqual(approved.returncode, 0, approved.stderr)
+        self.assertIn(f"APPROVED: {lesson_id}", approved.stdout)
         proc = self._cli_plan("later", "database-developer")
         self.assertEqual(proc.returncode, 0, proc.stderr)
         self.assertNotIn("Traceback", proc.stderr)
@@ -964,7 +1307,7 @@ class PairTest(unittest.TestCase):
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(
             "STATUS: done\nDID: app/Models/Tag.php\n"
-            "VERIFIED: php artisan test --filter=TagTest\n"
+            f"VERIFIED: {VERIFY_TAG}\n"
             "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
         )
         d = kernel.report(
@@ -978,7 +1321,7 @@ class PairTest(unittest.TestCase):
         self.assertTrue(stage.awaiting_pair)
         self.assertEqual(
             stage.verified,
-            [{"cmd": "php artisan test --filter=TagTest", "exit": 0}],
+            [{"runner": "artisan-test", "args": ["--filter=TagTest"], "exit": 0}],
         )
         self.assertEqual(kernel.next_agent(self.root, "tag"), "tech-lead")
         board = kernel.board_line(d)
@@ -1046,7 +1389,7 @@ class PairTest(unittest.TestCase):
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(
             "STATUS: done\nDID: app/Models/Tag.php\n"
-            "VERIFIED: php artisan test --filter=TagTest\n"
+            f"VERIFIED: {VERIFY_TAG}\n"
             "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
         )
         return kernel.report(
@@ -1068,7 +1411,7 @@ class PairTest(unittest.TestCase):
 
     def test_reviewer_exit_zero_finishes_paired_stage(self):
         self._waiting_pair()
-        p = self._reviewer_path(verified="php artisan test --filter=TagReview")
+        p = self._reviewer_path(verified=verify_artisan("TagReview"))
         d = kernel.report(
             self.root,
             "tag",
@@ -1081,8 +1424,8 @@ class PairTest(unittest.TestCase):
         self.assertEqual(
             stage.verified,
             [
-                {"cmd": "php artisan test --filter=TagTest", "exit": 0},
-                {"cmd": "php artisan test --filter=TagReview", "exit": 0},
+                {"runner": "artisan-test", "args": ["--filter=TagTest"], "exit": 0},
+                {"runner": "artisan-test", "args": ["--filter=TagReview"], "exit": 0},
             ],
         )
 
@@ -1091,7 +1434,7 @@ class PairTest(unittest.TestCase):
         cases = [
             ("the review looks fine", {}),
             (
-                "php artisan test --filter=TagReview",
+                verify_artisan("TagReview"),
                 {"php artisan test --filter=TagReview": 1},
             ),
         ]
@@ -1107,7 +1450,7 @@ class PairTest(unittest.TestCase):
     def test_reviewer_without_awaiting_pair_is_rejected(self):
         self._plan()
         kernel.pair(self.root, "tag", "a", reviewer="tech-lead")
-        p = self._reviewer_path(verified="php artisan test --filter=TagReview")
+        p = self._reviewer_path(verified=verify_artisan("TagReview"))
         with self.assertRaises(kernel.ReportError):
             kernel.report(
                 self.root,
@@ -1124,7 +1467,7 @@ class PairTest(unittest.TestCase):
         p = self.root / "docs/delivery/tag/stages/database-developer.md"
         p.write_text(
             "STATUS: done\nDID: app/Models/Tag.php\n"
-            "VERIFIED: php artisan test --filter=TagTest\n"
+            f"VERIFIED: {VERIFY_TAG}\n"
             "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
         )
         with self.assertRaises(kernel.ReportError):
@@ -1139,7 +1482,7 @@ class PairTest(unittest.TestCase):
         self.assertTrue(stage.awaiting_pair)
         self.assertEqual(
             stage.verified,
-            [{"cmd": "php artisan test --filter=TagTest", "exit": 0}],
+            [{"runner": "artisan-test", "args": ["--filter=TagTest"], "exit": 0}],
         )
 
     def test_cap_while_waiting_stops_and_next_is_stop(self):
@@ -1152,7 +1495,7 @@ class PairTest(unittest.TestCase):
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
             "STATUS: done\nDID: app/Models/Tag.php\n"
-            "VERIFIED: php artisan test --filter=TagTest\n"
+            f"VERIFIED: {VERIFY_TAG}\n"
             "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
         )
         reported = kernel.report(
@@ -1461,7 +1804,7 @@ class WorkplacePrTest(unittest.TestCase):
 
 STAGE_BODY = (
     "STATUS: done\nDID: app/Models/Tag.php\n"
-    "VERIFIED: php artisan test --filter=TagTest\n"
+    f"VERIFIED: {VERIFY_TAG}\n"
     "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
 )
 VERIFY_CMD = "php artisan test --filter=TagTest"

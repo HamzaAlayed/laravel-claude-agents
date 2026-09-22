@@ -94,7 +94,7 @@ Coordinator copies `stage-return.md` in this skill directory and fills after the
 ```markdown
 STATUS: done | blocked | needs-decision
 DID: files / artifacts touched, one line each
-VERIFIED: command → result (counts, `file:line`) — not claims
+VERIFIED: {"runner":"artisan-test","args":["--filter=FeatureTest"]} → result counts
 NOT-CHECKED: surfaces not examined, ≤3 lines — or none
 FLAGS: corrections, risks, checkpoints — or none
 NEXT: handoff or none
@@ -102,13 +102,22 @@ NEXT: handoff or none
 
 ≤12 lines. Coordinator Reads this file before `✔`. Direct invoke with no path: do not create `docs/delivery/unknown/`.
 
+`VERIFIED` is data, never shell text. The kernel accepts JSON objects with exactly
+`runner` and `args`, then invokes the registered runner with `shell=False`. Available
+runners: `artisan-test`, `artisan-route-list`, `composer-audit`, `git-diff-check`,
+`git-status`, `file-exists`, `file-has-lines`, `npm-build`, `npm-lint`, `npm-test`, `phpstan`, `phpunit`, `pint-test`,
+`pnpm-build`, `pnpm-lint`, `pnpm-test`, `pest`, `python-unittest`, and the Sail forms
+`sail-artisan-test`, `sail-artisan-route-list`, `sail-phpstan`, `sail-phpunit`,
+`sail-pint-test`, `sail-pest`. Arguments are an array of single-line strings. Unknown
+runners, extra JSON keys, legacy command strings, and malformed arguments fail closed.
+
 ## Close file — `docs/delivery/<feature>/close.md` (coordinator writes; overwrites)
 
 Latest wins. A killed run is scored from this file, not mid-board prose. Coordinator overwrites after the plan and after every stage.
 Coordinator copies `close.md` in this skill directory and fills after the colons.
 
 ```markdown
-VERIFIED: <commands you ran → counts>
+VERIFIED: <structured verification records → counts>
 NOT-CHECKED: <what nobody verified, or none>
 STATUS: running
 BOARD: <progress board as last printed>
@@ -127,14 +136,16 @@ SUMMARY: <investigation, employee/task ids masked>
 PATHS: <owned paths> · STAGE: docs/delivery/<name>/stages/<peer>.md
 ```
 
-## Graph — `docs/delivery/<feature>/graph.md` (coordinator writes; after the plan)
+## Graph — `docs/delivery/<feature>/graph.md` (kernel renders; after the plan)
 
-After the plan, before the first Agent. Coordinator copies `graph.md` in this skill directory and fills after the colons.
+After the plan, before the first Agent. The coordinator supplies dependencies,
+owned paths, and `--max-parallel`; the kernel renders this view. Do not compose it.
 
 ```markdown
 NODES: <registered agent types, comma-separated>
 EDGES: <from -> to, comma-separated>
-PARALLEL: none
+PARALLEL: <same-wave agents joined by +, or none>
+MAX-PARALLEL: <1-8>
 ON-FAIL: stop
 ```
 
