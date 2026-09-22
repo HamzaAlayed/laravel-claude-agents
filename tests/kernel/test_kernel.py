@@ -951,6 +951,34 @@ class PairTest(unittest.TestCase):
         kernel.pair(self.root, "tag", "a", reviewer="tech-lead")
         self.assertEqual(kernel.load(self.root, "tag").stages[0].pair, "tech-lead")
 
+    def test_writer_report_waits_for_paired_reviewer(self):
+        self._plan()
+        kernel.pair(self.root, "tag", "a", reviewer="tech-lead")
+        p = self.root / "docs/delivery/tag/stages/database-developer.md"
+        p.parent.mkdir(parents=True, exist_ok=True)
+        p.write_text(
+            "STATUS: done\nDID: app/Models/Tag.php\n"
+            "VERIFIED: php artisan test --filter=TagTest\n"
+            "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
+        )
+        d = kernel.report(
+            self.root,
+            "tag",
+            p,
+            runner=FakeRunner({"php artisan test --filter=TagTest": 0}),
+        )
+        stage = d.stages[0]
+        self.assertEqual(stage.status, "running")
+        self.assertTrue(stage.awaiting_pair)
+        self.assertEqual(
+            stage.verified,
+            [{"cmd": "php artisan test --filter=TagTest", "exit": 0}],
+        )
+        self.assertEqual(kernel.next_agent(self.root, "tag"), "tech-lead")
+        board = kernel.board_line(d)
+        self.assertIn("tech-lead", board)
+        self.assertIn("▶", board)
+
     def test_pair_rejects_unknown_self_missing_and_done(self):
         self._plan()
         cases = [

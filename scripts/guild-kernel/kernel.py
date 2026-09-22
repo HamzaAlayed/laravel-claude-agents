@@ -187,7 +187,8 @@ def board_line(delivery):
     lanes = []
     for stage in delivery.stages:
         mark = _BOARD_MARK.get(stage.status, "·")
-        lanes.append(f"{stage.id} {mark} {stage.agent}")
+        label = f"pair:{stage.pair}" if stage.awaiting_pair and stage.pair else stage.agent
+        lanes.append(f"{stage.id} {mark} {label}")
     return " · ".join([header, *lanes]) if lanes else header
 
 
@@ -340,6 +341,8 @@ def next_agent(root, name):
         )
         if not deps_met:
             continue
+        if stage.awaiting_pair and stage.pair:
+            return stage.pair
         if stage.status in ("queued", "running"):
             return stage.agent
         if (
@@ -417,9 +420,13 @@ def report(root, name, path, runner):
             if criterion and criterion in not_checked:
                 raise ReportError(f"NOT-CHECKED names success criterion: {criterion}")
         stage.did = did_paths
-        stage.status = "done"
         stage.verified = [{"cmd": cmd, "exit": 0} for cmd in commands]
         stage.flags = list(flag_texts)
+        if stage.pair:
+            stage.awaiting_pair = True
+            stage.status = "running"
+        else:
+            stage.status = "done"
         for flag_text in flag_texts:
             _record_lesson(root, name, agent, flag_text)
     delivery.spawns += 1
