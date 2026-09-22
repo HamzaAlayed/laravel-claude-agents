@@ -1614,6 +1614,8 @@ class WorkplaceIngestTest(unittest.TestCase):
         self.assertEqual(delivery.status, "stopped")
         self.assertEqual(delivery.stages[0].reopens, 1)
         self.assertEqual(kernel.next_agent(self.root, "tag"), "STOP")
+        close = (self.root / "docs/delivery/tag/close.md").read_text()
+        self.assertIn("STATUS: stopped", close)
 
     def test_missing_check_name_rejects(self):
         other = json.dumps(

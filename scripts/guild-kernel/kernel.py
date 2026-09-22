@@ -395,6 +395,7 @@ def _reopen(root, delivery, stage):
     if stage.reopens >= 1:
         delivery.status = "stopped"
         save(root, delivery)
+        write_views(root, delivery, not_checked=delivery.done_when or "none")
         return delivery
     if stage.status != "done":
         raise PlanError(f"stage {stage.id} is {stage.status}")
