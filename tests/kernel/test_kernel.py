@@ -765,5 +765,52 @@ class SprintCloseTest(unittest.TestCase):
         self.assertEqual(closed.status, "done")
 
 
+class LessonTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _report(self, name, agent, flags):
+        kernel.plan(
+            root=self.root,
+            name=name,
+            done_when="POST /api/tags creates a Tag",
+            stages=[kernel.StageSpec("a", agent, "writer", ["m"], [])],
+        )
+        path = self.root / f"docs/delivery/{name}/stages/{agent}.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            "STATUS: done\nDID: app/Models/Tag.php\n"
+            "VERIFIED: php artisan test --filter=TagTest\n"
+            f"NOT-CHECKED: none\nFLAGS: {flags}\nNEXT: none\n"
+        )
+        return kernel.report(
+            self.root,
+            name,
+            path,
+            runner=FakeRunner({"php artisan test --filter=TagTest": 0}),
+        )
+
+    def test_none_flag_writes_no_lesson(self):
+        self._report("tag", "database-developer", "none")
+        self.assertFalse((self.root / "docs/team/lessons.json").is_file())
+
+    def test_first_flag_is_seen_and_plan_prints_no_rule(self):
+        self._report("tag", "database-developer", "Do not call Model::all()")
+        lessons = json.loads((self.root / "docs/team/lessons.json").read_text())
+        self.assertEqual(lessons["lessons"][0]["status"], "seen")
+        self.assertEqual(lessons["lessons"][0]["deliveries"], ["tag"])
+        again = kernel.plan(
+            root=self.root,
+            name="other",
+            done_when="POST /api/tags creates a Tag",
+            stages=[kernel.StageSpec("a", "database-developer", "writer", ["m"], [])],
+        )
+        self.assertEqual(again.rules_printed, [])
+
+
 if __name__ == "__main__":
     unittest.main()

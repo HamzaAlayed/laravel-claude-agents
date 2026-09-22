@@ -33,6 +33,9 @@ class StageSpec:
     status: str = "queued"
     did: list = field(default_factory=list)
     verified: list = field(default_factory=list)
+    flags: list = field(default_factory=list)
+    pair: str = ""
+    awaiting_pair: bool = False
 
 
 @dataclass
@@ -44,6 +47,7 @@ class Delivery:
     stages: list
     spawns: int = 0
     sprint: str = ""
+    rules_printed: list = field(default_factory=list)
 
 
 def _state_path(root, name):
@@ -58,9 +62,69 @@ def save(root, delivery):
 
 def load(root, name):
     data = json.loads(_state_path(root, name).read_text())
-    stages = [StageSpec(**stage) for stage in data.pop("stages")]
     data.setdefault("sprint", "")
+    data.setdefault("rules_printed", [])
+    stages = []
+    for stage in data.pop("stages"):
+        stage.setdefault("flags", [])
+        stage.setdefault("pair", "")
+        stage.setdefault("awaiting_pair", False)
+        stages.append(StageSpec(**stage))
     return Delivery(stages=stages, **data)
+
+
+def _norm_flag(text):
+    return " ".join(text.strip().lower().split())
+
+
+def _lessons_path(root):
+    return pathlib.Path(root) / "docs" / "team" / "lessons.json"
+
+
+def _load_lessons(root):
+    path = _lessons_path(root)
+    if not path.is_file():
+        return {"lessons": []}
+    return json.loads(path.read_text())
+
+
+def _save_lessons(root, data):
+    path = _lessons_path(root)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(data, indent=2) + "\n")
+
+
+def _record_lesson(root, delivery_name, agent, text):
+    norm = _norm_flag(text)
+    if not norm or norm == "none":
+        return
+    data = _load_lessons(root)
+    for lesson in data["lessons"]:
+        if lesson.get("norm") == norm:
+            # Same delivery again does not promote; promotion is Task 2.
+            return
+    data["lessons"].append(
+        {
+            "norm": norm,
+            "text": text,
+            "status": "seen",
+            "scope": [agent],
+            "deliveries": [delivery_name],
+        }
+    )
+    _save_lessons(root, data)
+
+
+def _taught_rules(root, stages):
+    data = _load_lessons(root)
+    agents = {stage.agent for stage in stages}
+    rules = []
+    for lesson in data.get("lessons", []):
+        if lesson.get("status") != "taught":
+            continue
+        if agents.intersection(lesson.get("scope", [])):
+            rules.append(lesson["text"])
+    return rules
 
 
 def board_line(delivery):
@@ -177,6 +241,7 @@ def _remember_story(root, sprint_id, name):
 def plan(*, root, name, done_when, stages, sprint=""):
     if _state_path(root, name).is_file():
         existing = load(root, name)
+        existing.rules_printed = _taught_rules(root, existing.stages)
         write_views(root, existing, not_checked=existing.done_when or "none")
         return existing
     if not done_when.strip() or any(not _has_criteria(stage) for stage in stages):
@@ -191,6 +256,7 @@ def plan(*, root, name, done_when, stages, sprint=""):
         spawns=0,
         sprint=sprint_id,
     )
+    delivery.rules_printed = _taught_rules(root, delivery.stages)
     save(root, delivery)
     write_views(root, delivery, not_checked=done_when or "none")
     _remember_story(root, sprint_id, name)
@@ -266,6 +332,11 @@ def report(root, name, path, runner):
     agent = pathlib.Path(path).stem
     not_checked = " ".join(fields["NOT-CHECKED"])
     did_paths = [item for item in fields["DID"] if item and item != "none"]
+    flag_texts = [
+        raw
+        for raw in fields["FLAGS"]
+        if _norm_flag(raw) and _norm_flag(raw) != "none"
+    ]
     for stage in delivery.stages:
         if stage.agent != agent:
             continue
@@ -275,6 +346,9 @@ def report(root, name, path, runner):
         stage.did = did_paths
         stage.status = "done"
         stage.verified = [{"cmd": cmd, "exit": 0} for cmd in commands]
+        stage.flags = list(flag_texts)
+        for flag_text in flag_texts:
+            _record_lesson(root, name, agent, flag_text)
     delivery.spawns += 1
     if all(stage.status in ("done", "skipped") for stage in delivery.stages):
         if any(
