@@ -9,7 +9,8 @@
           { "type": "command", "name": "enforce-sail", "command": "${extensionPath}/scripts/enforce-sail.sh" },
           { "type": "command", "name": "enforce-close-file", "command": "${extensionPath}/scripts/enforce-close-file.sh" },
           { "type": "command", "name": "enforce-stage-return", "command": "${extensionPath}/scripts/enforce-stage-return.sh" },
-          { "type": "command", "name": "enforce-sprint-file", "command": "${extensionPath}/scripts/enforce-sprint-file.sh" }
+          { "type": "command", "name": "enforce-sprint-file", "command": "${extensionPath}/scripts/enforce-sprint-file.sh" },
+          { "type": "command", "name": "enforce-lessons-file", "command": "${extensionPath}/scripts/enforce-lessons-file.sh" }
         ]
       },
       {
@@ -18,7 +19,8 @@
           { "type": "command", "name": "protect-env-files", "command": "${extensionPath}/scripts/protect-env-files.sh" },
           { "type": "command", "name": "enforce-close-file", "command": "${extensionPath}/scripts/enforce-close-file.sh" },
           { "type": "command", "name": "enforce-stage-return", "command": "${extensionPath}/scripts/enforce-stage-return.sh" },
-          { "type": "command", "name": "enforce-sprint-file", "command": "${extensionPath}/scripts/enforce-sprint-file.sh" }
+          { "type": "command", "name": "enforce-sprint-file", "command": "${extensionPath}/scripts/enforce-sprint-file.sh" },
+          { "type": "command", "name": "enforce-lessons-file", "command": "${extensionPath}/scripts/enforce-lessons-file.sh" }
         ]
       }
     ]

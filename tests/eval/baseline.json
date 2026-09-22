@@ -68,6 +68,12 @@
       "max_tokens": 14500000,
       "max_usd": 8.5
     },
+    "feature-replay": {
+      "max_seconds": 1900,
+      "basis": "unmeasured; same Tag --api floor as feature. Do not raise.",
+      "max_tokens": 14500000,
+      "max_usd": 8.5
+    },
     "teach": {
       "max_seconds": 40,
       "basis": "run 7 (2026-08-06, docs/evals/2026-08-06-run-7.md): 29s + ~30%",
@@ -86,9 +92,9 @@
     }
   },
   "coordinator_hash": {
-    "sha256": "20593c55a6366796b587b5babdae2911412440da9be2ca246b84919e5c402808",
+    "sha256": "39a08e125b02fe41c07da63d45fcae81027d4b16ddeb4e49abc8ea6b35dae604",
     "as_of": "2026-09-22",
-    "note": "Pinned after 3.1 SDLC Interface. Billed feature is not a ship gate. Do not raise ceilings.",
+    "note": "Pinned after 3.2 craft Interface. Billed feature-replay is not a ship gate. Do not raise ceilings.",
     "waivers": []
   }
 }

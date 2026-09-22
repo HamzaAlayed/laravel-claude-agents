@@ -173,6 +173,18 @@ expect "sprint.md Bash cat-redirect blocks" "$BLOCK" \
 expect "sprint.md Bash read allows" "$ALLOW" \
   "$(run_hook enforce-sprint-file.sh '{"tool_input":{"command":"cat docs/sprints/3.1/sprint.md"}}')"
 
+echo "enforce-lessons-file.sh"
+expect "lessons.md none Write allows" "$ALLOW" \
+  "$(run_hook enforce-lessons-file.sh '{"tool_input":{"path":"docs/team/lessons.md","contents":"LESSONS: none\n"}}')"
+expect "lessons.md taught Write allows" "$ALLOW" \
+  "$(run_hook enforce-lessons-file.sh '{"tool_input":{"path":"docs/team/lessons.md","contents":"LESSONS:\nRULE: x\nSCOPE: database-developer\nSTATUS: taught\n"}}')"
+expect "lessons.md journal Write blocks" "$BLOCK" \
+  "$(run_hook enforce-lessons-file.sh '{"tool_input":{"path":"docs/team/lessons.md","contents":"# Lessons\n\nI learned something\n"}}')"
+expect "conventions.md Write allows" "$ALLOW" \
+  "$(run_hook enforce-lessons-file.sh '{"tool_input":{"path":"docs/team/conventions.md","contents":"# Conventions\n"}}')"
+expect "lessons.md Bash cat-redirect blocks" "$BLOCK" \
+  "$(run_hook enforce-lessons-file.sh '{"tool_input":{"command":"cat > docs/team/lessons.md <<EOF\njournal\nEOF"}}')"
+
 echo "codex-protect-env-files.sh (Codex apply_patch-aware)"
 expect "apply_patch adding .env.production blocks" "$BLOCK" \
   "$(run_hook codex-protect-env-files.sh '{"tool_input":{"command":"*** Begin Patch\n*** Add File: .env.production\n+SECRET=x\n*** End Patch"}}')"
@@ -420,6 +432,14 @@ expect "Interface block never composes sprint.md" "9" \
   "$(grep -l 'Never compose `docs/sprints/<id>/sprint.md`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "/sprint does not carry the pipeline Interface" "0" \
   "$(grep -c '> \*\*Interface:\*\*' "$SCRIPT_DIR/commands/sprint.md")"
+# shellcheck disable=SC2016 # literal RULES backticks in the Interface needle
+expect "Interface block prints RULES" "9" \
+  "$(grep -l 'plan` prints `RULES:' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal lessons.md path backticks in the Interface needle
+expect "Interface block never composes lessons.md" "9" \
+  "$(grep -l 'Never compose `docs/team/lessons.md`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "/pair does not carry the pipeline Interface" "0" \
+  "$(grep -c '> \*\*Interface:\*\*' "$SCRIPT_DIR/commands/pair.md")"
 expect "Interface block never invents a checkmark" "9" \
   "$(grep -l 'Never invent a checkmark' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block never writes a writer stage file" "9" \
@@ -470,6 +490,8 @@ expect "coordinator does not Write close.md; the kernel renders it" "1" \
   "$(grep -c 'Do not Write close.md; the kernel renders it' "$COORD")"
 expect "coordinator does not Write sprint.md; the kernel renders it" "1" \
   "$(grep -c 'Do not Write sprint.md; the kernel renders it' "$COORD")"
+expect "coordinator does not Write lessons.md; the kernel renders it" "1" \
+  "$(grep -c 'Do not Write lessons.md; the kernel renders it' "$COORD")"
 expect "coordinator plans via the guild kernel" "1" \
   "$(grep -c 'python3 scripts/guild-kernel/guild.py plan' "$COORD")"
 expect "coordinator Agents only the type next prints" "1" \
@@ -906,6 +928,21 @@ expect "the resume case is opt-in" "1" \
 expect "the resume case stays out of the default sweep" "0" \
   "$(sed -n 's/^ALL_CASES=(\(.*\))$/\1/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | tr ' ' '\n' | grep -cx 'feature-resume' || true)"
+expect "the replay case is opt-in" "1" \
+  "$(sed -n 's/^OPT_IN_CASES=(\(.*\))$/\1/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | tr ' ' '\n' | grep -cx 'feature-replay' || true)"
+expect "the replay case stays out of the default sweep" "0" \
+  "$(sed -n 's/^ALL_CASES=(\(.*\))$/\1/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | tr ' ' '\n' | grep -cx 'feature-replay' || true)"
+expect "the replay case asserts rules_printed" "1" \
+  "$(sed -n '/^checks_feature_replay()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'check_rules_printed')"
+expect "the replay case asserts the Model::all ban" "1" \
+  "$(sed -n '/^checks_feature_replay()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE 'check_no_model_all')"
+expect "the replay case does not enable check_subagent_log" "0" \
+  "$(sed -n '/^checks_feature_replay()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
+     | grep -cE "^[[:space:]]*check_subagent_log ")"
 expect "check_agent_absent does not read the raw transcript" "0" \
   "$(sed -n '/^check_agent_absent()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh" \
      | grep -cE 'stream\.jsonl' || true)"

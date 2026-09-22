@@ -9,7 +9,8 @@
           { "type": "command", "command": "$(git rev-parse --show-toplevel)/.codex/hooks/enforce-sail.sh", "statusMessage": "Routing PHP tooling through Sail" },
           { "type": "command", "command": "$(git rev-parse --show-toplevel)/.codex/hooks/enforce-close-file.sh", "statusMessage": "Enforcing close.md helper shape" },
           { "type": "command", "command": "$(git rev-parse --show-toplevel)/.codex/hooks/enforce-stage-return.sh", "statusMessage": "Enforcing stage-return helper shape" },
-          { "type": "command", "command": "$(git rev-parse --show-toplevel)/.codex/hooks/enforce-sprint-file.sh", "statusMessage": "Enforcing sprint.md helper shape" }
+          { "type": "command", "command": "$(git rev-parse --show-toplevel)/.codex/hooks/enforce-sprint-file.sh", "statusMessage": "Enforcing sprint.md helper shape" },
+          { "type": "command", "command": "$(git rev-parse --show-toplevel)/.codex/hooks/enforce-lessons-file.sh", "statusMessage": "Enforcing lessons.md helper shape" }
         ]
       },
       {
@@ -18,7 +19,8 @@
           { "type": "command", "command": "$(git rev-parse --show-toplevel)/.codex/hooks/protect-env-files.sh", "statusMessage": "Protecting .env / secret files" },
           { "type": "command", "command": "$(git rev-parse --show-toplevel)/.codex/hooks/enforce-close-file.sh", "statusMessage": "Enforcing close.md helper shape" },
           { "type": "command", "command": "$(git rev-parse --show-toplevel)/.codex/hooks/enforce-stage-return.sh", "statusMessage": "Enforcing stage-return helper shape" },
-          { "type": "command", "command": "$(git rev-parse --show-toplevel)/.codex/hooks/enforce-sprint-file.sh", "statusMessage": "Enforcing sprint.md helper shape" }
+          { "type": "command", "command": "$(git rev-parse --show-toplevel)/.codex/hooks/enforce-sprint-file.sh", "statusMessage": "Enforcing sprint.md helper shape" },
+          { "type": "command", "command": "$(git rev-parse --show-toplevel)/.codex/hooks/enforce-lessons-file.sh", "statusMessage": "Enforcing lessons.md helper shape" }
         ]
       }
     ]

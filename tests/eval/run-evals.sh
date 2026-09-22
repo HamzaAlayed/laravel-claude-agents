@@ -67,7 +67,7 @@ ALL_CASES=(n-plus-one policy action tests hygiene)
 # Opt-in like feature: they measure coordinator/team-memory behaviour, which only
 # needs re-measuring when that behaviour changes — the hash gate says when.
 # feature-adaptive: same Tag --api floor as feature, plus packet / peer-router / handoff.
-OPT_IN_CASES=(feature teach teach-delivery feature-adaptive feature-resume)
+OPT_IN_CASES=(feature teach teach-delivery feature-adaptive feature-resume feature-replay)
 
 case_prompt() {
   case "$1" in
@@ -81,6 +81,7 @@ case_prompt() {
     teach-delivery) echo "/make-feature Donation --api" ;;
     feature-adaptive) echo "/make-feature Tag --api --adaptive" ;;
     feature-resume) echo "/make-feature Tag --api" ;;
+    feature-replay) echo "/make-feature Tag --api" ;;
   esac
 }
 
@@ -96,6 +97,7 @@ case_desc() {
     teach-delivery) echo "delivers a feature that must OBEY two seeded taught rules where defaults differ, and harvest without being asked" ;;
     feature-adaptive) echo "Adaptive Tag --api; packet + peer-router + handoff" ;;
     feature-resume) echo "resume Tag --api; skip completed database-developer" ;;
+    feature-replay) echo "replay a taught Model::all ban" ;;
   esac
 }
 
@@ -218,6 +220,14 @@ EOF
 - The close file stays helper-shaped (verified / not-checked / status).
 EOF
       ;;
+    feature-replay) cat <<'EOF'
+- A Tag API feature is scaffolded across schema, model, HTTP entry, route,
+  and a feature test, via specialists.
+- docs/team/lessons.json already teaches "Do not call Model::all()".
+  The delivery records that plan printed that rule.
+- No PHP file calls Model::all().
+EOF
+      ;;
   esac
 }
 
@@ -292,6 +302,23 @@ starting work; entries here override agent defaults. Maintain via /teach
 - **Why:** Sortable, non-enumerable identifiers.
 - **Scope:** database-developer + backend-developer
 - **Source:** user, 2026-08-06
+EOF
+}
+
+seed_feature_replay_fixture() { # seed_feature_replay_fixture <workdir>
+  mkdir -p "$1/docs/team"
+  cat >"$1/docs/team/lessons.json" <<'EOF'
+{
+  "lessons": [
+    {
+      "norm": "do not call model::all()",
+      "text": "Do not call Model::all()",
+      "scope": ["backend-developer"],
+      "status": "taught",
+      "deliveries": ["prior"]
+    }
+  ]
+}
 EOF
 }
 
@@ -827,6 +854,40 @@ checks_feature_resume() {
   check_agent_absent database-developer "resume skipped the completed database-developer stage"
 }
 
+check_rules_printed() {
+  local f
+  while IFS= read -r f; do
+    [ -z "$f" ] && continue
+    if python3 - "$f" <<'PY' >/dev/null 2>&1
+import json, sys
+data = json.load(open(sys.argv[1], encoding="utf-8"))
+printed = data.get("rules_printed") or []
+if any("Do not call Model::all()" in str(item) for item in printed):
+    sys.exit(0)
+sys.exit(1)
+PY
+    then
+      record 0 "file:   plan recorded the taught Model::all rule"
+      return
+    fi
+  done < <(find "$WORK/docs/delivery" -type f -name kernel.json 2>/dev/null)
+  record 1 "file:   plan recorded the taught Model::all rule"
+}
+
+check_no_model_all() {
+  if grep -R -n -F 'Model::all()' --include='*.php' "$WORK" >/dev/null 2>&1; then
+    record 1 "file:   planted Model::all() ban holds"
+  else
+    record 0 "file:   planted Model::all() ban holds"
+  fi
+}
+
+checks_feature_replay() {
+  checks_feature
+  check_rules_printed
+  check_no_model_all
+}
+
 checks_hygiene() {
   # Free-prose greps hardened 2026-08-06 (docs/evals/2026-08-06-check-audit.md):
   # a run that says "identical"/"redundant" or "contradicts" is right and used
@@ -1039,6 +1100,7 @@ run_case() { # run_case <name> <results-dir>
   [ "$name" = "hygiene" ] && seed_hygiene_fixture "$WORK"
   [ "$name" = "teach-delivery" ] && seed_taught_fixture "$WORK"
   [ "$name" = "feature-resume" ] && seed_feature_resume_fixture "$WORK"
+  [ "$name" = "feature-replay" ] && seed_feature_replay_fixture "$WORK"
 
   git -C "$WORK" init -q
   git -C "$WORK" -c user.email=eval@example.com -c user.name=eval add -A
