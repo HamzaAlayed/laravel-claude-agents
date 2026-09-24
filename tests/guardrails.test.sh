@@ -743,8 +743,10 @@ expect "console still forces Bash through the browser" "1" \
      | grep -cE '^ASK_ALWAYS_TOOLS = \("Bash",\)')"
 expect "console raw SDK persistence is opt-in" "1" \
   "$(grep -c 'persist_raw=False' "$SCRIPT_DIR/scripts/console/engine.py")"
-expect "console has hard runtime budgets" "1" \
-  "$(grep -c '^DEFAULT_BUDGET = {' "$SCRIPT_DIR/scripts/console/engine.py")"
+expect "console loads hard runtime budgets from the shared harness" "1" \
+  "$(grep -c '^DEFAULT_BUDGET, HARD_BUDGET_CEILINGS = _load_budget_policy()' "$SCRIPT_DIR/scripts/console/engine.py")"
+expect "shared harness includes default and hard assistant-turn budgets" "2" \
+  "$(grep -c 'max_turns' "$SCRIPT_DIR/config/agent-harness.json")"
 expect "console interrupts on budget breach" "1" \
   "$(grep -c 'async def _budget_interrupt' "$SCRIPT_DIR/scripts/console/engine.py")"
 expect "console trace retention is bounded" "1" \
@@ -1432,6 +1434,8 @@ INSTALL_DEST="$(mktemp -d)"
 bash "$SCRIPT_DIR/install.sh" --no-hooks --no-claudemd "$INSTALL_DEST" >/dev/null
 expect "install dest contains scripts/guild-kernel/guild.py" "1" \
   "$([ -f "$INSTALL_DEST/scripts/guild-kernel/guild.py" ] && echo 1 || echo 0)"
+expect "install dest contains the shared agent harness" "1" \
+  "$([ -f "$INSTALL_DEST/config/agent-harness.json" ] && echo 1 || echo 0)"
 rm -rf "$INSTALL_DEST"
 
 echo

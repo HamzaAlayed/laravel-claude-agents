@@ -41,7 +41,7 @@ jobs:
             .claude-plugin/plugin.json .claude-plugin/marketplace.json \
             .cursor-plugin/plugin.json .cursor-plugin/marketplace.json \
             gemini/gemini-extension.json gemini/hooks/hooks.json \
-            hooks/hooks.json; do
+            hooks/hooks.json config/agent-harness.json; do
             echo "validating $f"
             jq empty "$f"
           done
@@ -93,6 +93,8 @@ jobs:
           python3 scripts/validate-frontmatter.py
       - name: Guardrail hook list in sync (hooks.json / install.sh / README)
         run: python3 scripts/check-hook-sync.py
+      - name: Shared harness and agent policy profiles stay aligned
+        run: python3 scripts/check-agent-harness.py
 
   gemini-extension:
     name: gemini extension

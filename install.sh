@@ -317,6 +317,7 @@ install_dir "$SCRIPT_DIR/commands" "$DEST_ROOT/commands" "commands"
 if [ "$GLOBAL" -eq 0 ]; then
   SCRIPTS_DEST="$TARGET/scripts"
   install_dir "$SCRIPT_DIR/scripts" "$SCRIPTS_DEST" "guardrail scripts"
+  install_dir "$SCRIPT_DIR/config" "$TARGET/config" "agent harness"
   install_console
   install_guild_kernel
   find "$SCRIPTS_DEST" -maxdepth 1 -name "*.sh" -type f -exec chmod +x {} \; 2>/dev/null || true

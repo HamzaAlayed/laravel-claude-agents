@@ -755,6 +755,24 @@ class TestRuntimeBudgetsAndTraces(EngineTestCase):
         self.assertEqual(events_seen[-1]["reason"], "max_tokens")
         self.assertEqual(self.clients[0].interrupts, 1)
 
+    def test_turn_budget_interrupts_after_bounded_assistant_turn(self):
+        run_id = self.mgr.start(
+            {"kind": "prompt", "text": "x", "budget": {"max_turns": 1}}
+        )
+        self.run_coro(
+            self.clients[0].push(
+                AssistantMessage(
+                    content=[TextBlock(text="one bounded turn")],
+                    model="claude-sonnet-5",
+                    usage={"input_tokens": 1, "output_tokens": 1},
+                )
+            )
+        )
+        events_seen = self.drain(run_id, ["text", "budget_exceeded"])
+        self.assertEqual(events_seen[-1]["reason"], "max_turns")
+        self.assertEqual(events_seen[-1]["usage"]["turns"], 1)
+        self.assertEqual(self.clients[0].interrupts, 1)
+
     def test_cost_budget_interrupts_from_priced_assistant_usage(self):
         run_id = self.mgr.start(
             {"kind": "prompt", "text": "x", "budget": {"max_usd": 0.0001}}

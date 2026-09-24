@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [5.1.0] - 2026-09-24
+
+### Added
+
+- A machine-readable shared harness now defines lifecycle states, default and
+  hard runtime budgets, protected actions, owned-path requirements, typed
+  verification, and the six-field result contract.
+- All 18 agents now have validated policy profiles for role class, mutation
+  scope, approval categories, and allowed handoffs.
+- Console runs enforce a bounded assistant-turn count in addition to time,
+  tool-call, token, and dollar limits.
+
+### Changed
+
+- Runtime budget defaults and hard ceilings load from the shared harness
+  registry so documentation, validation, and execution use one source.
+- CI rejects missing agent profiles, dangling handoffs, read-only policy drift,
+  unsupported budget keys, and orchestration-tool grants outside the delivery
+  coordinator.
+
 ## [5.0.0] - 2026-09-22
 
 ### Added

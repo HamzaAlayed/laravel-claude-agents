@@ -55,9 +55,10 @@ Statuses are `✔ done / ▶ running / · queued / ✖ failed`. Each specialist 
 
 In `/console`, stations take the dark floor as the company starts. A parked agent is marked on the floor (cue / needs you). New runs default to **Work independently**: edits and a narrow set of routine checks continue automatically in trusted projects. Other shell commands still ask. Choose **Ask me** to retain approval for every Bash call. See [independent runs and project preferences](docs/independent-runs.md).
 
-Console runs have hard default ceilings (30 minutes, 200 tool calls, 5M tokens,
-$10 estimated/actual spend), with lower per-run overrides accepted in the launch
-spec. A breach denies the next tool, interrupts the SDK run, and emits a
+Console runs have hard default ceilings (30 minutes, 200 tool calls, 120
+assistant turns, 5M tokens, $10 estimated/actual spend), with lower per-run
+overrides accepted in the launch spec. A breach denies the next tool,
+interrupts the SDK run, and emits a
 `budget_exceeded` event. Run metadata is checkpointed before execution, so an
 interrupted historical run can resume as a new run via
 `POST /api/runs/<run_id>/resume` after inspecting the current workspace and
@@ -191,6 +192,12 @@ Each run's misses become levers, ship in the next release, and get re-measured �
 ---
 
 ## Design choices, and why
+
+**One shared harness, 18 narrow policy profiles.** Lifecycle, budgets, owned
+paths, approvals, typed verification, traces, and recovery are shared runtime
+mechanics. Each agent adds only its mutation scope, approval categories, and
+allowed handoffs. The machine-readable registry is checked against agent
+frontmatter in CI; see the [complete harness table](docs/agent-harness.md).
 
 **Model selection is opinionated, not uniform.**
 - **Opus** for `solution-architect` and `tech-lead` — these reason deeply about long-lived consequences and review work end-to-end.

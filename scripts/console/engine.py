@@ -61,18 +61,22 @@ ASK_REASON = "The console asks about every Bash call, including read-only ones."
 # instantaneous once scheduled; this only guards against a wedged/closed loop.
 ANSWER_TIMEOUT = 5.0
 
-DEFAULT_BUDGET = {
-    "max_seconds": 1800,
-    "max_tool_calls": 200,
-    "max_tokens": 5_000_000,
-    "max_usd": 10.0,
-}
-HARD_BUDGET_CEILINGS = {
-    "max_seconds": 14_400,
-    "max_tool_calls": 1_000,
-    "max_tokens": 20_000_000,
-    "max_usd": 100.0,
-}
+HARNESS_PATH = Path(__file__).resolve().parents[2] / "config" / "agent-harness.json"
+
+
+def _load_budget_policy() -> tuple[dict, dict]:
+    """Load the release-owned budget policy; fail closed on malformed installs."""
+    try:
+        registry = json.loads(HARNESS_PATH.read_text(encoding="utf-8"))
+        budgets = registry["shared"]["budgets"]
+        defaults = budgets["defaults"]
+        ceilings = budgets["hardCeilings"]
+    except (OSError, KeyError, TypeError, json.JSONDecodeError) as exc:
+        raise RuntimeError(f"invalid agent harness registry at {HARNESS_PATH}: {exc}") from exc
+    return dict(defaults), dict(ceilings)
+
+
+DEFAULT_BUDGET, HARD_BUDGET_CEILINGS = _load_budget_policy()
 DEFAULT_RETENTION_DAYS = 14
 DEFAULT_MAX_RUNS = 100
 DEFAULT_MAX_TRACE_BYTES = 25 * 1024 * 1024
@@ -116,6 +120,7 @@ def _normalize_budget(value) -> dict:
         budget[key] = raw
     budget["max_seconds"] = int(budget["max_seconds"])
     budget["max_tool_calls"] = int(budget["max_tool_calls"])
+    budget["max_turns"] = int(budget["max_turns"])
     budget["max_tokens"] = int(budget["max_tokens"])
     budget["max_usd"] = float(budget["max_usd"])
     return budget
@@ -219,7 +224,7 @@ class Run:
         self.remembered: set[tuple[str, str]] = set()
         self.status = "running"
         self.started_at = int(time.time() * 1000)
-        self.usage = {"tokens": 0, "tool_calls": 0, "cost_usd": 0.0}
+        self.usage = {"tokens": 0, "tool_calls": 0, "turns": 0, "cost_usd": 0.0}
         self.budget_reason = None
         self.watchdog = None
         self.trace_persistence_capped = False
@@ -397,6 +402,7 @@ class RunManager:
     def _record_usage(self, run: Run, raw: dict):
         kind = raw.get("type") if isinstance(raw, dict) else None
         if kind == "assistant":
+            run.usage["turns"] += 1
             usage = raw.get("usage") or (raw.get("message") or {}).get("usage") or {}
             run.usage["tokens"] += _usage_tokens(usage)
             run.usage["cost_usd"] += _usage_cost(
@@ -417,6 +423,8 @@ class RunManager:
             return "max_seconds"
         if run.usage["tool_calls"] >= run.budget["max_tool_calls"]:
             return "max_tool_calls"
+        if run.usage["turns"] >= run.budget["max_turns"]:
+            return "max_turns"
         if run.usage["tokens"] >= run.budget["max_tokens"]:
             return "max_tokens"
         if run.usage["cost_usd"] >= run.budget["max_usd"]:

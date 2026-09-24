@@ -1,0 +1,178 @@
+#!/usr/bin/env python3
+"""Validate the shared harness and every agent-specific policy profile.
+
+The registry is runtime input, not descriptive documentation. This check keeps
+it aligned with canonical agent frontmatter and rejects unsafe or dangling
+policy references before a release can ship. Stdlib only.
+"""
+
+from __future__ import annotations
+
+import json
+import re
+import sys
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parent.parent
+REGISTRY = ROOT / "config" / "agent-harness.json"
+AGENT_CLASSES = {"builder", "orchestrator", "planner", "reviewer", "router"}
+MUTATION_POLICIES = {"deny", "docs-only", "task-owned"}
+BUDGET_KEYS = {
+    "max_seconds",
+    "max_tool_calls",
+    "max_turns",
+    "max_tokens",
+    "max_usd",
+}
+RESULT_CONTRACT = ["STATUS", "DID", "VERIFIED", "NOT-CHECKED", "FLAGS", "NEXT"]
+
+
+def frontmatter(path: Path) -> dict[str, str]:
+    text = path.read_text(encoding="utf-8")
+    if not text.startswith("---\n") or "\n---\n" not in text[4:]:
+        raise ValueError("missing frontmatter fence")
+    block = text.split("---\n", 2)[1]
+    values = {}
+    for line in block.splitlines():
+        match = re.match(r"^([A-Za-z][A-Za-z0-9_-]*):\s*(.*)$", line)
+        if match:
+            values[match.group(1)] = match.group(2).strip().strip('"')
+    return values
+
+
+def csv(value: str | None) -> set[str]:
+    return {part.strip() for part in (value or "").split(",") if part.strip()}
+
+
+def fail(message: str, errors: list[str]) -> None:
+    errors.append(message)
+
+
+def main() -> int:
+    errors: list[str] = []
+    try:
+        registry = json.loads(REGISTRY.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        print(f"FAIL {REGISTRY.relative_to(ROOT)}: {exc}")
+        return 1
+
+    if registry.get("schemaVersion") != 1:
+        fail("schemaVersion must be 1", errors)
+
+    shared = registry.get("shared")
+    profiles = registry.get("agents")
+    if not isinstance(shared, dict) or not isinstance(profiles, dict):
+        print("FAIL registry requires object-valued shared and agents fields")
+        return 1
+
+    budgets = shared.get("budgets") or {}
+    defaults = budgets.get("defaults") or {}
+    ceilings = budgets.get("hardCeilings") or {}
+    if set(defaults) != BUDGET_KEYS or set(ceilings) != BUDGET_KEYS:
+        fail("default and hard-ceiling budgets must declare exactly the five supported keys", errors)
+    for key in BUDGET_KEYS:
+        default = defaults.get(key)
+        ceiling = ceilings.get(key)
+        if isinstance(default, bool) or not isinstance(default, (int, float)) or default <= 0:
+            fail(f"shared.budgets.defaults.{key} must be positive", errors)
+        if isinstance(ceiling, bool) or not isinstance(ceiling, (int, float)) or ceiling <= 0:
+            fail(f"shared.budgets.hardCeilings.{key} must be positive", errors)
+        if isinstance(default, (int, float)) and isinstance(ceiling, (int, float)) and default > ceiling:
+            fail(f"default {key} exceeds its hard ceiling", errors)
+        if key != "max_usd" and (
+            not isinstance(default, int) or isinstance(default, bool)
+            or not isinstance(ceiling, int) or isinstance(ceiling, bool)
+        ):
+            fail(f"{key} must use integer values", errors)
+
+    if shared.get("resultContract") != RESULT_CONTRACT:
+        fail("shared.resultContract must match the six-field stage-return contract", errors)
+    if shared.get("ownedPathsRequired") is not True:
+        fail("shared.ownedPathsRequired must remain true", errors)
+    if shared.get("verification") != "registered-runners-only":
+        fail("shared.verification must remain registered-runners-only", errors)
+
+    definitions: dict[str, dict[str, str]] = {}
+    for path in sorted((ROOT / "agents").glob("*.md")):
+        try:
+            data = frontmatter(path)
+        except ValueError as exc:
+            fail(f"{path.relative_to(ROOT)}: {exc}", errors)
+            continue
+        name = data.get("name")
+        if not name:
+            fail(f"{path.relative_to(ROOT)}: missing name", errors)
+            continue
+        definitions[name] = data
+
+    if set(profiles) != set(definitions):
+        missing = sorted(set(definitions) - set(profiles))
+        extra = sorted(set(profiles) - set(definitions))
+        if missing:
+            fail("registry missing agents: " + ", ".join(missing), errors)
+        if extra:
+            fail("registry has unknown agents: " + ", ".join(extra), errors)
+
+    deny_from_frontmatter = {
+        name for name, data in definitions.items()
+        if {"Edit", "Write"}.issubset(csv(data.get("disallowedTools")))
+    }
+    deny_from_registry = {
+        name for name, profile in profiles.items()
+        if isinstance(profile, dict) and profile.get("mutation") == "deny"
+    }
+    if deny_from_registry != deny_from_frontmatter:
+        fail(
+            "mutation=deny must exactly match agents whose frontmatter denies Edit and Write",
+            errors,
+        )
+
+    agent_tool_holders = {
+        name for name, data in definitions.items() if "Agent" in csv(data.get("tools"))
+    }
+    if agent_tool_holders != {"delivery-coordinator"}:
+        fail("only delivery-coordinator may receive the Agent tool", errors)
+
+    for name, profile in profiles.items():
+        if not isinstance(profile, dict):
+            fail(f"agents.{name} must be an object", errors)
+            continue
+        if profile.get("class") not in AGENT_CLASSES:
+            fail(f"agents.{name}.class is invalid", errors)
+        if profile.get("mutation") not in MUTATION_POLICIES:
+            fail(f"agents.{name}.mutation is invalid", errors)
+
+        approvals = profile.get("approvalCategories")
+        if not isinstance(approvals, list) or not approvals or not all(
+            isinstance(item, str) and item.strip() for item in approvals
+        ):
+            fail(f"agents.{name}.approvalCategories must be a nonempty string list", errors)
+        elif len(approvals) != len(set(approvals)):
+            fail(f"agents.{name}.approvalCategories contains duplicates", errors)
+
+        handoffs = profile.get("handoffs")
+        if not isinstance(handoffs, list) or not all(isinstance(item, str) for item in handoffs):
+            fail(f"agents.{name}.handoffs must be a string list", errors)
+            continue
+        if len(handoffs) != len(set(handoffs)):
+            fail(f"agents.{name}.handoffs contains duplicates", errors)
+        if name in handoffs:
+            fail(f"agents.{name} cannot hand off to itself", errors)
+        unknown = sorted(set(handoffs) - set(definitions))
+        if unknown:
+            fail(f"agents.{name}.handoffs names unknown agents: {', '.join(unknown)}", errors)
+
+    if errors:
+        for error in errors:
+            print(f"FAIL {error}")
+        return 1
+    print(
+        f"ok: shared harness + {len(profiles)} agent profiles are complete, "
+        f"safe, and aligned with frontmatter"
+    )
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

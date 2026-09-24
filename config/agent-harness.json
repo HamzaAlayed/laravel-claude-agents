@@ -1,0 +1,159 @@
+{
+  "schemaVersion": 1,
+  "shared": {
+    "budgets": {
+      "defaults": {
+        "max_seconds": 1800,
+        "max_tool_calls": 200,
+        "max_turns": 120,
+        "max_tokens": 5000000,
+        "max_usd": 10.0
+      },
+      "hardCeilings": {
+        "max_seconds": 14400,
+        "max_tool_calls": 1000,
+        "max_turns": 500,
+        "max_tokens": 20000000,
+        "max_usd": 100.0
+      }
+    },
+    "lifecycle": [
+      "queued",
+      "running",
+      "paused",
+      "done",
+      "failed",
+      "stopped",
+      "budget_exceeded",
+      "interrupted"
+    ],
+    "resultContract": [
+      "STATUS",
+      "DID",
+      "VERIFIED",
+      "NOT-CHECKED",
+      "FLAGS",
+      "NEXT"
+    ],
+    "protectedActions": [
+      "production mutation",
+      "destructive database operation",
+      "credential or environment-file write",
+      "irreversible external action",
+      "scope expansion",
+      "success-criterion change"
+    ],
+    "ownedPathsRequired": true,
+    "verification": "registered-runners-only"
+  },
+  "agents": {
+    "backend-developer": {
+      "class": "builder",
+      "mutation": "task-owned",
+      "approvalCategories": ["auth", "billing", "PII", "tenant isolation", "mass communication"],
+      "handoffs": ["database-developer", "frontend-developer", "mobile-developer", "qa-engineer", "security-engineer", "performance-engineer", "devops-engineer", "tech-lead"]
+    },
+    "business-analyst": {
+      "class": "planner",
+      "mutation": "docs-only",
+      "approvalCategories": ["stakeholder sign-off", "sensitive requirements", "scope change"],
+      "handoffs": ["product-owner", "solution-architect", "ui-ux-designer"]
+    },
+    "database-developer": {
+      "class": "builder",
+      "mutation": "task-owned",
+      "approvalCategories": ["destructive migration", "production data", "irreversible schema change", "backup topology"],
+      "handoffs": ["backend-developer", "devops-engineer", "security-engineer", "solution-architect"]
+    },
+    "delivery-coordinator": {
+      "class": "orchestrator",
+      "mutation": "docs-only",
+      "approvalCategories": ["sensitive change", "unverifiable stage", "scope expansion", "success-criterion change"],
+      "handoffs": ["backend-developer", "business-analyst", "database-developer", "devops-engineer", "frontend-developer", "mobile-developer", "package-developer", "peer-router", "performance-engineer", "product-owner", "qa-engineer", "scrum-master", "security-engineer", "solution-architect", "tech-lead", "technical-writer", "ui-ux-designer"]
+    },
+    "devops-engineer": {
+      "class": "builder",
+      "mutation": "task-owned",
+      "approvalCategories": ["production infrastructure", "terraform apply", "DNS or TLS", "APP_KEY", "data residency", "disaster recovery"],
+      "handoffs": ["backend-developer", "database-developer", "qa-engineer", "security-engineer", "technical-writer"]
+    },
+    "frontend-developer": {
+      "class": "builder",
+      "mutation": "task-owned",
+      "approvalCategories": ["payment UI", "PII", "authentication flow", "untrusted HTML", "major frontend migration"],
+      "handoffs": ["backend-developer", "performance-engineer", "qa-engineer", "security-engineer", "ui-ux-designer"]
+    },
+    "mobile-developer": {
+      "class": "builder",
+      "mutation": "task-owned",
+      "approvalCategories": ["store submission", "push notifications", "authentication", "in-app purchase", "PII", "sensitive device permission"],
+      "handoffs": ["backend-developer", "qa-engineer", "security-engineer", "ui-ux-designer"]
+    },
+    "package-developer": {
+      "class": "builder",
+      "mutation": "task-owned",
+      "approvalCategories": ["major release", "license change", "package ownership", "maintainer access"],
+      "handoffs": ["qa-engineer", "security-engineer", "tech-lead", "technical-writer"]
+    },
+    "peer-router": {
+      "class": "router",
+      "mutation": "deny",
+      "approvalCategories": ["invalid adaptive packet"],
+      "handoffs": []
+    },
+    "performance-engineer": {
+      "class": "reviewer",
+      "mutation": "deny",
+      "approvalCategories": ["behavior change for speed", "material spend", "compliance-sensitive cache", "shared or production load test"],
+      "handoffs": ["backend-developer", "database-developer", "devops-engineer", "frontend-developer"]
+    },
+    "product-owner": {
+      "class": "planner",
+      "mutation": "docs-only",
+      "approvalCategories": ["roadmap commitment", "product pivot", "security commitment", "external stakeholder communication"],
+      "handoffs": ["business-analyst", "delivery-coordinator", "solution-architect"]
+    },
+    "qa-engineer": {
+      "class": "builder",
+      "mutation": "task-owned",
+      "approvalCategories": ["release decision", "test deletion", "quality-gate reduction", "known defect acceptance"],
+      "handoffs": ["backend-developer", "frontend-developer", "mobile-developer", "tech-lead"]
+    },
+    "scrum-master": {
+      "class": "planner",
+      "mutation": "docs-only",
+      "approvalCategories": ["human conflict", "individual performance", "team morale"],
+      "handoffs": ["delivery-coordinator", "product-owner"]
+    },
+    "security-engineer": {
+      "class": "reviewer",
+      "mutation": "deny",
+      "approvalCategories": ["security incident", "accepted residual risk", "authentication", "encryption", "audit logging", "PII", "payment", "identity"],
+      "handoffs": ["backend-developer", "database-developer", "devops-engineer", "tech-lead"]
+    },
+    "solution-architect": {
+      "class": "planner",
+      "mutation": "docs-only",
+      "approvalCategories": ["long-term cost", "vendor lock-in", "regulatory constraint", "tenancy model", "authentication model"],
+      "handoffs": ["backend-developer", "database-developer", "devops-engineer", "security-engineer", "tech-lead"]
+    },
+    "tech-lead": {
+      "class": "reviewer",
+      "mutation": "deny",
+      "approvalCategories": ["sensitive merge", "major refactor", "framework migration", "human performance management"],
+      "handoffs": ["backend-developer", "frontend-developer", "qa-engineer", "security-engineer"]
+    },
+    "technical-writer": {
+      "class": "builder",
+      "mutation": "docs-only",
+      "approvalCategories": ["brand language", "legal language", "compliance language"],
+      "handoffs": ["devops-engineer", "product-owner", "qa-engineer"]
+    },
+    "ui-ux-designer": {
+      "class": "planner",
+      "mutation": "docs-only",
+      "approvalCategories": ["brand change", "PII", "authentication", "consent", "checkout", "final design approval"],
+      "handoffs": ["business-analyst", "frontend-developer", "product-owner", "qa-engineer"]
+    }
+  }
+}
