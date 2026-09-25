@@ -1,3 +1,4 @@
+import json
 import pathlib
 import sys
 import tempfile
@@ -37,8 +38,17 @@ class GuildCliTest(unittest.TestCase):
                     "tag",
                     "--done-when",
                     "POST /api/tags creates a Tag",
-                    "--stage",
-                    "a,database-developer,writer,,m",
+                    "--stage-json",
+                    json.dumps(
+                        {
+                            "id": "a",
+                            "agent": "database-developer",
+                            "role": "writer",
+                            "success_criteria": ["m"],
+                            "depends_on": [],
+                            "owned_paths": ["database"],
+                        }
+                    ),
                     "--issue",
                     "42",
                 ]

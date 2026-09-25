@@ -49,7 +49,7 @@ def build_parser():
         "--stage",
         action="append",
         default=[],
-        help="id,agent,role[,dep+dep][,criterion|criterion] — repeatable",
+        help="removed in v6; use --stage-json with explicit owned_paths",
     )
     plan.add_argument(
         "--stage-json",
@@ -101,23 +101,10 @@ def build_parser():
 
 def _stages_from_args(raw_stages, raw_json_stages=()):
     stages = []
-    help_form = "id,agent,role[,dep+dep][,criterion|criterion]"
-    for raw in raw_stages:
-        parts = raw.split(",")
-        if len(parts) < 2:
-            raise SystemExit(
-                f"--stage needs at least id and agent ({help_form})"
-            )
-        sid, agent = parts[0].strip(), parts[1].strip()
-        role = parts[2].strip() if len(parts) > 2 and parts[2].strip() else "writer"
-        depends = (
-            [dep for dep in parts[3].strip().split("+") if dep]
-            if len(parts) > 3
-            else []
+    if raw_stages:
+        raise SystemExit(
+            "--stage was removed in v6; use --stage-json with explicit owned_paths"
         )
-        criteria_raw = ",".join(parts[4:])
-        criteria = [item.strip() for item in criteria_raw.split("|") if item.strip()]
-        stages.append(kernel.StageSpec(sid, agent, role, criteria, depends))
     allowed = {
         "id", "agent", "role", "success_criteria", "depends_on", "owned_paths"
     }
@@ -128,7 +115,7 @@ def _stages_from_args(raw_stages, raw_json_stages=()):
             raise SystemExit(f"--stage-json is invalid JSON: {exc.msg}") from None
         if not isinstance(spec, dict) or set(spec) - allowed:
             raise SystemExit("--stage-json contains unknown fields")
-        missing = {"id", "agent", "success_criteria"} - set(spec)
+        missing = {"id", "agent", "success_criteria", "owned_paths"} - set(spec)
         if missing:
             raise SystemExit(
                 f"--stage-json missing required fields: {', '.join(sorted(missing))}"
@@ -140,7 +127,7 @@ def _stages_from_args(raw_stages, raw_json_stages=()):
                 role=spec.get("role", "writer"),
                 success_criteria=spec["success_criteria"],
                 depends_on=spec.get("depends_on", []),
-                owned_paths=spec.get("owned_paths", []),
+                owned_paths=spec["owned_paths"],
             )
         )
     return stages

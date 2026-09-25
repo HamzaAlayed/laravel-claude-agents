@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.0.0] - 2026-09-25
+
+### Added
+
+- The README now includes an accessible engineering-loop diagram covering
+  request routing, planning, bounded specialist execution, verification,
+  integration, review feedback, and approved learning.
+- Stage completion now validates every reported `DID` path against the
+  stage’s declared ownership, including nested files under an owned directory.
+
+### Changed
+
+- **Breaking:** Every mutation-capable stage must declare at least one valid,
+  project-relative owned path. Only agents whose harness mutation policy is
+  `deny` may use an empty ownership list.
+- **Breaking:** The legacy comma-delimited `plan --stage` input is removed.
+  Use typed `--stage-json` input and include `owned_paths` explicitly; use an
+  empty array only for a read-only agent.
+- Owned-path policy now comes from the machine-readable agent harness, keeping
+  runtime behavior aligned with the validated agent profiles.
+
+### Security
+
+- Plans reject absolute, parent-traversing, non-string, duplicate, and
+  non-list ownership declarations before writing delivery state.
+- Reports from mutation-capable stages fail closed when an output path escapes
+  the claimed scope.
+
 ## [5.1.0] - 2026-09-24
 
 ### Added

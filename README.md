@@ -193,6 +193,16 @@ Each run's misses become levers, ship in the next release, and get re-measured �
 
 ## Design choices, and why
 
+### Engineering loop
+
+![Laravel Guild engineering loop — request routing, planning, bounded specialist execution, verification, CI feedback, and approved learning](docs/images/engineering-loop.svg)
+
+The default multi-stage loop is `plan → ready → claim → delegate → verify →
+report → integrate → review`. A failed stage is re-briefed to the same owner
+once; a second failure stops the lane for a human decision. Confirmed CI and
+review feedback may reopen one responsible stage. Approved lessons feed the
+next plan. Single-specialist work uses a fast path and skips pipeline ceremony.
+
 **One shared harness, 18 narrow policy profiles.** Lifecycle, budgets, owned
 paths, approvals, typed verification, traces, and recovery are shared runtime
 mechanics. Each agent adds only its mutation scope, approval categories, and
@@ -216,7 +226,10 @@ frontmatter in CI; see the [complete harness table](docs/agent-harness.md).
 `--stage-json` records with dependencies, success criteria, and owned paths.
 `ready` returns a bounded wave, and each lane must be atomically `claim`ed before
 dispatch. The kernel refuses dependency violations, WIP overflow, and overlapping
-path ownership; `graph.md` renders the actual parallel waves and ceiling.
+path ownership; `report` also refuses declared outputs outside the claimed
+scope. `graph.md` renders the actual parallel waves and ceiling. Since v6,
+the legacy comma-delimited `--stage` form is rejected because it cannot carry
+an explicit ownership boundary.
 
 **Every agent can run its own gates.** No agent uses `isolation: worktree`, and a guardrails test keeps it that way. A fresh git worktree contains tracked files only — no `vendor/`, no `node_modules/`, no `.env` — so an isolated agent cannot run `pint`, `phpstan`, or the test suite it just wrote, and under Sail it tests the wrong tree entirely. [Eval run 4](docs/evals/2026-07-28-run-4.md) caught exactly that: a full test suite written and never executed, verification silently deferred to the main thread. Writers share the working tree and stay in their lane by contract instead — the brief names the paths each owns, the coordinator gives parallel lanes disjoint paths, and anything spotted outside scope is reported rather than edited. A gate that can actually run beats isolation that hides the fact it can't.
 

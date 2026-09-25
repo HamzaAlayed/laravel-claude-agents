@@ -1,0 +1,174 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1080" viewBox="0 0 1400 1080" role="img" aria-labelledby="title description">
+  <title id="title">Laravel Guild engineering loop</title>
+  <desc id="description">A flowchart showing request routing, planning, bounded parallel specialist execution, structured verification, retry and escalation, integration, pull request feedback, and approved lessons feeding future plans.</desc>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569"/>
+    </marker>
+    <style>
+      .canvas { fill: #f8fafc; }
+      .title { fill: #0f172a; font: 700 34px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .subtitle { fill: #475569; font: 500 17px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .lane { fill: #e2e8f0; }
+      .lane-label { fill: #334155; font: 700 15px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; letter-spacing: 1.2px; }
+      .node { fill: #ffffff; stroke: #cbd5e1; stroke-width: 2; }
+      .node-plan { fill: #eff6ff; stroke: #60a5fa; }
+      .node-work { fill: #f0fdf4; stroke: #4ade80; }
+      .node-gate { fill: #fff7ed; stroke: #fb923c; }
+      .node-stop { fill: #fef2f2; stroke: #f87171; }
+      .node-learn { fill: #faf5ff; stroke: #c084fc; }
+      .node-text { fill: #0f172a; font: 650 17px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; text-anchor: middle; }
+      .node-detail { fill: #475569; font: 500 14px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; text-anchor: middle; }
+      .edge { fill: none; stroke: #475569; stroke-width: 2.5; marker-end: url(#arrow); }
+      .edge-loop { fill: none; stroke: #7c3aed; stroke-width: 2.5; stroke-dasharray: 8 7; marker-end: url(#arrow); }
+      .edge-stop { fill: none; stroke: #dc2626; stroke-width: 2.5; marker-end: url(#arrow); }
+      .edge-label { fill: #334155; font: 650 13px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+      .control { fill: #fff7ed; stroke: #fb923c; stroke-width: 2; stroke-dasharray: 7 6; }
+      .control-text { fill: #9a3412; font: 650 14px system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; text-anchor: middle; }
+    </style>
+  </defs>
+
+  <rect class="canvas" width="1400" height="1080" rx="28"/>
+  <text class="title" x="70" y="62">Laravel Guild engineering loop</text>
+  <text class="subtitle" x="70" y="94">Plan the evidence first. Run bounded work. Verify every claim. Feed confirmed learning back.</text>
+
+  <rect class="lane" x="42" y="126" width="1316" height="34" rx="10"/>
+  <text class="lane-label" x="64" y="149">1 · INTAKE AND PLAN</text>
+
+  <rect class="node" x="70" y="190" width="190" height="86" rx="16"/>
+  <text class="node-text" x="165" y="225">Request</text>
+  <text class="node-detail" x="165" y="251">feature, fix, review</text>
+
+  <polygon class="node node-gate" points="365,178 470,233 365,288 260,233"/>
+  <text class="node-text" x="365" y="227">One specialist?</text>
+  <text class="node-detail" x="365" y="251">no checkpoint chain</text>
+
+  <rect class="node node-plan" x="520" y="190" width="225" height="86" rx="16"/>
+  <text class="node-text" x="632" y="222">Discover scope</text>
+  <text class="node-detail" x="632" y="247">stack · artifacts · rules</text>
+
+  <rect class="node node-plan" x="795" y="180" width="245" height="106" rx="16"/>
+  <text class="node-text" x="917" y="214">Define delivery</text>
+  <text class="node-detail" x="917" y="240">done-when · criteria</text>
+  <text class="node-detail" x="917" y="262">dependencies · owned paths</text>
+
+  <rect class="node node-gate" x="1090" y="190" width="235" height="86" rx="16"/>
+  <text class="node-text" x="1207" y="222">Human checkpoint</text>
+  <text class="node-detail" x="1207" y="247">approve shape or risk</text>
+
+  <path class="edge" d="M260 233 H258"/>
+  <path class="edge" d="M470 233 H520"/>
+  <path class="edge" d="M745 233 H795"/>
+  <path class="edge" d="M1040 233 H1090"/>
+  <text class="edge-label" x="478" y="218">multi-stage</text>
+
+  <rect class="node node-work" x="295" y="318" width="205" height="72" rx="16"/>
+  <text class="node-text" x="397" y="347">Fast path</text>
+  <text class="node-detail" x="397" y="371">brief one specialist</text>
+  <path class="edge" d="M365 288 V318"/>
+  <text class="edge-label" x="379" y="309">yes</text>
+
+  <rect class="lane" x="42" y="426" width="1316" height="34" rx="10"/>
+  <text class="lane-label" x="64" y="449">2 · CONTROLLED EXECUTION AND EVIDENCE</text>
+
+  <rect class="node node-plan" x="70" y="500" width="185" height="86" rx="16"/>
+  <text class="node-text" x="162" y="532">Kernel plan</text>
+  <text class="node-detail" x="162" y="557">persist graph + board</text>
+
+  <rect class="node node-plan" x="305" y="500" width="190" height="86" rx="16"/>
+  <text class="node-text" x="400" y="532">Ready wave</text>
+  <text class="node-detail" x="400" y="557">deps + WIP + paths</text>
+
+  <rect class="node node-plan" x="545" y="500" width="170" height="86" rx="16"/>
+  <text class="node-text" x="630" y="532">Claim lane</text>
+  <text class="node-detail" x="630" y="557">atomic ownership</text>
+
+  <rect class="node node-work" x="765" y="490" width="230" height="106" rx="16"/>
+  <text class="node-text" x="880" y="523">Specialist work</text>
+  <text class="node-detail" x="880" y="548">bounded parallel lanes</text>
+  <text class="node-detail" x="880" y="572">task-owned mutation</text>
+
+  <rect class="node node-work" x="1045" y="490" width="280" height="106" rx="16"/>
+  <text class="node-text" x="1185" y="521">Structured return</text>
+  <text class="node-detail" x="1185" y="546">STATUS · DID · VERIFIED</text>
+  <text class="node-detail" x="1185" y="570">NOT-CHECKED · FLAGS · NEXT</text>
+
+  <path class="edge" d="M1207 276 V350 H162 V500"/>
+  <path class="edge" d="M255 543 H305"/>
+  <path class="edge" d="M495 543 H545"/>
+  <path class="edge" d="M715 543 H765"/>
+  <path class="edge" d="M995 543 H1045"/>
+  <path class="edge" d="M397 390 V410 H1185 V490"/>
+
+  <polygon class="node node-gate" points="705,650 820,710 705,770 590,710"/>
+  <text class="node-text" x="705" y="703">Verification</text>
+  <text class="node-detail" x="705" y="728">registered runners</text>
+
+  <rect class="node node-plan" x="905" y="668" width="230" height="84" rx="16"/>
+  <text class="node-text" x="1020" y="700">Report + board</text>
+  <text class="node-detail" x="1020" y="726">commit state atomically</text>
+
+  <rect class="node node-stop" x="280" y="668" width="230" height="84" rx="16"/>
+  <text class="node-text" x="395" y="700">Re-brief once</text>
+  <text class="node-detail" x="395" y="726">same owner, exact gap</text>
+
+  <rect class="node node-stop" x="70" y="668" width="160" height="84" rx="16"/>
+  <text class="node-text" x="150" y="700">Stop lane</text>
+  <text class="node-detail" x="150" y="726">human escalation</text>
+
+  <path class="edge" d="M1185 596 V625 H705 V650"/>
+  <path class="edge" d="M820 710 H905"/>
+  <text class="edge-label" x="842" y="696">pass</text>
+  <path class="edge-stop" d="M590 710 H510"/>
+  <text class="edge-label" x="522" y="696">first failure</text>
+  <path class="edge-loop" d="M395 668 V625 H880 V596"/>
+  <path class="edge-stop" d="M280 710 H230"/>
+  <text class="edge-label" x="237" y="696">fails twice</text>
+
+  <path class="edge-loop" d="M1020 668 V632 H400 V586"/>
+  <text class="edge-label" x="760" y="621">more dependency-ready stages</text>
+
+  <rect class="control" x="1145" y="650" width="180" height="120" rx="16"/>
+  <text class="control-text" x="1235" y="681">Runtime control</text>
+  <text class="node-detail" x="1235" y="709">time · tools · turns</text>
+  <text class="node-detail" x="1235" y="731">tokens · cost · approvals</text>
+  <text class="node-detail" x="1235" y="753">interrupt + resume</text>
+
+  <rect class="lane" x="42" y="806" width="1316" height="34" rx="10"/>
+  <text class="lane-label" x="64" y="829">3 · INTEGRATE, LEARN, AND LOOP BACK</text>
+
+  <rect class="node node-work" x="70" y="880" width="215" height="90" rx="16"/>
+  <text class="node-text" x="177" y="913">Final integration</text>
+  <text class="node-detail" x="177" y="939">full suite once</text>
+
+  <rect class="node node-work" x="335" y="880" width="195" height="90" rx="16"/>
+  <text class="node-text" x="432" y="913">Open PR</text>
+  <text class="node-detail" x="432" y="939">record verified state</text>
+
+  <rect class="node node-gate" x="580" y="880" width="205" height="90" rx="16"/>
+  <text class="node-text" x="682" y="913">CI + review</text>
+  <text class="node-detail" x="682" y="939">feedback gate</text>
+
+  <rect class="node node-work" x="835" y="880" width="190" height="90" rx="16"/>
+  <text class="node-text" x="930" y="913">Close delivery</text>
+  <text class="node-detail" x="930" y="939">human merges</text>
+
+  <rect class="node node-learn" x="1075" y="870" width="250" height="110" rx="16"/>
+  <text class="node-text" x="1200" y="903">Harvest learning</text>
+  <text class="node-detail" x="1200" y="928">stack · log · observations</text>
+  <text class="node-detail" x="1200" y="952">human approves rules</text>
+
+  <path class="edge" d="M1020 752 V792 H177 V880"/>
+  <path class="edge" d="M285 925 H335"/>
+  <path class="edge" d="M530 925 H580"/>
+  <path class="edge" d="M785 925 H835"/>
+  <path class="edge" d="M1025 925 H1075"/>
+
+  <path class="edge-loop" d="M682 880 V842 H880 V596"/>
+  <text class="edge-label" x="700" y="858">failing check or confirmed comment reopens once</text>
+
+  <path class="edge-loop" d="M1200 870 V326 H917 V286"/>
+  <text class="edge-label" x="1210" y="360">approved lessons feed the next plan</text>
+
+  <text class="subtitle" x="70" y="1035">Optional Adaptive mode validates peer handoff packets before a specialist-to-specialist hop. The default path remains supervisor-controlled.</text>
+</svg>

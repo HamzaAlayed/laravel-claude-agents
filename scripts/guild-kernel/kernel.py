@@ -408,6 +408,41 @@ def _has_criteria(stage):
     return any(str(item).strip() for item in stage.success_criteria)
 
 
+def _agent_mutations():
+    path = pathlib.Path(__file__).resolve().parents[2] / "config" / "agent-harness.json"
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+        return {
+            name: profile["mutation"]
+            for name, profile in payload["agents"].items()
+        }
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise PlanError(f"cannot load agent mutation policy from {path}") from exc
+
+
+def _validate_owned_paths(stages):
+    mutations = _agent_mutations()
+    for stage in stages:
+        if not isinstance(stage.owned_paths, list):
+            raise PlanError(f"owned_paths for stage {stage.id} must be a list")
+        if mutations.get(stage.agent) != "deny" and not stage.owned_paths:
+            raise PlanError(
+                f"stage {stage.id} for mutation-capable agent {stage.agent} "
+                "requires at least one owned path"
+            )
+        seen = set()
+        for owned_path in stage.owned_paths:
+            if not isinstance(owned_path, str):
+                raise PlanError(f"invalid owned path for stage {stage.id}: {owned_path!r}")
+            path = pathlib.PurePosixPath(owned_path)
+            if path.is_absolute() or ".." in path.parts or not owned_path.strip():
+                raise PlanError(f"invalid owned path for stage {stage.id}: {owned_path}")
+            normalized = path.as_posix()
+            if normalized in seen:
+                raise PlanError(f"duplicate owned path for stage {stage.id}: {owned_path}")
+            seen.add(normalized)
+
+
 def _validate_stages(stages):
     if not stages:
         raise PlanError("plan requires at least one stage")
@@ -517,11 +552,7 @@ def plan(
         raise PlanError("plan requires nonempty done_when and success criteria")
     if not isinstance(max_parallel, int) or not 1 <= max_parallel <= 8:
         raise PlanError("max_parallel must be between 1 and 8")
-    for stage in stages:
-        for owned_path in stage.owned_paths:
-            path = pathlib.PurePosixPath(owned_path)
-            if path.is_absolute() or ".." in path.parts or not owned_path.strip():
-                raise PlanError(f"invalid owned path for stage {stage.id}: {owned_path}")
+    _validate_owned_paths(stages)
     issue_data = {}
     if issue:
         if runner is None or not hasattr(runner, "capture"):
@@ -758,6 +789,27 @@ def _paths_overlap(left, right):
     right_parts = pathlib.PurePosixPath(right).parts
     shortest = min(len(left_parts), len(right_parts))
     return left_parts[:shortest] == right_parts[:shortest]
+
+
+def _path_is_within(candidate, owned):
+    candidate_parts = pathlib.PurePosixPath(candidate).parts
+    owned_parts = pathlib.PurePosixPath(owned).parts
+    return candidate_parts[:len(owned_parts)] == owned_parts
+
+
+def _validate_reported_paths(stage, did_paths):
+    if _agent_mutations().get(stage.agent) == "deny" or not stage.owned_paths:
+        return
+    for did_path in did_paths:
+        if not isinstance(did_path, str):
+            raise ReportError(f"invalid DID path for stage {stage.id}: {did_path!r}")
+        path = pathlib.PurePosixPath(did_path)
+        if path.is_absolute() or ".." in path.parts or not did_path.strip():
+            raise ReportError(f"invalid DID path for stage {stage.id}: {did_path}")
+        if not any(_path_is_within(did_path, owned) for owned in stage.owned_paths):
+            raise ReportError(
+                f"DID path {did_path} is outside stage {stage.id} owned paths"
+            )
 
 
 def _ownership_collision(stage, others):
@@ -1001,6 +1053,7 @@ def _commit_report(root, name, path, fields, verifications):
         for criterion in stage.success_criteria:
             if criterion and criterion in not_checked:
                 raise ReportError(f"NOT-CHECKED names success criterion: {criterion}")
+        _validate_reported_paths(stage, did_paths)
         stage.did = did_paths
         stage.verified = [{**spec, "exit": 0} for spec in verifications]
         stage.flags = list(flag_texts)

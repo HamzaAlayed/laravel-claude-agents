@@ -23,6 +23,13 @@ VERIFY_TAG = verify_artisan("TagTest")
 VERIFY_TAG_ARGV = ["php", "artisan", "test", "--filter=TagTest"]
 
 
+def scoped_stage(*args, **kwargs):
+    """Create a broadly scoped legacy fixture; scope-specific tests opt out."""
+    if len(args) < 13 and "owned_paths" not in kwargs:
+        kwargs["owned_paths"] = ["."]
+    return kernel.StageSpec(*args, **kwargs)
+
+
 class FakeRunner:
     def __init__(self, codes, captured=None):
         self.codes = codes
@@ -54,8 +61,8 @@ class PlanNextTest(unittest.TestCase):
             name="tag",
             done_when="POST /api/tags creates a Tag",
             stages=[
-                kernel.StageSpec("a", "database-developer", "writer", ["tags migration exists"], []),
-                kernel.StageSpec("b", "backend-developer", "writer", ["Tag HTTP"], ["a"]),
+                scoped_stage("a", "database-developer", "writer", ["tags migration exists"], []),
+                scoped_stage("b", "backend-developer", "writer", ["Tag HTTP"], ["a"]),
             ],
         )
         self.assertEqual(d.cap, 4)
@@ -68,8 +75,8 @@ class PlanNextTest(unittest.TestCase):
             name="tag",
             done_when="POST /api/tags creates a Tag",
             stages=[
-                kernel.StageSpec("a", "database-developer", "writer", ["m"], []),
-                kernel.StageSpec("b", "backend-developer", "writer", ["h"], ["a"]),
+                scoped_stage("a", "database-developer", "writer", ["m"], []),
+                scoped_stage("b", "backend-developer", "writer", ["h"], ["a"]),
             ],
         )
         self.assertEqual(kernel.next_agent(self.root, "tag"), "database-developer")
@@ -80,8 +87,8 @@ class PlanNextTest(unittest.TestCase):
             name="tag",
             done_when="x",
             stages=[
-                kernel.StageSpec("a", "database-developer", "writer", ["m"], []),
-                kernel.StageSpec("b", "backend-developer", "writer", ["h"], ["a"]),
+                scoped_stage("a", "database-developer", "writer", ["m"], []),
+                scoped_stage("b", "backend-developer", "writer", ["h"], ["a"]),
             ],
         )
         d.stages[0].status = "running"
@@ -99,13 +106,13 @@ class ParallelDispatchTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def _stage(self, sid, agent, *, depends=(), owns=()):
-        return kernel.StageSpec(
+        return scoped_stage(
             sid,
             agent,
             "writer",
             [f"{sid} complete"],
             list(depends),
-            owned_paths=list(owns),
+            owned_paths=list(owns) or [f"fixtures/{sid}"],
         )
 
     def test_ready_returns_bounded_parallel_wave(self):
@@ -155,8 +162,8 @@ class ParallelDispatchTest(unittest.TestCase):
             name="tag",
             done_when="x",
             stages=[
-                self._stage("a", "database-developer"),
-                self._stage("b", "backend-developer"),
+                self._stage("a", "database-developer", owns=["database-developer.txt"]),
+                self._stage("b", "backend-developer", owns=["backend-developer.txt"]),
             ],
             max_parallel=2,
         )
@@ -235,6 +242,48 @@ class ParallelDispatchTest(unittest.TestCase):
                 stages=[self._stage("a", "database-developer", owns=["../app"])],
             )
 
+    def test_mutation_capable_stage_requires_owned_path(self):
+        with self.assertRaisesRegex(kernel.PlanError, "requires at least one owned path"):
+            kernel.plan(
+                root=self.root,
+                name="tag",
+                done_when="x",
+                stages=[
+                    kernel.StageSpec(
+                        "a", "backend-developer", "writer", ["feature works"], []
+                    )
+                ],
+            )
+
+    def test_read_only_stage_may_have_no_owned_paths(self):
+        delivery = kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="x",
+            stages=[
+                kernel.StageSpec(
+                    "a", "performance-engineer", "reviewer", ["profile reviewed"], []
+                )
+            ],
+        )
+        self.assertEqual(delivery.stages[0].owned_paths, [])
+
+    def test_owned_paths_must_be_a_list_of_relative_strings(self):
+        invalid = ("app", [42], ["app", "app"])
+        for index, owned_paths in enumerate(invalid):
+            with self.subTest(owned_paths=owned_paths), self.assertRaises(kernel.PlanError):
+                kernel.plan(
+                    root=self.root,
+                    name=f"tag-{index}",
+                    done_when="x",
+                    stages=[
+                        kernel.StageSpec(
+                            "a", "backend-developer", "writer", ["feature works"], [],
+                            owned_paths=owned_paths,
+                        )
+                    ],
+                )
+
 
 class ReportTest(unittest.TestCase):
     def setUp(self):
@@ -249,7 +298,7 @@ class ReportTest(unittest.TestCase):
             root=self.root,
             name="tag",
             done_when="x",
-            stages=[kernel.StageSpec("a", "database-developer", "writer", ["tags migration exists"], [])],
+            stages=[scoped_stage("a", "database-developer", "writer", ["tags migration exists"], [])],
         )
 
     def test_prose_verified_is_rejected(self):
@@ -378,6 +427,58 @@ class ReportTest(unittest.TestCase):
         d = kernel.load(self.root, "tag")
         self.assertNotEqual(d.stages[0].status, "done")
 
+    def test_report_rejects_did_outside_owned_paths(self):
+        kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="x",
+            stages=[
+                kernel.StageSpec(
+                    "a", "backend-developer", "writer", ["controller exists"], [],
+                    owned_paths=["app/Http"],
+                )
+            ],
+        )
+        path = self.root / "docs/delivery/tag/stages/backend-developer.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            f"STATUS: done\nDID: routes/api.php\nVERIFIED: {VERIFY_TAG}\n"
+            "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
+        )
+        with self.assertRaisesRegex(kernel.ReportError, "outside stage a owned paths"):
+            kernel.report(
+                self.root,
+                "tag",
+                path,
+                runner=FakeRunner({"php artisan test --filter=TagTest": 0}),
+            )
+
+    def test_report_accepts_nested_did_inside_owned_path(self):
+        kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="x",
+            stages=[
+                kernel.StageSpec(
+                    "a", "backend-developer", "writer", ["controller exists"], [],
+                    owned_paths=["app/Http"],
+                )
+            ],
+        )
+        path = self.root / "docs/delivery/tag/stages/backend-developer.md"
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(
+            f"STATUS: done\nDID: app/Http/Controllers/TagController.php\n"
+            f"VERIFIED: {VERIFY_TAG}\nNOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
+        )
+        delivery = kernel.report(
+            self.root,
+            "tag",
+            path,
+            runner=FakeRunner({"php artisan test --filter=TagTest": 0}),
+        )
+        self.assertEqual(delivery.stages[0].status, "done")
+
 
 class SkipCapTest(unittest.TestCase):
     def setUp(self):
@@ -393,10 +494,10 @@ class SkipCapTest(unittest.TestCase):
             name="tag",
             done_when="POST /api/tags creates a Tag",
             stages=[
-                kernel.StageSpec(
+                scoped_stage(
                     "a", "database-developer", "writer", ["tags migration exists"], []
                 ),
-                kernel.StageSpec("b", "backend-developer", "writer", ["Tag HTTP"], ["a"]),
+                scoped_stage("b", "backend-developer", "writer", ["Tag HTTP"], ["a"]),
             ],
         )
 
@@ -455,10 +556,10 @@ class SkipCapTest(unittest.TestCase):
             name="tag",
             done_when="POST /api/tags creates a Tag",
             stages=[
-                kernel.StageSpec(
+                scoped_stage(
                     "a", "database-developer", "writer", ["tags migration exists"], []
                 ),
-                kernel.StageSpec("b", "backend-developer", "writer", ["Tag HTTP"], ["a"]),
+                scoped_stage("b", "backend-developer", "writer", ["Tag HTTP"], ["a"]),
             ],
         )
         self.assertEqual(d.spawns, 1)
@@ -474,10 +575,10 @@ class SkipCapTest(unittest.TestCase):
                     name="tag",
                     done_when="POST /api/tags creates a Tag",
                     stages=[
-                        kernel.StageSpec(
+                        scoped_stage(
                             "a", "database-developer", "writer", ["m"], []
                         ),
-                        kernel.StageSpec(
+                        scoped_stage(
                             "b", "backend-developer", "writer", ["h"], ["a"]
                         ),
                     ],
@@ -490,7 +591,7 @@ class SkipCapTest(unittest.TestCase):
                     name="tag",
                     done_when="wiped",
                     stages=[
-                        kernel.StageSpec(
+                        scoped_stage(
                             "z", "frontend-developer", "writer", ["x"], []
                         )
                     ],
@@ -518,10 +619,10 @@ class ViewsCliTest(unittest.TestCase):
             name="tag",
             done_when="POST /api/tags creates a Tag",
             stages=[
-                kernel.StageSpec(
+                scoped_stage(
                     "a", "database-developer", "writer", ["tags migration exists"], []
                 ),
-                kernel.StageSpec("b", "backend-developer", "writer", ["Tag HTTP"], ["a"]),
+                scoped_stage("b", "backend-developer", "writer", ["Tag HTTP"], ["a"]),
             ],
         )
 
@@ -593,6 +694,23 @@ class ViewsCliTest(unittest.TestCase):
 
     def test_cli_stage_carries_success_criteria(self):
         guild = REPO / "scripts/guild-kernel/guild.py"
+        stages = [
+            {
+                "id": "a", "agent": "database-developer", "role": "writer",
+                "success_criteria": ["tags migration exists", "Tag model"],
+                "depends_on": [], "owned_paths": ["database"],
+            },
+            {
+                "id": "b", "agent": "backend-developer", "role": "writer",
+                "success_criteria": ["Tag HTTP"], "depends_on": ["a"],
+                "owned_paths": ["app"],
+            },
+            {
+                "id": "c", "agent": "qa-engineer", "role": "reviewer",
+                "success_criteria": ["Pest covers Tag"], "depends_on": ["b"],
+                "owned_paths": ["tests"],
+            },
+        ]
         proc = subprocess.run(
             [
                 sys.executable,
@@ -604,12 +722,11 @@ class ViewsCliTest(unittest.TestCase):
                 "tag",
                 "--done-when",
                 "POST /api/tags creates a Tag",
-                "--stage",
-                "a,database-developer,writer,,tags migration exists|Tag model",
-                "--stage",
-                "b,backend-developer,writer,a,Tag HTTP",
-                "--stage",
-                "c,qa-engineer,reviewer,b,Pest covers Tag",
+                *[
+                    item
+                    for stage in stages
+                    for item in ("--stage-json", json.dumps(stage))
+                ],
             ],
             capture_output=True,
             text=True,
@@ -625,9 +742,8 @@ class ViewsCliTest(unittest.TestCase):
         self.assertEqual(d.stages[2].success_criteria, ["Pest covers Tag"])
         self.assertEqual(d.stages[2].depends_on, ["b"])
 
-    def test_cli_stage_too_few_fields_is_usage_error(self):
+    def test_cli_legacy_stage_is_a_migration_error(self):
         guild = REPO / "scripts/guild-kernel/guild.py"
-        help_form = "id,agent,role[,dep+dep][,criterion|criterion]"
         for stage in ("a", ""):
             with self.subTest(stage=stage):
                 proc = subprocess.run(
@@ -648,10 +764,17 @@ class ViewsCliTest(unittest.TestCase):
                 self.assertNotEqual(proc.returncode, 0)
                 combined = proc.stderr + proc.stdout
                 self.assertNotIn("list index out of range", combined)
-                self.assertIn(help_form, combined)
+                self.assertIn("--stage was removed in v6", combined)
 
-    def test_cli_stage_joins_criteria_fields_past_commas(self):
+    def test_cli_stage_json_requires_owned_paths(self):
         guild = REPO / "scripts/guild-kernel/guild.py"
+        stage = json.dumps(
+            {
+                "id": "a",
+                "agent": "database-developer",
+                "success_criteria": ["migration exists"],
+            }
+        )
         proc = subprocess.run(
             [
                 sys.executable,
@@ -663,21 +786,14 @@ class ViewsCliTest(unittest.TestCase):
                 "tag",
                 "--done-when",
                 "POST /api/tags creates a Tag",
-                "--stage",
-                "a,database-developer,writer,,POST /api/tags creates a Tag, returns 201",
-                "--stage",
-                "b,backend-developer,writer,a,hello, world|other",
+                "--stage-json",
+                stage,
             ],
             capture_output=True,
             text=True,
         )
-        self.assertEqual(proc.returncode, 0, proc.stderr)
-        d = kernel.load(self.root, "tag")
-        self.assertEqual(
-            d.stages[0].success_criteria,
-            ["POST /api/tags creates a Tag, returns 201"],
-        )
-        self.assertEqual(d.stages[1].success_criteria, ["hello, world", "other"])
+        self.assertNotEqual(proc.returncode, 0)
+        self.assertIn("missing required fields: owned_paths", proc.stderr)
 
     def test_cli_stage_json_ready_and_claim(self):
         guild = REPO / "scripts/guild-kernel/guild.py"
@@ -737,8 +853,8 @@ class DodTest(unittest.TestCase):
             name="tag",
             done_when="POST /api/tags creates a Tag",
             stages=[
-                kernel.StageSpec("a", "database-developer", "writer", ["m"], []),
-                kernel.StageSpec("b", "backend-developer", "writer", ["h"], ["a"]),
+                scoped_stage("a", "database-developer", "writer", ["m"], []),
+                scoped_stage("b", "backend-developer", "writer", ["h"], ["a"]),
             ],
         )
         delivery = kernel.load(self.root, "tag")
@@ -778,7 +894,7 @@ class DorTest(unittest.TestCase):
                 name="tag",
                 done_when="",
                 stages=[
-                    kernel.StageSpec("a", "database-developer", "writer", ["m"], []),
+                    scoped_stage("a", "database-developer", "writer", ["m"], []),
                 ],
             )
         self.assertFalse((self.root / "docs/delivery/tag/kernel.json").is_file())
@@ -790,7 +906,7 @@ class DorTest(unittest.TestCase):
                 name="tag",
                 done_when="POST /api/tags creates a Tag",
                 stages=[
-                    kernel.StageSpec("a", "database-developer", "writer", [], []),
+                    scoped_stage("a", "database-developer", "writer", [], []),
                 ],
             )
         self.assertFalse((self.root / "docs/delivery/tag/kernel.json").is_file())
@@ -799,14 +915,14 @@ class DorTest(unittest.TestCase):
         invalid_sets = [
             [],
             [
-                kernel.StageSpec("a", "database-developer", "writer", ["m"], []),
-                kernel.StageSpec("a", "backend-developer", "writer", ["h"], []),
+                scoped_stage("a", "database-developer", "writer", ["m"], []),
+                scoped_stage("a", "backend-developer", "writer", ["h"], []),
             ],
-            [kernel.StageSpec("a", "unknown-agent", "writer", ["m"], [])],
-            [kernel.StageSpec("a", "database-developer", "writer", ["m"], ["z"])],
+            [scoped_stage("a", "unknown-agent", "writer", ["m"], [])],
+            [scoped_stage("a", "database-developer", "writer", ["m"], ["z"])],
             [
-                kernel.StageSpec("a", "database-developer", "writer", ["m"], ["b"]),
-                kernel.StageSpec("b", "backend-developer", "writer", ["h"], ["a"]),
+                scoped_stage("a", "database-developer", "writer", ["m"], ["b"]),
+                scoped_stage("b", "backend-developer", "writer", ["h"], ["a"]),
             ],
         ]
         for index, stages in enumerate(invalid_sets):
@@ -938,8 +1054,17 @@ class SprintCliTest(unittest.TestCase):
             "3.1",
             "--done-when",
             "POST /api/tags creates a Tag",
-            "--stage",
-            "a,database-developer,writer,,migration exists",
+            "--stage-json",
+            json.dumps(
+                {
+                    "id": "a",
+                    "agent": "database-developer",
+                    "role": "writer",
+                    "success_criteria": ["migration exists"],
+                    "depends_on": [],
+                    "owned_paths": ["database"],
+                }
+            ),
         )
         self.assertEqual(planned.returncode, 0, planned.stderr)
         delivery = kernel.load(self.root, "tag")
@@ -956,7 +1081,7 @@ class SprintAttachTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def _stages(self):
-        return [kernel.StageSpec("a", "database-developer", "writer", ["m"], [])]
+        return [scoped_stage("a", "database-developer", "writer", ["m"], [])]
 
     def _plan(self, name="tag", sprint=""):
         return kernel.plan(
@@ -1051,7 +1176,7 @@ class SprintCloseTest(unittest.TestCase):
             root=self.root,
             name="tag",
             done_when="POST /api/tags creates a Tag",
-            stages=[kernel.StageSpec("a", "database-developer", "writer", ["m"], [])],
+            stages=[scoped_stage("a", "database-developer", "writer", ["m"], [])],
             sprint="3.1",
         )
 
@@ -1088,7 +1213,7 @@ class LessonTest(unittest.TestCase):
             root=self.root,
             name=name,
             done_when="POST /api/tags creates a Tag",
-            stages=[kernel.StageSpec("a", agent, "writer", ["m"], [])],
+            stages=[scoped_stage("a", agent, "writer", ["m"], [])],
         )
         path = self.root / f"docs/delivery/{name}/stages/{agent}.md"
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -1121,7 +1246,7 @@ class LessonTest(unittest.TestCase):
             root=self.root,
             name="other",
             done_when="POST /api/tags creates a Tag",
-            stages=[kernel.StageSpec("a", "database-developer", "writer", ["m"], [])],
+            stages=[scoped_stage("a", "database-developer", "writer", ["m"], [])],
         )
         self.assertEqual(again.rules_printed, [])
 
@@ -1146,7 +1271,7 @@ class LessonTest(unittest.TestCase):
             name="later",
             done_when="POST /api/tags creates a Tag",
             stages=[
-                kernel.StageSpec("a", "database-developer", "writer", ["m"], [])
+                scoped_stage("a", "database-developer", "writer", ["m"], [])
             ],
         )
         self.assertEqual(candidate_plan.rules_printed, [])
@@ -1164,7 +1289,7 @@ class LessonTest(unittest.TestCase):
             name="later",
             done_when="POST /api/tags creates a Tag",
             stages=[
-                kernel.StageSpec("a", "database-developer", "writer", ["m"], [])
+                scoped_stage("a", "database-developer", "writer", ["m"], [])
             ],
         )
         self.assertEqual(plan.rules_printed, ["Do not call Model::all()"])
@@ -1234,8 +1359,17 @@ class LessonTest(unittest.TestCase):
                 name,
                 "--done-when",
                 "POST /api/tags creates a Tag",
-                "--stage",
-                f"a,{agent},writer,,m",
+                "--stage-json",
+                json.dumps(
+                    {
+                        "id": "a",
+                        "agent": agent,
+                        "role": "writer",
+                        "success_criteria": ["m"],
+                        "depends_on": [],
+                        "owned_paths": ["."],
+                    }
+                ),
             ],
             capture_output=True,
             text=True,
@@ -1291,7 +1425,7 @@ class PairTest(unittest.TestCase):
             name="tag",
             done_when="POST /api/tags creates a Tag",
             stages=[
-                kernel.StageSpec("a", "database-developer", "writer", ["m"], []),
+                scoped_stage("a", "database-developer", "writer", ["m"], []),
             ],
         )
 
@@ -1560,7 +1694,7 @@ class WorkplaceLoadTest(unittest.TestCase):
             root=self.root,
             name="tag",
             done_when="POST /api/tags creates a Tag",
-            stages=[kernel.StageSpec("a", "database-developer", "writer", ["m"], [])],
+            stages=[scoped_stage("a", "database-developer", "writer", ["m"], [])],
         )
         close = (self.root / "docs/delivery/tag/close.md").read_text()
         self.assertIn("\nISSUE: none\n", close)
@@ -1630,7 +1764,7 @@ class WorkplacePlanTest(unittest.TestCase):
             root=self.root,
             name="tag",
             done_when="POST /api/tags creates a Tag",
-            stages=[kernel.StageSpec("a", "database-developer", "writer", ["m"], [])],
+            stages=[scoped_stage("a", "database-developer", "writer", ["m"], [])],
             issue=issue,
             runner=runner,
         )
@@ -1661,7 +1795,7 @@ class WorkplacePlanTest(unittest.TestCase):
             root=self.root,
             name="tag",
             done_when="POST /api/tags creates a Tag",
-            stages=[kernel.StageSpec("a", "database-developer", "writer", ["m"], [])],
+            stages=[scoped_stage("a", "database-developer", "writer", ["m"], [])],
             runner=runner,
         )
         self.assertEqual(runner.calls, [])
@@ -1686,7 +1820,7 @@ class WorkplacePlanTest(unittest.TestCase):
                 name="tag",
                 done_when="POST /api/tags creates a Tag",
                 stages=[
-                    kernel.StageSpec("a", "database-developer", "writer", ["m"], [])
+                    scoped_stage("a", "database-developer", "writer", ["m"], [])
                 ],
                 issue=42,
                 runner=None,
@@ -1705,7 +1839,7 @@ class WorkplacePlanTest(unittest.TestCase):
             root=self.root,
             name="tag",
             done_when="POST /api/tags creates a Tag",
-            stages=[kernel.StageSpec("a", "database-developer", "writer", ["m"], [])],
+            stages=[scoped_stage("a", "database-developer", "writer", ["m"], [])],
             issue=7,
             runner=runner,
         )
@@ -1738,7 +1872,7 @@ class WorkplacePrTest(unittest.TestCase):
             root=self.root,
             name="tag",
             done_when="POST /api/tags creates a Tag",
-            stages=[kernel.StageSpec("a", "database-developer", "writer", ["m"], [])],
+            stages=[scoped_stage("a", "database-developer", "writer", ["m"], [])],
             issue=issue,
             runner=runner,
         )
@@ -1771,7 +1905,7 @@ class WorkplacePrTest(unittest.TestCase):
             root=self.root,
             name="tag",
             done_when="POST /api/tags creates a Tag",
-            stages=[kernel.StageSpec("a", "database-developer", "writer", ["m"], [])],
+            stages=[scoped_stage("a", "database-developer", "writer", ["m"], [])],
             runner=runner,
         )
         runner.calls.clear()
@@ -1825,7 +1959,7 @@ class WorkplaceDoneTest(unittest.TestCase):
             name="tag",
             done_when="POST /api/tags creates a Tag",
             stages=[
-                kernel.StageSpec("a", "database-developer", "writer", ["m"], [])
+                scoped_stage("a", "database-developer", "writer", ["m"], [])
             ],
             issue=42,
             runner=runner,
@@ -1884,7 +2018,7 @@ class WorkplaceDoneTest(unittest.TestCase):
             name="tag",
             done_when="POST /api/tags creates a Tag",
             stages=[
-                kernel.StageSpec("a", "database-developer", "writer", ["m"], [])
+                scoped_stage("a", "database-developer", "writer", ["m"], [])
             ],
         )
         path = self._write_stage()
@@ -1934,7 +2068,7 @@ class WorkplaceIngestTest(unittest.TestCase):
             name="tag",
             done_when="POST /api/tags creates a Tag",
             stages=[
-                kernel.StageSpec("a", "database-developer", "writer", ["m"], [])
+                scoped_stage("a", "database-developer", "writer", ["m"], [])
             ],
             issue=42,
             runner=plan_runner,
@@ -2084,7 +2218,7 @@ class WorkplaceIngestTest(unittest.TestCase):
             name="tag",
             done_when="POST /api/tags creates a Tag",
             stages=[
-                kernel.StageSpec("a", "database-developer", "writer", ["m"], [])
+                scoped_stage("a", "database-developer", "writer", ["m"], [])
             ],
             issue=42,
             runner=plan_runner,
@@ -2134,7 +2268,7 @@ class WatchOnceTest(unittest.TestCase):
             name="tag",
             done_when="POST /api/tags creates a Tag",
             stages=[
-                kernel.StageSpec("a", "database-developer", "writer", ["m"], [])
+                scoped_stage("a", "database-developer", "writer", ["m"], [])
             ],
             issue=42,
             runner=plan_runner,
@@ -2167,7 +2301,7 @@ class WatchOnceTest(unittest.TestCase):
             name="tag",
             done_when="POST /api/tags creates a Tag",
             stages=[
-                kernel.StageSpec("a", "database-developer", "writer", ["m"], [])
+                scoped_stage("a", "database-developer", "writer", ["m"], [])
             ],
             issue=42,
             runner=plan_runner,

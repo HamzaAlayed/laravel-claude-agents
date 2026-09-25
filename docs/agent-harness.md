@@ -15,9 +15,11 @@ Every agent run inherits these controls:
 - **Budgets:** 30 minutes, 200 tool calls, 120 assistant turns, 5 million
   tokens, and $10 by default. The registry also defines hard ceilings that a
   caller cannot exceed.
-- **Scope:** delivery stages require explicit success criteria and owned paths.
-  The kernel blocks dependency violations, WIP overflow, and overlapping path
-  claims.
+- **Scope:** delivery stages require explicit success criteria. Every
+  mutation-capable stage also requires at least one project-relative owned
+  path; only `deny` profiles may remain pathless. The kernel blocks dependency
+  violations, WIP overflow, overlapping claims, and reported outputs outside
+  the stage’s ownership.
 - **Tool gateway:** production mutations, destructive database operations,
   secret writes, irreversible external actions, scope expansion, and changes
   to success criteria require a human decision or are denied by a guardrail.
@@ -41,6 +43,12 @@ material enough to escalate.
 `docs-only` narrows mutation to delivery or design documentation. `deny` is a
 read-only role; frontmatter removes Edit and Write, and the Bash guard closes
 common command-line write vectors.
+
+For new plans, pass typed `--stage-json` records. Each record must include
+`owned_paths`: a nonempty array for `task-owned` and `docs-only` profiles, or
+an empty array for a `deny` profile. The v6 kernel rejects the former
+comma-delimited `--stage` form because it cannot express a safe ownership
+boundary.
 
 | Agent | Class | Mutation | Approval boundary | Primary handoffs |
 | --- | --- | --- | --- | --- |
