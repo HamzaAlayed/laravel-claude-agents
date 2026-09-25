@@ -93,10 +93,10 @@ export function KernelStrip() {
       )}
       <div className="grid gap-3 sm:grid-cols-3">
         <label className="flex flex-col gap-1.5">
-          <span className="text-xs">Stage</span>
+          <span className="text-xs">Owner assertion (optional)</span>
           <Input
             className={fieldClass}
-            aria-label="Stage"
+            aria-label="Owner assertion"
             value={stage}
             onChange={(event) => setStage(event.target.value)}
           />
@@ -125,7 +125,7 @@ export function KernelStrip() {
           type="button"
           size="sm"
           variant="outline"
-          disabled={busy || !name.trim() || !stage.trim() || !check.trim()}
+          disabled={busy || !name.trim() || !check.trim()}
           onClick={reopenCheck}
         >
           Reopen on check
@@ -134,7 +134,7 @@ export function KernelStrip() {
           type="button"
           size="sm"
           variant="outline"
-          disabled={busy || !name.trim() || !stage.trim() || !comment.trim()}
+          disabled={busy || !name.trim() || !comment.trim()}
           onClick={reopenReview}
         >
           Reopen on review

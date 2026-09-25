@@ -14,12 +14,11 @@ describe("KernelStrip", () => {
     );
   });
 
-  it("reopen-on-check POSTs name, kind, stage, check without root", async () => {
+  it("reopen-on-check POSTs feedback without choosing an owner or root", async () => {
     const user = userEvent.setup();
     render(<KernelStrip />);
 
     await user.type(screen.getByLabelText(/delivery name/i), "tag");
-    await user.type(screen.getByLabelText(/^stage$/i), "a");
     await user.type(screen.getByLabelText(/check name/i), "pint");
     await user.click(screen.getByRole("button", { name: /reopen on check/i }));
 
@@ -28,7 +27,7 @@ describe("KernelStrip", () => {
       (call: unknown[]) => String(call[0]).includes("/api/kernel/ingest"),
     ) as [string, RequestInit];
     const body = JSON.parse(String(init.body));
-    expect(body).toEqual({ name: "tag", kind: "check", stage: "a", check: "pint" });
+    expect(body).toEqual({ name: "tag", kind: "check", stage: "", check: "pint" });
     expect(body).not.toHaveProperty("root");
   });
 });

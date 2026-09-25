@@ -305,15 +305,15 @@ function DeliveryCard({
           <div className="mb-4 flex items-start gap-3">
             <RefreshCcw className="mt-0.5 size-4 shrink-0 text-primary" aria-hidden />
             <div>
-              <h3 className="text-sm font-semibold">Send one stage back to work</h3>
+              <h3 className="text-sm font-semibold">Route a failed check</h3>
               <p className="mt-1 text-sm leading-5 text-muted-foreground">
-                Enter the stage ID and the failed GitHub check. The Guild will reopen only that stage.
+                Enter the failed GitHub check. The Guild routes it to the stage that declared ownership; the stage ID is an optional assertion.
               </p>
             </div>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1.5">
-              <span className="text-xs font-medium">Stage ID</span>
+              <span className="text-xs font-medium">Owner assertion (optional)</span>
               <Input
                 className={fieldClass}
                 name={`stage-${row.name}`}
@@ -339,11 +339,11 @@ function DeliveryCard({
             type="button"
             className="mt-4"
             variant="secondary"
-            disabled={busy || !stage.trim() || !check.trim()}
+            disabled={busy || !check.trim()}
             onClick={onReopenCheck}
           >
             <RefreshCcw data-icon="inline-start" aria-hidden />
-            Reopen stage
+            Route check
           </Button>
         </div>
       ) : null}

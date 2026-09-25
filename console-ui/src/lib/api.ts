@@ -72,7 +72,7 @@ export const fetchKernelBoard = async (name: string): Promise<{ text: string }> 
 export type KernelIngestBody = {
   name: string;
   kind: "check" | "review";
-  stage: string;
+  stage?: string;
   check?: string;
   comment?: string;
 };

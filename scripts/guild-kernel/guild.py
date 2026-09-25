@@ -55,7 +55,7 @@ def build_parser():
         "--stage-json",
         action="append",
         default=[],
-        help="typed stage object with id, agent, role, success_criteria, criterion_ids, depends_on, owned_paths, approval_categories, budget",
+        help="typed stage object with id, agent, role, success_criteria, criterion_ids, depends_on, owned_paths, approval_categories, feedback_checks, budget",
     )
     plan.add_argument("--max-parallel", type=int, default=3)
     plan.add_argument("--issue", type=int, default=0)
@@ -74,9 +74,15 @@ def build_parser():
     pr.add_argument("--number", type=int, required=True)
     ingest = sub.add_parser("ingest", parents=[common])
     ingest.add_argument("--kind", required=True)
-    ingest.add_argument("--stage", required=True)
+    ingest.add_argument("--stage", default="")
     ingest.add_argument("--check", default="")
     ingest.add_argument("--comment", default="")
+    feedback = sub.add_parser("feedback")
+    feedback_cmds = feedback.add_subparsers(dest="feedback_cmd", required=True)
+    feedback_cmds.add_parser("list", parents=[common])
+    feedback_assign = feedback_cmds.add_parser("assign", parents=[common])
+    feedback_assign.add_argument("--event-id", required=True)
+    feedback_assign.add_argument("--stage", required=True)
     approval = sub.add_parser("approval")
     approval_cmds = approval.add_subparsers(dest="approval_cmd", required=True)
     approval_cmds.add_parser("list", parents=[common])
@@ -183,7 +189,7 @@ def _stages_from_args(raw_stages, raw_json_stages=()):
         )
     allowed = {
         "id", "agent", "role", "success_criteria", "depends_on", "owned_paths",
-        "approval_categories", "criterion_ids",
+        "approval_categories", "criterion_ids", "feedback_checks",
         "budget",
     }
     for raw in raw_json_stages:
@@ -209,6 +215,7 @@ def _stages_from_args(raw_stages, raw_json_stages=()):
                 approval_categories=spec.get("approval_categories", []),
                 budget=spec.get("budget", {}),
                 criterion_ids=spec.get("criterion_ids", []),
+                feedback_checks=spec.get("feedback_checks", []),
             )
         )
     return stages
@@ -268,12 +275,14 @@ def main(argv=None):
             print(kernel.next_agent(args.root, args.name))
             return 0
         if args.cmd == "ready":
+            feedback_events = kernel.feedback_rows(args.root, args.name)["events"]
             ready = [
                 {
                     "id": stage.id,
                     "agent": stage.agent,
                     "role": stage.role,
                     "owned_paths": stage.owned_paths,
+                    "feedback_checks": stage.feedback_checks,
                     "budget": stage.budget,
                     "criteria": kernel.criterion_rows_for_stage(stage),
                     "attempt": stage.attempts + 1,
@@ -294,6 +303,12 @@ def main(argv=None):
                         if stage.recovery_reason
                         else None
                     ),
+                    "feedback": [
+                        event
+                        for event in feedback_events
+                        if event.get("stage") == stage.id
+                        and event.get("status") == "open"
+                    ],
                 }
                 for stage in kernel.ready_stages(args.root, args.name)
             ]
@@ -319,7 +334,7 @@ def main(argv=None):
             kernel.record_pr(args.root, args.name, args.number, ProcessRunner())
             return 0
         if args.cmd == "ingest":
-            kernel.ingest(
+            result = kernel.ingest(
                 args.root,
                 args.name,
                 kind=args.kind,
@@ -328,6 +343,21 @@ def main(argv=None):
                 comment=args.comment,
                 runner=ProcessRunner(),
             )
+            print(json.dumps(result, separators=(",", ":")))
+            return 0
+        if args.cmd == "feedback":
+            if args.feedback_cmd == "list":
+                print(json.dumps(kernel.feedback_rows(args.root, args.name)))
+                return 0
+            if args.feedback_cmd == "assign":
+                result = kernel.assign_feedback(
+                    args.root,
+                    args.name,
+                    args.event_id,
+                    args.stage,
+                )
+                print(json.dumps(result, separators=(",", ":")))
+                return 0
             return 0
         if args.cmd == "approval":
             if args.approval_cmd == "list":

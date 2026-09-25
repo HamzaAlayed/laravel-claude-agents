@@ -206,8 +206,9 @@ Each run's misses become levers, ship in the next release, and get re-measured �
 The default multi-stage loop is `plan → approve if needed → ready → claim → delegate → verify →
 report → integrate → review`. A failed stage is requeued to the same owner for
 one fresh atomic claim; a second distinct failure marks the lane failed and
-stops delivery for a human decision. Confirmed CI and review feedback use the
-same retry lifecycle. Approved lessons feed the next plan. Single-specialist
+stops delivery for a human decision. Confirmed CI and review feedback route to
+the stage that owns the exact check or commented path, then use the same retry
+lifecycle. Approved lessons feed the next plan. Single-specialist
 work uses a fast path and skips pipeline ceremony. A confirmed process
 interruption freezes its claim before any resumed work is dispatched.
 
@@ -257,6 +258,15 @@ constraints. Duplicate event IDs are safe. A second distinct failure changes
 the stage to `failed` and the delivery to `stopped`. `guild retry list`, `guild
 transition list`, and generated `retries.md` / `transitions.md` views preserve
 the full trail. See [auditable stage retries](docs/retry-policy.md).
+
+**PR feedback returns to its owner.** Typed stages declare globally unique CI
+check names. The kernel routes a failed check by exact name and a review
+comment by the longest matching owned path; a supplied stage is only an
+assertion. Unknown routes persist as `route_required` and block dispatch until
+the main thread verifies and assigns the owner. Multiple open items share one
+bounded repair attempt, and a passing report resolves them together. `guild
+feedback list` and generated `feedback.md` preserve the audit trail. See
+[PR and CI feedback routing](docs/feedback-routing.md).
 
 **Interrupted claims recover without guessed work.** Every start or resume
 calls `guild recovery list` before dispatch. After confirming that an old
@@ -356,7 +366,7 @@ They exit `2` to block and print a clear reason.
 | `enforce-lessons-file.sh`       | Write\|Edit of `docs/team/lessons.md` that is not helper shape (`LESSONS:` plus either `none` or `ID:` / `RULE:` / `SCOPE:` / `STATUS:` / `PROVENANCE:`); also Bash writes of that path — the kernel renders that view |
 | `enforce-reviewer-readonly.sh`  | File-mutating Bash (`sed -i`, redirects, `tee`, mutating `git`/`artisan`/`composer`, `pint` without `--test`, `rm`/`mv`/`cp`) **from the read-only reviewers only** — scoped via the hook input's `agent_type`; builders and the main thread are untouched. Claude Code only. |
 | `enforce-agent-paths.sh`        | Native `Write`, `Edit`, and `NotebookEdit` calls from a Guild agent participating in an active delivery before its stage is claimed, outside its stage’s `owned_paths`, or while ownership is ambiguous. `deny` profiles cannot use native write tools; `docs-only` profiles stay inside registry-declared documentation roots. Direct point-work remains the fast path when no active delivery contains that agent. Claude Code only. |
-| `enforce-kernel-approvals.sh`   | Planned Guild subagents using tools before their stage is approved and claimed; subagent attempts to grant approval, waive criteria, or mutate checkpoints; direct native edits or write-shaped Bash against `docs/delivery/*/kernel.json`. User-authoritative provenance stays kernel-owned. Claude Code only. |
+| `enforce-kernel-approvals.sh`   | Planned Guild subagents using tools before their stage is approved and claimed; subagent attempts to grant approval, waive criteria, mutate checkpoints, or assign feedback routes; direct native edits or write-shaped Bash against `docs/delivery/*/kernel.json`. User-authoritative provenance stays kernel-owned. Claude Code only. |
 | `enforce-kernel-budgets.sh`     | Planned Guild stages after their time/tool-call ceiling, self-recorded aggregate usage, missing completion telemetry, a turns/tokens/USD overage, or an exact one-to-four-step tool cycle repeated three times. Usage and terminal evidence stay durable in `kernel.json`; raw loop inputs do not. Claude Code meters automatically; other runtimes use the kernel CLI when they expose equivalent totals. |
 | `enforce-sail.sh`               | Bare `php artisan` / `composer` / `vendor/bin/{pint,pest,phpunit,phpstan}` on a **Sail** project — the block message carries the exact `./vendor/bin/sail …` rewrite, so the agent self-corrects in one turn. Active only when both `vendor/bin/sail` and a compose file exist (the sail *dependency* alone — the Herd/Valet shape — stays untouched). Opt out with `LARAVEL_AGENTS_SAIL=0`. |
 | `emit-agent-events.sh`          | Nothing — an **observer**, not a guard: wired as `PreToolUse` **and** `PostToolUse` on the subagent tool (`Agent\|Task`), it streams every subagent start / finish (agent, task, duration, tokens) to `.claude/agents-board.jsonl` for the `/board` live dashboard. Always exits 0. Claude Code only. |

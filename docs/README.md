@@ -4,7 +4,7 @@ This page maps the `docs/` corpus so the next review — human or agent — star
 
 Adopting the pack on a Laravel app? [Run your first delivery](onboarding.md). Seeing it work in five minutes? The [README quickstart](../README.md#five-minute-quickstart).
 
-Last verified 2026-09-25 against pack v8.4.0.
+Last verified 2026-09-25 against pack v8.5.0.
 
 ## What lives where
 
@@ -21,7 +21,8 @@ Last verified 2026-09-25 against pack v8.4.0.
 | [`docs/authoring-agents.md`](authoring-agents.md) | How to write an agent in this pack's voice. |
 | [`docs/read-only-by-design.md`](read-only-by-design.md) | How reviewer read-only is enforced, and where it stops. |
 | [`docs/onboarding.md`](onboarding.md) | Adopting-team guide: first delivery, `/teach`, reading a scorecard. |
-| [`docs/agent-harness.md`](agent-harness.md) | Shared lifecycle, budgets, approvals, verification, retries, and recovery plus all agent policy profiles. |
+| [`docs/agent-harness.md`](agent-harness.md) | Shared lifecycle, budgets, approvals, verification, retries, recovery, and feedback routing plus all agent policy profiles. |
+| [`docs/feedback-routing.md`](feedback-routing.md) | How CI failures and review comments route to stage owners, pause when unresolved, and close with repair evidence. |
 | [`docs/recovery-policy.md`](recovery-policy.md) | How to inspect, freeze, continue, or stop a stranded stage claim without guessing work. |
 | [`docs/releases/`](releases/) | Human-facing notes for the current major release sequence. |
 | [`tests/eval/README.md`](../tests/eval/README.md) | How to run the eval harness. Answer key. Not a scorecard. |

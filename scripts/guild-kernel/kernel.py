@@ -106,6 +106,18 @@ _RECOVERY_POLICY = {
 _RECOVERY_SOURCES = frozenset(
     {"user", "process-exit", "runtime-error", "host-restart"}
 )
+_FEEDBACK_POLICY = {
+    "eventField": "feedback_events",
+    "stageChecksField": "feedback_checks",
+    "stageEventsField": "feedback_event_ids",
+    "assignAuthority": "main",
+    "ciRouting": "exact-check-name",
+    "reviewRouting": "longest-owned-path",
+    "unroutedStatus": "route_required",
+    "openStatus": "open",
+    "resolvedStatus": "resolved",
+    "stoppedStatus": "stopped",
+}
 _STAGE_TRANSITIONS = {
     "queued": frozenset({"running", "paused"}),
     "running": frozenset(
@@ -203,6 +215,8 @@ class StageSpec:
     recovery_event_id: str = ""
     recovery_reason: str = ""
     recovery_source: str = ""
+    feedback_checks: list = field(default_factory=list)
+    feedback_event_ids: list = field(default_factory=list)
 
 
 @dataclass
@@ -226,6 +240,7 @@ class Delivery:
     retry_events: list = field(default_factory=list)
     transition_events: list = field(default_factory=list)
     recovery_events: list = field(default_factory=list)
+    feedback_events: list = field(default_factory=list)
 
 
 def _state_path(root, name):
@@ -281,6 +296,7 @@ def load(root, name):
     data.setdefault("retry_events", [])
     data.setdefault("transition_events", [])
     data.setdefault("recovery_events", [])
+    data.setdefault("feedback_events", [])
     stages = []
     for stage in data.pop("stages"):
         stage.setdefault("flags", [])
@@ -317,6 +333,8 @@ def load(root, name):
         stage.setdefault("recovery_event_id", "")
         stage.setdefault("recovery_reason", "")
         stage.setdefault("recovery_source", "")
+        stage.setdefault("feedback_checks", [])
+        stage.setdefault("feedback_event_ids", [])
         stages.append(StageSpec(**stage))
     return Delivery(stages=stages, **data)
 
@@ -509,6 +527,13 @@ def board_line(delivery):
                 f" recovery:{stage.recovery_source} "
                 f"attempt:{stage.attempts + (stage.status == 'queued')}"
             )
+        open_feedback = sum(
+            1
+            for event in delivery.feedback_events
+            if event.get("stage") == stage.id and event.get("status") == "open"
+        )
+        if open_feedback:
+            label += f" feedback:{open_feedback}"
         matrix = ",".join(
             f"{row['id']}:{row['mark']}" for row in criterion_rows_for_stage(stage)
         )
@@ -693,6 +718,41 @@ def render_recoveries(delivery):
     return "\n".join(lines)
 
 
+def render_feedback(delivery):
+    lines = ["# PR and CI feedback", ""]
+    if not delivery.feedback_events:
+        return "\n".join([*lines, "None.", ""])
+    for event in delivery.feedback_events:
+        stage = event.get("stage") or "unrouted"
+        lines.extend(
+            [
+                f"## {event['kind']} `{event['external_id']}` — {event['status']}",
+                "",
+                f"- Event: `{event['event_id']}`",
+                f"- Stage: `{stage}`",
+                f"- First seen: {event['first_seen_at']}",
+                f"- Route: `{event.get('route', 'none')}`",
+                f"- Summary: {event['summary']}",
+            ]
+        )
+        if event.get("check"):
+            lines.append(f"- Check: `{event['check']}`")
+        if event.get("path"):
+            location = event["path"]
+            if event.get("line"):
+                location += f":{event['line']}"
+            lines.append(f"- Path: `{location}`")
+        if event.get("url"):
+            lines.append(f"- URL: {event['url']}")
+        if event.get("resolved_at"):
+            lines.append(
+                f"- Resolved: {event['resolved_at']} by {event['resolved_by']} "
+                f"on attempt {event['resolved_attempt']}"
+            )
+        lines.append("")
+    return "\n".join(lines)
+
+
 def write_views(root, delivery, *, verified="none", not_checked="none"):
     folder = pathlib.Path(root) / "docs" / "delivery" / delivery.name
     folder.mkdir(parents=True, exist_ok=True)
@@ -705,6 +765,7 @@ def write_views(root, delivery, *, verified="none", not_checked="none"):
     (folder / "retries.md").write_text(render_retries(delivery))
     (folder / "transitions.md").write_text(render_transitions(delivery))
     (folder / "recoveries.md").write_text(render_recoveries(delivery))
+    (folder / "feedback.md").write_text(render_feedback(delivery))
 
 
 def _has_criteria(stage):
@@ -816,6 +877,7 @@ def _harness_registry():
         criterion_policy = shared["criterionPolicy"]
         checkpoint_policy = shared["checkpointPolicy"]
         loop_policy = shared["loopPolicy"]
+        feedback_policy = shared["feedbackPolicy"]
         budgets = shared["budgets"]
         if not isinstance(profiles, dict):
             raise TypeError("agent profiles must be an object")
@@ -834,6 +896,8 @@ def _harness_registry():
             raise TypeError("checkpoint policy is invalid")
         if loop_policy != _LOOP_POLICY:
             raise TypeError("loop policy is invalid")
+        if feedback_policy != _FEEDBACK_POLICY:
+            raise TypeError("feedback policy is invalid")
         defaults = budgets["defaults"]
         ceilings = budgets["hardCeilings"]
         if set(defaults) != set(_BUDGET_KEYS) or set(ceilings) != set(_BUDGET_KEYS):
@@ -2165,6 +2229,34 @@ def _validate_owned_paths(stages):
             seen.add(normalized)
 
 
+def _validate_feedback_checks(stages):
+    owners = {}
+    for stage in stages:
+        if not isinstance(stage.feedback_checks, list):
+            raise PlanError(f"feedback_checks for stage {stage.id} must be a list")
+        local = set()
+        normalized = []
+        for raw in stage.feedback_checks:
+            if (
+                not isinstance(raw, str)
+                or not raw.strip()
+                or len(raw.strip()) > 200
+                or any(char in raw for char in "\r\n")
+            ):
+                raise PlanError(f"invalid feedback check for stage {stage.id}")
+            check = raw.strip()
+            if check in local:
+                raise PlanError(f"duplicate feedback check for stage {stage.id}: {check}")
+            if check in owners:
+                raise PlanError(
+                    f"feedback check {check} belongs to both {owners[check]} and {stage.id}"
+                )
+            local.add(check)
+            normalized.append(check)
+            owners[check] = stage.id
+        stage.feedback_checks = normalized
+
+
 def _validate_stages(stages):
     if not stages:
         raise PlanError("plan requires at least one stage")
@@ -2200,6 +2292,7 @@ def _validate_stages(stages):
     _validate_criteria(stages)
     _validate_approval_categories(stages)
     _validate_budgets(stages)
+    _validate_feedback_checks(stages)
 
 
 def _wip_count(root, sprint):
@@ -2368,97 +2461,213 @@ def _external_retry_event_id(source, value):
     return f"{source}:{digest}"
 
 
-def ingest(root, name, *, kind, stage_id, runner, check="", comment=""):
-    delivery = load(root, name)
-    if not delivery.issue or not delivery.pr.get("number"):
-        raise PlanError("ingest requires issue and recorded PR")
-    stage = next((item for item in delivery.stages if item.id == stage_id), None)
-    if stage is None:
-        raise PlanError(f"stage {stage_id} is missing")
-    if kind not in ("check", "review"):
-        raise PlanError(f"unknown ingest kind {kind}")
-    try:
-        number = int(delivery.pr["number"])
-    except (TypeError, ValueError) as exc:
-        raise PlanError("pr number must be an integer") from exc
-    if kind == "check":
-        cmd = ["gh", "pr", "checks", str(number), "--json", "name,bucket,link"]
-        code, out = runner.capture(root, cmd)
-        if code != 0:
-            raise PlanError(f"gh pr checks exited {code}")
-        try:
-            payload = json.loads(out)
-        except json.JSONDecodeError as exc:
-            raise PlanError("gh pr checks returned malformed JSON") from exc
-        if not isinstance(payload, list):
-            raise PlanError("gh pr checks returned malformed JSON")
-        match = next((item for item in payload if item.get("name") == check), None)
-        if match is None:
-            raise PlanError(f"check {check} not found")
-        if match.get("bucket") != "fail":
-            return delivery
-        link = str(match.get("link") or check)
-        request_retry(
-            root,
-            name,
-            stage_id,
-            source="ci",
-            reason=f"failing CI check: {check}",
-            event_id=_external_retry_event_id("ci", link),
-        )
-        return load(root, name)
-    if not _REPO_RE.fullmatch(delivery.repo or ""):
-        raise PlanError("repo must be owner/name")
-    cmd = [
-        "gh", "api", f"repos/{delivery.repo}/pulls/{number}/comments",
-        "--jq", ".[].id",
-    ]
-    code, out = runner.capture(root, cmd)
-    if code != 0:
-        raise PlanError(f"gh api comments exited {code}")
-    ids = {line.strip() for line in out.splitlines() if line.strip()}
-    if str(comment) not in ids:
-        raise PlanError(f"review comment {comment} not found")
-    request_retry(
-        root,
-        name,
-        stage_id,
-        source="review",
-        reason=f"review comment requires changes: {comment}",
-        event_id=f"review:{comment}",
+def _feedback_event_seen(delivery, event_id):
+    return next(
+        (
+            event
+            for event in delivery.feedback_events
+            if isinstance(event, dict) and event.get("event_id") == event_id
+        ),
+        None,
     )
-    return load(root, name)
 
 
-def _watch_target(delivery):
-    writers = [
-        stage
-        for stage in delivery.stages
-        if stage.role == "writer" and stage.status in ("done", "running")
-    ]
-    if writers:
-        return writers[-1]
-    done = [stage for stage in delivery.stages if stage.status == "done"]
-    if done:
-        return done[-1]
-    return None
-
-
-def watch_once(root, name, runner):
+def feedback_rows(root, name):
     delivery = load(root, name)
-    if delivery.status in ("stopped", "done", "budget_exceeded", "interrupted"):
-        return {"action": "skip"}
-    if not delivery.pr.get("number"):
-        return {"action": "skip"}
-    stage = _watch_target(delivery)
-    if stage is None:
-        return {"action": "skip"}
-    if stage.status == "running":
-        return {"action": "wait"}
-    try:
-        number = int(delivery.pr["number"])
-    except (TypeError, ValueError) as exc:
-        raise PlanError("pr number must be an integer") from exc
+    return {
+        "delivery_status": delivery.status,
+        "routes": [
+            {"kind": "check", "selector": check, "stage": stage.id}
+            for stage in delivery.stages
+            for check in stage.feedback_checks
+        ],
+        "events": list(delivery.feedback_events),
+    }
+
+
+def _feedback_owned_depth(stage, raw_path):
+    if not isinstance(raw_path, str) or not raw_path.strip():
+        return -1
+    path = pathlib.PurePosixPath(raw_path)
+    if path.is_absolute() or ".." in path.parts:
+        return -1
+    best = -1
+    for raw_owned in stage.owned_paths:
+        owned = pathlib.PurePosixPath(raw_owned)
+        if owned == pathlib.PurePosixPath("."):
+            best = max(best, 0)
+            continue
+        try:
+            path.relative_to(owned)
+        except ValueError:
+            continue
+        best = max(best, len(owned.parts))
+    return best
+
+
+def _feedback_owner(delivery, *, kind, check="", path=""):
+    if kind == "check":
+        matches = [stage for stage in delivery.stages if check in stage.feedback_checks]
+        return matches[0] if len(matches) == 1 else None
+    ranked = [
+        (depth, stage)
+        for stage in delivery.stages
+        if (depth := _feedback_owned_depth(stage, path)) >= 0
+    ]
+    if not ranked:
+        return None
+    best = max(depth for depth, _stage in ranked)
+    matches = [stage for depth, stage in ranked if depth == best]
+    return matches[0] if len(matches) == 1 else None
+
+
+def _pending_feedback_route(delivery):
+    return next(
+        (
+            event
+            for event in delivery.feedback_events
+            if event.get("status") == _FEEDBACK_POLICY["unroutedStatus"]
+        ),
+        None,
+    )
+
+
+def _feedback_result(event, *, duplicate=False):
+    action = "noop" if duplicate else event.get("action") or event["status"]
+    result = {
+        "action": action,
+        "event_id": event["event_id"],
+        "stage": event.get("stage") or None,
+    }
+    if event.get("check"):
+        result["check"] = event["check"]
+    if event.get("comment"):
+        result["comment"] = event["comment"]
+    return result
+
+
+def _activate_feedback_unlocked(root, delivery, event, stage, *, route):
+    event["stage"] = stage.id
+    event["route"] = route
+    if event["event_id"] not in stage.feedback_event_ids:
+        stage.feedback_event_ids.append(event["event_id"])
+    if event["kind"] == "check" and event["check"] not in delivery.seen_checks:
+        delivery.seen_checks.append(event["check"])
+    if event["kind"] == "review" and event["comment"] not in delivery.seen_comments:
+        delivery.seen_comments.append(event["comment"])
+
+    if stage.status in ("queued", "running"):
+        event["status"] = _FEEDBACK_POLICY["openStatus"]
+        event["action"] = "attached"
+        save(root, delivery)
+        write_views(root, delivery, not_checked=delivery.done_when or "none")
+        return event
+    if stage.status == "done":
+        exhausted = stage.reopens >= _RETRY_POLICY["maxRetries"]
+        event["status"] = (
+            _FEEDBACK_POLICY["stoppedStatus"]
+            if exhausted
+            else _FEEDBACK_POLICY["openStatus"]
+        )
+        event["action"] = "stopped" if exhausted else "reopen"
+        _request_retry_unlocked(
+            root,
+            delivery,
+            stage,
+            source="ci" if event["kind"] == "check" else "review",
+            reason=event["summary"],
+            event_id=event["event_id"],
+            requested_by="main",
+        )
+        return event
+    event["status"] = _FEEDBACK_POLICY["stoppedStatus"]
+    event["action"] = "stopped"
+    save(root, delivery)
+    write_views(root, delivery, not_checked=delivery.done_when or "none")
+    return event
+
+
+def _record_feedback(root, name, payload, *, asserted_stage=""):
+    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with _file_lock(lock_path):
+        delivery = load(root, name)
+        existing = _feedback_event_seen(delivery, payload["event_id"])
+        if existing is not None:
+            if asserted_stage and existing.get("stage") not in ("", None, asserted_stage):
+                raise PlanError(
+                    f"feedback {payload['event_id']} belongs to stage {existing['stage']}"
+                )
+            return _feedback_result(existing, duplicate=True)
+        owner = _feedback_owner(
+            delivery,
+            kind=payload["kind"],
+            check=payload.get("check", ""),
+            path=payload.get("path", ""),
+        )
+        if owner is not None and asserted_stage and owner.id != asserted_stage:
+            raise PlanError(
+                f"feedback {payload['event_id']} belongs to stage {owner.id}, not {asserted_stage}"
+            )
+        event = {
+            **payload,
+            "stage": owner.id if owner is not None else "",
+            "status": _FEEDBACK_POLICY["unroutedStatus"],
+            "route": "none",
+            "action": "route_required",
+            "first_seen_at": _now_utc().isoformat(timespec="seconds"),
+            "resolved_at": "",
+            "resolved_by": "",
+            "resolved_attempt": 0,
+        }
+        delivery.feedback_events.append(event)
+        if owner is None:
+            save(root, delivery)
+            write_views(root, delivery, not_checked=delivery.done_when or "none")
+            return _feedback_result(event)
+        route = "declared-check" if event["kind"] == "check" else "owned-path"
+        _activate_feedback_unlocked(root, delivery, event, owner, route=route)
+        return _feedback_result(event)
+
+
+def assign_feedback(root, name, event_id, stage_id, *, assigned_by="main"):
+    if assigned_by != _FEEDBACK_POLICY["assignAuthority"]:
+        raise PlanError("feedback routes can only be assigned by the main thread")
+    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with _file_lock(lock_path):
+        delivery = load(root, name)
+        event = _feedback_event_seen(delivery, event_id)
+        if event is None:
+            raise PlanError(f"feedback event {event_id} is missing")
+        if event.get("status") != _FEEDBACK_POLICY["unroutedStatus"]:
+            if event.get("stage") == stage_id:
+                return _feedback_result(event, duplicate=True)
+            raise PlanError(f"feedback event {event_id} is already routed")
+        stage = next((item for item in delivery.stages if item.id == stage_id), None)
+        if stage is None:
+            raise PlanError(f"stage {stage_id} is missing")
+        if event["kind"] == "review":
+            owner = _feedback_owner(delivery, kind="review", path=event.get("path", ""))
+            if owner is None or owner.id != stage.id:
+                raise PlanError(
+                    f"review feedback path is not owned by stage {stage.id}"
+                )
+        else:
+            owner = _feedback_owner(delivery, kind="check", check=event["check"])
+            if owner is not None and owner.id != stage.id:
+                raise PlanError(
+                    f"check {event['check']} is already routed to stage {owner.id}"
+                )
+            if event["check"] not in stage.feedback_checks:
+                stage.feedback_checks.append(event["check"])
+        _activate_feedback_unlocked(
+            root, delivery, event, stage, route="main-assignment"
+        )
+        return _feedback_result(event)
+
+
+def _check_rows(root, number, runner):
     cmd = ["gh", "pr", "checks", str(number), "--json", "name,bucket,link"]
     code, out = runner.capture(root, cmd)
     if code != 0:
@@ -2467,67 +2676,133 @@ def watch_once(root, name, runner):
         payload = json.loads(out)
     except json.JSONDecodeError as exc:
         raise PlanError("gh pr checks returned malformed JSON") from exc
-    if not isinstance(payload, list):
+    if not isinstance(payload, list) or any(not isinstance(item, dict) for item in payload):
         raise PlanError("gh pr checks returned malformed JSON")
-    failed_check = next(
-        (item for item in payload if item.get("bucket") == "fail"),
-        None,
-    )
-    if failed_check is not None:
-        check = failed_check.get("name")
-        event_id = _external_retry_event_id(
-            "ci", str(failed_check.get("link") or check)
-        )
-        if _retry_event_seen(delivery, event_id) is not None:
-            return {"action": "noop"}
-        event = request_retry(
-            root,
-            name,
-            stage.id,
-            source="ci",
-            reason=f"failing CI check: {check}",
-            event_id=event_id,
-        )
-        delivery = load(root, name)
-        if check not in delivery.seen_checks:
-            delivery.seen_checks.append(check)
-            save(root, delivery)
-        if event["action"] == "stopped":
-            return {"action": "stopped", "check": check}
-        return {"action": "reopen", "check": check}
+    return payload
+
+
+def _review_rows(root, delivery, number, runner):
     if not _REPO_RE.fullmatch(delivery.repo or ""):
         raise PlanError("repo must be owner/name")
-    review_cmd = [
-        "gh", "api", f"repos/{delivery.repo}/pulls/{number}/comments",
-        "--jq", ".[].id",
-    ]
-    code, out = runner.capture(root, review_cmd)
+    cmd = ["gh", "api", f"repos/{delivery.repo}/pulls/{number}/comments"]
+    code, out = runner.capture(root, cmd)
     if code != 0:
         raise PlanError(f"gh api comments exited {code}")
-    for line in out.splitlines():
-        comment = line.strip()
-        event_id = f"review:{comment}"
-        if (
-            not comment
-            or comment in delivery.seen_comments
-            or _retry_event_seen(delivery, event_id) is not None
-        ):
-            continue
-        event = request_retry(
-            root,
-            name,
-            stage.id,
-            source="review",
-            reason=f"review comment requires changes: {comment}",
-            event_id=event_id,
+    try:
+        payload = json.loads(out)
+    except json.JSONDecodeError as exc:
+        raise PlanError("gh api comments returned malformed JSON") from exc
+    if not isinstance(payload, list) or any(not isinstance(item, dict) for item in payload):
+        raise PlanError("gh api comments returned malformed JSON")
+    return payload
+
+
+def _check_feedback_payload(item):
+    check = str(item.get("name") or "").strip()
+    link = str(item.get("link") or check).strip()
+    if not check:
+        raise PlanError("CI check name is missing")
+    return {
+        "event_id": _external_retry_event_id("ci", link),
+        "kind": "check",
+        "external_id": link,
+        "summary": f"failing CI check: {check}",
+        "check": check,
+        "comment": "",
+        "path": "",
+        "line": 0,
+        "url": link if link != check else "",
+    }
+
+
+def _review_feedback_payload(item):
+    comment = str(item.get("id") or "").strip()
+    if not comment:
+        raise PlanError("review comment id is missing")
+    line = item.get("line") or item.get("original_line") or 0
+    if isinstance(line, bool) or not isinstance(line, int) or line < 0:
+        line = 0
+    return {
+        "event_id": f"review:{comment}",
+        "kind": "review",
+        "external_id": comment,
+        "summary": f"review comment requires changes: {comment}",
+        "check": "",
+        "comment": comment,
+        "path": str(item.get("path") or ""),
+        "line": line,
+        "url": str(item.get("html_url") or ""),
+    }
+
+
+def ingest(root, name, *, kind, runner, stage_id="", check="", comment=""):
+    delivery = load(root, name)
+    if not delivery.issue or not delivery.pr.get("number"):
+        raise PlanError("ingest requires issue and recorded PR")
+    if delivery.pr.get("state") != "open":
+        raise PlanError("ingest requires an open PR")
+    if stage_id and not any(stage.id == stage_id for stage in delivery.stages):
+        raise PlanError(f"stage {stage_id} is missing")
+    if kind not in ("check", "review"):
+        raise PlanError(f"unknown ingest kind {kind}")
+    try:
+        number = int(delivery.pr["number"])
+    except (TypeError, ValueError) as exc:
+        raise PlanError("pr number must be an integer") from exc
+    if kind == "check":
+        match = next(
+            (item for item in _check_rows(root, number, runner) if item.get("name") == check),
+            None,
         )
-        delivery = load(root, name)
-        if str(comment) not in delivery.seen_comments:
-            delivery.seen_comments.append(str(comment))
-            save(root, delivery)
-        if event["action"] == "stopped":
-            return {"action": "stopped", "comment": comment}
-        return {"action": "reopen", "comment": comment}
+        if match is None:
+            raise PlanError(f"check {check} not found")
+        if match.get("bucket") != "fail":
+            return {"action": "noop", "check": check}
+        return _record_feedback(
+            root, name, _check_feedback_payload(match), asserted_stage=stage_id
+        )
+    match = next(
+        (
+            item
+            for item in _review_rows(root, delivery, number, runner)
+            if str(item.get("id") or "") == str(comment)
+        ),
+        None,
+    )
+    if match is None:
+        raise PlanError(f"review comment {comment} not found")
+    return _record_feedback(
+        root, name, _review_feedback_payload(match), asserted_stage=stage_id
+    )
+
+
+def watch_once(root, name, runner):
+    delivery = load(root, name)
+    if delivery.status in ("stopped", "budget_exceeded", "interrupted"):
+        return {"action": "skip"}
+    if not delivery.pr.get("number"):
+        return {"action": "skip"}
+    if delivery.pr.get("state") != "open":
+        return {"action": "closed"}
+    pending = _pending_feedback_route(delivery)
+    if pending is not None:
+        return _feedback_result(pending)
+    try:
+        number = int(delivery.pr["number"])
+    except (TypeError, ValueError) as exc:
+        raise PlanError("pr number must be an integer") from exc
+    for item in _check_rows(root, number, runner):
+        if item.get("bucket") != "fail":
+            continue
+        payload = _check_feedback_payload(item)
+        if _feedback_event_seen(delivery, payload["event_id"]) is not None:
+            continue
+        return _record_feedback(root, name, payload)
+    for item in _review_rows(root, delivery, number, runner):
+        payload = _review_feedback_payload(item)
+        if _feedback_event_seen(delivery, payload["event_id"]) is not None:
+            continue
+        return _record_feedback(root, name, payload)
     return {"action": "noop"}
 
 
@@ -2587,6 +2862,7 @@ def _ready_for_delivery(delivery):
         _dod_met(delivery)
         or delivery.status in ("stopped", "done", "budget_exceeded", "interrupted")
         or any(stage.status == "interrupted" for stage in delivery.stages)
+        or _pending_feedback_route(delivery) is not None
         or _cap_hit(delivery)
     ):
         return []
@@ -2672,6 +2948,9 @@ def claim_stage(root, name, stage_id):
 
 def next_agent(root, name):
     delivery = load(root, name)
+    pending_feedback = _pending_feedback_route(delivery)
+    if pending_feedback is not None:
+        return f"FEEDBACK_ROUTE_REQUIRED: {pending_feedback['event_id']}"
     if _dod_met(delivery):
         return "STOP"
     if delivery.status in ("stopped", "done", "budget_exceeded") or _cap_hit(delivery):
@@ -2886,6 +3165,29 @@ def report(root, name, path, runner):
         return _commit_report(root, name, path, fields, verifications)
 
 
+def _resolve_stage_feedback(delivery, stage, *, resolved_by):
+    resolved_at = _now_utc().isoformat(timespec="seconds")
+    for event in delivery.feedback_events:
+        if (
+            event.get("stage") == stage.id
+            and event.get("status") == _FEEDBACK_POLICY["openStatus"]
+        ):
+            event["status"] = _FEEDBACK_POLICY["resolvedStatus"]
+            event["action"] = "resolved"
+            event["resolved_at"] = resolved_at
+            event["resolved_by"] = resolved_by
+            event["resolved_attempt"] = stage.attempts
+    stage.feedback_event_ids = [
+        event_id
+        for event_id in stage.feedback_event_ids
+        if any(
+            event.get("event_id") == event_id
+            and event.get("status") == _FEEDBACK_POLICY["openStatus"]
+            for event in delivery.feedback_events
+        )
+    ]
+
+
 def _commit_report(root, name, path, fields, verifications):
     delivery = load(root, name)
     agent = pathlib.Path(path).stem
@@ -2931,6 +3233,7 @@ def _commit_report(root, name, path, fields, verifications):
             stage.recovery_event_id = ""
             stage.recovery_reason = ""
             stage.recovery_source = ""
+            _resolve_stage_feedback(delivery, stage, resolved_by=agent)
             for flag_text in flag_texts:
                 _record_lesson(root, name, agent, flag_text)
             continue
@@ -2965,6 +3268,7 @@ def _commit_report(root, name, path, fields, verifications):
             stage.recovery_event_id = ""
             stage.recovery_reason = ""
             stage.recovery_source = ""
+            _resolve_stage_feedback(delivery, stage, resolved_by=agent)
         for flag_text in flag_texts:
             _record_lesson(root, name, agent, flag_text)
     if not matched:

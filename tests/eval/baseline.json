@@ -135,6 +135,11 @@
       "date": "2026-09-25",
       "sha256": "540aed56adce226486d0d8080c94cbfab4fbb2b5b2a7f93418423bf99a5037c2",
       "reason": "Interruption recovery tightens resumed dispatch without changing feature construction: confirmed dead claims freeze at last observed activity, unavailable completion metrics remain explicit, continue requeues through a fresh claim without consuming the retry, and stop remains terminal. Covered by kernel units, CLI tests, policy integration, orchestration ratchets, and generated-target checks. No billed feature run was authorized; ceilings were not raised."
+    },
+    {
+      "date": "2026-09-25",
+      "sha256": "b93c76569cae3b8e36f2bba9519370316d39baf4badfbb8c034778e90eb49f67",
+      "reason": "Stage-owned PR and CI feedback tightens repair routing without changing feature construction: exact declared check names and longest owned-path matches select the owner, unmatched events block dispatch for main-thread assignment, duplicate events are idempotent, and one passing repair resolves the grouped feedback wave. Covered by kernel and console units, policy integration, orchestration ratchets, generated-target checks, and the existing eval suite. No billed feature run was authorized; ceilings were not raised."
     }
     ]
   }

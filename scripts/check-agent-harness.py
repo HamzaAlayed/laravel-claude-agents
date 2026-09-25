@@ -226,6 +226,22 @@ def main() -> int:
             "shared.recoveryPolicy must freeze, requeue, or stop interrupted claims",
             errors,
         )
+    if shared.get("feedbackPolicy") != {
+        "eventField": "feedback_events",
+        "stageChecksField": "feedback_checks",
+        "stageEventsField": "feedback_event_ids",
+        "assignAuthority": "main",
+        "ciRouting": "exact-check-name",
+        "reviewRouting": "longest-owned-path",
+        "unroutedStatus": "route_required",
+        "openStatus": "open",
+        "resolvedStatus": "resolved",
+        "stoppedStatus": "stopped",
+    }:
+        fail(
+            "shared.feedbackPolicy must route CI and review feedback to stage owners",
+            errors,
+        )
     if shared.get("verification") != "registered-runners-only":
         fail("shared.verification must remain registered-runners-only", errors)
 

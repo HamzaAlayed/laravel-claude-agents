@@ -47,6 +47,7 @@ class GuildCliTest(unittest.TestCase):
                             "success_criteria": ["m"],
                             "depends_on": [],
                             "owned_paths": ["database"],
+                            "feedback_checks": ["phpunit"],
                         }
                     ),
                     "--issue",
@@ -55,6 +56,7 @@ class GuildCliTest(unittest.TestCase):
             )
         self.assertEqual(code, 0)
         self.assertEqual(recorded["issue"], 42)
+        self.assertEqual(recorded["stages"][0].feedback_checks, ["phpunit"])
         self.assertIsNotNone(recorded["runner"])
 
     def test_pr_records_number(self):
@@ -143,6 +145,58 @@ class GuildCliTest(unittest.TestCase):
         self.assertEqual(recorded["kind"], "review")
         self.assertEqual(recorded["comment"], "99")
         self.assertIsNotNone(recorded["runner"])
+
+    def test_ingest_without_stage_leaves_routing_to_kernel(self):
+        recorded = {}
+
+        def fake_ingest(root, name, **kwargs):
+            recorded.update(kwargs)
+            return {"action": "reopen", "stage": "a"}
+
+        with mock.patch.object(kernel, "ingest", side_effect=fake_ingest):
+            code = guild.main(
+                [
+                    "ingest",
+                    "--root",
+                    str(self.root),
+                    "--name",
+                    "tag",
+                    "--kind",
+                    "check",
+                    "--check",
+                    "pint",
+                ]
+            )
+        self.assertEqual(code, 0)
+        self.assertEqual(recorded["stage_id"], "")
+
+    def test_feedback_assign_dispatches_to_kernel(self):
+        recorded = {}
+
+        def fake_assign(root, name, event_id, stage):
+            recorded.update(
+                root=root, name=name, event_id=event_id, stage=stage
+            )
+            return {"action": "reopen", "stage": stage}
+
+        with mock.patch.object(kernel, "assign_feedback", side_effect=fake_assign):
+            code = guild.main(
+                [
+                    "feedback",
+                    "assign",
+                    "--root",
+                    str(self.root),
+                    "--name",
+                    "tag",
+                    "--event-id",
+                    "check:security:https://example/1",
+                    "--stage",
+                    "backend",
+                ]
+            )
+        self.assertEqual(code, 0)
+        self.assertEqual(recorded["event_id"], "check:security:https://example/1")
+        self.assertEqual(recorded["stage"], "backend")
 
     def test_process_runner_capture_returns_stdout(self):
         code, out = guild.ProcessRunner().capture(

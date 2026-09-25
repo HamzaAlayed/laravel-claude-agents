@@ -135,6 +135,18 @@
       "stopDeliveryStatus": "stopped",
       "unknownCompletionMetrics": ["turns", "tokens", "cost_usd"]
     },
+    "feedbackPolicy": {
+      "eventField": "feedback_events",
+      "stageChecksField": "feedback_checks",
+      "stageEventsField": "feedback_event_ids",
+      "assignAuthority": "main",
+      "ciRouting": "exact-check-name",
+      "reviewRouting": "longest-owned-path",
+      "unroutedStatus": "route_required",
+      "openStatus": "open",
+      "resolvedStatus": "resolved",
+      "stoppedStatus": "stopped"
+    },
     "verification": "registered-runners-only"
   },
   "agents": {

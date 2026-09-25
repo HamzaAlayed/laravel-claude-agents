@@ -340,6 +340,18 @@ class TestKernelRoutes(unittest.TestCase):
         self.assertEqual(argv[argv.index("--stage") + 1], "a")
         self.assertEqual(argv[argv.index("--check") + 1], "pint")
 
+    def test_ingest_without_stage_lets_the_kernel_route_the_owner(self):
+        payload = json.loads(
+            self.post(
+                "/api/kernel/ingest",
+                {"name": "tag", "kind": "check", "check": "pint"},
+            ).read()
+        )
+        self.assertEqual(payload, {"ok": True, "text": "ok"})
+        argv = self.calls[0]
+        self.assertNotIn("--stage", argv)
+        self.assertEqual(argv[argv.index("--check") + 1], "pint")
+
     def test_board_returns_cli_stdout(self):
         payload = json.loads(self.get("/api/kernel/board?name=tag").read())
         self.assertEqual(payload, {"text": "ok"})
@@ -635,11 +647,33 @@ class TestKernelWatch(unittest.TestCase):
         self.assertEqual(ctx.exception.code, 400)
         self.assertFalse(self._watching("nopr"))
 
+    def test_enable_watch_for_closed_pr_is_400(self):
+        closed = self.root / "docs" / "delivery" / "closed"
+        closed.mkdir(parents=True)
+        state = json.loads(json.dumps(_VALID_TAG_KERNEL))
+        state["name"] = "closed"
+        state["pr"]["state"] = "merged"
+        (closed / "kernel.json").write_text(json.dumps(state), encoding="utf-8")
+        with self.assertRaises(urllib.error.HTTPError) as ctx:
+            self.post("/api/kernel/watch", {"name": "closed", "enabled": True})
+        self.assertEqual(ctx.exception.code, 400)
+        self.assertFalse(self._watching("closed"))
+
     def test_tick_watches_stopped_removes_name(self):
         self.post("/api/kernel/watch", {"name": "tag", "enabled": True})
 
         def watch_once(root, name):
             return {"action": "stopped"}
+
+        self.httpd.watch_once = watch_once
+        self.httpd.tick_watches()
+        self.assertFalse(self._watching("tag"))
+
+    def test_tick_watches_closed_removes_name(self):
+        self.post("/api/kernel/watch", {"name": "tag", "enabled": True})
+
+        def watch_once(root, name):
+            return {"action": "closed"}
 
         self.httpd.watch_once = watch_once
         self.httpd.tick_watches()

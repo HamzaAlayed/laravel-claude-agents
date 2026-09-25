@@ -2104,7 +2104,13 @@ FAIL_CHECK = json.dumps(
 PASS_CHECK = json.dumps(
     [{"name": "pint", "bucket": "pass", "link": "https://github.com/acme/app/runs/1"}]
 )
-REVIEW = "gh api repos/acme/app/pulls/17/comments --jq .[].id"
+REVIEW = "gh api repos/acme/app/pulls/17/comments"
+REVIEW_ITEMS = json.dumps(
+    [
+        {"id": 99, "path": "database/migrations/tags.php", "line": 12},
+        {"id": 100, "path": "database/migrations/tags.php", "line": 14},
+    ]
+)
 
 
 class WorkplaceIngestTest(unittest.TestCase):
@@ -2123,7 +2129,14 @@ class WorkplaceIngestTest(unittest.TestCase):
             name="tag",
             done_when="POST /api/tags creates a Tag",
             stages=[
-                scoped_stage("a", "database-developer", "writer", ["m"], [])
+                scoped_stage(
+                    "a",
+                    "database-developer",
+                    "writer",
+                    ["m"],
+                    [],
+                    feedback_checks=["pint", "phpunit"],
+                )
             ],
             issue=42,
             runner=plan_runner,
@@ -2148,7 +2161,7 @@ class WorkplaceIngestTest(unittest.TestCase):
 
     def test_failing_check_reopens_once_and_allows_one_spawn(self):
         runner = FakeRunner({}, {CHECKS: (0, FAIL_CHECK)})
-        delivery = kernel.ingest(
+        result = kernel.ingest(
             self.root,
             "tag",
             kind="check",
@@ -2156,6 +2169,8 @@ class WorkplaceIngestTest(unittest.TestCase):
             check="pint",
             runner=runner,
         )
+        delivery = kernel.load(self.root, "tag")
+        self.assertEqual(result["action"], "reopen")
         self.assertEqual(delivery.stages[0].status, "queued")
         self.assertEqual(delivery.stages[0].reopens, 1)
         self.assertEqual(delivery.status, "running")
@@ -2187,7 +2202,7 @@ class WorkplaceIngestTest(unittest.TestCase):
             check="pint",
             runner=runner,
         )
-        delivery = kernel.ingest(
+        result = kernel.ingest(
             self.root,
             "tag",
             kind="check",
@@ -2195,6 +2210,8 @@ class WorkplaceIngestTest(unittest.TestCase):
             check="pint",
             runner=runner,
         )
+        delivery = kernel.load(self.root, "tag")
+        self.assertEqual(result["action"], "noop")
         self.assertEqual(delivery.status, "running")
         self.assertEqual(delivery.stages[0].status, "queued")
         self.assertEqual(delivery.stages[0].reopens, 1)
@@ -2238,9 +2255,9 @@ class WorkplaceIngestTest(unittest.TestCase):
             )
         self.assertEqual(runner.calls, [])
 
-    def test_review_id_in_stdout_reopens(self):
-        runner = FakeRunner({}, {REVIEW: (0, "99\n100\n")})
-        delivery = kernel.ingest(
+    def test_review_id_in_payload_reopens(self):
+        runner = FakeRunner({}, {REVIEW: (0, REVIEW_ITEMS)})
+        result = kernel.ingest(
             self.root,
             "tag",
             kind="review",
@@ -2248,10 +2265,22 @@ class WorkplaceIngestTest(unittest.TestCase):
             comment="99",
             runner=runner,
         )
+        delivery = kernel.load(self.root, "tag")
+        self.assertEqual(result["action"], "reopen")
         self.assertEqual(delivery.stages[0].status, "queued")
 
     def test_missing_review_id_rejects(self):
-        runner = FakeRunner({}, {REVIEW: (0, "100\n")})
+        runner = FakeRunner(
+            {},
+            {
+                REVIEW: (
+                    0,
+                    json.dumps(
+                        [{"id": 100, "path": "database/migrations/tags.php"}]
+                    ),
+                )
+            },
+        )
         with self.assertRaises(kernel.PlanError):
             kernel.ingest(
                 self.root,
@@ -2273,7 +2302,14 @@ class WorkplaceIngestTest(unittest.TestCase):
             name="tag",
             done_when="POST /api/tags creates a Tag",
             stages=[
-                scoped_stage("a", "database-developer", "writer", ["m"], [])
+                scoped_stage(
+                    "a",
+                    "database-developer",
+                    "writer",
+                    ["m"],
+                    [],
+                    feedback_checks=["pint", "phpunit"],
+                )
             ],
             issue=42,
             runner=plan_runner,
@@ -2528,7 +2564,14 @@ class WatchOnceTest(unittest.TestCase):
             name="tag",
             done_when="POST /api/tags creates a Tag",
             stages=[
-                scoped_stage("a", "database-developer", "writer", ["m"], [])
+                scoped_stage(
+                    "a",
+                    "database-developer",
+                    "writer",
+                    ["m"],
+                    [],
+                    feedback_checks=["pint", "phpunit"],
+                )
             ],
             issue=42,
             runner=plan_runner,
@@ -2576,7 +2619,9 @@ class WatchOnceTest(unittest.TestCase):
         runner = FakeRunner({}, {CHECKS: (0, FAIL_CHECK)})
         result = kernel.watch_once(self.root, "tag", runner)
         delivery = kernel.load(self.root, "tag")
-        self.assertEqual(result, {"action": "reopen", "check": "pint"})
+        self.assertEqual(result["action"], "reopen")
+        self.assertEqual(result["check"], "pint")
+        self.assertEqual(result["stage"], "a")
         self.assertEqual(delivery.stages[0].status, "queued")
         self.assertEqual(delivery.stages[0].reopens, 1)
         self.assertEqual(delivery.seen_checks, ["pint"])
@@ -2584,21 +2629,26 @@ class WatchOnceTest(unittest.TestCase):
 
     def test_watch_green_does_not_save(self):
         before = (self.root / "docs/delivery/tag/kernel.json").read_bytes()
-        runner = FakeRunner({}, {CHECKS: (0, PASS_CHECK), REVIEW: (0, "")})
+        runner = FakeRunner({}, {CHECKS: (0, PASS_CHECK), REVIEW: (0, "[]")})
         result = kernel.watch_once(self.root, "tag", runner)
         self.assertEqual(result, {"action": "noop"})
         self.assertEqual(
             (self.root / "docs/delivery/tag/kernel.json").read_bytes(), before
         )
 
-    def test_watch_waits_while_stage_running(self):
+    def test_watch_dedupes_while_repair_running(self):
         runner = FakeRunner({}, {CHECKS: (0, FAIL_CHECK)})
         kernel.watch_once(self.root, "tag", runner)
         kernel.claim_stage(self.root, "tag", "a")
-        runner2 = FakeRunner({}, {CHECKS: (0, FAIL_CHECK)})
+        runner2 = FakeRunner(
+            {}, {CHECKS: (0, FAIL_CHECK), REVIEW: (0, "[]")}
+        )
         result = kernel.watch_once(self.root, "tag", runner2)
-        self.assertEqual(result, {"action": "wait"})
-        self.assertEqual(runner2.calls, [])
+        self.assertEqual(result, {"action": "noop"})
+        self.assertEqual(
+            runner2.calls,
+            [(str(self.root), CHECKS), (str(self.root), REVIEW)],
+        )
         self.assertEqual(kernel.load(self.root, "tag").seen_checks, ["pint"])
 
     def test_watch_second_failure_stops(self):
@@ -2630,24 +2680,32 @@ class WatchOnceTest(unittest.TestCase):
         )
         result = kernel.watch_once(self.root, "tag", runner2)
         delivery = kernel.load(self.root, "tag")
-        self.assertEqual(result, {"action": "stopped", "check": "phpunit"})
+        self.assertEqual(result["action"], "stopped")
+        self.assertEqual(result["check"], "phpunit")
+        self.assertEqual(result["stage"], "a")
         self.assertEqual(delivery.status, "stopped")
         self.assertIn("phpunit", delivery.seen_checks)
 
     def test_failing_check_skips_review_api(self):
         runner = FakeRunner(
             {},
-            {CHECKS: (0, FAIL_CHECK), REVIEW: (0, "99\n")},
+            {CHECKS: (0, FAIL_CHECK), REVIEW: (0, REVIEW_ITEMS)},
         )
         result = kernel.watch_once(self.root, "tag", runner)
-        self.assertEqual(result, {"action": "reopen", "check": "pint"})
+        self.assertEqual(result["action"], "reopen")
+        self.assertEqual(result["check"], "pint")
+        self.assertEqual(result["stage"], "a")
         self.assertNotIn(REVIEW, [call[1] for call in runner.calls])
 
     def test_new_comment_reopens_when_checks_pass(self):
-        runner = FakeRunner({}, {CHECKS: (0, PASS_CHECK), REVIEW: (0, "99\n")})
+        runner = FakeRunner(
+            {}, {CHECKS: (0, PASS_CHECK), REVIEW: (0, REVIEW_ITEMS)}
+        )
         result = kernel.watch_once(self.root, "tag", runner)
         delivery = kernel.load(self.root, "tag")
-        self.assertEqual(result, {"action": "reopen", "comment": "99"})
+        self.assertEqual(result["action"], "reopen")
+        self.assertEqual(result["comment"], "99")
+        self.assertEqual(result["stage"], "a")
         self.assertEqual(delivery.stages[0].status, "queued")
         self.assertEqual(delivery.seen_comments, ["99"])
         self.assertEqual(
@@ -2658,22 +2716,54 @@ class WatchOnceTest(unittest.TestCase):
     def test_seen_comment_does_not_reopen(self):
         delivery = kernel.load(self.root, "tag")
         delivery.seen_comments = ["99"]
+        delivery.feedback_events = [
+            {
+                "event_id": "review:99",
+                "kind": "review",
+                "external_id": "99",
+                "status": "resolved",
+                "stage": "a",
+                "route": "owned_path",
+                "check": "",
+                "path": "database/migrations/tags.php",
+                "line": 12,
+                "url": "",
+            }
+        ]
         kernel.save(self.root, delivery)
-        runner = FakeRunner({}, {CHECKS: (0, PASS_CHECK), REVIEW: (0, "99\n")})
+        runner = FakeRunner(
+            {},
+            {
+                CHECKS: (0, PASS_CHECK),
+                REVIEW: (
+                    0,
+                    json.dumps(
+                        [
+                            {
+                                "id": 99,
+                                "path": "database/migrations/tags.php",
+                                "line": 12,
+                            }
+                        ]
+                    ),
+                ),
+            },
+        )
         result = kernel.watch_once(self.root, "tag", runner)
         delivery = kernel.load(self.root, "tag")
         self.assertEqual(result, {"action": "noop"})
         self.assertEqual(delivery.stages[0].status, "done")
         self.assertEqual(delivery.seen_comments, ["99"])
 
-    def test_watch_skips_done_delivery_without_gh(self):
+    def test_watch_polls_done_delivery_but_skips_stopped_delivery(self):
         delivery = kernel.load(self.root, "tag")
         delivery.status = "done"
         kernel.save(self.root, delivery)
         runner = FakeRunner({}, {CHECKS: (0, FAIL_CHECK)})
         result = kernel.watch_once(self.root, "tag", runner)
-        self.assertEqual(result, {"action": "skip"})
-        self.assertEqual(runner.calls, [])
+        self.assertEqual(result["action"], "reopen")
+        self.assertEqual(result["check"], "pint")
+        self.assertEqual(runner.calls, [(str(self.root), CHECKS)])
 
         delivery = kernel.load(self.root, "tag")
         delivery.status = "stopped"

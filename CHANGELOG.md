@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.5.0] - 2026-09-25
+
+### Added
+
+- Per-stage `feedback_checks`, a durable `feedback_events` ledger, generated
+  `docs/delivery/<name>/feedback.md`, and `guild feedback list` for auditing
+  every CI failure and review comment through resolution.
+- `guild feedback assign` for a main-thread owner decision when a previously
+  unknown CI check cannot be routed automatically.
+
+### Changed
+
+- CI failures now route by exact declared check name; review comments route to
+  the stage with the longest matching owned path. A caller-provided `--stage`
+  is an ownership assertion, not a routing decision.
+- Multiple open feedback items for one stage share a single repair attempt. A
+  passing stage report resolves the complete group, while duplicate external
+  events are idempotent.
+- PR watching continues after the initial delivery reaches `done`, so feedback
+  on an open PR can still reopen the correct owner.
+- The console, all nine pipeline commands, and the delivery coordinator use
+  kernel-derived ownership instead of requiring a client-selected stage.
+
+### Fixed
+
+- Feedback can no longer drift to the last writer or an arbitrary available
+  specialist.
+- An unmatched feedback event now persists as `route_required` and blocks new
+  dispatch instead of being silently ignored or misrouted.
+- A new feedback event after the single allowed reopen stops the stage and
+  delivery instead of creating an unbounded repair loop.
+
+### Security
+
+- Only the main thread may assign an unresolved feedback route. Review
+  feedback cannot be assigned to a stage that does not own its path.
+
 ## [8.4.0] - 2026-09-25
 
 ### Added

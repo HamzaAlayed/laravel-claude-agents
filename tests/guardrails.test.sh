@@ -384,6 +384,10 @@ expect "main thread may request an explicit stage retry through the kernel CLI" 
   "$(run_approval_policy "$APPROVAL_TMP" '{"tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py retry request --root . --name tag --stage database --source stage-return --reason missing-evidence --event-id turn:1"}}')"
 expect "subagent cannot request its own stage retry" "$BLOCK" \
   "$(run_approval_policy "$APPROVAL_TMP" '{"agent_type":"laravel-team:database-developer","tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py retry request --root . --name tag --stage database --source stage-return --reason self-retry --event-id turn:1"}}')"
+expect "main thread may assign an unrouted feedback event" "$ALLOW" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py feedback assign --root . --name tag --event-id check:security:1 --stage database"}}')"
+expect "subagent cannot assign its own feedback route" "$BLOCK" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"agent_type":"laravel-team:database-developer","tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py feedback assign --root . --name tag --event-id check:security:1 --stage database"}}')"
 expect "main thread may record an interrupted stage through the kernel CLI" "$ALLOW" \
   "$(run_approval_policy "$APPROVAL_TMP" '{"tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py recovery interrupt --root . --name tag --stage database --source process-exit --reason disconnected --event-id process:1"}}')"
 expect "subagent cannot mark its own stage interrupted" "$BLOCK" \
@@ -703,6 +707,27 @@ expect "Interface block makes duplicate retry events idempotent" "9" \
 # shellcheck disable=SC2016 # literal status backticks in the Interface needle
 expect "Interface block stops after retry exhaustion" "9" \
   "$(grep -l 'second distinct failure marks the stage `failed` and the delivery `stopped`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal field backticks in the Interface needle
+expect "Interface block declares CI feedback ownership" "9" \
+  "$(grep -l 'declares globally unique `feedback_checks`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal command backticks in the Interface needle
+expect "Interface block inspects durable feedback" "9" \
+  "$(grep -l 'call `feedback list`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal field backticks in the Interface needle
+expect "Interface block routes reviews by longest owned path" "9" \
+  "$(grep -l 'longest matching `owned_paths`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal option backticks in the Interface needle
+expect "Interface block treats stage as an assertion" "9" \
+  "$(grep -l '`--stage` is only an assertion' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal status backticks in the Interface needle
+expect "Interface block blocks on unrouted feedback" "9" \
+  "$(grep -l 'durable `route_required` and blocks dispatch' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block leaves feedback assignment to main" "9" \
+  "$(grep -l 'Only the main thread may call `feedback assign' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block groups one feedback repair attempt" "9" \
+  "$(grep -l 'All open items for one lane attach to one repair attempt' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block forbids last-writer routing" "9" \
+  "$(grep -l 'Never route by last writer' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # shellcheck disable=SC2016 # literal recovery command in the Interface needle
 expect "Interface block inspects recoveries before dispatch" "9" \
   "$(grep -l 'every start or resume, call `recovery list` before `ready`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
@@ -807,6 +832,22 @@ expect "coordinator makes duplicate retry events idempotent" "1" \
 # shellcheck disable=SC2016 # literal status backticks in the coordinator needle
 expect "coordinator stops after retry exhaustion" "1" \
   "$(grep -c 'second distinct failure marks the stage `failed` and the delivery `stopped`' "$COORD")"
+# shellcheck disable=SC2016 # literal field backticks in the coordinator needle
+expect "coordinator declares CI feedback ownership" "1" \
+  "$(grep -c 'declares globally unique `feedback_checks`' "$COORD")"
+# shellcheck disable=SC2016 # literal command backticks in the coordinator needle
+expect "coordinator inspects durable feedback" "1" \
+  "$(grep -c 'call `feedback list`' "$COORD")"
+# shellcheck disable=SC2016 # literal field backticks in the coordinator needle
+expect "coordinator routes reviews by longest owned path" "1" \
+  "$(grep -c 'longest matching `owned_paths`' "$COORD")"
+# shellcheck disable=SC2016 # literal status backticks in the coordinator needle
+expect "coordinator blocks on unrouted feedback" "1" \
+  "$(grep -c 'durable `route_required` and blocks dispatch' "$COORD")"
+expect "coordinator leaves feedback assignment to main" "1" \
+  "$(grep -c 'Only the main thread may call `feedback assign' "$COORD")"
+expect "coordinator forbids last-writer routing" "1" \
+  "$(grep -c 'Never route by last writer' "$COORD")"
 # shellcheck disable=SC2016 # literal recovery command in the coordinator needle
 expect "coordinator inspects recoveries before dispatch" "1" \
   "$(grep -c 'every start or resume, call `recovery list` before `ready`' "$COORD")"

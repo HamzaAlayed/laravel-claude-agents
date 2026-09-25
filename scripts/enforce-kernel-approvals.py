@@ -27,7 +27,7 @@ _KERNEL_TEXT = re.compile(r"(?:^|[\s'\"])(?:[^\s'\"]*/)?docs/delivery/[^\s'\"]+/
 _CONTROL_PLANE_ACTION = re.compile(
     r"guild\.py\b.*\b(?:approval\s+grant|criterion\s+waive|"
     r"checkpoint\s+(?:open|resolve)|retry\s+request|"
-    r"recovery\s+(?:interrupt|resolve))\b",
+    r"recovery\s+(?:interrupt|resolve)|feedback\s+assign)\b",
     re.DOTALL,
 )
 _SHELL_MUTATION = re.compile(
@@ -63,6 +63,7 @@ def _guild_agents() -> set[str]:
         checkpoint_policy = payload["shared"]["checkpointPolicy"]
         retry_policy = payload["shared"]["retryPolicy"]
         recovery_policy = payload["shared"]["recoveryPolicy"]
+        feedback_policy = payload["shared"]["feedbackPolicy"]
     except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
         raise ApprovalStateError(f"invalid agent harness registry at {path}") from exc
     if not isinstance(profiles, dict):
@@ -113,6 +114,19 @@ def _guild_agents() -> set[str]:
         "stopStageStatus": "failed",
         "stopDeliveryStatus": "stopped",
         "unknownCompletionMetrics": ["turns", "tokens", "cost_usd"],
+    }:
+        raise ApprovalStateError(f"invalid agent harness registry at {path}")
+    if feedback_policy != {
+        "eventField": "feedback_events",
+        "stageChecksField": "feedback_checks",
+        "stageEventsField": "feedback_event_ids",
+        "assignAuthority": "main",
+        "ciRouting": "exact-check-name",
+        "reviewRouting": "longest-owned-path",
+        "unroutedStatus": "route_required",
+        "openStatus": "open",
+        "resolvedStatus": "resolved",
+        "stoppedStatus": "stopped",
     }:
         raise ApprovalStateError(f"invalid agent harness registry at {path}")
     return set(profiles)
@@ -240,7 +254,8 @@ def main() -> int:
         if _CONTROL_PLANE_ACTION.search(command) and agent:
             return _block(
                 "subagents cannot grant approvals, create criterion waivers, "
-                "mutate checkpoints, request retries, or reconcile interruptions"
+                "mutate checkpoints, request retries, reconcile interruptions, "
+                "or assign feedback routes"
             )
         if _KERNEL_TEXT.search(command) and _SHELL_MUTATION.search(command):
             return _block("Bash cannot mutate kernel.json directly")

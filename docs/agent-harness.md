@@ -46,6 +46,10 @@ Every agent run inherits these controls:
   reason, source, known usage, and unavailable completion metrics. Continuing
   requires a fresh claim; stopping fails the lane. Neither action consumes or
   resets the retry allowance.
+- **Feedback routing:** stages declare globally unique CI check names. Failed
+  checks route by exact name and review comments route by the longest matching
+  owned path. Unmatched events block dispatch until a main-thread assignment;
+  open items share one bounded repair attempt and resolve with its report.
 
 The harness enforces what can be decided mechanically. Agent prompts still
 provide domain judgment, such as when a proposed authentication change is
@@ -62,10 +66,12 @@ For new plans, pass typed `--stage-json` records. Each record must include
 `owned_paths`: a nonempty array for `task-owned` and `docs-only` profiles, or
 an empty array for a `deny` profile. The v6 kernel rejects the former
 comma-delimited `--stage` form because it cannot express a safe ownership
-boundary. Each record also carries a one-to-one `criterion_ids` array and
-`approval_categories`. Use an empty approval array only when none of the
-selected agent profile's categories applies. IDs are stable lowercase-kebab
-names so reports, boards, and resumes keep referring to the same behavior.
+boundary. Each record also carries a one-to-one `criterion_ids` array,
+`approval_categories`, and `feedback_checks`. Use an empty approval array only
+when none of the selected agent profile's categories applies, and an empty
+feedback array only when the stage owns no CI job. Feedback check names must be
+globally unique within the delivery. IDs are stable lowercase-kebab names so
+reports, boards, and resumes keep referring to the same behavior.
 
 Each record may also carry a partial `budget` object. Omit it to inherit all
 shared defaults, or override only the dimensions that need a narrower
@@ -80,6 +86,7 @@ envelope:
   "depends_on": [],
   "owned_paths": ["app", "tests"],
   "approval_categories": [],
+  "feedback_checks": ["phpunit"],
   "budget": {"max_seconds": 1200, "max_tool_calls": 80, "max_usd": 4.0}
 }
 ```
@@ -205,6 +212,22 @@ dependencies, WIP, approvals, and owned paths. `stop` changes the stage to
 events are idempotent. The generated `recoveries.md` and `transitions.md` views
 preserve the audit trail. See
 [recover interrupted claims](recovery-policy.md) for the complete procedure.
+
+Pull-request feedback is routed from the same declared ownership. Inspect the
+durable ledger before dispatch and after polling:
+
+```sh
+python3 scripts/guild-kernel/guild.py feedback list \
+  --root . --name tags
+```
+
+CI failures match `feedback_checks` exactly. Review comments match the longest
+`owned_paths` prefix. An optional `ingest --stage` value asserts the derived
+owner but never selects it. If no owner exists, the event remains
+`route_required` and blocks dispatch until the main thread verifies and runs
+`feedback assign`. A successful repair report resolves every open item for the
+stage. See [PR and CI feedback routing](feedback-routing.md) for commands,
+statuses, compatibility, and stopping rules.
 
 The kernel validates every declared category against the profile, marks the
 lane `⏸`, excludes it from `ready`, and rejects `claim` until all categories

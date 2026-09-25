@@ -108,7 +108,10 @@ class _Server(ThreadingHTTPServer):
                 result = self.watch_once(self.kernel_root, name)
             except Exception:
                 continue
-            if isinstance(result, dict) and result.get("action") == "stopped":
+            if (
+                isinstance(result, dict)
+                and result.get("action") in ("stopped", "closed")
+            ):
                 self.watched.discard(name)
 
 
@@ -309,6 +312,8 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
             if not isinstance(data, dict):
                 return self._json(400, {"error": "delivery is not watchable"})
             pr = data.get("pr") if isinstance(data.get("pr"), dict) else {}
+            if pr.get("state") != "open":
+                return self._json(400, {"error": "delivery is not watchable"})
             try:
                 int(pr.get("number"))
             except (TypeError, ValueError):
@@ -323,7 +328,7 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
             kind = body.get("kind") or ""
             if not isinstance(name, str) or not KERNEL_NAME.match(name):
                 return self._json(400, {"error": "invalid name"})
-            if not isinstance(stage, str) or not KERNEL_NAME.match(stage):
+            if not isinstance(stage, str) or (stage and not KERNEL_NAME.match(stage)):
                 return self._json(400, {"error": "invalid stage"})
             if kind not in ("check", "review"):
                 return self._json(400, {"error": "kind must be check or review"})
@@ -332,8 +337,9 @@ def make_server(host: str, port: int, token: str, manager, catalog_root: Path,
                 "--root", os.getcwd(),
                 "--name", name,
                 "--kind", kind,
-                "--stage", stage,
             ]
+            if stage:
+                argv.extend(["--stage", stage])
             if kind == "check":
                 check = body.get("check") or ""
                 if not isinstance(check, str) or not check.strip():
