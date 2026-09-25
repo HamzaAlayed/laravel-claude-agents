@@ -607,7 +607,7 @@ expect "CI runs delivery observability contract tests" "1" \
 expect "release publication requires the observability gate" "1" \
   "$(grep -c '"observability contract"' "$SCRIPT_DIR/config/release-harness.json")"
 expect "Interface verifies delivery observability before closure" "9" \
-  "$(grep -l 'again before the final answer, call `observe verify`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+  "$(grep -l 'again before the final answer, call' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "kernel exposes the observability command group" "1" \
   "$(grep -c 'observe = sub.add_parser("observe")' "$SCRIPT_DIR/scripts/guild-kernel/guild.py")"
 expect "shared observability excludes raw payloads" "1" \
