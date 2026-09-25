@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [7.0.0] - 2026-09-25
+
+### Added
+
+- Every planned stage snapshots a five-dimensional runtime budget for elapsed
+  seconds, tool calls, turns, tokens, and estimated US dollars.
+- Claude Code meters planned specialist tool calls before execution and records
+  complete Agent/Task usage after synchronous completion.
+- `guild budget list` shows effective limits and cumulative usage, while
+  `guild budget record` provides an explicit cross-runtime receipt path.
+- Budget breaches persist as the terminal `budget_exceeded` state and display
+  as `⛔` on the delivery board until a human chooses a new plan.
+
+### Changed
+
+- **Breaking:** A claimed stage must record all five usage dimensions before
+  `guild report` accepts its result. Third-party and direct kernel integrations
+  must install equivalent metering or call `guild budget record` first.
+- `guild ready` now returns each lane's effective budget so the coordinator can
+  brief a specialist before dispatch.
+- Usage remains cumulative when a failed lane is reopened, preventing retries
+  from silently resetting their resource history.
+
+### Security
+
+- Runtime limits are enforced by the kernel rather than trusted to specialist
+  prompts, with idempotent pre-tool events and durable breach reasons.
+- Missing or malformed completion telemetry fails closed for claimed stages.
+- Cost estimation uses versioned conservative model rates and an expensive
+  unknown-model fallback; exact runtime totals take precedence when available.
+
 ## [6.2.0] - 2026-09-25
 
 ### Added

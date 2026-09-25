@@ -51,7 +51,7 @@ N stages · done when: POST /api/donations creates a Donation
 ·    tech-lead
 ```
 
-Statuses are `✔ done / ▶ running / · queued / ✖ failed`. Each specialist returns `STATUS / DID / VERIFIED / NOT-CHECKED / FLAGS / NEXT`. After two or more specialists report, `docs/team/stack.md` and `docs/delivery/<name>/log.md` exist before the closing answer.
+Statuses are `✔ done / ▶ running / · queued / ✖ failed / ⛔ budget exceeded`. Each specialist returns `STATUS / DID / VERIFIED / NOT-CHECKED / FLAGS / NEXT`. After two or more specialists report, `docs/team/stack.md` and `docs/delivery/<name>/log.md` exist before the closing answer.
 
 In `/console`, stations take the dark floor as the company starts. A parked agent is marked on the floor (cue / needs you). New runs default to **Work independently**: edits and a narrow set of routine checks continue automatically in trusted projects. Other shell commands still ask. Choose **Ask me** to retain approval for every Bash call. See [independent runs and project preferences](docs/independent-runs.md).
 
@@ -126,6 +126,8 @@ scripts/
 ├── enforce-agent-paths.py        # Registry-backed native-write policy engine
 ├── enforce-kernel-approvals.sh   # Require user approval + claim before planned work
 ├── enforce-kernel-approvals.py   # Durable approval and kernel-state policy engine
+├── enforce-kernel-budgets.sh     # Meter planned stages at tool + completion boundaries
+├── enforce-kernel-budgets.py     # Persist time/tool/turn/token/cost usage and stop overages
 ├── enforce-sail.sh               # Redirect bare php/composer through ./vendor/bin/sail on Sail projects
 ├── emit-agent-events.sh          # Stream subagent start/finish to .claude/agents-board.jsonl
 ├── board.html                    # Self-contained live dashboard rendering that feed
@@ -145,7 +147,7 @@ skills/                           # 8 on-demand cookbooks (see the Skills sectio
 ├── accessibility-design/         # WCAG 2.2 AA thresholds, Livewire/Inertia focus, mobile a11y
 └── docs-authoring/               # Changelog / release-notes / runbook / API-reference templates
 
-hooks/hooks.json                  # Plugin hook manifest (11 guardrails + the agents-board observer)
+hooks/hooks.json                  # Plugin hook manifest (12 guardrails + the agents-board observer)
 tests/guardrails.test.sh          # Zero-dependency test harness for the guardrails
 .github/workflows/ci.yml          # shellcheck + guardrail tests + manifest validation
 ```
@@ -220,13 +222,22 @@ frontmatter in CI; see the [complete harness table](docs/agent-harness.md).
 
 **Reviewers cannot edit code.** `tech-lead`, `security-engineer`, and `performance-engineer` are read-only (`disallowedTools: Edit, Write`). They return findings; the `delivery-coordinator` persists the reports and builders apply the changes. This keeps reviews trustworthy and prevents reviewer drift. (On the residual `Bash` write-vector and how to fully sandbox a reviewer, see [docs/read-only-by-design.md](docs/read-only-by-design.md).)
 
-**Guardrails fail closed.** The eleven guardrail hooks are deny-rules. Shell guards use a tested parser-fallback chain (jq → python3 → conservative bare-string matching), while the Python-backed kernel policies fail closed if their runtime or state is invalid. CI runs the full shell harness with and without jq. The one fail-open script is the board observer, deliberately: a dashboard must never block delivery.
+**Guardrails fail closed.** The twelve guardrail hooks are deny-rules. Shell guards use a tested parser-fallback chain (jq → python3 → conservative bare-string matching), while the Python-backed kernel policies fail closed if their runtime or state is invalid. CI runs the full shell harness with and without jq. The one fail-open script is the board observer, deliberately: a dashboard must never block delivery.
 
 **Sensitive work waits for the human.** A stage declares `approval_categories`
 from its selected agent profile. The kernel shows pending lanes as `⏸`, omits
 them from `ready`, and rejects `claim` until the main thread records an explicit
 user grant. The approval category, user provenance, and UTC timestamp survive
 in `kernel.json`; subagents cannot approve themselves or edit that state.
+
+**Stage budgets stop work instead of becoming advice.** Every planned lane
+snapshots an effective limit for seconds, tool calls, turns, tokens, and USD.
+On Claude Code, the kernel budget hook meters time and tool calls before every
+subagent tool and consumes synchronous Agent completion telemetry for the other
+dimensions. A breach persists `budget_exceeded`, marks the lane `⛔`, stops new
+dispatch and rejects a success report. Duplicate hook delivery is idempotent.
+Use `guild budget list` for the receipt; runtimes without equivalent telemetry
+must record all five dimensions explicitly or leave the lane unverified.
 
 **You can see the team working.** The `delivery-coordinator` and all nine orchestrating commands print a progress board after planning and after every stage (`✔ done / ▶ running / · queued / ✖ failed / ⏸ checkpoint`), demand one stage-return shape from every specialist (`STATUS / DID / VERIFIED / NOT-CHECKED / FLAGS / NEXT` — evidence required, gaps named, claims rejected), and present human checkpoints as numbered options with a recommended default (via `AskUserQuestion` when running main-thread). And `/board` opens a live HTML dashboard — the `emit-agent-events` hook streams every subagent start/finish (agent, task, duration, tokens) to `.claude/agents-board.jsonl` deterministically, so the board fills up no matter which command or agent is orchestrating. Agents spawned from inside another agent nest under their spawner (the hook records the calling agent as `parent`), and async-launched agents get a real completion event via `SubagentStop` — background work shows its true duration instead of vanishing at launch. A multi-agent run reads like a dashboard, not a silence.
 
@@ -300,13 +311,14 @@ They exit `2` to block and print a clear reason.
 | `block-prod-destructive-sql.sh` | `DROP`, `TRUNCATE`, unscoped `DELETE` / `UPDATE`                                                                            |
 | `block-prod-artisan.sh`         | `migrate:fresh`, `db:wipe`, `migrate:reset`, `tinker`, `queue:flush`, etc., against `--env=production` or `.env.production` |
 | `protect-env-files.sh`          | Writes to `.env`, `.env.production`, `.env.prod`, `.env.live`, `.env.staging`, `.env.local`, and credential-looking paths   |
-| `enforce-close-file.sh`         | Write\|Edit of `docs/delivery/*/close.md` that is not helper shape (`VERIFIED:` / `NOT-CHECKED:` / `STATUS: running\|done\|stopped` / `BOARD:`); also Bash writes of that path (`>`, `>>`, `tee`, heredoc `<<`) — use the Write tool and copy `skills/delivery-templates/close.md` |
+| `enforce-close-file.sh`         | Write\|Edit of `docs/delivery/*/close.md` that is not helper shape (`VERIFIED:` / `NOT-CHECKED:` / `STATUS: running\|done\|stopped\|budget_exceeded` / `BOARD:`); also Bash writes of that path (`>`, `>>`, `tee`, heredoc `<<`) — use the Write tool and copy `skills/delivery-templates/close.md` |
 | `enforce-stage-return.sh`       | Write\|Edit of `docs/delivery/*/stages/*.md` that is not helper shape (`STATUS:` / `DID:` / `VERIFIED:` / `NOT-CHECKED:` / `FLAGS:` / `NEXT:`); also Bash writes of that path (`>`, `>>`, `tee`, heredoc `<<`) — use the Write tool and copy `skills/delivery-templates/stage-return.md` |
 | `enforce-sprint-file.sh`        | Write\|Edit of `docs/sprints/*/sprint.md` that is not helper shape (`GOAL:` / `WIP:` / `BOARD:` / `STATUS:`); also Bash writes of that path (`>`, `>>`, `tee`, heredoc `<<`) — the kernel renders that view |
 | `enforce-lessons-file.sh`       | Write\|Edit of `docs/team/lessons.md` that is not helper shape (`LESSONS:` plus either `none` or `ID:` / `RULE:` / `SCOPE:` / `STATUS:` / `PROVENANCE:`); also Bash writes of that path — the kernel renders that view |
 | `enforce-reviewer-readonly.sh`  | File-mutating Bash (`sed -i`, redirects, `tee`, mutating `git`/`artisan`/`composer`, `pint` without `--test`, `rm`/`mv`/`cp`) **from the read-only reviewers only** — scoped via the hook input's `agent_type`; builders and the main thread are untouched. Claude Code only. |
 | `enforce-agent-paths.sh`        | Native `Write`, `Edit`, and `NotebookEdit` calls from a Guild agent participating in an active delivery before its stage is claimed, outside its stage’s `owned_paths`, or while ownership is ambiguous. `deny` profiles cannot use native write tools; `docs-only` profiles stay inside registry-declared documentation roots. Direct point-work remains the fast path when no active delivery contains that agent. Claude Code only. |
 | `enforce-kernel-approvals.sh`   | Planned Guild subagents using tools before their stage is approved and claimed; subagent attempts to run `approval grant`; direct native edits or write-shaped Bash against `docs/delivery/*/kernel.json`. Approval provenance stays kernel-owned. Claude Code only. |
+| `enforce-kernel-budgets.sh`     | Planned Guild stages after their time/tool-call ceiling, self-recorded aggregate usage, missing completion telemetry, or a turns/tokens/USD overage. Usage and the terminal reason stay durable in `kernel.json`. Claude Code meters automatically; other runtimes use the kernel CLI when they expose equivalent totals. |
 | `enforce-sail.sh`               | Bare `php artisan` / `composer` / `vendor/bin/{pint,pest,phpunit,phpstan}` on a **Sail** project — the block message carries the exact `./vendor/bin/sail …` rewrite, so the agent self-corrects in one turn. Active only when both `vendor/bin/sail` and a compose file exist (the sail *dependency* alone — the Herd/Valet shape — stays untouched). Opt out with `LARAVEL_AGENTS_SAIL=0`. |
 | `emit-agent-events.sh`          | Nothing — an **observer**, not a guard: wired as `PreToolUse` **and** `PostToolUse` on the subagent tool (`Agent\|Task`), it streams every subagent start / finish (agent, task, duration, tokens) to `.claude/agents-board.jsonl` for the `/board` live dashboard. Always exits 0. Claude Code only. |
 
@@ -397,7 +409,7 @@ Add the marketplace once, then install the plugin:
 /plugin install laravel-team@laravel-claude-agents
 ```
 
-That registers all 18 agents, the 16 slash commands, the `laravel-conventions` skill, and the eleven guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
+That registers all 18 agents, the 16 slash commands, the `laravel-conventions` skill, and the twelve guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
 
 ```
 /plugin install laravel-team@laravel-claude-agents --scope project
@@ -509,7 +521,7 @@ Or pass the target explicitly from anywhere:
 3. Copies slash commands to `<target>/.claude/commands/`.
 4. Copies guardrail scripts to `<target>/scripts/` and `chmod +x` them.
 5. Drops `CLAUDE.md` from the template if one doesn't exist yet (never overwrites an existing one).
-6. Idempotently merges the guardrail `PreToolUse` hooks into `<target>/.claude/settings.json` (the file is only rewritten when something actually changes).
+6. Idempotently merges the guardrail `PreToolUse`, `PostToolUse`, and `SubagentStop` hooks into `<target>/.claude/settings.json` (the file is only rewritten when something actually changes).
 7. Backup behavior: byte-identical files are skipped without backup. When a copied file differs from the destination, a timestamped `.bak` copy is created before overwriting. If `settings.json` exists but contains invalid JSON, the original is preserved as a timestamped `.bak` before the new file is written.
 
 ---

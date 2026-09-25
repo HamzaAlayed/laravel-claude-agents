@@ -257,6 +257,7 @@ desired = [
     ("PreToolUse",  "Bash",       "./scripts/enforce-lessons-file.sh"),
     ("PreToolUse",  "Write|Edit|NotebookEdit", "./scripts/enforce-agent-paths.sh"),
     ("PreToolUse",  "Bash|Write|Edit|NotebookEdit", "./scripts/enforce-kernel-approvals.sh"),
+    ("PreToolUse",  "",           "./scripts/enforce-kernel-budgets.sh"),
     ("PreToolUse",  "Write|Edit", "./scripts/protect-env-files.sh"),
     ("PreToolUse",  "Write|Edit", "./scripts/enforce-close-file.sh"),
     ("PreToolUse",  "Write|Edit", "./scripts/enforce-stage-return.sh"),
@@ -264,6 +265,7 @@ desired = [
     ("PreToolUse",  "Write|Edit", "./scripts/enforce-lessons-file.sh"),
     ("PreToolUse",  "Agent|Task", "./scripts/emit-agent-events.sh"),
     ("PostToolUse", "Agent|Task", "./scripts/emit-agent-events.sh"),
+    ("PostToolUse", "Agent|Task", "./scripts/enforce-kernel-budgets.sh"),
     ("SubagentStop", "",          "./scripts/emit-agent-events.sh"),
 ]
 

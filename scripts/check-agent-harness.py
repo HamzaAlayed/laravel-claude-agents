@@ -87,6 +87,32 @@ def main() -> int:
         ):
             fail(f"{key} must use integer values", errors)
 
+    pricing = budgets.get("pricing")
+    if not isinstance(pricing, dict):
+        fail("shared.budgets.pricing must be an object", errors)
+    else:
+        if pricing.get("unit") != "usd_per_million_tokens":
+            fail("shared.budgets.pricing.unit is invalid", errors)
+        for key in ("cacheReadMultiplier", "cacheWriteMultiplier"):
+            value = pricing.get(key)
+            if isinstance(value, bool) or not isinstance(value, (int, float)) or value <= 0:
+                fail(f"shared.budgets.pricing.{key} must be positive", errors)
+        rates = pricing.get("models")
+        fallback = pricing.get("unknownModel")
+        if not isinstance(rates, dict) or not rates:
+            fail("shared.budgets.pricing.models must be a nonempty object", errors)
+        for label, pair in [("unknownModel", fallback), *((f"models.{name}", value) for name, value in (rates or {}).items())]:
+            if not isinstance(pair, dict) or set(pair) != {"input", "output"}:
+                fail(f"shared.budgets.pricing.{label} must define input and output", errors)
+                continue
+            if any(
+                isinstance(value, bool)
+                or not isinstance(value, (int, float))
+                or value <= 0
+                for value in pair.values()
+            ):
+                fail(f"shared.budgets.pricing.{label} rates must be positive", errors)
+
     if shared.get("resultContract") != RESULT_CONTRACT:
         fail("shared.resultContract must match the six-field stage-return contract", errors)
     if shared.get("ownedPathsRequired") is not True:
@@ -120,6 +146,18 @@ def main() -> int:
     }:
         fail(
             "shared.approvalPolicy must require durable user approval before claim",
+            errors,
+        )
+    if shared.get("budgetPolicy") != {
+        "stageField": "budget",
+        "usageField": "usage",
+        "requiredBeforeClaim": True,
+        "preToolDimensions": ["max_seconds", "max_tool_calls"],
+        "completionDimensions": ["max_turns", "max_tokens", "max_usd"],
+        "onBreach": "budget_exceeded",
+    }:
+        fail(
+            "shared.budgetPolicy must meter pre-tool and completion dimensions",
             errors,
         )
     if shared.get("verification") != "registered-runners-only":

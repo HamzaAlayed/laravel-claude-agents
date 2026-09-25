@@ -169,6 +169,19 @@ class ParallelDispatchTest(unittest.TestCase):
         )
         kernel.claim_stage(self.root, "tag", "a")
         kernel.claim_stage(self.root, "tag", "b")
+        for agent in ("database-developer", "backend-developer"):
+            kernel.record_stage_usage(
+                self.root,
+                agent,
+                {
+                    "seconds": 1.0,
+                    "tool_calls": 1,
+                    "turns": 1,
+                    "tokens": 1,
+                    "cost_usd": 0.01,
+                },
+                event_id=f"completion:{agent}",
+            )
         reports = []
         for agent in ("database-developer", "backend-developer"):
             artifact = self.root / f"{agent}.txt"

@@ -37,11 +37,34 @@ _VERIFICATION_RUNNERS = {
     "sail-pest": ("./vendor/bin/sail", "bin", "pest"),
 }
 _INTERNAL_VERIFICATION_RUNNERS = {"file-exists", "file-has-lines"}
+_BUDGET_KEYS = (
+    "max_seconds",
+    "max_tool_calls",
+    "max_turns",
+    "max_tokens",
+    "max_usd",
+)
+_BUDGET_POLICY = {
+    "stageField": "budget",
+    "usageField": "usage",
+    "requiredBeforeClaim": True,
+    "preToolDimensions": ["max_seconds", "max_tool_calls"],
+    "completionDimensions": ["max_turns", "max_tokens", "max_usd"],
+    "onBreach": "budget_exceeded",
+}
+_EMPTY_USAGE = {
+    "seconds": 0.0,
+    "tool_calls": 0,
+    "turns": 0,
+    "tokens": 0,
+    "cost_usd": 0.0,
+}
 _BOARD_MARK = {
     "done": "✔",
     "running": "▶",
     "queued": "·",
     "failed": "✖",
+    "budget_exceeded": "⛔",
     "skipped": "·",
 }
 AGENTS = frozenset(
@@ -93,6 +116,12 @@ class StageSpec:
     owned_paths: list = field(default_factory=list)
     approval_categories: list = field(default_factory=list)
     approvals: list = field(default_factory=list)
+    budget: dict = field(default_factory=dict)
+    usage: dict = field(default_factory=dict)
+    claimed_at: str = ""
+    claim_usage: dict = field(default_factory=dict)
+    budget_events: list = field(default_factory=list)
+    budget_exceeded_reason: str = ""
 
 
 @dataclass
@@ -170,6 +199,15 @@ def load(root, name):
         stage.setdefault("owned_paths", [])
         stage.setdefault("approval_categories", [])
         stage.setdefault("approvals", [])
+        stage["budget"] = _normalize_budget(stage.get("budget", {}))
+        stage["usage"] = _normalize_usage(stage.get("usage", {}))
+        stage.setdefault("claimed_at", "")
+        claim_usage = stage.get("claim_usage", {})
+        stage["claim_usage"] = (
+            _normalize_usage(claim_usage) if claim_usage else {}
+        )
+        stage.setdefault("budget_events", [])
+        stage.setdefault("budget_exceeded_reason", "")
         stages.append(StageSpec(**stage))
     return Delivery(stages=stages, **data)
 
@@ -349,6 +387,8 @@ def board_line(delivery):
         label = f"pair:{stage.pair}" if stage.awaiting_pair and stage.pair else stage.agent
         if pending:
             label += f" approval:{','.join(pending)}"
+        if stage.budget_exceeded_reason:
+            label += f" budget:{stage.budget_exceeded_reason}"
         lanes.append(f"{stage.id} {mark} {label}")
     return " · ".join([header, *lanes]) if lanes else header
 
@@ -415,12 +455,15 @@ def _has_criteria(stage):
     return any(str(item).strip() for item in stage.success_criteria)
 
 
-def _agent_profiles():
+def _harness_registry():
     path = pathlib.Path(__file__).resolve().parents[2] / "config" / "agent-harness.json"
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
         profiles = payload["agents"]
-        approval_policy = payload["shared"]["approvalPolicy"]
+        shared = payload["shared"]
+        approval_policy = shared["approvalPolicy"]
+        budget_policy = shared["budgetPolicy"]
+        budgets = shared["budgets"]
         if not isinstance(profiles, dict):
             raise TypeError("agent profiles must be an object")
         if approval_policy != {
@@ -430,9 +473,143 @@ def _agent_profiles():
             "requiredBeforeClaim": True,
         }:
             raise TypeError("approval policy is invalid")
-        return profiles
+        if budget_policy != _BUDGET_POLICY:
+            raise TypeError("budget policy is invalid")
+        defaults = budgets["defaults"]
+        ceilings = budgets["hardCeilings"]
+        if set(defaults) != set(_BUDGET_KEYS) or set(ceilings) != set(_BUDGET_KEYS):
+            raise TypeError("budget dimensions are invalid")
+        return payload
     except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
         raise PlanError(f"cannot load agent harness policy from {path}") from exc
+
+
+def _agent_profiles():
+    return _harness_registry()["agents"]
+
+
+def _normalize_budget(value):
+    budgets = _harness_registry()["shared"]["budgets"]
+    defaults = budgets["defaults"]
+    ceilings = budgets["hardCeilings"]
+    if value in (None, {}):
+        value = {}
+    if not isinstance(value, dict) or set(value) - set(_BUDGET_KEYS):
+        raise PlanError(f"budget accepts only {', '.join(_BUDGET_KEYS)}")
+    normalized = dict(defaults)
+    for key, raw in value.items():
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)) or raw <= 0:
+            raise PlanError(f"budget {key} must be a positive number")
+        if key != "max_usd" and not isinstance(raw, int):
+            raise PlanError(f"budget {key} must be a positive integer")
+        if raw > ceilings[key]:
+            raise PlanError(
+                f"budget {key} exceeds hard ceiling {ceilings[key]}"
+            )
+        normalized[key] = raw
+    for key in _BUDGET_KEYS:
+        raw = normalized[key]
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)) or raw <= 0:
+            raise PlanError(f"invalid default budget {key}")
+        if raw > ceilings[key]:
+            raise PlanError(f"default budget {key} exceeds hard ceiling")
+        if key != "max_usd" and not isinstance(raw, int):
+            raise PlanError(f"default budget {key} must be an integer")
+    normalized["max_usd"] = float(normalized["max_usd"])
+    return normalized
+
+
+def _normalize_usage(value):
+    if value in (None, {}):
+        return dict(_EMPTY_USAGE)
+    if not isinstance(value, dict) or set(value) != set(_EMPTY_USAGE):
+        raise PlanError("stage usage has invalid dimensions")
+    normalized = {}
+    for key, raw in value.items():
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)) or raw < 0:
+            raise PlanError(f"stage usage {key} must be nonnegative")
+        if key in {"tool_calls", "turns", "tokens"} and not isinstance(raw, int):
+            raise PlanError(f"stage usage {key} must be an integer")
+        normalized[key] = float(raw) if key in {"seconds", "cost_usd"} else raw
+    return normalized
+
+
+def usage_tokens(usage):
+    if not isinstance(usage, dict):
+        raise PlanError("usage telemetry must be an object")
+    total = 0
+    for key in (
+        "input_tokens",
+        "output_tokens",
+        "cache_read_input_tokens",
+        "cache_creation_input_tokens",
+    ):
+        raw = usage.get(key, 0)
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)) or raw < 0:
+            raise PlanError(f"usage telemetry {key} must be nonnegative")
+        total += raw
+    return int(total)
+
+
+def usage_cost(usage, model):
+    registry = _harness_registry()
+    pricing = registry["shared"]["budgets"].get("pricing")
+    if not isinstance(pricing, dict):
+        raise PlanError("budget pricing policy is missing")
+    rates_by_model = pricing.get("models")
+    fallback = pricing.get("unknownModel")
+    if not isinstance(rates_by_model, dict) or not isinstance(fallback, dict):
+        raise PlanError("budget pricing policy is invalid")
+    model_name = str(model or "")
+    rates = None
+    for alias, candidate in rates_by_model.items():
+        if (
+            model_name == alias
+            or model_name.startswith(alias + "-")
+            or model_name.startswith(alias + "[")
+        ):
+            rates = candidate
+            break
+    rates = rates or fallback
+    try:
+        input_rate = float(rates["input"])
+        output_rate = float(rates["output"])
+        cache_read_multiplier = float(pricing["cacheReadMultiplier"])
+        cache_write_multiplier = float(pricing["cacheWriteMultiplier"])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise PlanError("budget pricing policy is invalid") from exc
+    tokens = {}
+    for key in (
+        "input_tokens",
+        "output_tokens",
+        "cache_read_input_tokens",
+        "cache_creation_input_tokens",
+    ):
+        raw = usage.get(key, 0) if isinstance(usage, dict) else None
+        if isinstance(raw, bool) or not isinstance(raw, (int, float)) or raw < 0:
+            raise PlanError(f"usage telemetry {key} must be nonnegative")
+        tokens[key] = float(raw)
+    return (
+        tokens["input_tokens"] * input_rate
+        + tokens["output_tokens"] * output_rate
+        + tokens["cache_read_input_tokens"] * input_rate * cache_read_multiplier
+        + tokens["cache_creation_input_tokens"]
+        * input_rate
+        * cache_write_multiplier
+    ) / 1_000_000
+
+
+def _validate_budgets(stages):
+    for stage in stages:
+        stage.budget = _normalize_budget(stage.budget)
+        stage.usage = _normalize_usage(stage.usage)
+        if (
+            stage.claimed_at
+            or stage.claim_usage
+            or stage.budget_events
+            or stage.budget_exceeded_reason
+        ):
+            raise PlanError(f"new stage {stage.id} cannot start with budget runtime state")
 
 
 def _agent_mutations():
@@ -555,6 +732,246 @@ def approve_stage_action(
         return approval
 
 
+def _now_utc():
+    return datetime.now(timezone.utc)
+
+
+def _parse_utc_timestamp(raw, *, label):
+    if not isinstance(raw, str) or not raw:
+        raise PlanError(f"{label} is missing")
+    try:
+        parsed = datetime.fromisoformat(raw)
+    except ValueError as exc:
+        raise PlanError(f"{label} is invalid") from exc
+    if parsed.tzinfo is None:
+        raise PlanError(f"{label} must include a timezone")
+    return parsed.astimezone(timezone.utc)
+
+
+def _active_budget_targets(root, agent):
+    base = pathlib.Path(root) / "docs" / "delivery"
+    if not base.is_dir():
+        return []
+    targets = []
+    for state_path in sorted(base.glob("*/kernel.json")):
+        delivery = load(root, state_path.parent.name)
+        if delivery.status != "running":
+            continue
+        for stage in delivery.stages:
+            if stage.agent == agent and stage.status == "running":
+                targets.append((delivery.name, stage.id))
+    return targets
+
+
+def _budget_target(root, agent):
+    targets = _active_budget_targets(root, agent)
+    if len(targets) > 1:
+        raise PlanError(f"more than one running stage exists for agent {agent}")
+    return targets[0] if targets else None
+
+
+def _budget_event_seen(stage, event_id):
+    return bool(event_id) and event_id in stage.budget_events
+
+
+def _remember_budget_event(stage, event_id):
+    if not event_id:
+        return
+    stage.budget_events.append(str(event_id))
+    stage.budget_events = stage.budget_events[-128:]
+
+
+def _active_seconds(stage, now):
+    elapsed = float(stage.usage["seconds"])
+    if stage.claimed_at:
+        started = _parse_utc_timestamp(
+            stage.claimed_at, label=f"stage {stage.id} claimed_at"
+        )
+        elapsed += max(0.0, (now - started).total_seconds())
+    return elapsed
+
+
+def _usage_budget_reason(stage):
+    dimensions = (
+        ("max_seconds", "seconds"),
+        ("max_tool_calls", "tool_calls"),
+        ("max_turns", "turns"),
+        ("max_tokens", "tokens"),
+        ("max_usd", "cost_usd"),
+    )
+    for budget_key, usage_key in dimensions:
+        if stage.usage[usage_key] > stage.budget[budget_key]:
+            return budget_key
+    return ""
+
+
+def _mark_budget_exceeded(root, delivery, stage, reason, *, now):
+    if stage.claimed_at:
+        stage.usage["seconds"] = _active_seconds(stage, now)
+    stage.claimed_at = ""
+    stage.status = "budget_exceeded"
+    stage.budget_exceeded_reason = reason
+    delivery.status = "budget_exceeded"
+    save(root, delivery)
+    write_views(root, delivery, not_checked=delivery.done_when or "none")
+
+
+def meter_tool_call(root, agent, *, event_id="", now=None):
+    """Persist and enforce the pre-tool dimensions for one claimed stage."""
+    target = _budget_target(root, agent)
+    if target is None:
+        return None
+    name, stage_id = target
+    lock_path = _state_path(root, name).with_suffix(".lock")
+    with _file_lock(lock_path):
+        delivery = load(root, name)
+        stage = next(
+            (
+                item for item in delivery.stages
+                if item.id == stage_id
+                and item.agent == agent
+                and item.status == "running"
+            ),
+            None,
+        )
+        if stage is None or delivery.status != "running":
+            raise PlanError(f"running budget stage disappeared for agent {agent}")
+        if _budget_event_seen(stage, event_id):
+            return stage
+        observed_at = now or _now_utc()
+        elapsed = _active_seconds(stage, observed_at)
+        if elapsed >= stage.budget["max_seconds"]:
+            _mark_budget_exceeded(
+                root, delivery, stage, "max_seconds", now=observed_at
+            )
+            raise PlanError(f"stage {stage.id} exceeded budget max_seconds")
+        if stage.usage["tool_calls"] >= stage.budget["max_tool_calls"]:
+            _mark_budget_exceeded(
+                root, delivery, stage, "max_tool_calls", now=observed_at
+            )
+            raise PlanError(f"stage {stage.id} exceeded budget max_tool_calls")
+        stage.usage["tool_calls"] += 1
+        _remember_budget_event(stage, event_id)
+        save(root, delivery)
+        return stage
+
+
+def stop_stage_for_budget(root, agent, reason, *, event_id="", now=None):
+    """Fail closed when required runtime budget evidence is unavailable."""
+    target = _budget_target(root, agent)
+    if target is None:
+        return None
+    name, stage_id = target
+    lock_path = _state_path(root, name).with_suffix(".lock")
+    with _file_lock(lock_path):
+        delivery = load(root, name)
+        stage = next(
+            (
+                item for item in delivery.stages
+                if item.id == stage_id
+                and item.agent == agent
+                and item.status == "running"
+            ),
+            None,
+        )
+        if stage is None or delivery.status != "running":
+            raise PlanError(f"running budget stage disappeared for agent {agent}")
+        if _budget_event_seen(stage, event_id):
+            return stage
+        _remember_budget_event(stage, event_id)
+        _mark_budget_exceeded(
+            root, delivery, stage, str(reason), now=now or _now_utc()
+        )
+        return stage
+
+
+def record_stage_usage(
+    root,
+    agent,
+    metrics,
+    *,
+    event_id="",
+    now=None,
+    expected_target=None,
+):
+    """Record completion telemetry and stop a stage that crossed a ceiling."""
+    required = {"seconds", "tool_calls", "turns", "tokens", "cost_usd"}
+    if not isinstance(metrics, dict) or set(metrics) != required:
+        raise PlanError("budget telemetry must contain all five usage dimensions")
+    normalized = _normalize_usage(metrics)
+    target = _budget_target(root, agent)
+    if expected_target is not None and target != expected_target:
+        return None
+    if target is None:
+        return None
+    name, stage_id = target
+    lock_path = _state_path(root, name).with_suffix(".lock")
+    with _file_lock(lock_path):
+        delivery = load(root, name)
+        stage = next(
+            (
+                item for item in delivery.stages
+                if item.id == stage_id
+                and item.agent == agent
+                and item.status == "running"
+            ),
+            None,
+        )
+        if stage is None or delivery.status != "running":
+            raise PlanError(f"running budget stage disappeared for agent {agent}")
+        if _budget_event_seen(stage, event_id):
+            return stage
+        observed_at = now or _now_utc()
+        current_seconds = 0.0
+        if stage.claimed_at:
+            current_seconds = max(
+                0.0,
+                (
+                    observed_at
+                    - _parse_utc_timestamp(
+                        stage.claimed_at,
+                        label=f"stage {stage.id} claimed_at",
+                    )
+                ).total_seconds(),
+            )
+        stage.usage["seconds"] += max(current_seconds, normalized["seconds"])
+        claim_usage = stage.claim_usage or dict(_EMPTY_USAGE)
+        metered_calls = max(
+            0, stage.usage["tool_calls"] - claim_usage["tool_calls"]
+        )
+        stage.usage["tool_calls"] = (
+            claim_usage["tool_calls"]
+            + max(metered_calls, normalized["tool_calls"])
+        )
+        stage.usage["turns"] += normalized["turns"]
+        stage.usage["tokens"] += normalized["tokens"]
+        stage.usage["cost_usd"] += normalized["cost_usd"]
+        stage.claimed_at = ""
+        _remember_budget_event(stage, event_id)
+        reason = _usage_budget_reason(stage)
+        if reason:
+            _mark_budget_exceeded(root, delivery, stage, reason, now=observed_at)
+            raise PlanError(f"stage {stage.id} exceeded budget {reason}")
+        save(root, delivery)
+        write_views(root, delivery, not_checked=delivery.done_when or "none")
+        return stage
+
+
+def budget_rows(root, name):
+    delivery = load(root, name)
+    return [
+        {
+            "stage": stage.id,
+            "agent": stage.agent,
+            "status": stage.status,
+            "budget": stage.budget,
+            "usage": stage.usage,
+            "reason": stage.budget_exceeded_reason or None,
+        }
+        for stage in delivery.stages
+    ]
+
+
 def _validate_owned_paths(stages):
     mutations = _agent_mutations()
     for stage in stages:
@@ -611,6 +1028,7 @@ def _validate_stages(stages):
     for stage_id in ids:
         visit(stage_id)
     _validate_approval_categories(stages)
+    _validate_budgets(stages)
 
 
 def _wip_count(root, sprint):
@@ -781,6 +1199,8 @@ def _reopen(root, delivery, stage):
     if stage.status != "done":
         raise PlanError(f"stage {stage.id} is {stage.status}")
     stage.status = "running"
+    stage.claimed_at = _now_utc().isoformat(timespec="seconds")
+    stage.claim_usage = dict(stage.usage)
     stage.reopens = 1
     delivery.status = "running"
     delivery.cap = max(delivery.cap, delivery.spawns + 1)
@@ -850,7 +1270,7 @@ def _watch_target(delivery):
 
 def watch_once(root, name, runner):
     delivery = load(root, name)
-    if delivery.status in ("stopped", "done"):
+    if delivery.status in ("stopped", "done", "budget_exceeded"):
         return {"action": "skip"}
     if not delivery.pr.get("number"):
         return {"action": "skip"}
@@ -965,7 +1385,7 @@ def ready_stages(root, name):
 def _ready_for_delivery(delivery):
     if (
         _dod_met(delivery)
-        or delivery.status in ("stopped", "done")
+        or delivery.status in ("stopped", "done", "budget_exceeded")
         or _cap_hit(delivery)
     ):
         return []
@@ -1018,6 +1438,8 @@ def claim_stage(root, name, stage_id):
                 )
             raise PlanError(f"stage {stage_id} is not ready or parallel capacity is full")
         stage.status = "running"
+        stage.claimed_at = _now_utc().isoformat(timespec="seconds")
+        stage.claim_usage = dict(stage.usage)
         save(root, delivery)
         write_views(root, delivery, not_checked=delivery.done_when or "none")
         return stage
@@ -1027,8 +1449,10 @@ def next_agent(root, name):
     delivery = load(root, name)
     if _dod_met(delivery):
         return "STOP"
-    if delivery.status in ("stopped", "done") or _cap_hit(delivery):
-        if _cap_hit(delivery) and delivery.status not in ("stopped", "done"):
+    if delivery.status in ("stopped", "done", "budget_exceeded") or _cap_hit(delivery):
+        if _cap_hit(delivery) and delivery.status not in (
+            "stopped", "done", "budget_exceeded"
+        ):
             delivery.status = "stopped"
             save(root, delivery)
             write_views(root, delivery)
@@ -1179,6 +1603,12 @@ def _commit_report(root, name, path, fields, verifications):
     ]
     matched = False
     for stage in delivery.stages:
+        if stage.status == "budget_exceeded" and (
+            stage.agent == agent or stage.pair == agent
+        ):
+            raise ReportError(
+                f"stage {stage.id} exceeded budget {stage.budget_exceeded_reason}"
+            )
         if stage.awaiting_pair and stage.pair == agent:
             matched = True
             for criterion in stage.success_criteria:
@@ -1197,6 +1627,10 @@ def _commit_report(root, name, path, fields, verifications):
         if stage.awaiting_pair:
             raise ReportError(f"stage {stage.id} is awaiting pair {stage.pair}")
         matched = True
+        if stage.claimed_at:
+            raise ReportError(
+                f"stage {stage.id} requires budget telemetry before report"
+            )
         for criterion in stage.success_criteria:
             if criterion and criterion in not_checked:
                 raise ReportError(f"NOT-CHECKED names success criterion: {criterion}")

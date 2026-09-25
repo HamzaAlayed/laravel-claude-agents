@@ -55,7 +55,7 @@ def build_parser():
         "--stage-json",
         action="append",
         default=[],
-        help="typed stage object with id, agent, role, success_criteria, depends_on, owned_paths, approval_categories",
+        help="typed stage object with id, agent, role, success_criteria, depends_on, owned_paths, approval_categories, budget",
     )
     plan.add_argument("--max-parallel", type=int, default=3)
     plan.add_argument("--issue", type=int, default=0)
@@ -83,6 +83,17 @@ def build_parser():
     approval_grant = approval_cmds.add_parser("grant", parents=[common])
     approval_grant.add_argument("--stage", required=True)
     approval_grant.add_argument("--category", required=True)
+    budget = sub.add_parser("budget")
+    budget_cmds = budget.add_subparsers(dest="budget_cmd", required=True)
+    budget_cmds.add_parser("list", parents=[common])
+    budget_record = budget_cmds.add_parser("record", parents=[common])
+    budget_record.add_argument("--stage", required=True)
+    budget_record.add_argument("--seconds", type=float, required=True)
+    budget_record.add_argument("--tool-calls", type=int, required=True)
+    budget_record.add_argument("--turns", type=int, required=True)
+    budget_record.add_argument("--tokens", type=int, required=True)
+    budget_record.add_argument("--usd", type=float, required=True)
+    budget_record.add_argument("--event-id", default="")
     sprint_common = argparse.ArgumentParser(add_help=False)
     sprint_common.add_argument("--root", required=True)
     sprint_common.add_argument("--id", required=True)
@@ -114,6 +125,7 @@ def _stages_from_args(raw_stages, raw_json_stages=()):
     allowed = {
         "id", "agent", "role", "success_criteria", "depends_on", "owned_paths",
         "approval_categories",
+        "budget",
     }
     for raw in raw_json_stages:
         try:
@@ -136,6 +148,7 @@ def _stages_from_args(raw_stages, raw_json_stages=()):
                 depends_on=spec.get("depends_on", []),
                 owned_paths=spec["owned_paths"],
                 approval_categories=spec.get("approval_categories", []),
+                budget=spec.get("budget", {}),
             )
         )
     return stages
@@ -188,6 +201,7 @@ def main(argv=None):
                     "agent": stage.agent,
                     "role": stage.role,
                     "owned_paths": stage.owned_paths,
+                    "budget": stage.budget,
                 }
                 for stage in kernel.ready_stages(args.root, args.name)
             ]
@@ -238,6 +252,35 @@ def main(argv=None):
                     f"APPROVED: {args.stage} {approval['category']} "
                     f"by {approval['by']} at {approval['at']}"
                 )
+                return 0
+        if args.cmd == "budget":
+            if args.budget_cmd == "list":
+                print(json.dumps(kernel.budget_rows(args.root, args.name)))
+                return 0
+            if args.budget_cmd == "record":
+                delivery = kernel.load(args.root, args.name)
+                stage = next(
+                    (item for item in delivery.stages if item.id == args.stage),
+                    None,
+                )
+                if stage is None:
+                    raise kernel.PlanError(f"stage {args.stage} is missing")
+                recorded = kernel.record_stage_usage(
+                    args.root,
+                    stage.agent,
+                    {
+                        "seconds": args.seconds,
+                        "tool_calls": args.tool_calls,
+                        "turns": args.turns,
+                        "tokens": args.tokens,
+                        "cost_usd": args.usd,
+                    },
+                    event_id=args.event_id,
+                    expected_target=(args.name, args.stage),
+                )
+                if recorded is None or recorded.id != args.stage:
+                    raise kernel.PlanError(f"stage {args.stage} is not running")
+                print(f"BUDGET: {args.stage} recorded")
                 return 0
         if args.cmd == "sprint":
             return _sprint_main(args)

@@ -60,6 +60,11 @@ expect() {
   fi
 }
 
+# hook_command_count <file> <event> <matcher> <script-suffix>
+hook_command_count() {
+  python3 -c 'import json,sys; data=json.load(open(sys.argv[1], encoding="utf-8")); print(sum(1 for entry in data.get("hooks", {}).get(sys.argv[2], []) if entry.get("matcher") == sys.argv[3] for hook in entry.get("hooks", []) if str(hook.get("command", "")).endswith(sys.argv[4])))' "$1" "$2" "$3" "$4"
+}
+
 BLOCK=2
 ALLOW=0
 
@@ -888,7 +893,7 @@ expect "console raw SDK persistence is opt-in" "1" \
 expect "console loads hard runtime budgets from the shared harness" "1" \
   "$(grep -c '^DEFAULT_BUDGET, HARD_BUDGET_CEILINGS = _load_budget_policy()' "$SCRIPT_DIR/scripts/console/engine.py")"
 expect "shared harness includes default and hard assistant-turn budgets" "2" \
-  "$(grep -c 'max_turns' "$SCRIPT_DIR/config/agent-harness.json")"
+  "$(grep -c '"max_turns":' "$SCRIPT_DIR/config/agent-harness.json")"
 expect "console interrupts on budget breach" "1" \
   "$(grep -c 'async def _budget_interrupt' "$SCRIPT_DIR/scripts/console/engine.py")"
 expect "console trace retention is bounded" "1" \
@@ -1312,6 +1317,21 @@ expect "close file accepts STATUS stopped" "0" \
   ')"
 rm -rf "$CLOSE_STOPPED_DIR"
 
+CLOSE_BUDGET_DIR="$(mktemp -d)"
+mkdir -p "$CLOSE_BUDGET_DIR/docs/delivery/tag"
+printf '%s\n' \
+  'VERIFIED: x' 'NOT-CHECKED: y' 'STATUS: budget_exceeded' 'BOARD: z' \
+  >"$CLOSE_BUDGET_DIR/docs/delivery/tag/close.md"
+expect "close file accepts STATUS budget_exceeded" "0" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$CLOSE_BUDGET_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() { if [ "$1" -ne 0 ]; then CHECK_FAIL=$((CHECK_FAIL + 1)); fi; }
+    '"$(sed -n '/^check_delivery_close_file()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_delivery_close_file
+    echo "$CHECK_FAIL"
+  ')"
+rm -rf "$CLOSE_BUDGET_DIR"
+
 KERNEL_MISS_DIR="$(mktemp -d)"
 mkdir -p "$KERNEL_MISS_DIR/docs/delivery/tag"
 expect "kernel state missing file fails" "1" \
@@ -1566,6 +1586,10 @@ expect "CI pins no node version by hand" "0" \
 # The board and its observer are deliberately untouched by the console work.
 expect "emit-agent-events.sh still wired three ways" "3" \
   "$(grep -c 'emit-agent-events.sh' "$SCRIPT_DIR/hooks/hooks.json" | tr -d ' ')"
+expect "runtime budget plugin hook meters every subagent tool" "1" \
+  "$(hook_command_count "$SCRIPT_DIR/hooks/hooks.json" PreToolUse "" /scripts/enforce-kernel-budgets.sh)"
+expect "runtime budget plugin hook records Agent completion" "1" \
+  "$(hook_command_count "$SCRIPT_DIR/hooks/hooks.json" PostToolUse 'Agent|Task' /scripts/enforce-kernel-budgets.sh)"
 
 # install_dir copies files only, so scripts/guild-kernel/ needs a dedicated
 # installer — same shape as install_console. Eval workdirs go through
@@ -1588,6 +1612,16 @@ expect "install dest contains the approval policy engine" "1" \
   "$([ -f "$INSTALL_DEST/scripts/enforce-kernel-approvals.py" ] && echo 1 || echo 0)"
 expect "installer wires the approval hook into project settings" "1" \
   "$(grep -c 'enforce-kernel-approvals.sh' "$INSTALL_DEST/.claude/settings.json")"
+expect "install dest contains the runtime-budget policy hook" "1" \
+  "$([ -x "$INSTALL_DEST/scripts/enforce-kernel-budgets.sh" ] && echo 1 || echo 0)"
+expect "install dest contains the runtime-budget policy engine" "1" \
+  "$([ -f "$INSTALL_DEST/scripts/enforce-kernel-budgets.py" ] && echo 1 || echo 0)"
+expect "installer wires runtime budgets at pre-tool and completion boundaries" "2" \
+  "$(grep -c 'enforce-kernel-budgets.sh' "$INSTALL_DEST/.claude/settings.json")"
+expect "installed runtime budget hook meters every subagent tool" "1" \
+  "$(hook_command_count "$INSTALL_DEST/.claude/settings.json" PreToolUse "" ./scripts/enforce-kernel-budgets.sh)"
+expect "installed runtime budget hook records Agent completion" "1" \
+  "$(hook_command_count "$INSTALL_DEST/.claude/settings.json" PostToolUse 'Agent|Task' ./scripts/enforce-kernel-budgets.sh)"
 rm -rf "$INSTALL_DEST"
 
 echo

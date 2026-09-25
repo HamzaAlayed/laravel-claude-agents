@@ -124,7 +124,7 @@ BODY="$(extract_body)"
 
 if printf '%s' "$BODY" | grep -qE '^VERIFIED:' \
    && printf '%s' "$BODY" | grep -qE '^NOT-CHECKED:' \
-   && printf '%s' "$BODY" | grep -qE '^STATUS: (running|done|stopped)' \
+   && printf '%s' "$BODY" | grep -qE '^STATUS: (running|done|stopped|budget_exceeded)' \
    && printf '%s' "$BODY" | grep -qE '^BOARD:'; then
   exit 0
 fi

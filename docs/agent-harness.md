@@ -14,7 +14,8 @@ Every agent run inherits these controls:
   interruption so work can resume without repeating completed steps.
 - **Budgets:** 30 minutes, 200 tool calls, 120 assistant turns, 5 million
   tokens, and $10 by default. The registry also defines hard ceilings that a
-  caller cannot exceed.
+  caller cannot exceed. Every planned stage snapshots its effective values in
+  `kernel.json`; later registry changes do not rewrite a running delivery.
 - **Scope:** delivery stages require explicit success criteria. Every
   mutation-capable stage also requires at least one project-relative owned
   path; only `deny` profiles may remain pathless. The kernel blocks dependency
@@ -53,6 +54,54 @@ an empty array for a `deny` profile. The v6 kernel rejects the former
 comma-delimited `--stage` form because it cannot express a safe ownership
 boundary. Each record also carries `approval_categories`. Use an empty array
 only when none of the selected agent profile's categories applies.
+
+Each record may also carry a partial `budget` object. Omit it to inherit all
+shared defaults, or override only the dimensions that need a narrower
+envelope:
+
+```json
+{
+  "id": "backend",
+  "agent": "backend-developer",
+  "success_criteria": ["query count is lower and responses are unchanged"],
+  "depends_on": [],
+  "owned_paths": ["app", "tests"],
+  "approval_categories": [],
+  "budget": {"max_seconds": 1200, "max_tool_calls": 80, "max_usd": 4.0}
+}
+```
+
+`ready` returns the complete effective budget. Put that exact envelope in the
+specialist brief. Inspect the persisted receipt at any point:
+
+```sh
+python3 scripts/guild-kernel/guild.py budget list \
+  --root . --name tags
+```
+
+On Claude Code, `enforce-kernel-budgets.sh` counts time and tool calls before
+each subagent tool boundary. The synchronous Agent completion payload supplies
+duration, tool calls, turns, tokens, and model usage; the hook records those
+totals and estimates USD using the release-owned conservative pricing table.
+The hook rejects missing completion telemetry instead of treating zero as a
+measurement. A claimed stage cannot `report` until completion telemetry clears
+its claim timer.
+
+Another runtime may record telemetry explicitly only when it exposes all five
+dimensions:
+
+```sh
+python3 scripts/guild-kernel/guild.py budget record \
+  --root . --name tags --stage backend \
+  --seconds 84.2 --tool-calls 19 --turns 7 --tokens 182000 --usd 0.73
+```
+
+Never guess a missing value. If the runtime cannot supply the receipt, the lane
+remains unverified. A breach sets the stage and delivery to
+`budget_exceeded`, marks the board `⛔`, stops `ready`/`next`, and rejects a
+success report. Usage is cumulative across the one allowed reopen; a retry does
+not reset its budget. See [runtime stage budgets](runtime-budgets.md) for the
+enforcement and trust boundaries.
 
 The kernel validates every declared category against the profile, marks the
 lane `⏸`, excludes it from `ready`, and rejects `claim` until all categories
