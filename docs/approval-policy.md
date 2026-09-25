@@ -16,7 +16,7 @@ python3 scripts/guild-kernel/guild.py plan \
   --root . \
   --name prune-legacy-orders \
   --done-when "legacy orders are removed safely" \
-  --stage-json '{"id":"database","agent":"database-developer","role":"writer","success_criteria":["rollback path is documented"],"depends_on":[],"owned_paths":["database/migrations"],"approval_categories":["destructive migration"]}'
+  --stage-json '{"id":"database","agent":"database-developer","role":"writer","success_criteria":["rollback path is documented"],"criterion_ids":["rollback-documented"],"depends_on":[],"owned_paths":["database/migrations"],"approval_categories":["destructive migration"]}'
 ```
 
 Use `"approval_categories":[]` only when no category from that agent's profile

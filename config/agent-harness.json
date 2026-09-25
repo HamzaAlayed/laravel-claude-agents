@@ -89,6 +89,13 @@
       "completionDimensions": ["max_turns", "max_tokens", "max_usd"],
       "onBreach": "budget_exceeded"
     },
+    "criterionPolicy": {
+      "idsField": "criterion_ids",
+      "evidenceField": "verified",
+      "waiversField": "criterion_waivers",
+      "requiredCoverage": "all",
+      "waiverAuthority": "user"
+    },
     "verification": "registered-runners-only"
   },
   "agents": {

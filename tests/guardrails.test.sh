@@ -363,6 +363,10 @@ expect "main thread may record an explicit approval through the kernel CLI" "$AL
   "$(run_approval_policy "$APPROVAL_TMP" '{"tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py approval grant --root . --name tag --stage database --category destructive-migration"}}')"
 expect "subagent cannot grant its own stage approval" "$BLOCK" \
   "$(run_approval_policy "$APPROVAL_TMP" '{"agent_type":"laravel-team:database-developer","tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py approval grant --root . --name tag --stage database --category destructive-migration"}}')"
+expect "main thread may record an explicit criterion waiver through the kernel CLI" "$ALLOW" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py criterion waive --root . --name tag --stage database --criterion rollback-documented --reason accepted-by-user"}}')"
+expect "subagent cannot waive its own success criterion" "$BLOCK" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"agent_type":"laravel-team:database-developer","tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py criterion waive --root . --name tag --stage database --criterion rollback-documented --reason self-approved"}}')"
 expect "pending approval blocks subagent Bash before claim" "$BLOCK" \
   "$(run_approval_policy "$APPROVAL_TMP" '{"agent_type":"laravel-team:database-developer","tool_name":"Bash","tool_input":{"command":"php artisan migrate"}}')"
 expect "unrelated Guild agent is not blocked by another lane's approval" "$ALLOW" \
@@ -599,8 +603,8 @@ expect "Interface block requires adaptive opt-in" "9" \
   "$(grep -l 'Without `--adaptive`, ignore' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block requires adaptive fallback hop" "9" \
   "$(grep -l 'one fallback packet per run' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
-expect "Interface block rejects NOT-CHECKED that names success criteria" "9" \
-  "$(grep -l 'that names a stage success criterion is a reject' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block rejects NOT-CHECKED that names unwaived success criteria" "9" \
+  "$(grep -l 'that names an unwaived stage success criterion is a reject' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block requires writers to Write six fields" "9" \
   "$(grep -l 'Writers Write the six fields' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # shellcheck disable=SC2016 # literal `plan` backticks in the Interface needle
@@ -615,6 +619,16 @@ expect "Interface block claims every lane before Agent" "9" \
 # shellcheck disable=SC2016 # literal field backticks in the Interface needle
 expect "Interface block uses typed stages with path ownership" "9" \
   "$(grep -l 'typed `--stage-json`.*`owned_paths`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal field backticks in the Interface needle
+expect "Interface block plans stable criterion ids" "9" \
+  "$(grep -l 'one-to-one stable `criterion_ids`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal command backticks in the Interface needle
+expect "Interface block inspects criterion coverage before report" "9" \
+  "$(grep -l 'Before `report`, call `criterion list`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block leaves criterion waivers to the main thread" "9" \
+  "$(grep -l 'only the main thread may call `criterion waive' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block binds each verification to a criterion" "9" \
+  "$(grep -l 'JSON verification records (`{"criterion"' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # shellcheck disable=SC2016 # literal field backticks in the Interface needle
 expect "Interface block declares profile approval categories" "9" \
   "$(grep -l '`approval_categories`.*profile category applies' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
@@ -663,6 +677,17 @@ expect "coordinator atomically claims each ready lane" "1" \
 # shellcheck disable=SC2016 # literal field backticks in the coordinator needle
 expect "coordinator declares profile approval categories" "1" \
   "$(grep -c '`approval_categories` from the selected agent profile' "$COORD")"
+# shellcheck disable=SC2016 # literal field backticks in the coordinator needle
+expect "coordinator plans stable criterion ids" "1" \
+  "$(grep -c 'parallel one-to-one list of stable lowercase-kebab `criterion_ids`' "$COORD")"
+# shellcheck disable=SC2016 # literal field backticks in the coordinator needle
+expect "coordinator briefs criterion rows" "1" \
+  "$(grep -c 'effective budget and `criteria` rows' "$COORD")"
+# shellcheck disable=SC2016 # literal command backticks in the coordinator needle
+expect "coordinator inspects criterion coverage before report" "1" \
+  "$(grep -c 'Before `report`, call `criterion list`' "$COORD")"
+expect "coordinator leaves criterion waivers to the main thread" "1" \
+  "$(grep -c 'only the main thread may call `criterion waive' "$COORD")"
 # shellcheck disable=SC2016 # literal command backticks in the coordinator needle
 expect "coordinator leaves approval grants to the main thread" "1" \
   "$(grep -c 'only the main thread may call `approval grant`' "$COORD")"

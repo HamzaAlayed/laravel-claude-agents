@@ -37,6 +37,7 @@ _VERIFICATION_RUNNERS = {
     "sail-pest": ("./vendor/bin/sail", "bin", "pest"),
 }
 _INTERNAL_VERIFICATION_RUNNERS = {"file-exists", "file-has-lines"}
+_CRITERION_ID = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
 _BUDGET_KEYS = (
     "max_seconds",
     "max_tool_calls",
@@ -51,6 +52,13 @@ _BUDGET_POLICY = {
     "preToolDimensions": ["max_seconds", "max_tool_calls"],
     "completionDimensions": ["max_turns", "max_tokens", "max_usd"],
     "onBreach": "budget_exceeded",
+}
+_CRITERION_POLICY = {
+    "idsField": "criterion_ids",
+    "evidenceField": "verified",
+    "waiversField": "criterion_waivers",
+    "requiredCoverage": "all",
+    "waiverAuthority": "user",
 }
 _EMPTY_USAGE = {
     "seconds": 0.0,
@@ -122,6 +130,9 @@ class StageSpec:
     claim_usage: dict = field(default_factory=dict)
     budget_events: list = field(default_factory=list)
     budget_exceeded_reason: str = ""
+    criterion_ids: list = field(default_factory=list)
+    criterion_waivers: list = field(default_factory=list)
+    criterion_contract: int = 2
 
 
 @dataclass
@@ -208,6 +219,11 @@ def load(root, name):
         )
         stage.setdefault("budget_events", [])
         stage.setdefault("budget_exceeded_reason", "")
+        stage.setdefault("criterion_contract", 1)
+        stage["criterion_ids"] = _normalize_criterion_ids(
+            stage.get("success_criteria", []), stage.get("criterion_ids", [])
+        )
+        stage.setdefault("criterion_waivers", [])
         stages.append(StageSpec(**stage))
     return Delivery(stages=stages, **data)
 
@@ -389,6 +405,10 @@ def board_line(delivery):
             label += f" approval:{','.join(pending)}"
         if stage.budget_exceeded_reason:
             label += f" budget:{stage.budget_exceeded_reason}"
+        matrix = ",".join(
+            f"{row['id']}:{row['mark']}" for row in criterion_rows_for_stage(stage)
+        )
+        label += f" criteria[{matrix}]"
         lanes.append(f"{stage.id} {mark} {label}")
     return " · ".join([header, *lanes]) if lanes else header
 
@@ -452,7 +472,101 @@ def write_views(root, delivery, *, verified="none", not_checked="none"):
 
 
 def _has_criteria(stage):
-    return any(str(item).strip() for item in stage.success_criteria)
+    return bool(stage.success_criteria) and all(
+        isinstance(item, str) and item.strip() for item in stage.success_criteria
+    )
+
+
+def _normalize_criterion_ids(criteria, raw_ids):
+    if not isinstance(criteria, list):
+        raise PlanError("success_criteria must be a list")
+    if raw_ids in (None, []):
+        raw_ids = [f"criterion-{index}" for index in range(1, len(criteria) + 1)]
+    if not isinstance(raw_ids, list) or len(raw_ids) != len(criteria):
+        raise PlanError("criterion_ids must match success_criteria one-to-one")
+    if any(not isinstance(item, str) or not _CRITERION_ID.fullmatch(item) for item in raw_ids):
+        raise PlanError("criterion_ids must be unique lowercase kebab-case identifiers")
+    if len(raw_ids) != len(set(raw_ids)):
+        raise PlanError("criterion_ids must be unique lowercase kebab-case identifiers")
+    return list(raw_ids)
+
+
+def _valid_waivers(stage):
+    valid = {}
+    for waiver in stage.criterion_waivers:
+        if not isinstance(waiver, dict):
+            continue
+        criterion = waiver.get("criterion")
+        if (
+            criterion in stage.criterion_ids
+            and waiver.get("by") == "user"
+            and isinstance(waiver.get("reason"), str)
+            and waiver["reason"].strip()
+            and isinstance(waiver.get("at"), str)
+            and waiver["at"]
+        ):
+            valid[criterion] = waiver
+    return valid
+
+
+def _verified_criterion_ids(stage):
+    verified = {
+        entry.get("criterion")
+        for entry in stage.verified
+        if isinstance(entry, dict)
+        and entry.get("exit") == 0
+        and entry.get("criterion") in stage.criterion_ids
+    }
+    if (
+        stage.criterion_contract < 2
+        and stage.status in ("done", "skipped")
+        and any(
+            isinstance(entry, dict) and entry.get("exit") == 0
+            for entry in stage.verified
+        )
+    ):
+        verified.update(stage.criterion_ids)
+    return verified
+
+
+def criterion_rows_for_stage(stage):
+    verified = _verified_criterion_ids(stage)
+    waived = _valid_waivers(stage)
+    rows = []
+    for criterion_id, text in zip(stage.criterion_ids, stage.success_criteria):
+        status = (
+            "verified" if criterion_id in verified
+            else "waived" if criterion_id in waived
+            else "pending"
+        )
+        rows.append(
+            {
+                "id": criterion_id,
+                "text": text,
+                "status": status,
+                "mark": {"verified": "✓", "waived": "~", "pending": "·"}[status],
+                "waiver": waived.get(criterion_id),
+            }
+        )
+    return rows
+
+
+def _criterion_coverage_complete(stage):
+    return all(row["status"] in ("verified", "waived") for row in criterion_rows_for_stage(stage))
+
+
+def _validate_criteria(stages):
+    for stage in stages:
+        if not _has_criteria(stage):
+            raise PlanError(f"stage {stage.id} requires nonempty success criteria")
+        if len(stage.success_criteria) != len(set(stage.success_criteria)):
+            raise PlanError(f"stage {stage.id} success criteria must be unique")
+        stage.criterion_ids = _normalize_criterion_ids(
+            stage.success_criteria, stage.criterion_ids
+        )
+        if stage.criterion_waivers:
+            raise PlanError(f"new stage {stage.id} cannot start with criterion waivers")
+        stage.criterion_contract = 2
 
 
 def _harness_registry():
@@ -463,6 +577,7 @@ def _harness_registry():
         shared = payload["shared"]
         approval_policy = shared["approvalPolicy"]
         budget_policy = shared["budgetPolicy"]
+        criterion_policy = shared["criterionPolicy"]
         budgets = shared["budgets"]
         if not isinstance(profiles, dict):
             raise TypeError("agent profiles must be an object")
@@ -475,6 +590,8 @@ def _harness_registry():
             raise TypeError("approval policy is invalid")
         if budget_policy != _BUDGET_POLICY:
             raise TypeError("budget policy is invalid")
+        if criterion_policy != _CRITERION_POLICY:
+            raise TypeError("criterion policy is invalid")
         defaults = budgets["defaults"]
         ceilings = budgets["hardCeilings"]
         if set(defaults) != set(_BUDGET_KEYS) or set(ceilings) != set(_BUDGET_KEYS):
@@ -730,6 +847,66 @@ def approve_stage_action(
         save(root, delivery)
         write_views(root, delivery, not_checked=delivery.done_when or "none")
         return approval
+
+
+def criterion_rows(root, name):
+    delivery = load(root, name)
+    return [
+        {
+            "stage": stage.id,
+            "agent": stage.agent,
+            "criteria": criterion_rows_for_stage(stage),
+        }
+        for stage in delivery.stages
+    ]
+
+
+def waive_stage_criterion(
+    root,
+    name,
+    stage_id,
+    criterion_id,
+    reason,
+    *,
+    waived_by="user",
+):
+    if waived_by != "user":
+        raise PlanError("criterion waivers can only be granted by the user")
+    if not isinstance(reason, str) or not reason.strip():
+        raise PlanError("criterion waiver requires a nonempty reason")
+    reason = " ".join(reason.split())
+    if len(reason) > 500:
+        raise PlanError("criterion waiver reason exceeds 500 characters")
+    lock_path = _state_path(root, name).with_suffix(".lock")
+    with _file_lock(lock_path):
+        delivery = load(root, name)
+        stage = next((item for item in delivery.stages if item.id == stage_id), None)
+        if stage is None:
+            raise PlanError(f"stage {stage_id} is missing")
+        if stage.status not in ("queued", "running"):
+            raise PlanError(f"stage {stage_id} is {stage.status}")
+        if criterion_id not in stage.criterion_ids:
+            raise PlanError(
+                f"criterion {criterion_id} was not declared for stage {stage_id}"
+            )
+        for waiver in stage.criterion_waivers:
+            if (
+                isinstance(waiver, dict)
+                and waiver.get("criterion") == criterion_id
+                and waiver.get("by") == "user"
+                and waiver.get("at")
+            ):
+                return waiver
+        waiver = {
+            "criterion": criterion_id,
+            "reason": reason,
+            "by": "user",
+            "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        }
+        stage.criterion_waivers.append(waiver)
+        save(root, delivery)
+        write_views(root, delivery, not_checked=delivery.done_when or "none")
+        return waiver
 
 
 def _now_utc():
@@ -1027,6 +1204,7 @@ def _validate_stages(stages):
 
     for stage_id in ids:
         visit(stage_id)
+    _validate_criteria(stages)
     _validate_approval_categories(stages)
     _validate_budgets(stages)
 
@@ -1150,7 +1328,7 @@ def _dod_met(delivery):
         return False
     return all(
         stage.status == "skipped"
-        or any(entry.get("exit") == 0 for entry in stage.verified)
+        or _criterion_coverage_complete(stage)
         for stage in delivery.stages
     )
 
@@ -1518,10 +1696,14 @@ def _parse_verification(raw):
     except json.JSONDecodeError as exc:
         raise ReportError(
             "VERIFIED must be JSON: "
-            '{"runner":"artisan-test","args":["--filter=TagTest"]}'
+            '{"criterion":"criterion-1","runner":"artisan-test",'
+            '"args":["--filter=TagTest"]}'
         ) from exc
-    if not isinstance(spec, dict) or set(spec) - {"runner", "args"}:
-        raise ReportError("VERIFIED JSON accepts only runner and args")
+    if not isinstance(spec, dict) or set(spec) != {"criterion", "runner", "args"}:
+        raise ReportError("VERIFIED JSON requires exactly criterion, runner, and args")
+    criterion = spec.get("criterion")
+    if not isinstance(criterion, str) or not _CRITERION_ID.fullmatch(criterion):
+        raise ReportError("VERIFIED criterion must be a lowercase kebab-case identifier")
     runner = spec.get("runner")
     args = spec.get("args", [])
     allowed_runners = set(_VERIFICATION_RUNNERS) | _INTERNAL_VERIFICATION_RUNNERS
@@ -1539,7 +1721,7 @@ def _parse_verification(raw):
         raise ReportError("file-exists requires at least one project-relative path")
     if runner == "file-has-lines" and len(args) < 2:
         raise ReportError("file-has-lines requires a project-relative path and at least one prefix")
-    return {"runner": runner, "args": args}
+    return {"criterion": criterion, "runner": runner, "args": args}
 
 
 def _verification_argv(spec):
@@ -1575,6 +1757,44 @@ def _run_verification(root, spec, runner):
     return runner.run(root, _verification_argv(spec))
 
 
+def _validate_verification_criteria(stage, verifications):
+    unknown = [
+        spec["criterion"]
+        for spec in verifications
+        if spec["criterion"] not in stage.criterion_ids
+    ]
+    if unknown:
+        raise ReportError(
+            f"unknown criterion {unknown[0]!r} for stage {stage.id}; "
+            f"choose one of: {', '.join(stage.criterion_ids)}"
+        )
+
+
+def _validate_criterion_coverage(stage, verifications):
+    _validate_verification_criteria(stage, verifications)
+    covered = _verified_criterion_ids(stage) | {
+        spec["criterion"] for spec in verifications
+    }
+    covered.update(_valid_waivers(stage))
+    missing = [item for item in stage.criterion_ids if item not in covered]
+    if missing:
+        raise ReportError(
+            f"stage {stage.id} lacks verification or user waiver for criteria: "
+            + ", ".join(missing)
+        )
+
+
+def _validate_not_checked(stage, not_checked):
+    waived = _valid_waivers(stage)
+    for criterion_id, criterion in zip(stage.criterion_ids, stage.success_criteria):
+        if criterion_id in waived:
+            continue
+        if criterion_id in not_checked or criterion in not_checked:
+            raise ReportError(
+                f"NOT-CHECKED names unwaived success criterion: {criterion_id}"
+            )
+
+
 def report(root, name, path, runner):
     fields = _parse_labels(pathlib.Path(path).read_text())
     verifications = []
@@ -1582,6 +1802,18 @@ def report(root, name, path, runner):
         verifications.append(_parse_verification(raw))
     if not verifications:
         raise ReportError("VERIFIED must contain a structured verification record")
+
+    delivery = load(root, name)
+    agent = pathlib.Path(path).stem
+    matching = [
+        stage
+        for stage in delivery.stages
+        if stage.agent == agent or (stage.awaiting_pair and stage.pair == agent)
+    ]
+    if not matching:
+        raise ReportError(f"no stage matched report agent {agent}")
+    for stage in matching:
+        _validate_verification_criteria(stage, verifications)
 
     for spec in verifications:
         if _run_verification(root, spec, runner) != 0:
@@ -1611,9 +1843,8 @@ def _commit_report(root, name, path, fields, verifications):
             )
         if stage.awaiting_pair and stage.pair == agent:
             matched = True
-            for criterion in stage.success_criteria:
-                if criterion and criterion in not_checked:
-                    raise ReportError(f"NOT-CHECKED names success criterion: {criterion}")
+            _validate_not_checked(stage, not_checked)
+            _validate_criterion_coverage(stage, verifications)
             stage.verified = list(stage.verified) + [
                 {**spec, "exit": 0} for spec in verifications
             ]
@@ -1631,9 +1862,8 @@ def _commit_report(root, name, path, fields, verifications):
             raise ReportError(
                 f"stage {stage.id} requires budget telemetry before report"
             )
-        for criterion in stage.success_criteria:
-            if criterion and criterion in not_checked:
-                raise ReportError(f"NOT-CHECKED names success criterion: {criterion}")
+        _validate_not_checked(stage, not_checked)
+        _validate_criterion_coverage(stage, verifications)
         _validate_reported_paths(stage, did_paths)
         stage.did = did_paths
         stage.verified = [{**spec, "exit": 0} for spec in verifications]

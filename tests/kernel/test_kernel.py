@@ -14,7 +14,7 @@ import kernel  # noqa: E402
 
 def verify_artisan(filter_name):
     return json.dumps(
-        {"runner": "artisan-test", "args": [f"--filter={filter_name}"]},
+        {"criterion":"criterion-1","runner": "artisan-test", "args": [f"--filter={filter_name}"]},
         separators=(",", ":"),
     )
 
@@ -190,7 +190,7 @@ class ParallelDispatchTest(unittest.TestCase):
             report_path.parent.mkdir(parents=True, exist_ok=True)
             report_path.write_text(
                 f"STATUS: done\nDID: {artifact.name}\n"
-                f'VERIFIED: {{"runner":"file-exists","args":["{artifact.name}"]}}\n'
+                f'VERIFIED: {{"criterion":"criterion-1","runner":"file-exists","args":["{artifact.name}"]}}\n'
                 "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
             )
             reports.append(report_path)
@@ -331,7 +331,7 @@ class ReportTest(unittest.TestCase):
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(
             'STATUS: done\nDID: app/Models/Tag.php\n'
-            'VERIFIED: {"runner":"shell","args":["rm","-rf","."]}\n'
+            'VERIFIED: {"criterion":"criterion-1","runner":"shell","args":["rm","-rf","."]}\n'
             'NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n'
         )
         runner = FakeRunner({})
@@ -362,6 +362,7 @@ class ReportTest(unittest.TestCase):
         stage.parent.mkdir(parents=True, exist_ok=True)
         spec = json.dumps(
             {
+                "criterion": "criterion-1",
                 "runner": "file-has-lines",
                 "args": ["docs/delivery/tag/packets/a-to-b.md", "FROM:", "TO:"],
             },
@@ -382,7 +383,7 @@ class ReportTest(unittest.TestCase):
         stage.parent.mkdir(parents=True, exist_ok=True)
         stage.write_text(
             'STATUS: done\nDID: none\n'
-            'VERIFIED: {"runner":"file-exists","args":["../outside"]}\n'
+            'VERIFIED: {"criterion":"criterion-1","runner":"file-exists","args":["../outside"]}\n'
             'NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n'
         )
         with self.assertRaisesRegex(kernel.ReportError, "paths must stay inside"):
@@ -414,12 +415,12 @@ class ReportTest(unittest.TestCase):
         self.assertEqual(runner.calls[0][1], VERIFY_TAG_ARGV)
         self.assertEqual(
             d.stages[0].verified,
-            [{"runner": "artisan-test", "args": ["--filter=TagTest"], "exit": 0}],
+            [{"criterion":"criterion-1","runner": "artisan-test", "args": ["--filter=TagTest"], "exit": 0}],
         )
         saved = kernel.load(self.root, "tag")
         self.assertEqual(
             saved.stages[0].verified,
-            [{"runner": "artisan-test", "args": ["--filter=TagTest"], "exit": 0}],
+            [{"criterion":"criterion-1","runner": "artisan-test", "args": ["--filter=TagTest"], "exit": 0}],
         )
 
     def test_not_checked_naming_criterion_is_rejected(self):
@@ -1468,7 +1469,7 @@ class PairTest(unittest.TestCase):
         self.assertTrue(stage.awaiting_pair)
         self.assertEqual(
             stage.verified,
-            [{"runner": "artisan-test", "args": ["--filter=TagTest"], "exit": 0}],
+            [{"criterion":"criterion-1","runner": "artisan-test", "args": ["--filter=TagTest"], "exit": 0}],
         )
         self.assertEqual(kernel.next_agent(self.root, "tag"), "tech-lead")
         board = kernel.board_line(d)
@@ -1571,8 +1572,8 @@ class PairTest(unittest.TestCase):
         self.assertEqual(
             stage.verified,
             [
-                {"runner": "artisan-test", "args": ["--filter=TagTest"], "exit": 0},
-                {"runner": "artisan-test", "args": ["--filter=TagReview"], "exit": 0},
+                {"criterion":"criterion-1","runner": "artisan-test", "args": ["--filter=TagTest"], "exit": 0},
+                {"criterion":"criterion-1","runner": "artisan-test", "args": ["--filter=TagReview"], "exit": 0},
             ],
         )
 
@@ -1629,7 +1630,7 @@ class PairTest(unittest.TestCase):
         self.assertTrue(stage.awaiting_pair)
         self.assertEqual(
             stage.verified,
-            [{"runner": "artisan-test", "args": ["--filter=TagTest"], "exit": 0}],
+            [{"criterion":"criterion-1","runner": "artisan-test", "args": ["--filter=TagTest"], "exit": 0}],
         )
 
     def test_cap_while_waiting_stops_and_next_is_stop(self):

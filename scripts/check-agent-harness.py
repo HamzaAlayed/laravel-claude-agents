@@ -160,6 +160,17 @@ def main() -> int:
             "shared.budgetPolicy must meter pre-tool and completion dimensions",
             errors,
         )
+    if shared.get("criterionPolicy") != {
+        "idsField": "criterion_ids",
+        "evidenceField": "verified",
+        "waiversField": "criterion_waivers",
+        "requiredCoverage": "all",
+        "waiverAuthority": "user",
+    }:
+        fail(
+            "shared.criterionPolicy must require all-criterion evidence or user waivers",
+            errors,
+        )
     if shared.get("verification") != "registered-runners-only":
         fail("shared.verification must remain registered-runners-only", errors)
 

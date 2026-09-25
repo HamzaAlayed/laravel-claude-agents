@@ -55,7 +55,7 @@ def build_parser():
         "--stage-json",
         action="append",
         default=[],
-        help="typed stage object with id, agent, role, success_criteria, depends_on, owned_paths, approval_categories, budget",
+        help="typed stage object with id, agent, role, success_criteria, criterion_ids, depends_on, owned_paths, approval_categories, budget",
     )
     plan.add_argument("--max-parallel", type=int, default=3)
     plan.add_argument("--issue", type=int, default=0)
@@ -83,6 +83,13 @@ def build_parser():
     approval_grant = approval_cmds.add_parser("grant", parents=[common])
     approval_grant.add_argument("--stage", required=True)
     approval_grant.add_argument("--category", required=True)
+    criterion = sub.add_parser("criterion")
+    criterion_cmds = criterion.add_subparsers(dest="criterion_cmd", required=True)
+    criterion_cmds.add_parser("list", parents=[common])
+    criterion_waive = criterion_cmds.add_parser("waive", parents=[common])
+    criterion_waive.add_argument("--stage", required=True)
+    criterion_waive.add_argument("--criterion", required=True)
+    criterion_waive.add_argument("--reason", required=True)
     budget = sub.add_parser("budget")
     budget_cmds = budget.add_subparsers(dest="budget_cmd", required=True)
     budget_cmds.add_parser("list", parents=[common])
@@ -124,7 +131,7 @@ def _stages_from_args(raw_stages, raw_json_stages=()):
         )
     allowed = {
         "id", "agent", "role", "success_criteria", "depends_on", "owned_paths",
-        "approval_categories",
+        "approval_categories", "criterion_ids",
         "budget",
     }
     for raw in raw_json_stages:
@@ -149,6 +156,7 @@ def _stages_from_args(raw_stages, raw_json_stages=()):
                 owned_paths=spec["owned_paths"],
                 approval_categories=spec.get("approval_categories", []),
                 budget=spec.get("budget", {}),
+                criterion_ids=spec.get("criterion_ids", []),
             )
         )
     return stages
@@ -202,6 +210,7 @@ def main(argv=None):
                     "role": stage.role,
                     "owned_paths": stage.owned_paths,
                     "budget": stage.budget,
+                    "criteria": kernel.criterion_rows_for_stage(stage),
                 }
                 for stage in kernel.ready_stages(args.root, args.name)
             ]
@@ -251,6 +260,23 @@ def main(argv=None):
                 print(
                     f"APPROVED: {args.stage} {approval['category']} "
                     f"by {approval['by']} at {approval['at']}"
+                )
+                return 0
+        if args.cmd == "criterion":
+            if args.criterion_cmd == "list":
+                print(json.dumps(kernel.criterion_rows(args.root, args.name)))
+                return 0
+            if args.criterion_cmd == "waive":
+                waiver = kernel.waive_stage_criterion(
+                    args.root,
+                    args.name,
+                    args.stage,
+                    args.criterion,
+                    args.reason,
+                )
+                print(
+                    f"WAIVED: {args.stage} {waiver['criterion']} "
+                    f"by {waiver['by']} at {waiver['at']}"
                 )
                 return 0
         if args.cmd == "budget":

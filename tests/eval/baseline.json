@@ -106,11 +106,16 @@
         "sha256": "92feb9cf2f97a35629a6b44b4cf73299c11fbc17709a0b27d65a2057138905af",
         "reason": "Runtime stage approvals add one pre-dispatch gate without changing feature construction: declared categories are profile-validated, pending lanes are excluded from ready, claim fails before user approval, subagent self-grants and direct kernel-state writes are blocked, and durable provenance is covered by kernel units plus hook integration tests. No billed feature run was authorized; ceilings were not raised."
       },
-      {
-        "date": "2026-09-25",
-        "sha256": "90952396ab8c789055136a9d5375f231a35dd1ad9255407d0a7437e69cb4a81c",
-        "reason": "Kernel-enforced runtime stage budgets change the shared dispatch interface but not feature construction: every lane receives snapshotted limits, Claude meters pre-tool and completion usage, other runtimes submit the same five-dimensional receipt, and missing telemetry or overages stop the lane durably. Covered by kernel units, hook integration, guardrails, and deterministic trace replay. No billed feature run was authorized; ceilings were not raised."
-      }
+    {
+      "date": "2026-09-25",
+      "sha256": "90952396ab8c789055136a9d5375f231a35dd1ad9255407d0a7437e69cb4a81c",
+      "reason": "Kernel-enforced runtime stage budgets change the shared dispatch interface but not feature construction: every lane receives snapshotted limits, Claude meters pre-tool and completion usage, other runtimes submit the same five-dimensional receipt, and missing telemetry or overages stop the lane durably. Covered by kernel units, hook integration, guardrails, and deterministic trace replay. No billed feature run was authorized; ceilings were not raised."
+    },
+    {
+      "date": "2026-09-25",
+      "sha256": "3d17cd1fd5920093d59e20b7649676ace8945a919a1f16fb9afb4db264cdc185",
+      "reason": "Criterion-linked verification changes the reporting contract but not feature construction: plans assign stable criterion IDs, every passing runner record covers exactly one declared criterion, incomplete coverage fails closed, and only a durable main-thread user decision may waive evidence. Covered by kernel units, hook integration, guardrails, and generated-target checks. No billed feature run was authorized; ceilings were not raised."
+    }
     ]
   }
 }

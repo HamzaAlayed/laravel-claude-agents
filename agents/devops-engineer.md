@@ -134,4 +134,4 @@ Senior DevOps / platform engineer specialised in Laravel. Make "deploy to produc
 
 ## Stage return
 
-**Stage return file.** The brief names `docs/delivery/<name>/stages/<your-agent>.md` → Write that file with `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT` (≤12 lines) as your last Write, then stop. No path in the brief → skip. No diffs in the file. Each `VERIFIED:` line is compact JSON with a registered `runner` and string-array `args`; load the `delivery-templates` skill for the registry. Never put shell text there.
+**Stage return file.** The brief names `docs/delivery/<name>/stages/<your-agent>.md` → Write that file with `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT` (≤12 lines) as your last Write, then stop. No path in the brief → skip. No diffs in the file. Each `VERIFIED:` line is compact JSON with a declared `criterion`, registered `runner`, and string-array `args`; load the `delivery-templates` skill for the registry. Cover every criterion in the brief; never waive one yourself. Never put shell text there.

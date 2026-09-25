@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.0.0] - 2026-09-25
+
+### Added
+
+- Stable one-to-one `criterion_ids` for every stage success criterion.
+- `guild criterion list` for inspecting the per-stage evidence matrix.
+- Durable, reasoned `guild criterion waive` checkpoints whose user provenance
+  and UTC timestamp survive interruption.
+- Per-criterion `✓` verified, `~` waived, and `·` pending marks on the delivery
+  board and in `guild ready` output.
+
+### Changed
+
+- **Breaking:** Every new stage `VERIFIED` record now requires exactly
+  `criterion`, `runner`, and `args`; a passing check only covers the criterion
+  it names.
+- A stage cannot finish until every success criterion has passing evidence or
+  an explicit user waiver.
+- `NOT-CHECKED` rejects unwaived criteria, while approved waivers remain visible
+  instead of being converted into verification claims.
+- All orchestration commands, specialist return contracts, generated targets,
+  and harness docs now carry criterion IDs through planning and reporting.
+
+### Security
+
+- Unknown criterion IDs fail before any verification subprocess executes.
+- Subagents cannot invoke `criterion waive` or edit durable kernel state, so a
+  specialist cannot approve its own missing evidence.
+- Completed pre-v8 delivery state remains readable without fabricating new
+  evidence records.
+
 ## [7.0.0] - 2026-09-25
 
 ### Added

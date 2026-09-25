@@ -94,7 +94,7 @@ Coordinator copies `stage-return.md` in this skill directory and fills after the
 ```markdown
 STATUS: done | blocked | needs-decision
 DID: files / artifacts touched, one line each
-VERIFIED: {"runner":"artisan-test","args":["--filter=FeatureTest"]} → result counts
+VERIFIED: {"criterion":"feature-behaves","runner":"artisan-test","args":["--filter=FeatureTest"]} → result counts
 NOT-CHECKED: surfaces not examined, ≤3 lines — or none
 FLAGS: corrections, risks, checkpoints — or none
 NEXT: handoff or none
@@ -103,13 +103,18 @@ NEXT: handoff or none
 ≤12 lines. Coordinator Reads this file before `✔`. Direct invoke with no path: do not create `docs/delivery/unknown/`.
 
 `VERIFIED` is data, never shell text. The kernel accepts JSON objects with exactly
-`runner` and `args`, then invokes the registered runner with `shell=False`. Available
-runners: `artisan-test`, `artisan-route-list`, `composer-audit`, `git-diff-check`,
+`criterion`, `runner`, and `args`, then invokes the registered runner with
+`shell=False`. `criterion` must be one of the stable IDs returned by `guild ready`
+or `guild criterion list`, and every declared criterion needs passing evidence.
+Available runners: `artisan-test`, `artisan-route-list`, `composer-audit`, `git-diff-check`,
 `git-status`, `file-exists`, `file-has-lines`, `npm-build`, `npm-lint`, `npm-test`, `phpstan`, `phpunit`, `pint-test`,
 `pnpm-build`, `pnpm-lint`, `pnpm-test`, `pest`, `python-unittest`, and the Sail forms
 `sail-artisan-test`, `sail-artisan-route-list`, `sail-phpstan`, `sail-phpunit`,
 `sail-pint-test`, `sail-pest`. Arguments are an array of single-line strings. Unknown
-runners, extra JSON keys, legacy command strings, and malformed arguments fail closed.
+runners, unknown criteria, extra JSON keys, legacy command strings, and malformed
+arguments fail closed. If a criterion genuinely cannot be verified, stop for a human
+decision. Only the main thread may record a reasoned `guild criterion waive`; a
+specialist must never waive its own criterion.
 
 ## Close file — `docs/delivery/<feature>/close.md` (coordinator writes; overwrites)
 

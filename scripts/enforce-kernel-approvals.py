@@ -22,7 +22,9 @@ class ApprovalStateError(Exception):
 
 _KERNEL_PATH = re.compile(r"(?:^|/)docs/delivery/[^/]+/kernel\.json$")
 _KERNEL_TEXT = re.compile(r"(?:^|[\s'\"])(?:[^\s'\"]*/)?docs/delivery/[^\s'\"]+/kernel\.json(?:$|[\s'\"])")
-_APPROVAL_GRANT = re.compile(r"guild\.py\b.*\bapproval\s+grant\b", re.DOTALL)
+_USER_AUTHORITY_ACTION = re.compile(
+    r"guild\.py\b.*\b(?:approval\s+grant|criterion\s+waive)\b", re.DOTALL
+)
 _SHELL_MUTATION = re.compile(
     r">|\btee\b|\b(?:sed|perl)\b[^;&|]*\s-i\b|"
     r"\b(?:rm|mv|cp|truncate|install|rsync)\b|\bdd\b[^;&|]*\bof=|"
@@ -52,6 +54,7 @@ def _guild_agents() -> set[str]:
         payload = json.loads(path.read_text(encoding="utf-8"))
         profiles = payload["agents"]
         approval_policy = payload["shared"]["approvalPolicy"]
+        criterion_policy = payload["shared"]["criterionPolicy"]
     except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
         raise ApprovalStateError(f"invalid agent harness registry at {path}") from exc
     if not isinstance(profiles, dict):
@@ -61,6 +64,14 @@ def _guild_agents() -> set[str]:
         "recordField": "approvals",
         "authority": "user",
         "requiredBeforeClaim": True,
+    }:
+        raise ApprovalStateError(f"invalid agent harness registry at {path}")
+    if criterion_policy != {
+        "idsField": "criterion_ids",
+        "evidenceField": "verified",
+        "waiversField": "criterion_waivers",
+        "requiredCoverage": "all",
+        "waiverAuthority": "user",
     }:
         raise ApprovalStateError(f"invalid agent harness registry at {path}")
     return set(profiles)
@@ -185,8 +196,8 @@ def main() -> int:
         return _block("kernel.json is kernel-owned and cannot be edited directly")
 
     if isinstance(command, str) and command.strip():
-        if _APPROVAL_GRANT.search(command) and agent:
-            return _block("subagents cannot grant their own approval")
+        if _USER_AUTHORITY_ACTION.search(command) and agent:
+            return _block("subagents cannot grant approvals or criterion waivers")
         if _KERNEL_TEXT.search(command) and _SHELL_MUTATION.search(command):
             return _block("Bash cannot mutate kernel.json directly")
 

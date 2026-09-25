@@ -145,7 +145,7 @@ class BudgetPolicyTest(unittest.TestCase):
         report.write_text(
             "STATUS: done\n"
             "DID: app/Http/TagController.php\n"
-            'VERIFIED: {"runner":"file-exists","args":["app/Http/TagController.php"]}\n'
+            'VERIFIED: {"criterion":"criterion-1","runner":"file-exists","args":["app/Http/TagController.php"]}\n'
             "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
         )
         with self.assertRaisesRegex(

@@ -145,4 +145,4 @@ Retain: threat models per system area, recurring vulnerability classes in this c
 
 ## Stage return
 
-**Stage return.** You cannot Write. End your report with `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT` (≤12 lines). The coordinator persists your stage file at `docs/delivery/<name>/stages/<your-agent>.md`. No path in the brief → skip. Each `VERIFIED:` line is compact JSON with a registered `runner` and string-array `args`; load the `delivery-templates` skill for the registry. Never put shell text there.
+**Stage return.** You cannot Write. End your report with `STATUS` / `DID` / `VERIFIED` / `NOT-CHECKED` / `FLAGS` / `NEXT` (≤12 lines). The coordinator persists your stage file at `docs/delivery/<name>/stages/<your-agent>.md`. No path in the brief → skip. Each `VERIFIED:` line is compact JSON with a declared `criterion`, registered `runner`, and string-array `args`; load the `delivery-templates` skill for the registry. Cover every criterion in the brief; never waive one yourself. Never put shell text there.

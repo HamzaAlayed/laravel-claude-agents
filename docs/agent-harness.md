@@ -27,8 +27,10 @@ Every agent run inherits these controls:
   to success criteria require a human decision or are denied by a guardrail.
   A planned stage declares applicable profile categories up front. Pending
   approval pauses dispatch; only a durable user grant permits the claim.
-- **Verification:** `VERIFIED` accepts registered runner records only. It never
-  executes prose as a shell command.
+- **Verification:** every success criterion has a stable ID, and every unwaived
+  ID needs passing evidence before a stage can finish. `VERIFIED` accepts
+  registered runner records only and never executes prose as a shell command.
+  Only a main-thread user decision can waive a criterion, with a durable reason.
 - **Return contract:** every specialist reports `STATUS`, `DID`, `VERIFIED`,
   `NOT-CHECKED`, `FLAGS`, and `NEXT`.
 - **Observability:** events carry run, trace, span, lane, tool, approval, usage,
@@ -52,8 +54,10 @@ For new plans, pass typed `--stage-json` records. Each record must include
 `owned_paths`: a nonempty array for `task-owned` and `docs-only` profiles, or
 an empty array for a `deny` profile. The v6 kernel rejects the former
 comma-delimited `--stage` form because it cannot express a safe ownership
-boundary. Each record also carries `approval_categories`. Use an empty array
-only when none of the selected agent profile's categories applies.
+boundary. Each record also carries a one-to-one `criterion_ids` array and
+`approval_categories`. Use an empty approval array only when none of the
+selected agent profile's categories applies. IDs are stable lowercase-kebab
+names so reports, boards, and resumes keep referring to the same behavior.
 
 Each record may also carry a partial `budget` object. Omit it to inherit all
 shared defaults, or override only the dimensions that need a narrower
@@ -64,12 +68,42 @@ envelope:
   "id": "backend",
   "agent": "backend-developer",
   "success_criteria": ["query count is lower and responses are unchanged"],
+  "criterion_ids": ["queries-lower-with-same-response"],
   "depends_on": [],
   "owned_paths": ["app", "tests"],
   "approval_categories": [],
   "budget": {"max_seconds": 1200, "max_tool_calls": 80, "max_usd": 4.0}
 }
 ```
+
+`ready` returns the criterion rows with their current status. A stage report
+binds each verification command to one declared ID:
+
+```text
+VERIFIED: {"criterion":"queries-lower-with-same-response","runner":"artisan-test","args":["--filter=QueryCountTest"]} → 1 passed
+```
+
+Inspect the evidence matrix before reporting:
+
+```sh
+python3 scripts/guild-kernel/guild.py criterion list \
+  --root . --name tags
+```
+
+If a criterion truly cannot be verified, the coordinator stops and presents a
+numbered decision. After the user chooses to accept that exact gap, only the
+main thread records the waiver:
+
+```sh
+python3 scripts/guild-kernel/guild.py criterion waive \
+  --root . --name tags --stage backend \
+  --criterion queries-lower-with-same-response \
+  --reason "Staging fixture is unavailable; user accepted manual verification"
+```
+
+The criterion, reason, `by: user`, and UTC timestamp survive in `kernel.json`.
+Subagents cannot call this command or directly edit kernel state. See
+[criterion-linked evidence](criterion-evidence.md) for the full lifecycle.
 
 `ready` returns the complete effective budget. Put that exact envelope in the
 specialist brief. Inspect the persisted receipt at any point:
