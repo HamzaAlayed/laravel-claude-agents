@@ -39,6 +39,7 @@ _VERIFICATION_RUNNERS = {
 _INTERNAL_VERIFICATION_RUNNERS = {"file-exists", "file-has-lines"}
 _CRITERION_ID = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
 _CHECKPOINT_ID = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
+_TOOL_SIGNATURE = re.compile(r"^[0-9a-f]{64}$")
 _BUDGET_KEYS = (
     "max_seconds",
     "max_tool_calls",
@@ -67,6 +68,15 @@ _CHECKPOINT_POLICY = {
     "pausedStatus": "paused",
     "answerAuthority": "user",
     "optionActions": ["continue", "stop"],
+}
+_LOOP_POLICY = {
+    "historyField": "loop_history",
+    "eventField": "loop_events",
+    "repeatThreshold": 3,
+    "maxCycleLength": 4,
+    "historyLimit": 24,
+    "terminalStageStatus": "failed",
+    "terminalDeliveryStatus": "stopped",
 }
 _EMPTY_USAGE = {
     "seconds": 0.0,
@@ -143,6 +153,8 @@ class StageSpec:
     criterion_waivers: list = field(default_factory=list)
     criterion_contract: int = 2
     checkpoint_id: str = ""
+    loop_history: list = field(default_factory=list)
+    loop_detected_reason: str = ""
 
 
 @dataclass
@@ -162,6 +174,7 @@ class Delivery:
     seen_comments: list = field(default_factory=list)
     max_parallel: int = 3
     checkpoints: list = field(default_factory=list)
+    loop_events: list = field(default_factory=list)
 
 
 def _state_path(root, name):
@@ -213,6 +226,7 @@ def load(root, name):
     data.setdefault("seen_comments", [])
     data.setdefault("max_parallel", 1)
     data.setdefault("checkpoints", [])
+    data.setdefault("loop_events", [])
     stages = []
     for stage in data.pop("stages"):
         stage.setdefault("flags", [])
@@ -237,6 +251,8 @@ def load(root, name):
         )
         stage.setdefault("criterion_waivers", [])
         stage.setdefault("checkpoint_id", "")
+        stage.setdefault("loop_history", [])
+        stage.setdefault("loop_detected_reason", "")
         stages.append(StageSpec(**stage))
     return Delivery(stages=stages, **data)
 
@@ -420,6 +436,8 @@ def board_line(delivery):
             label += f" budget:{stage.budget_exceeded_reason}"
         if stage.checkpoint_id:
             label += f" checkpoint:{stage.checkpoint_id}"
+        if stage.loop_detected_reason:
+            label += f" loop:{stage.loop_detected_reason}"
         matrix = ",".join(
             f"{row['id']}:{row['mark']}" for row in criterion_rows_for_stage(stage)
         )
@@ -511,6 +529,28 @@ def render_checkpoints(delivery):
     return "\n".join(lines)
 
 
+def render_loops(delivery):
+    lines = ["# Unproductive loops", ""]
+    if not delivery.loop_events:
+        return "\n".join([*lines, "None.", ""])
+    for event in delivery.loop_events:
+        tools = " → ".join(f"`{tool}`" for tool in event["tools"])
+        lines.extend(
+            [
+                f"## {event['stage']} — stopped",
+                "",
+                f"- Detected: {event['at']}",
+                f"- Pattern: {event['cycle_length']}-step cycle repeated "
+                f"{event['repeats']} times",
+                f"- Tools: {tools}",
+                f"- Fingerprint: `{event['fingerprint']}`",
+                "- Inputs: SHA-256 digests only; raw tool input is not persisted.",
+                "",
+            ]
+        )
+    return "\n".join(lines)
+
+
 def write_views(root, delivery, *, verified="none", not_checked="none"):
     folder = pathlib.Path(root) / "docs" / "delivery" / delivery.name
     folder.mkdir(parents=True, exist_ok=True)
@@ -519,6 +559,7 @@ def write_views(root, delivery, *, verified="none", not_checked="none"):
     )
     (folder / "graph.md").write_text(render_graph(delivery))
     (folder / "checkpoints.md").write_text(render_checkpoints(delivery))
+    (folder / "loops.md").write_text(render_loops(delivery))
 
 
 def _has_criteria(stage):
@@ -629,6 +670,7 @@ def _harness_registry():
         budget_policy = shared["budgetPolicy"]
         criterion_policy = shared["criterionPolicy"]
         checkpoint_policy = shared["checkpointPolicy"]
+        loop_policy = shared["loopPolicy"]
         budgets = shared["budgets"]
         if not isinstance(profiles, dict):
             raise TypeError("agent profiles must be an object")
@@ -645,6 +687,8 @@ def _harness_registry():
             raise TypeError("criterion policy is invalid")
         if checkpoint_policy != _CHECKPOINT_POLICY:
             raise TypeError("checkpoint policy is invalid")
+        if loop_policy != _LOOP_POLICY:
+            raise TypeError("loop policy is invalid")
         defaults = budgets["defaults"]
         ceilings = budgets["hardCeilings"]
         if set(defaults) != set(_BUDGET_KEYS) or set(ceilings) != set(_BUDGET_KEYS):
@@ -778,8 +822,10 @@ def _validate_budgets(stages):
             or stage.claim_usage
             or stage.budget_events
             or stage.budget_exceeded_reason
+            or stage.loop_history
+            or stage.loop_detected_reason
         ):
-            raise PlanError(f"new stage {stage.id} cannot start with budget runtime state")
+            raise PlanError(f"new stage {stage.id} cannot start with runtime state")
 
 
 def _agent_mutations():
@@ -1019,6 +1065,11 @@ def checkpoint_rows(root, name):
     return list(delivery.checkpoints)
 
 
+def loop_rows(root, name):
+    delivery = load(root, name)
+    return list(delivery.loop_events)
+
+
 def open_checkpoint(
     root,
     name,
@@ -1243,8 +1294,83 @@ def _mark_budget_exceeded(root, delivery, stage, reason, *, now):
     write_views(root, delivery, not_checked=delivery.done_when or "none")
 
 
-def meter_tool_call(root, agent, *, event_id="", now=None):
-    """Persist and enforce the pre-tool dimensions for one claimed stage."""
+def tool_call_signature(tool_name, tool_input):
+    """Return a deterministic digest without persisting raw tool input."""
+    if not isinstance(tool_name, str) or not tool_name.strip():
+        raise PlanError("loop detection requires a tool name")
+    if not isinstance(tool_input, dict):
+        raise PlanError("loop detection requires an object tool input")
+    canonical = json.dumps(
+        {"tool": tool_name, "input": tool_input},
+        sort_keys=True,
+        separators=(",", ":"),
+        ensure_ascii=False,
+    )
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _repeated_tool_cycle(history):
+    signatures = [entry["signature"] for entry in history]
+    repeats = _LOOP_POLICY["repeatThreshold"]
+    max_cycle = min(
+        _LOOP_POLICY["maxCycleLength"],
+        len(signatures) // repeats,
+    )
+    for cycle_length in range(1, max_cycle + 1):
+        width = cycle_length * repeats
+        tail = signatures[-width:]
+        pattern = tail[:cycle_length]
+        if tail == pattern * repeats:
+            return cycle_length
+    return 0
+
+
+def _mark_loop_detected(root, delivery, stage, history, cycle_length, *, now):
+    repeats = _LOOP_POLICY["repeatThreshold"]
+    pattern = history[-cycle_length:]
+    fingerprint = hashlib.sha256(
+        ":".join(entry["signature"] for entry in pattern).encode("ascii")
+    ).hexdigest()[:16]
+    reason = f"{cycle_length}-step-cycle-x{repeats}"
+    if stage.claimed_at:
+        stage.usage["seconds"] = _active_seconds(stage, now)
+    stage.claimed_at = ""
+    stage.status = _LOOP_POLICY["terminalStageStatus"]
+    stage.loop_history = history[-_LOOP_POLICY["historyLimit"]:]
+    stage.loop_detected_reason = reason
+    delivery.status = _LOOP_POLICY["terminalDeliveryStatus"]
+    delivery.loop_events.append(
+        {
+            "stage": stage.id,
+            "cycle_length": cycle_length,
+            "repeats": repeats,
+            "tools": [entry["tool"] for entry in pattern],
+            "fingerprint": fingerprint,
+            "at": now.isoformat(timespec="seconds"),
+        }
+    )
+    save(root, delivery)
+    write_views(root, delivery, not_checked=delivery.done_when or "none")
+
+
+def meter_tool_call(
+    root,
+    agent,
+    *,
+    event_id="",
+    tool_name="",
+    signature="",
+    now=None,
+):
+    """Persist budgets and stop repeated exact tool-call cycles pre-execution."""
+    if bool(tool_name) != bool(signature):
+        raise PlanError("loop detection requires both tool name and signature")
+    if signature and not _TOOL_SIGNATURE.fullmatch(signature):
+        raise PlanError("loop detection signature must be a SHA-256 digest")
+    if tool_name and (
+        len(tool_name) > 100 or any(char in tool_name for char in "\r\n")
+    ):
+        raise PlanError("loop detection tool name is invalid")
     target = _budget_target(root, agent)
     if target is None:
         return None
@@ -1277,6 +1403,31 @@ def meter_tool_call(root, agent, *, event_id="", now=None):
                 root, delivery, stage, "max_tool_calls", now=observed_at
             )
             raise PlanError(f"stage {stage.id} exceeded budget max_tool_calls")
+        if signature:
+            history = [
+                *stage.loop_history,
+                {
+                    "signature": signature,
+                    "tool": tool_name,
+                    "at": observed_at.isoformat(timespec="seconds"),
+                },
+            ]
+            cycle_length = _repeated_tool_cycle(history)
+            if cycle_length:
+                _remember_budget_event(stage, event_id)
+                _mark_loop_detected(
+                    root,
+                    delivery,
+                    stage,
+                    history,
+                    cycle_length,
+                    now=observed_at,
+                )
+                raise PlanError(
+                    f"stage {stage.id} stopped: unproductive {cycle_length}-step "
+                    f"tool cycle repeated {_LOOP_POLICY['repeatThreshold']} times"
+                )
+            stage.loop_history = history[-_LOOP_POLICY["historyLimit"]:]
         stage.usage["tool_calls"] += 1
         _remember_budget_event(stage, event_id)
         save(root, delivery)
@@ -1631,6 +1782,8 @@ def _reopen(root, delivery, stage):
     stage.status = "running"
     stage.claimed_at = _now_utc().isoformat(timespec="seconds")
     stage.claim_usage = dict(stage.usage)
+    stage.loop_history = []
+    stage.loop_detected_reason = ""
     stage.reopens = 1
     delivery.status = "running"
     delivery.cap = max(delivery.cap, delivery.spawns + 1)
@@ -1874,6 +2027,8 @@ def claim_stage(root, name, stage_id):
         stage.status = "running"
         stage.claimed_at = _now_utc().isoformat(timespec="seconds")
         stage.claim_usage = dict(stage.usage)
+        stage.loop_history = []
+        stage.loop_detected_reason = ""
         save(root, delivery)
         write_views(root, delivery, not_checked=delivery.done_when or "none")
         return stage

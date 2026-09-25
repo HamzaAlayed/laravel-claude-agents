@@ -120,6 +120,11 @@
       "date": "2026-09-25",
       "sha256": "bd7b20705c048c947142646d5e68fc98b5fa04e33fb72458966cb39f60c38ef6",
       "reason": "Durable human checkpoints change interruption recovery but not feature construction: the main thread stores the exact prompt before asking, pending state pauses only its lane, user answers requeue or stop deterministically, and resumes never reconstruct or repeat decisions. Covered by kernel units, CLI tests, hook integration, orchestration ratchets, and generated-target checks. No billed feature run was authorized; ceilings were not raised."
+    },
+    {
+      "date": "2026-09-25",
+      "sha256": "c9b0e96d0cef75ef803a7c43d1ed2980670e8e7758392d364e9bb830486d9b16",
+      "reason": "Unproductive-loop detection adds a pre-tool stop boundary without changing feature construction: claimed specialists are stopped before completing a third exact one-to-four-step tool cycle, raw inputs are represented only by SHA-256 digests, and unchanged retries are prohibited. Covered by kernel units, hook integration, guardrail ratchets, and generated-target checks. No billed feature run was authorized; ceilings were not raised."
     }
     ]
   }

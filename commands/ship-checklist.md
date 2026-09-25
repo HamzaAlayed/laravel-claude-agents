@@ -12,6 +12,8 @@ allowed-tools: Agent, Read, Write, Edit, Bash, Grep, Glob, AskUserQuestion
 
 > **Durable checkpoints:** After `plan` and at every start or resume, call `checkpoint list`. Before asking for a human decision, only the main thread calls `checkpoint open` with the exact question, risk, 2–5 typed options, and recommended option; then present that stored prompt. After the human answers, only the main thread calls `checkpoint resolve` with the selected option and any modification as `--note`. A pending checkpoint pauses only its stage: continue dispatching independent `ready` lanes. On resume, present the pending record exactly as stored; never reconstruct it. A resolved checkpoint is not asked again—re-brief a continued lane with its durable answer.
 
+> **Loop guard:** The runtime hashes every tool name plus input for a claimed specialist. If the exact same 1–4-step cycle reaches three repetitions, it blocks the repeated call, fails that lane, and stops the delivery without storing raw input. On `unproductive ... tool cycle`, call `loop list`, print `board`, and stop dispatch. Never retry the same sequence; a new attempt requires an explicitly changed brief or plan.
+
 Run the pre-release checklist for the upcoming release `{{args}}` (or "next" if unspecified) and produce a ship / hold verdict.
 
 ## Checks (run in order; collect results without stopping on a single failure)

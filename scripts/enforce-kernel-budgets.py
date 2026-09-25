@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
-"""Meter kernel-planned Guild stages at tool and subagent boundaries.
+"""Meter planned stages and stop exact repeated tool-call cycles.
 
 PreToolUse counts every tool call made by a claimed Guild subagent and denies
 the next call after the stage reaches its time or tool-call ceiling. A
 synchronous Agent/Task PostToolUse records completion totals for time, tool
 calls, turns, tokens, and cost. Missing completion telemetry fails closed so a
 stage cannot quietly pass an unmeasured budget.
+The same pre-tool boundary hashes tool input and stops a stage after three
+identical cycles without persisting the raw input.
 """
 
 from __future__ import annotations
@@ -122,11 +124,11 @@ def _completion_metrics(response: dict) -> tuple[dict | None, list[str]]:
 
 
 def _block(reason: str) -> int:
-    print("blocked: kernel budget policy denied this tool boundary.", file=sys.stderr)
+    print("blocked: kernel runtime policy denied this tool boundary.", file=sys.stderr)
     print(f"reason: {reason}", file=sys.stderr)
     print(
-        "inspect `guild budget list`; a budget-exceeded stage requires a new "
-        "human decision rather than silent continuation.",
+        "inspect `guild budget list` and `guild loop list`; a stopped stage "
+        "requires a new plan rather than silent continuation.",
         file=sys.stderr,
     )
     return 2
@@ -188,6 +190,8 @@ def main() -> int:
             root,
             agent,
             event_id=_event_id(payload, "tool", agent),
+            tool_name=tool_name,
+            signature=kernel.tool_call_signature(tool_name, tool_input),
         )
         return 0
     except kernel.PlanError as exc:

@@ -659,6 +659,13 @@ expect "Interface block never re-asks a resolved checkpoint" "9" \
 # shellcheck disable=SC2016 # literal `ready` in the Interface needle
 expect "Interface block continues independent lanes during a checkpoint" "9" \
   "$(grep -l 'continue dispatching independent `ready` lanes' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block defines the exact repeated-cycle threshold" "9" \
+  "$(grep -l 'exact same 1–4-step cycle reaches three repetitions' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal `loop list` and `board` in the Interface needle
+expect "Interface block inspects loop evidence and stops dispatch" "9" \
+  "$(grep -l 'call `loop list`, print `board`, and stop dispatch' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block forbids an unchanged loop retry" "9" \
+  "$(grep -l 'Never retry the same sequence' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # shellcheck disable=SC2016 # literal `board` backticks in the Interface needle
 expect "Interface block prints the kernel board" "9" \
   "$(grep -l '`board` to print' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
@@ -731,6 +738,13 @@ expect "coordinator never re-asks resolved checkpoints" "1" \
 # shellcheck disable=SC2016 # literal `ready` in the coordinator needle
 expect "coordinator keeps independent checkpoint lanes moving" "1" \
   "$(grep -c 'continue every independent lane returned by `ready`' "$COORD")"
+expect "coordinator defines the exact repeated-cycle window" "1" \
+  "$(grep -c 'repeated tail cycles one to four steps long' "$COORD")"
+# shellcheck disable=SC2016 # literal `loop list` in the coordinator needle
+expect "coordinator inspects durable loop evidence" "1" \
+  "$(grep -c 'call `loop list`, print the stopped board' "$COORD")"
+expect "coordinator forbids an unchanged loop retry" "1" \
+  "$(grep -c 'Never retry the same sequence' "$COORD")"
 expect "coordinator does not merge" "1" \
   "$(grep -c 'Do not merge\.' "$COORD")"
 expect "coordinator copies the stage-return stub when persisting read-only" "1" \
@@ -890,6 +904,10 @@ expect "kernel exposes bounded ready waves" "1" \
   "$(grep -c 'def ready_stages' "$SCRIPT_DIR/scripts/guild-kernel/kernel.py")"
 expect "kernel exposes atomic lane claims" "1" \
   "$(grep -c 'def claim_stage' "$SCRIPT_DIR/scripts/guild-kernel/kernel.py")"
+expect "runtime hook hashes tool inputs for loop detection" "1" \
+  "$(grep -c 'signature=kernel.tool_call_signature(tool_name, tool_input)' "$SCRIPT_DIR/scripts/enforce-kernel-budgets.py")"
+expect "kernel stops exact repeated tool cycles" "1" \
+  "$(grep -c 'def _mark_loop_detected' "$SCRIPT_DIR/scripts/guild-kernel/kernel.py")"
 
 echo "console (static ratchets)"
 

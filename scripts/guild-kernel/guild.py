@@ -104,6 +104,9 @@ def build_parser():
     checkpoint_resolve.add_argument("--id", required=True)
     checkpoint_resolve.add_argument("--option", required=True)
     checkpoint_resolve.add_argument("--note", default="")
+    loop = sub.add_parser("loop")
+    loop_cmds = loop.add_subparsers(dest="loop_cmd", required=True)
+    loop_cmds.add_parser("list", parents=[common])
     budget = sub.add_parser("budget")
     budget_cmds = budget.add_subparsers(dest="budget_cmd", required=True)
     budget_cmds.add_parser("list", parents=[common])
@@ -339,6 +342,10 @@ def main(argv=None):
                     f"RESOLVED: {checkpoint['id']} {answer['option']} "
                     f"by {answer['by']} at {answer['at']}"
                 )
+                return 0
+        if args.cmd == "loop":
+            if args.loop_cmd == "list":
+                print(json.dumps(kernel.loop_rows(args.root, args.name)))
                 return 0
         if args.cmd == "budget":
             if args.budget_cmd == "list":

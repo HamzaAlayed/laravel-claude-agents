@@ -35,6 +35,9 @@ Every agent run inherits these controls:
   `NOT-CHECKED`, `FLAGS`, and `NEXT`.
 - **Observability:** events carry run, trace, span, lane, tool, approval, usage,
   and budget evidence; persisted values are redacted and retention-bounded.
+- **Loop detection:** claimed specialists stop when an exact one-to-four-step
+  tool-call cycle reaches three repetitions. Only SHA-256 input signatures and
+  tool names persist; the repeated call is denied before execution.
 - **Recovery:** interrupted runs reload their original request and current
   workspace state. They inspect durable checkpoint state before continuing,
   present pending prompts exactly as stored, and never repeat resolved prompts.
@@ -188,6 +191,25 @@ The answer includes the option, action, note, `by: user`, and UTC timestamp.
 The generated `docs/delivery/<name>/checkpoints.md` view makes that history
 readable without allowing direct state edits. See
 [durable human checkpoints](checkpoint-policy.md) for resume and failure rules.
+
+The runtime budget hook also detects exact repeated tool-call cycles. Inspect a
+stopped delivery with:
+
+```sh
+python3 scripts/guild-kernel/guild.py loop list \
+  --root . --name tags
+python3 scripts/guild-kernel/guild.py board \
+  --root . --name tags
+```
+
+The detector compares SHA-256 signatures over the tool name and canonical JSON
+input. It checks tail cycles one to four calls long and blocks the call that
+would complete the third exact repetition. A changed tool or input breaks the
+pattern. The affected stage becomes `failed`, the delivery becomes `stopped`,
+and `docs/delivery/<name>/loops.md` records the tool sequence and a short
+fingerprint. Raw tool input is never written to loop history. Do not retry the
+same sequence; start a changed plan or brief. See
+[unproductive-loop detection](loop-policy.md) for examples and boundaries.
 
 The native-write policy applies when an agent appears in an active kernel
 delivery. A queued or finished stage cannot edit; one running stage may edit

@@ -182,6 +182,19 @@ def main() -> int:
             "shared.checkpointPolicy must persist typed user-resolved checkpoints",
             errors,
         )
+    if shared.get("loopPolicy") != {
+        "historyField": "loop_history",
+        "eventField": "loop_events",
+        "repeatThreshold": 3,
+        "maxCycleLength": 4,
+        "historyLimit": 24,
+        "terminalStageStatus": "failed",
+        "terminalDeliveryStatus": "stopped",
+    }:
+        fail(
+            "shared.loopPolicy must stop repeated exact tool-call cycles",
+            errors,
+        )
     if shared.get("verification") != "registered-runners-only":
         fail("shared.verification must remain registered-runners-only", errors)
 

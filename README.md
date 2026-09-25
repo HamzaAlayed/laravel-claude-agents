@@ -126,8 +126,8 @@ scripts/
 ├── enforce-agent-paths.py        # Registry-backed native-write policy engine
 ├── enforce-kernel-approvals.sh   # Require user approval + claim before planned work
 ├── enforce-kernel-approvals.py   # Durable approval and kernel-state policy engine
-├── enforce-kernel-budgets.sh     # Meter planned stages at tool + completion boundaries
-├── enforce-kernel-budgets.py     # Persist time/tool/turn/token/cost usage and stop overages
+├── enforce-kernel-budgets.sh     # Meter stages and stop exact repeated tool cycles
+├── enforce-kernel-budgets.py     # Persist usage, enforce budgets, and detect loops
 ├── enforce-sail.sh               # Redirect bare php/composer through ./vendor/bin/sail on Sail projects
 ├── emit-agent-events.sh          # Stream subagent start/finish to .claude/agents-board.jsonl
 ├── board.html                    # Self-contained live dashboard rendering that feed
@@ -239,6 +239,14 @@ never reconstructs or re-asks an answered question. Inspect the generated
 `docs/delivery/<name>/checkpoints.md` view or see the
 [durable checkpoint policy](docs/checkpoint-policy.md).
 
+**Exact action loops stop before consuming the next call.** For a claimed
+specialist, the runtime hashes each tool name and input, then looks for repeated
+tail cycles one to four calls long. The third identical cycle is denied before
+execution, the lane fails, and the delivery stops. Only hashes and tool names
+persist—never raw inputs. `guild loop list` and the generated
+`docs/delivery/<name>/loops.md` explain what repeated. See
+[unproductive-loop detection](docs/loop-policy.md).
+
 **Stage budgets stop work instead of becoming advice.** Every planned lane
 snapshots an effective limit for seconds, tool calls, turns, tokens, and USD.
 On Claude Code, the kernel budget hook meters time and tool calls before every
@@ -327,8 +335,8 @@ They exit `2` to block and print a clear reason.
 | `enforce-lessons-file.sh`       | Write\|Edit of `docs/team/lessons.md` that is not helper shape (`LESSONS:` plus either `none` or `ID:` / `RULE:` / `SCOPE:` / `STATUS:` / `PROVENANCE:`); also Bash writes of that path — the kernel renders that view |
 | `enforce-reviewer-readonly.sh`  | File-mutating Bash (`sed -i`, redirects, `tee`, mutating `git`/`artisan`/`composer`, `pint` without `--test`, `rm`/`mv`/`cp`) **from the read-only reviewers only** — scoped via the hook input's `agent_type`; builders and the main thread are untouched. Claude Code only. |
 | `enforce-agent-paths.sh`        | Native `Write`, `Edit`, and `NotebookEdit` calls from a Guild agent participating in an active delivery before its stage is claimed, outside its stage’s `owned_paths`, or while ownership is ambiguous. `deny` profiles cannot use native write tools; `docs-only` profiles stay inside registry-declared documentation roots. Direct point-work remains the fast path when no active delivery contains that agent. Claude Code only. |
-| `enforce-kernel-approvals.sh`   | Planned Guild subagents using tools before their stage is approved and claimed; subagent attempts to run `approval grant`; direct native edits or write-shaped Bash against `docs/delivery/*/kernel.json`. Approval provenance stays kernel-owned. Claude Code only. |
-| `enforce-kernel-budgets.sh`     | Planned Guild stages after their time/tool-call ceiling, self-recorded aggregate usage, missing completion telemetry, or a turns/tokens/USD overage. Usage and the terminal reason stay durable in `kernel.json`. Claude Code meters automatically; other runtimes use the kernel CLI when they expose equivalent totals. |
+| `enforce-kernel-approvals.sh`   | Planned Guild subagents using tools before their stage is approved and claimed; subagent attempts to grant approval, waive criteria, or mutate checkpoints; direct native edits or write-shaped Bash against `docs/delivery/*/kernel.json`. User-authoritative provenance stays kernel-owned. Claude Code only. |
+| `enforce-kernel-budgets.sh`     | Planned Guild stages after their time/tool-call ceiling, self-recorded aggregate usage, missing completion telemetry, a turns/tokens/USD overage, or an exact one-to-four-step tool cycle repeated three times. Usage and terminal evidence stay durable in `kernel.json`; raw loop inputs do not. Claude Code meters automatically; other runtimes use the kernel CLI when they expose equivalent totals. |
 | `enforce-sail.sh`               | Bare `php artisan` / `composer` / `vendor/bin/{pint,pest,phpunit,phpstan}` on a **Sail** project — the block message carries the exact `./vendor/bin/sail …` rewrite, so the agent self-corrects in one turn. Active only when both `vendor/bin/sail` and a compose file exist (the sail *dependency* alone — the Herd/Valet shape — stays untouched). Opt out with `LARAVEL_AGENTS_SAIL=0`. |
 | `emit-agent-events.sh`          | Nothing — an **observer**, not a guard: wired as `PreToolUse` **and** `PostToolUse` on the subagent tool (`Agent\|Task`), it streams every subagent start / finish (agent, task, duration, tokens) to `.claude/agents-board.jsonl` for the `/board` live dashboard. Always exits 0. Claude Code only. |
 

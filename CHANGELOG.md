@@ -7,6 +7,31 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.2.0] - 2026-09-25
+
+### Added
+
+- Kernel-enforced detection for exact repeated tool-call cycles one to four
+  steps long during a claimed specialist stage.
+- `guild loop list` and a generated `docs/delivery/<name>/loops.md` view for
+  inspecting the stage, pattern length, tool sequence, fingerprint, and time.
+
+### Changed
+
+- The runtime blocks the call that would complete a third identical cycle,
+  fails the affected lane, and stops the delivery before more work is spent.
+- A new explicit stage claim resets the short detection window while durable
+  delivery-level loop events remain available for audit.
+- All nine pipeline commands and the delivery coordinator prohibit retrying an
+  unchanged detected sequence; a later attempt requires a changed brief or plan.
+
+### Security
+
+- Loop history persists only SHA-256 signatures, tool names, and timestamps;
+  raw tool input is never written to kernel loop state.
+- Dual hook delivery is idempotent, so duplicate hook registration cannot
+  manufacture a false repeated cycle.
+
 ## [8.1.0] - 2026-09-25
 
 ### Added

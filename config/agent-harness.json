@@ -103,6 +103,15 @@
       "answerAuthority": "user",
       "optionActions": ["continue", "stop"]
     },
+    "loopPolicy": {
+      "historyField": "loop_history",
+      "eventField": "loop_events",
+      "repeatThreshold": 3,
+      "maxCycleLength": 4,
+      "historyLimit": 24,
+      "terminalStageStatus": "failed",
+      "terminalDeliveryStatus": "stopped"
+    },
     "verification": "registered-runners-only"
   },
   "agents": {
