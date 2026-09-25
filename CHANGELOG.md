@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.0.0] - 2026-09-25
+
+### Added
+
+- A versioned enforcement map covering 14 engineering-loop controls and
+  distinguishing runtime checks, pre-tool hooks, required CI, operator
+  decisions, and prompt guidance.
+- A deterministic enforcement reference generated from the machine-readable
+  map, including implementation paths, executable evidence, failure modes,
+  operator actions, limitations, and recovery guidance for every control.
+- A dedicated `enforcement map` CI job with focused schema, containment,
+  release-gate, prompt-only, and documentation-drift tests.
+
+### Changed
+
+- Immutable release publication now requires 15 named hosted-CI jobs,
+  including independent gates for adversarial behavior, observability, and
+  enforcement-claim accuracy.
+- The README and harness guide now link enforcement claims to their actual
+  mechanism and explicitly identify the remaining human and host boundaries.
+
+### Fixed
+
+- Strong guarantees can no longer live only in scattered prose without a
+  repository-local implementation path, executable evidence, and named
+  release gate.
+- Stale documentation, missing evidence, path traversal, unknown controls,
+  and CI jobs outside the release allowlist now fail the enforcement-map gate.
+
+### Security
+
+- Prompt-only instructions cannot be labeled as enforced, and evidence paths
+  must resolve to regular non-symlink files inside the repository.
+
 ## [8.9.0] - 2026-09-25
 
 ### Added

@@ -50,6 +50,12 @@ Every agent run inherits these controls:
   tool inputs, report bodies, and secrets are excluded. Console diagnostics
   remain separately redacted and retention-bounded. See
   [delivery observability](observability.md).
+- **Enforcement map:** every strong harness claim names whether it is enforced
+  by the kernel, a pre-tool hook, release-required CI, an authoritative human
+  decision, or prompt guidance. Each control links to implementation,
+  executable evidence, its safe failure mode, and a known limitation. Prompt
+  text alone cannot qualify as enforcement. See the generated
+  [engineering-loop enforcement map](enforcement-map.md).
 - **Loop detection:** claimed specialists stop when an exact one-to-four-step
   tool-call cycle reaches three repetitions. Only SHA-256 input signatures and
   tool names persist; the repeated call is denied before execution.

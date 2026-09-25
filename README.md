@@ -233,6 +233,14 @@ prompts, tool inputs, report bodies, or secrets. `guild observe verify` detects
 state or view drift, and a separate required CI job keeps the contract current.
 See [delivery observability](docs/observability.md).
 
+**Every guarantee names its enforcement boundary.** The versioned enforcement
+map separates runtime rejection, installed pre-tool hooks, required hosted CI,
+authoritative human decisions, and prompt-only guidance for 14 controls. Each
+entry links to its implementation, executable evidence, safe failure mode,
+operator action, and known limitation. CI rejects missing or unsafe evidence,
+unknown release gates, prompt-only guarantees, and stale generated prose. See
+the [engineering-loop enforcement map](docs/enforcement-map.md).
+
 **Releases are gated artifacts, not a manual checklist.** The manual Release
 workflow freezes one clean `main` commit, requires every named CI job for that
 exact SHA, checks all version manifests and release documents, then creates one

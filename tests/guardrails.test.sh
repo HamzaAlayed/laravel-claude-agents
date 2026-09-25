@@ -612,6 +612,21 @@ expect "kernel exposes the observability command group" "1" \
   "$(grep -c 'observe = sub.add_parser("observe")' "$SCRIPT_DIR/scripts/guild-kernel/guild.py")"
 expect "shared observability excludes raw payloads" "1" \
   "$(grep -c '"rawPayloads": false' "$SCRIPT_DIR/config/agent-harness.json")"
+expect "one versioned enforcement map is committed" "14" \
+  "$(python3 - "$SCRIPT_DIR/config/enforcement-map.json" <<'PY'
+import json, pathlib, sys
+payload = json.loads(pathlib.Path(sys.argv[1]).read_text())
+print(len(payload.get("controls", [])) if payload.get("schemaVersion") == 1 else 0)
+PY
+)"
+expect "CI has a separate enforcement-map gate" "1" \
+  "$(grep -c '^    name: enforcement map$' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "CI runs enforcement-map tests" "1" \
+  "$(grep -c 'unittest discover -s tests/enforcement' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "release publication requires the enforcement-map gate" "1" \
+  "$(grep -c '"enforcement map"' "$SCRIPT_DIR/config/release-harness.json")"
+expect "README links the engineering-loop enforcement map" "1" \
+  "$(grep -c 'engineering-loop enforcement map' "$SCRIPT_DIR/README.md")"
 expect "Interface block binds the final answer to VERIFIED + NOT-CHECKED" "9" \
   "$(grep -l 'Your own final answer closes the same way' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # Tranche item 2 lived only in agents/delivery-coordinator.md, and eval run 6's

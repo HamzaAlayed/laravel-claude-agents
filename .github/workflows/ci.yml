@@ -42,7 +42,8 @@ jobs:
             .cursor-plugin/plugin.json .cursor-plugin/marketplace.json \
             gemini/gemini-extension.json gemini/hooks/hooks.json \
             hooks/hooks.json config/agent-harness.json config/adversarial-harness.json \
-            config/observability-harness.json config/release-harness.json; do
+            config/observability-harness.json config/enforcement-map.json \
+            config/release-harness.json; do
             echo "validating $f"
             jq empty "$f"
           done
@@ -182,6 +183,16 @@ jobs:
       - uses: actions/checkout@v5
       - name: Run delivery observability contract tests (stdlib unittest)
         run: python3 -m unittest discover -s tests/observability -t tests/observability -v
+
+  enforcement-map:
+    name: enforcement map
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate enforcement claims, evidence, and generated documentation
+        run: |
+          python3 -m unittest discover -s tests/enforcement -t tests/enforcement -v
+          python3 scripts/check-enforcement-map.py
 
   eval-cost-python:
     name: eval cost parser units

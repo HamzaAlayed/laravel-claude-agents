@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 1,
+  "scope": "This map separates mechanically enforced controls from pre-tool hooks, release-gated evidence, operator decisions, and prompt guidance across the Laravel Guild engineering loop.",
+  "levels": {
+    "runtime": "A state machine or command rejects the operation before accepting the transition.",
+    "pre-tool-hook": "An installed host hook rejects a covered tool call before the tool executes.",
+    "ci": "A named job required by immutable release publication tests or validates the control.",
+    "operator": "A human decision or external observation is authoritative and must be recorded; software validates the record but cannot make the decision.",
+    "prompt": "Generated agent instructions describe the procedure; this level guides behavior but is not a security boundary by itself."
+  },
+  "globalLimitations": [
+    "No repository control protects against arbitrary code executing as the same operating-system account and deliberately rewriting code, state, and evidence together.",
+    "Pre-tool hooks cover the tools and hosts that install them; unsupported runtimes must call the kernel explicitly and provide complete telemetry.",
+    "CI proves the committed fixtures and named invariants, not every application-specific behavior or production environment.",
+    "Human approvals, interruption confirmation, manual speed checks, and merge decisions remain operator judgments; the harness preserves and validates their durable records."
+  ],
+  "controls": [
+    {
+      "id": "agent-policy-profiles",
+      "title": "Shared and role-specific harness policy",
+      "guarantee": "Every registered agent has one complete policy profile, and read-only roles align with tool denial while only the coordinator receives delegation authority.",
+      "enforcement": ["runtime", "pre-tool-hook", "ci", "prompt"],
+      "implementation": ["config/agent-harness.json", "scripts/check-agent-harness.py", "scripts/enforce-reviewer-readonly.sh"],
+      "evidence": ["tests/kernel/test_agent_policy.py", "tests/guardrails.test.sh"],
+      "ciJobs": ["agent & command frontmatter", "guardrail tests", "guild kernel units"],
+      "failureMode": "Reject an unknown, incomplete, or contradictory profile before release or planned execution.",
+      "operatorAction": "Choose the registered specialist whose authority matches the requested work; do not widen a profile inside a task.",
+      "limitation": "Direct shell access outside installed hooks is not converted into an operating-system sandbox by this profile."
+    },
+    {
+      "id": "path-ownership",
+      "title": "Claimed path ownership",
+      "guarantee": "A mutation-capable stage declares project-relative owned paths, claims them atomically, and cannot report outputs outside them.",
+      "enforcement": ["runtime", "pre-tool-hook", "ci", "prompt"],
+      "implementation": ["scripts/guild-kernel/kernel.py", "scripts/enforce-agent-paths.py", "scripts/enforce-agent-paths.sh"],
+      "evidence": ["tests/kernel/test_kernel.py", "tests/adversarial/test_engineering_loop.py", "tests/guardrails.test.sh"],
+      "ciJobs": ["guild kernel units", "adversarial engineering loop", "guardrail tests"],
+      "failureMode": "Deny the claim, native write, or stage report without accepting an out-of-scope output.",
+      "operatorAction": "Split overlapping work into non-overlapping stages or change the approved plan before dispatch.",
+      "limitation": "The native-write hook covers Write, Edit, and NotebookEdit; Bash mutation safety also depends on the installed command guardrails."
+    },
+    {
+      "id": "human-approvals",
+      "title": "Durable protected-action approval",
+      "guarantee": "A stage with a declared protected category cannot be claimed until the main thread records a user grant for that exact category.",
+      "enforcement": ["runtime", "pre-tool-hook", "ci", "operator", "prompt"],
+      "implementation": ["config/agent-harness.json", "scripts/guild-kernel/kernel.py", "scripts/enforce-kernel-approvals.py", "scripts/enforce-kernel-approvals.sh"],
+      "evidence": ["tests/kernel/test_approval_policy.py", "tests/adversarial/test_engineering_loop.py", "tests/guardrails.test.sh"],
+      "ciJobs": ["guild kernel units", "adversarial engineering loop", "guardrail tests"],
+      "failureMode": "Keep the stage queued and reject claim or mutation until the approval exists.",
+      "operatorAction": "Approve or decline the exact requested category after reviewing its scope and risk.",
+      "limitation": "The system validates declared categories; it cannot detect a planner that omitted a material protected category from the plan."
+    },
+    {
+      "id": "criterion-evidence",
+      "title": "Criterion-linked verification",
+      "guarantee": "Every success criterion has a stable ID and must have passing registered-runner evidence or a durable user waiver before completion.",
+      "enforcement": ["runtime", "ci", "operator", "prompt"],
+      "implementation": ["config/agent-harness.json", "scripts/guild-kernel/kernel.py", "scripts/guild-kernel/guild.py"],
+      "evidence": ["tests/kernel/test_criterion_policy.py", "tests/adversarial/test_engineering_loop.py"],
+      "ciJobs": ["guild kernel units", "adversarial engineering loop"],
+      "failureMode": "Reject the report and leave the stage nonterminal when evidence coverage is missing or untrusted.",
+      "operatorAction": "Supply the missing check or explicitly accept the exact gap through a user-authored waiver.",
+      "limitation": "A passing registered command proves only what that command actually tests; semantic test quality remains a review concern."
+    },
+    {
+      "id": "durable-checkpoints",
+      "title": "Typed human checkpoints",
+      "guarantee": "Questions raised after dispatch pause the affected lane with typed options, and only a recorded user choice can continue or stop it.",
+      "enforcement": ["runtime", "ci", "operator", "prompt"],
+      "implementation": ["config/agent-harness.json", "scripts/guild-kernel/kernel.py", "scripts/guild-kernel/guild.py"],
+      "evidence": ["tests/kernel/test_checkpoint_policy.py", "tests/kernel/test_cli.py"],
+      "ciJobs": ["guild kernel units"],
+      "failureMode": "Keep the affected stage paused and exclude it from ready work until a valid resolution exists.",
+      "operatorAction": "Select one presented option after reviewing the persisted question, risk, and recommendation.",
+      "limitation": "The harness preserves the choice but cannot decide whether the human's risk judgment was correct."
+    },
+    {
+      "id": "runtime-budgets",
+      "title": "Measured stage budgets",
+      "guarantee": "Time and tool calls are checked before tool execution, completion telemetry supplies turns, tokens, and cost, and a breach becomes terminal.",
+      "enforcement": ["runtime", "pre-tool-hook", "ci", "operator", "prompt"],
+      "implementation": ["config/agent-harness.json", "scripts/guild-kernel/kernel.py", "scripts/enforce-kernel-budgets.py", "scripts/enforce-kernel-budgets.sh"],
+      "evidence": ["tests/kernel/test_budget_policy.py", "tests/console/test_engine.py", "tests/adversarial/test_engineering_loop.py"],
+      "ciJobs": ["guild kernel units", "console python units", "adversarial engineering loop", "guardrail tests"],
+      "failureMode": "Set stage and delivery to budget_exceeded, deny further dispatch, and reject a success report.",
+      "operatorAction": "Start a newly approved delivery with a justified budget when additional work is warranted; never edit the receipt downward.",
+      "limitation": "Cost is conservative when the host provides tokens but not a billed total, and unsupported runtimes must provide all five dimensions explicitly."
+    },
+    {
+      "id": "loop-detection",
+      "title": "Exact repeated-tool-cycle stop",
+      "guarantee": "The runtime blocks the call that would complete a third identical one-to-four-step tool cycle and stores only bounded signatures.",
+      "enforcement": ["runtime", "pre-tool-hook", "ci", "prompt"],
+      "implementation": ["config/agent-harness.json", "scripts/guild-kernel/kernel.py", "scripts/enforce-kernel-budgets.py"],
+      "evidence": ["tests/kernel/test_loop_policy.py", "tests/adversarial/test_engineering_loop.py", "tests/guardrails.test.sh"],
+      "ciJobs": ["guild kernel units", "adversarial engineering loop", "guardrail tests"],
+      "failureMode": "Fail the lane, stop the delivery, and deny the repeated call before execution.",
+      "operatorAction": "Inspect the loop record and create a materially changed plan rather than replaying the same sequence.",
+      "limitation": "Semantically repetitive work with changing tool names or inputs is not classified as an exact cycle."
+    },
+    {
+      "id": "bounded-retries",
+      "title": "One auditable retry",
+      "guarantee": "Only the main thread may request one fresh atomic claim after a distinct failure; a second distinct failure stops the delivery.",
+      "enforcement": ["runtime", "ci", "operator", "prompt"],
+      "implementation": ["config/agent-harness.json", "scripts/guild-kernel/kernel.py", "scripts/guild-kernel/guild.py"],
+      "evidence": ["tests/kernel/test_retry_policy.py", "tests/adversarial/test_engineering_loop.py"],
+      "ciJobs": ["guild kernel units", "adversarial engineering loop"],
+      "failureMode": "Requeue once with stale evidence invalidated, then fail the stage and stop delivery on exhaustion.",
+      "operatorAction": "Review the typed failure and approve a new delivery if the exhausted work should continue under a new scope.",
+      "limitation": "The retry classifier relies on the main thread to describe the failure source and reason accurately."
+    },
+    {
+      "id": "interruption-recovery",
+      "title": "Durable interrupted-claim recovery",
+      "guarantee": "A confirmed orphaned claim freezes at its last observed activity and requires a main-thread continue or stop resolution before reclaim.",
+      "enforcement": ["runtime", "ci", "operator", "prompt"],
+      "implementation": ["config/agent-harness.json", "scripts/guild-kernel/kernel.py", "scripts/guild-kernel/guild.py"],
+      "evidence": ["tests/kernel/test_recovery_policy.py", "tests/kernel/test_cli.py"],
+      "ciJobs": ["guild kernel units"],
+      "failureMode": "Keep the lane interrupted and unavailable until a valid resolution is recorded.",
+      "operatorAction": "Confirm the prior process no longer owns the claim, inspect partial outputs, then choose continue or stop.",
+      "limitation": "The kernel cannot independently prove that an external process died or reconstruct completion telemetry it never received."
+    },
+    {
+      "id": "feedback-routing",
+      "title": "Ownership-derived PR and CI routing",
+      "guarantee": "CI failures route by exact declared check and review comments by longest owned-path match; unmatched events block dispatch.",
+      "enforcement": ["runtime", "ci", "operator", "prompt"],
+      "implementation": ["config/agent-harness.json", "scripts/guild-kernel/kernel.py", "scripts/guild-kernel/guild.py"],
+      "evidence": ["tests/kernel/test_feedback_policy.py", "tests/adversarial/test_engineering_loop.py"],
+      "ciJobs": ["guild kernel units", "adversarial engineering loop"],
+      "failureMode": "Persist route_required and block new dispatch, or reject a caller-asserted wrong owner without recording it.",
+      "operatorAction": "Assign an unmatched event from the main thread after confirming the responsible stage.",
+      "limitation": "External polling and event delivery remain host responsibilities; the kernel can route only feedback it receives."
+    },
+    {
+      "id": "orchestration-contract",
+      "title": "Canonical lifecycle instructions",
+      "guarantee": "The shared lifecycle text is authored once and materialized byte-for-byte into all registered command and coordinator carriers.",
+      "enforcement": ["ci", "prompt"],
+      "implementation": ["config/orchestration-contract.md", "scripts/sync-orchestration-contract.py"],
+      "evidence": ["tests/orchestration/test_sync_contract.py", "tests/guardrails.test.sh"],
+      "ciJobs": ["agent & command frontmatter", "guardrail tests", "guild kernel units"],
+      "failureMode": "Fail synchronization or CI when a carrier is stale, missing, duplicated, or structurally corrupt.",
+      "operatorAction": "Edit the canonical source, regenerate carriers, and review the generated diff rather than patching one carrier.",
+      "limitation": "Synchronized prompt text guides agents but does not replace runtime checks for protected transitions."
+    },
+    {
+      "id": "adversarial-gate",
+      "title": "Versioned attack matrix",
+      "guarantee": "Known malformed, replayed, concurrent, stale, and filesystem-indirected attacks assert their exact safe post-state in a release-required suite.",
+      "enforcement": ["ci"],
+      "implementation": ["config/adversarial-harness.json", ".github/workflows/ci.yml"],
+      "evidence": ["tests/adversarial/test_engineering_loop.py"],
+      "ciJobs": ["adversarial engineering loop"],
+      "failureMode": "Fail hosted CI and prevent immutable release publication for the exact commit.",
+      "operatorAction": "Add a stable attack ID and regression before accepting a newly discovered bypass as fixed.",
+      "limitation": "The committed matrix covers named threat families and is not a proof against unknown attacks or same-account arbitrary code execution."
+    },
+    {
+      "id": "delivery-observability",
+      "title": "Correlated delivery event integrity",
+      "guarantee": "Every persisted delivery mutation emits a typed, monotonic, hash-chained event and deterministic derived views without raw payloads.",
+      "enforcement": ["runtime", "ci", "operator", "prompt"],
+      "implementation": ["config/observability-harness.json", "scripts/guild-kernel/kernel.py", "scripts/guild-kernel/guild.py"],
+      "evidence": ["tests/observability/test_delivery_observability.py"],
+      "ciJobs": ["observability contract", "guild kernel units"],
+      "failureMode": "Report unhealthy, refuse authoritative-chain growth, and block dispatch or closure until integrity is restored.",
+      "operatorAction": "Repair derived views only from a healthy authoritative chain; restore invalid kernel state from a known-good checkpoint.",
+      "limitation": "The hash chain detects accidental or partial tampering but is not a signature against deliberate same-account rewriting."
+    },
+    {
+      "id": "immutable-releases",
+      "title": "Exact-commit release publication",
+      "guarantee": "A stable release requires synchronized artifacts, a clean main commit, every named CI job green, an annotated immutable tag, and a retained receipt.",
+      "enforcement": ["runtime", "ci", "operator"],
+      "implementation": ["config/release-harness.json", "scripts/release.py", ".github/workflows/release.yml"],
+      "evidence": ["tests/release/test_release.py"],
+      "ciJobs": ["release automation"],
+      "failureMode": "Refuse publication or a conflicting rerun without force, deletion, or tag replacement.",
+      "operatorAction": "Dispatch the manual workflow with the exact version and canonical title after hosted CI succeeds.",
+      "limitation": "Repository administrators and hosting-provider controls remain outside the publisher's threat boundary."
+    }
+  ]
+}
