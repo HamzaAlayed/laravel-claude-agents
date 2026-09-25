@@ -343,6 +343,43 @@ expect "delivery-state directory symlink outside the project fails closed" "$BLO
   "$(run_path_policy "$POLICY_STATE_LINK" '{"agent_type":"backend-developer","tool_input":{"file_path":"app/Models/Tag.php"}}')"
 rm -rf "$POLICY_TMP"
 
+echo "enforce-kernel-approvals.sh (durable user approval authority)"
+run_approval_policy() {
+  local root="$1" json="$2"
+  printf '%s' "$json" | CLAUDE_PROJECT_DIR="$root" "$SCRIPTS/enforce-kernel-approvals.sh" >/dev/null 2>&1
+  echo $?
+}
+
+APPROVAL_TMP="$(mktemp -d)"
+mkdir -p "$APPROVAL_TMP/docs/delivery/tag"
+printf '%s' '{"status":"running","stages":[{"id":"database","agent":"database-developer","status":"queued","approval_categories":["destructive migration"],"approvals":[]}]}' \
+  > "$APPROVAL_TMP/docs/delivery/tag/kernel.json"
+expect "main thread may record an explicit approval through the kernel CLI" "$ALLOW" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py approval grant --root . --name tag --stage database --category destructive-migration"}}')"
+expect "subagent cannot grant its own stage approval" "$BLOCK" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"agent_type":"laravel-team:database-developer","tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py approval grant --root . --name tag --stage database --category destructive-migration"}}')"
+expect "pending approval blocks subagent Bash before claim" "$BLOCK" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"agent_type":"laravel-team:database-developer","tool_name":"Bash","tool_input":{"command":"php artisan migrate"}}')"
+expect "unrelated Guild agent is not blocked by another lane's approval" "$ALLOW" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"agent_type":"backend-developer","tool_name":"Bash","tool_input":{"command":"php artisan test"}}')"
+expect "native Write cannot replace kernel approval state" "$BLOCK" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"tool_name":"Write","tool_input":{"file_path":"docs/delivery/tag/kernel.json","contents":"{}"}}')"
+expect "native Edit cannot replace absolute kernel approval state" "$BLOCK" \
+  "$(run_approval_policy "$APPROVAL_TMP" "{\"tool_name\":\"Edit\",\"tool_input\":{\"file_path\":\"$APPROVAL_TMP/docs/delivery/tag/kernel.json\",\"new_string\":\"{}\"}}")"
+expect "Bash redirect cannot replace kernel approval state" "$BLOCK" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"tool_name":"Bash","tool_input":{"command":"printf x > docs/delivery/tag/kernel.json"}}')"
+expect "read-only cat of kernel state remains available" "$ALLOW" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"tool_name":"Bash","tool_input":{"command":"cat docs/delivery/tag/kernel.json"}}')"
+expect "ordinary application write stays outside kernel-state policy" "$ALLOW" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"tool_name":"Write","tool_input":{"file_path":"app/Models/Tag.php","contents":"<?php"}}')"
+printf '%s' '{"status":"running","stages":[{"id":"database","agent":"database-developer","status":"running","approval_categories":["destructive migration"],"approvals":[{"category":"destructive migration","by":"user","at":"2026-09-25T00:00:00+00:00"}]}]}' \
+  > "$APPROVAL_TMP/docs/delivery/tag/kernel.json"
+expect "approved claimed stage may execute Bash" "$ALLOW" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"agent_type":"database-developer","tool_name":"Bash","tool_input":{"command":"php artisan migrate"}}')"
+expect "malformed hook JSON fails closed" "$BLOCK" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{')"
+rm -rf "$APPROVAL_TMP"
+
 echo "enforce-sail.sh (host-PHP redirect on Sail projects)"
 # Fixture projects: one on Sail (binary + compose file), one with only the
 # sail dependency (the Herd/Valet shape — skeleton ships laravel/sail), one bare.
@@ -573,6 +610,12 @@ expect "Interface block claims every lane before Agent" "9" \
 # shellcheck disable=SC2016 # literal field backticks in the Interface needle
 expect "Interface block uses typed stages with path ownership" "9" \
   "$(grep -l 'typed `--stage-json`.*`owned_paths`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal field backticks in the Interface needle
+expect "Interface block declares profile approval categories" "9" \
+  "$(grep -l '`approval_categories`.*profile category applies' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal command backticks in the Interface needle
+expect "Interface block lists and grants approvals before ready" "9" \
+  "$(grep -l 'call `approval list`.*main thread may call `approval grant`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # shellcheck disable=SC2016 # literal `board` backticks in the Interface needle
 expect "Interface block prints the kernel board" "9" \
   "$(grep -l '`board` to print' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
@@ -612,6 +655,12 @@ expect "coordinator fetches ready waves" "1" \
 # shellcheck disable=SC2016 # literal command backticks in the coordinator needle
 expect "coordinator atomically claims each ready lane" "1" \
   "$(grep -c 'atomically `claim --stage <id>`' "$COORD")"
+# shellcheck disable=SC2016 # literal field backticks in the coordinator needle
+expect "coordinator declares profile approval categories" "1" \
+  "$(grep -c '`approval_categories` from the selected agent profile' "$COORD")"
+# shellcheck disable=SC2016 # literal command backticks in the coordinator needle
+expect "coordinator leaves approval grants to the main thread" "1" \
+  "$(grep -c 'only the main thread may call `approval grant`' "$COORD")"
 expect "coordinator does not merge" "1" \
   "$(grep -c 'Do not merge\.' "$COORD")"
 expect "coordinator copies the stage-return stub when persisting read-only" "1" \
@@ -1524,7 +1573,7 @@ expect "emit-agent-events.sh still wired three ways" "3" \
 echo
 echo "install.sh"
 INSTALL_DEST="$(mktemp -d)"
-bash "$SCRIPT_DIR/install.sh" --no-hooks --no-claudemd "$INSTALL_DEST" >/dev/null
+bash "$SCRIPT_DIR/install.sh" --no-claudemd "$INSTALL_DEST" >/dev/null
 expect "install dest contains scripts/guild-kernel/guild.py" "1" \
   "$([ -f "$INSTALL_DEST/scripts/guild-kernel/guild.py" ] && echo 1 || echo 0)"
 expect "install dest contains the shared agent harness" "1" \
@@ -1533,6 +1582,12 @@ expect "install dest contains the native-write policy hook" "1" \
   "$([ -x "$INSTALL_DEST/scripts/enforce-agent-paths.sh" ] && echo 1 || echo 0)"
 expect "install dest contains the registry-backed policy engine" "1" \
   "$([ -f "$INSTALL_DEST/scripts/enforce-agent-paths.py" ] && echo 1 || echo 0)"
+expect "install dest contains the approval policy hook" "1" \
+  "$([ -x "$INSTALL_DEST/scripts/enforce-kernel-approvals.sh" ] && echo 1 || echo 0)"
+expect "install dest contains the approval policy engine" "1" \
+  "$([ -f "$INSTALL_DEST/scripts/enforce-kernel-approvals.py" ] && echo 1 || echo 0)"
+expect "installer wires the approval hook into project settings" "1" \
+  "$(grep -c 'enforce-kernel-approvals.sh' "$INSTALL_DEST/.claude/settings.json")"
 rm -rf "$INSTALL_DEST"
 
 echo

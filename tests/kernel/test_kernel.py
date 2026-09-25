@@ -2252,6 +2252,211 @@ class WorkplaceIngestTest(unittest.TestCase):
         self.assertEqual(runner.calls, [])
 
 
+class ApprovalPolicyTest(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.root = pathlib.Path(self.tmp.name)
+
+    def tearDown(self):
+        self.tmp.cleanup()
+
+    def _plan(self, *, category="destructive migration"):
+        return kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="tags migration is ready",
+            stages=[
+                scoped_stage(
+                    "database",
+                    "database-developer",
+                    "writer",
+                    ["migration is reversible"],
+                    [],
+                    approval_categories=[category],
+                )
+            ],
+        )
+
+    def test_unknown_agent_approval_category_is_rejected(self):
+        with self.assertRaisesRegex(kernel.PlanError, "unknown approval category"):
+            self._plan(category="payment UI")
+
+    def test_malformed_and_duplicate_approval_categories_are_rejected(self):
+        for categories in ("destructive migration", [1], ["production data"] * 2):
+            with self.subTest(categories=categories), self.assertRaises(kernel.PlanError):
+                kernel.plan(
+                    root=self.root,
+                    name="tag",
+                    done_when="x",
+                    stages=[
+                        scoped_stage(
+                            "database",
+                            "database-developer",
+                            "writer",
+                            ["safe"],
+                            [],
+                            approval_categories=categories,
+                        )
+                    ],
+                )
+
+    def test_pending_approval_pauses_dispatch_and_claim(self):
+        delivery = self._plan()
+        self.assertEqual(kernel.ready_stages(self.root, "tag"), [])
+        self.assertEqual(
+            kernel.next_agent(self.root, "tag"),
+            "APPROVAL_REQUIRED: database: destructive migration",
+        )
+        self.assertIn("database ⏸ database-developer", kernel.board_line(delivery))
+        self.assertIn("approval:destructive migration", kernel.board_line(delivery))
+        with self.assertRaisesRegex(
+            kernel.PlanError,
+            "requires user approval before claim: destructive migration",
+        ):
+            kernel.claim_stage(self.root, "tag", "database")
+
+    def test_user_approval_is_durable_and_enables_claim(self):
+        self._plan()
+        approval = kernel.approve_stage_action(
+            self.root,
+            "tag",
+            "database",
+            "destructive migration",
+        )
+        self.assertEqual(approval["category"], "destructive migration")
+        self.assertEqual(approval["by"], "user")
+        self.assertTrue(approval["at"].endswith("+00:00"))
+        persisted = kernel.load(self.root, "tag").stages[0]
+        self.assertEqual(persisted.approvals, [approval])
+        self.assertEqual(
+            [stage.id for stage in kernel.ready_stages(self.root, "tag")],
+            ["database"],
+        )
+        claimed = kernel.claim_stage(self.root, "tag", "database")
+        self.assertEqual(claimed.status, "running")
+
+    def test_only_user_can_grant_and_duplicate_grant_is_idempotent(self):
+        self._plan()
+        with self.assertRaisesRegex(kernel.PlanError, "only be approved by the user"):
+            kernel.approve_stage_action(
+                self.root,
+                "tag",
+                "database",
+                "destructive migration",
+                approved_by="agent",
+            )
+        first = kernel.approve_stage_action(
+            self.root,
+            "tag",
+            "database",
+            "destructive migration",
+        )
+        second = kernel.approve_stage_action(
+            self.root,
+            "tag",
+            "database",
+            "destructive migration",
+        )
+        self.assertEqual(first, second)
+        self.assertEqual(len(kernel.load(self.root, "tag").stages[0].approvals), 1)
+
+    def test_approval_must_be_declared_and_stage_must_be_queued(self):
+        self._plan()
+        with self.assertRaisesRegex(kernel.PlanError, "was not declared"):
+            kernel.approve_stage_action(
+                self.root, "tag", "database", "production data"
+            )
+        kernel.approve_stage_action(
+            self.root, "tag", "database", "destructive migration"
+        )
+        kernel.claim_stage(self.root, "tag", "database")
+        with self.assertRaisesRegex(kernel.PlanError, "stage database is running"):
+            kernel.approve_stage_action(
+                self.root, "tag", "database", "destructive migration"
+            )
+
+    def test_approval_cli_lists_pending_and_grants(self):
+        self._plan()
+        command = [
+            sys.executable,
+            str(REPO / "scripts/guild-kernel/guild.py"),
+            "approval",
+            "list",
+            "--root",
+            str(self.root),
+            "--name",
+            "tag",
+        ]
+        listed = subprocess.run(command, capture_output=True, text=True, check=True)
+        rows = json.loads(listed.stdout)
+        self.assertEqual(
+            rows,
+            [
+                {
+                    "stage": "database",
+                    "agent": "database-developer",
+                    "category": "destructive migration",
+                    "status": "pending",
+                }
+            ],
+        )
+        granted = subprocess.run(
+            [
+                sys.executable,
+                str(REPO / "scripts/guild-kernel/guild.py"),
+                "approval",
+                "grant",
+                "--root",
+                str(self.root),
+                "--name",
+                "tag",
+                "--stage",
+                "database",
+                "--category",
+                "destructive migration",
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        self.assertIn("APPROVED: database destructive migration", granted.stdout)
+        listed = subprocess.run(command, capture_output=True, text=True, check=True)
+        self.assertEqual(json.loads(listed.stdout)[0]["status"], "approved")
+
+    def test_plan_cli_persists_declared_approval_categories(self):
+        subprocess.run(
+            [
+                sys.executable,
+                str(REPO / "scripts/guild-kernel/guild.py"),
+                "plan",
+                "--root",
+                str(self.root),
+                "--name",
+                "invoice",
+                "--done-when",
+                "invoice endpoint is authorized",
+                "--stage-json",
+                json.dumps(
+                    {
+                        "id": "backend",
+                        "agent": "backend-developer",
+                        "role": "writer",
+                        "success_criteria": ["authorization is enforced"],
+                        "depends_on": [],
+                        "owned_paths": ["app/Http"],
+                        "approval_categories": ["auth"],
+                    }
+                ),
+            ],
+            capture_output=True,
+            text=True,
+            check=True,
+        )
+        stage = kernel.load(self.root, "invoice").stages[0]
+        self.assertEqual(stage.approval_categories, ["auth"])
+        self.assertEqual(stage.approvals, [])
+
+
 class WatchOnceTest(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

@@ -91,6 +91,8 @@ class StageSpec:
     awaiting_pair: bool = False
     reopens: int = 0
     owned_paths: list = field(default_factory=list)
+    approval_categories: list = field(default_factory=list)
+    approvals: list = field(default_factory=list)
 
 
 @dataclass
@@ -166,6 +168,8 @@ def load(root, name):
         stage.setdefault("awaiting_pair", False)
         stage.setdefault("reopens", 0)
         stage.setdefault("owned_paths", [])
+        stage.setdefault("approval_categories", [])
+        stage.setdefault("approvals", [])
         stages.append(StageSpec(**stage))
     return Delivery(stages=stages, **data)
 
@@ -340,8 +344,11 @@ def board_line(delivery):
     )
     lanes = []
     for stage in delivery.stages:
-        mark = _BOARD_MARK.get(stage.status, "·")
+        pending = _pending_approvals(stage)
+        mark = "⏸" if stage.status == "queued" and pending else _BOARD_MARK.get(stage.status, "·")
         label = f"pair:{stage.pair}" if stage.awaiting_pair and stage.pair else stage.agent
+        if pending:
+            label += f" approval:{','.join(pending)}"
         lanes.append(f"{stage.id} {mark} {label}")
     return " · ".join([header, *lanes]) if lanes else header
 
@@ -408,16 +415,144 @@ def _has_criteria(stage):
     return any(str(item).strip() for item in stage.success_criteria)
 
 
-def _agent_mutations():
+def _agent_profiles():
     path = pathlib.Path(__file__).resolve().parents[2] / "config" / "agent-harness.json"
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
+        profiles = payload["agents"]
+        approval_policy = payload["shared"]["approvalPolicy"]
+        if not isinstance(profiles, dict):
+            raise TypeError("agent profiles must be an object")
+        if approval_policy != {
+            "stageField": "approval_categories",
+            "recordField": "approvals",
+            "authority": "user",
+            "requiredBeforeClaim": True,
+        }:
+            raise TypeError("approval policy is invalid")
+        return profiles
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
+        raise PlanError(f"cannot load agent harness policy from {path}") from exc
+
+
+def _agent_mutations():
+    try:
         return {
             name: profile["mutation"]
-            for name, profile in payload["agents"].items()
+            for name, profile in _agent_profiles().items()
         }
-    except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
-        raise PlanError(f"cannot load agent mutation policy from {path}") from exc
+    except (KeyError, TypeError) as exc:
+        raise PlanError("cannot load agent mutation policy") from exc
+
+
+def _validate_approval_categories(stages):
+    profiles = _agent_profiles()
+    for stage in stages:
+        categories = stage.approval_categories
+        if not isinstance(categories, list):
+            raise PlanError(
+                f"approval_categories for stage {stage.id} must be a list"
+            )
+        if not all(
+            isinstance(category, str) and category.strip()
+            for category in categories
+        ):
+            raise PlanError(
+                f"approval_categories for stage {stage.id} must contain strings"
+            )
+        if len(categories) != len(set(categories)):
+            raise PlanError(
+                f"duplicate approval category for stage {stage.id}"
+            )
+        allowed = profiles.get(stage.agent, {}).get("approvalCategories")
+        if not isinstance(allowed, list):
+            raise PlanError(
+                f"cannot load approval categories for agent {stage.agent}"
+            )
+        for category in categories:
+            if category not in allowed:
+                raise PlanError(
+                    f"unknown approval category for {stage.agent}: {category}"
+                )
+        if stage.approvals:
+            raise PlanError(f"new stage {stage.id} cannot start with approval records")
+
+
+def _pending_approvals(stage):
+    if not isinstance(stage.approval_categories, list) or not all(
+        isinstance(category, str) and category.strip()
+        for category in stage.approval_categories
+    ):
+        raise PlanError(f"stage {stage.id} has invalid approval_categories")
+    if not isinstance(stage.approvals, list):
+        raise PlanError(f"stage {stage.id} has invalid approval records")
+    approved = {
+        record.get("category")
+        for record in stage.approvals
+        if isinstance(record, dict)
+        and record.get("by") == "user"
+        and isinstance(record.get("at"), str)
+        and record.get("at")
+    }
+    return [
+        category for category in stage.approval_categories
+        if category not in approved
+    ]
+
+
+def approval_rows(root, name):
+    delivery = load(root, name)
+    rows = []
+    for stage in delivery.stages:
+        pending = set(_pending_approvals(stage))
+        for category in stage.approval_categories:
+            rows.append(
+                {
+                    "stage": stage.id,
+                    "agent": stage.agent,
+                    "category": category,
+                    "status": "pending" if category in pending else "approved",
+                }
+            )
+    return rows
+
+
+def approve_stage_action(
+    root, name, stage_id, category, *, approved_by="user"
+):
+    if approved_by != "user":
+        raise PlanError("stage actions can only be approved by the user")
+    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with _file_lock(lock_path):
+        delivery = load(root, name)
+        stage = next((item for item in delivery.stages if item.id == stage_id), None)
+        if stage is None:
+            raise PlanError(f"stage {stage_id} is missing")
+        if stage.status != "queued":
+            raise PlanError(f"stage {stage_id} is {stage.status}")
+        if category not in stage.approval_categories:
+            raise PlanError(
+                f"approval category {category} was not declared for stage {stage_id}"
+            )
+        for record in stage.approvals:
+            if (
+                isinstance(record, dict)
+                and record.get("category") == category
+                and record.get("by") == "user"
+                and isinstance(record.get("at"), str)
+                and record.get("at")
+            ):
+                return record
+        approval = {
+            "category": category,
+            "by": "user",
+            "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
+        }
+        stage.approvals.append(approval)
+        save(root, delivery)
+        write_views(root, delivery, not_checked=delivery.done_when or "none")
+        return approval
 
 
 def _validate_owned_paths(stages):
@@ -475,6 +610,7 @@ def _validate_stages(stages):
 
     for stage_id in ids:
         visit(stage_id)
+    _validate_approval_categories(stages)
 
 
 def _wip_count(root, sprint):
@@ -842,6 +978,8 @@ def _ready_for_delivery(delivery):
     for stage in delivery.stages:
         if stage.status != "queued":
             continue
+        if _pending_approvals(stage):
+            continue
         if not all(
             dep in by_id and by_id[dep].status in ("done", "skipped")
             for dep in stage.depends_on
@@ -864,6 +1002,12 @@ def claim_stage(root, name, stage_id):
         stage = next((item for item in delivery.stages if item.id == stage_id), None)
         if stage is None:
             raise PlanError(f"stage {stage_id} is missing")
+        pending = _pending_approvals(stage)
+        if pending:
+            raise PlanError(
+                f"stage {stage_id} requires user approval before claim: "
+                f"{', '.join(pending)}"
+            )
         ready_ids = {item.id for item in _ready_for_delivery(delivery)}
         if stage_id not in ready_ids:
             active = [item for item in delivery.stages if item.status == "running"]
@@ -898,6 +1042,9 @@ def next_agent(root, name):
             continue
         if stage.awaiting_pair and stage.pair:
             return stage.pair
+        pending = _pending_approvals(stage)
+        if stage.status == "queued" and pending:
+            return f"APPROVAL_REQUIRED: {stage.id}: {', '.join(pending)}"
         if stage.status in ("queued", "running"):
             return stage.agent
         if (

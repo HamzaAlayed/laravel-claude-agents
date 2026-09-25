@@ -256,6 +256,7 @@ desired = [
     ("PreToolUse",  "Bash",       "./scripts/enforce-sprint-file.sh"),
     ("PreToolUse",  "Bash",       "./scripts/enforce-lessons-file.sh"),
     ("PreToolUse",  "Write|Edit|NotebookEdit", "./scripts/enforce-agent-paths.sh"),
+    ("PreToolUse",  "Bash|Write|Edit|NotebookEdit", "./scripts/enforce-kernel-approvals.sh"),
     ("PreToolUse",  "Write|Edit", "./scripts/protect-env-files.sh"),
     ("PreToolUse",  "Write|Edit", "./scripts/enforce-close-file.sh"),
     ("PreToolUse",  "Write|Edit", "./scripts/enforce-stage-return.sh"),

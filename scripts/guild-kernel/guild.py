@@ -55,7 +55,7 @@ def build_parser():
         "--stage-json",
         action="append",
         default=[],
-        help="typed stage object with id, agent, role, success_criteria, depends_on, owned_paths",
+        help="typed stage object with id, agent, role, success_criteria, depends_on, owned_paths, approval_categories",
     )
     plan.add_argument("--max-parallel", type=int, default=3)
     plan.add_argument("--issue", type=int, default=0)
@@ -77,6 +77,12 @@ def build_parser():
     ingest.add_argument("--stage", required=True)
     ingest.add_argument("--check", default="")
     ingest.add_argument("--comment", default="")
+    approval = sub.add_parser("approval")
+    approval_cmds = approval.add_subparsers(dest="approval_cmd", required=True)
+    approval_cmds.add_parser("list", parents=[common])
+    approval_grant = approval_cmds.add_parser("grant", parents=[common])
+    approval_grant.add_argument("--stage", required=True)
+    approval_grant.add_argument("--category", required=True)
     sprint_common = argparse.ArgumentParser(add_help=False)
     sprint_common.add_argument("--root", required=True)
     sprint_common.add_argument("--id", required=True)
@@ -106,7 +112,8 @@ def _stages_from_args(raw_stages, raw_json_stages=()):
             "--stage was removed in v6; use --stage-json with explicit owned_paths"
         )
     allowed = {
-        "id", "agent", "role", "success_criteria", "depends_on", "owned_paths"
+        "id", "agent", "role", "success_criteria", "depends_on", "owned_paths",
+        "approval_categories",
     }
     for raw in raw_json_stages:
         try:
@@ -128,6 +135,7 @@ def _stages_from_args(raw_stages, raw_json_stages=()):
                 success_criteria=spec["success_criteria"],
                 depends_on=spec.get("depends_on", []),
                 owned_paths=spec["owned_paths"],
+                approval_categories=spec.get("approval_categories", []),
             )
         )
     return stages
@@ -215,6 +223,22 @@ def main(argv=None):
                 runner=ProcessRunner(),
             )
             return 0
+        if args.cmd == "approval":
+            if args.approval_cmd == "list":
+                print(json.dumps(kernel.approval_rows(args.root, args.name)))
+                return 0
+            if args.approval_cmd == "grant":
+                approval = kernel.approve_stage_action(
+                    args.root,
+                    args.name,
+                    args.stage,
+                    args.category,
+                )
+                print(
+                    f"APPROVED: {args.stage} {approval['category']} "
+                    f"by {approval['by']} at {approval['at']}"
+                )
+                return 0
         if args.cmd == "sprint":
             return _sprint_main(args)
         if args.cmd == "lesson":

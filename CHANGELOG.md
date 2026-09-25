@@ -7,6 +7,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.2.0] - 2026-09-25
+
+### Added
+
+- Planned stages can declare sensitive `approval_categories` from their
+  selected agent's harness profile.
+- `guild approval list` exposes pending decisions, while `guild approval grant`
+  records durable user provenance and a UTC timestamp in kernel state.
+- Pending lanes display as paused, remain absent from `ready`, and cannot be
+  claimed until every declared category is approved.
+
+### Security
+
+- Claude Code blocks a planned Guild subagent before its stage is both approved
+  and claimed, and denies subagent attempts to grant their own approval.
+- Native writes and write-shaped Bash targeting `docs/delivery/*/kernel.json`
+  are denied so approval records remain kernel-owned.
+- Existing production, destructive-SQL, and credential guards remain hard
+  denies; an approval record does not bypass them.
+
 ## [6.1.0] - 2026-09-25
 
 ### Added

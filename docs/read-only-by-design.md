@@ -49,7 +49,7 @@ without `--test`, `rm` / `mv` / `cp` / `chmod`) **only when the caller is
 `->` arrows. The reviewer-body instructions remain as the first layer;
 the hook is the enforcement behind them.
 
-> Scope note: both identity-aware guards are **Claude Code only** — Gemini
+> Scope note: the identity-aware guards are **Claude Code only** — Gemini
 > CLI's hook input carries no agent identity, so there the control remains
 > instruction + allowlist. Codex Core ships no subagents, so the question
 > doesn't arise.

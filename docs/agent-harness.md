@@ -24,6 +24,8 @@ Every agent run inherits these controls:
 - **Tool gateway:** production mutations, destructive database operations,
   secret writes, irreversible external actions, scope expansion, and changes
   to success criteria require a human decision or are denied by a guardrail.
+  A planned stage declares applicable profile categories up front. Pending
+  approval pauses dispatch; only a durable user grant permits the claim.
 - **Verification:** `VERIFIED` accepts registered runner records only. It never
   executes prose as a shell command.
 - **Return contract:** every specialist reports `STATUS`, `DID`, `VERIFIED`,
@@ -49,7 +51,24 @@ For new plans, pass typed `--stage-json` records. Each record must include
 `owned_paths`: a nonempty array for `task-owned` and `docs-only` profiles, or
 an empty array for a `deny` profile. The v6 kernel rejects the former
 comma-delimited `--stage` form because it cannot express a safe ownership
-boundary.
+boundary. Each record also carries `approval_categories`. Use an empty array
+only when none of the selected agent profile's categories applies.
+
+The kernel validates every declared category against the profile, marks the
+lane `⏸`, excludes it from `ready`, and rejects `claim` until all categories
+have a user approval record. Inspect and grant them from the main thread:
+
+```sh
+python3 scripts/guild-kernel/guild.py approval list \
+  --root . --name tags
+python3 scripts/guild-kernel/guild.py approval grant \
+  --root . --name tags --stage database \
+  --category "destructive migration"
+```
+
+The category, `by: user`, and UTC timestamp persist in `kernel.json`. The
+approval hook denies subagent grants and direct edits of kernel state. See
+[runtime stage approvals](approval-policy.md) for the boundary and examples.
 
 The native-write policy applies when an agent appears in an active kernel
 delivery. A queued or finished stage cannot edit; one running stage may edit

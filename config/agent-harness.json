@@ -56,6 +56,12 @@
         "SECURITY.md"
       ]
     },
+    "approvalPolicy": {
+      "stageField": "approval_categories",
+      "recordField": "approvals",
+      "authority": "user",
+      "requiredBeforeClaim": true
+    },
     "verification": "registered-runners-only"
   },
   "agents": {

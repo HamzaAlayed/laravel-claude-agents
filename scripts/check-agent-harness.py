@@ -112,6 +112,16 @@ def main() -> int:
                 path = pathlib.PurePosixPath(raw)
                 if path.is_absolute() or ".." in path.parts:
                     fail(f"invalid documentation path: {raw}", errors)
+    if shared.get("approvalPolicy") != {
+        "stageField": "approval_categories",
+        "recordField": "approvals",
+        "authority": "user",
+        "requiredBeforeClaim": True,
+    }:
+        fail(
+            "shared.approvalPolicy must require durable user approval before claim",
+            errors,
+        )
     if shared.get("verification") != "registered-runners-only":
         fail("shared.verification must remain registered-runners-only", errors)
 

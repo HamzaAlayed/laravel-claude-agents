@@ -100,6 +100,11 @@
         "date": "2026-09-22",
         "sha256": "3cf6e4b4264969384bad00d7ec2432bcbcec53cc511b9f26d9e88d22dd324db5",
         "reason": "Security and control-plane hardening: typed shell-free verification, explicit user approval for learned rules, kernel-owned ready/claim concurrency with path locks, runtime budgets/recovery, and trace redaction/retention. Covered by kernel/console units, guardrails, and deterministic trace replay. No billed feature run was authorized; ceilings were not raised."
+      },
+      {
+        "date": "2026-09-25",
+        "sha256": "92feb9cf2f97a35629a6b44b4cf73299c11fbc17709a0b27d65a2057138905af",
+        "reason": "Runtime stage approvals add one pre-dispatch gate without changing feature construction: declared categories are profile-validated, pending lanes are excluded from ready, claim fails before user approval, subagent self-grants and direct kernel-state writes are blocked, and durable provenance is covered by kernel units plus hook integration tests. No billed feature run was authorized; ceilings were not raised."
       }
     ]
   }
