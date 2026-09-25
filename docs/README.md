@@ -4,7 +4,7 @@ This page maps the `docs/` corpus so the next review — human or agent — star
 
 Adopting the pack on a Laravel app? [Run your first delivery](onboarding.md). Seeing it work in five minutes? The [README quickstart](../README.md#five-minute-quickstart).
 
-Last verified 2026-09-25 against pack v8.7.0.
+Last verified 2026-09-25 against pack v8.8.0.
 
 ## What lives where
 
@@ -23,6 +23,7 @@ Last verified 2026-09-25 against pack v8.7.0.
 | [`docs/onboarding.md`](onboarding.md) | Adopting-team guide: first delivery, `/teach`, reading a scorecard. |
 | [`docs/agent-harness.md`](agent-harness.md) | Shared lifecycle, budgets, approvals, verification, retries, recovery, and feedback routing plus all agent policy profiles. |
 | [`docs/orchestration-contract.md`](orchestration-contract.md) | Canonical pipeline lifecycle prose, generated carriers, maintenance workflow, and drift recovery. |
+| [`docs/adversarial-testing.md`](adversarial-testing.md) | Versioned engineering-loop attack matrix, threat boundary, protected invariants, and failure runbook. |
 | [`docs/feedback-routing.md`](feedback-routing.md) | How CI failures and review comments route to stage owners, pause when unresolved, and close with repair evidence. |
 | [`docs/recovery-policy.md`](recovery-policy.md) | How to inspect, freeze, continue, or stop a stranded stage claim without guessing work. |
 | [`docs/release-automation.md`](release-automation.md) | How to validate, publish, recover, and diagnose an immutable project release. |

@@ -22,6 +22,7 @@ JOBS = [
     "ratchet budgets",
     "console python units",
     "guild kernel units",
+    "adversarial engineering loop",
     "eval cost parser units",
     "console ui",
     "release automation",

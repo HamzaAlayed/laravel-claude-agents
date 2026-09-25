@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "scope": "malformed, replayed, concurrent, and filesystem-indirected engineering-loop inputs",
+  "excludes": [
+    "arbitrary code execution by another process with the same operating-system account",
+    "direct modification of kernel state after guardrail bypass"
+  ],
+  "invariants": [
+    "kernel-owned files remain inside the project root",
+    "only the delivery's registered stage artifact may report a result",
+    "untrusted verification text never becomes a shell command",
+    "approval, evidence, budget, retry, and routing rules fail closed",
+    "replay and concurrency cannot duplicate a legal transition"
+  ],
+  "cases": [
+    {"id": "ADV-001", "family": "path-containment", "attack": "delivery name traversal", "expected": "deny without an outside write"},
+    {"id": "ADV-002", "family": "path-containment", "attack": "delivery directory symlink escape", "expected": "deny without an outside write"},
+    {"id": "ADV-003", "family": "path-containment", "attack": "sprint id traversal", "expected": "deny without an outside write"},
+    {"id": "ADV-004", "family": "path-containment", "attack": "sprint directory symlink escape", "expected": "deny without an outside write"},
+    {"id": "ADV-005", "family": "artifact-integrity", "attack": "report substitution from outside the delivery", "expected": "deny before verification"},
+    {"id": "ADV-006", "family": "artifact-integrity", "attack": "stage report symlink escape", "expected": "deny before verification"},
+    {"id": "ADV-007", "family": "evidence-integrity", "attack": "shell payload disguised as verification", "expected": "deny without execution"},
+    {"id": "ADV-008", "family": "authority", "attack": "claim a sensitive stage before approval", "expected": "deny and preserve queued state"},
+    {"id": "ADV-009", "family": "measurement", "attack": "report before completion telemetry", "expected": "deny and preserve running state"},
+    {"id": "ADV-010", "family": "terminality", "attack": "continue after budget exhaustion", "expected": "deny and return no ready work"},
+    {"id": "ADV-011", "family": "terminality", "attack": "continue after a repeated tool cycle", "expected": "deny and stop delivery"},
+    {"id": "ADV-012", "family": "replay", "attack": "replay the same retry event", "expected": "one retry transition"},
+    {"id": "ADV-013", "family": "routing", "attack": "assert the wrong CI feedback owner", "expected": "deny without recording the event"},
+    {"id": "ADV-014", "family": "concurrency", "attack": "claim one lane concurrently twice", "expected": "one atomic claim"},
+    {"id": "ADV-015", "family": "stale-state", "attack": "submit an old report after retry requeue", "expected": "deny before verification"},
+    {"id": "ADV-016", "family": "authority", "attack": "spoof user or main-thread authority through kernel APIs", "expected": "deny without state mutation"},
+    {"id": "ADV-017", "family": "path-containment", "attack": "lesson directory symlink escape", "expected": "deny without an outside write"},
+    {"id": "ADV-018", "family": "trace-integrity", "attack": "control characters in a stage identifier", "expected": "deny before state creation"}
+  ]
+}

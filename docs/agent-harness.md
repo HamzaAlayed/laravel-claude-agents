@@ -36,6 +36,11 @@ Every agent run inherits these controls:
   ID needs passing evidence before a stage can finish. `VERIFIED` accepts
   registered runner records only and never executes prose as a shell command.
   Only a main-thread user decision can waive a criterion, with a durable reason.
+- **Adversarial gate:** the versioned attack matrix tests path containment,
+  artifact and evidence integrity, authority, measurement, terminal states,
+  replay, routing, and concurrency. Every denied attack also asserts that
+  kernel state and outside files remain unchanged. See
+  [adversarial engineering-loop testing](adversarial-testing.md).
 - **Return contract:** every specialist reports `STATUS`, `DID`, `VERIFIED`,
   `NOT-CHECKED`, `FLAGS`, and `NEXT`.
 - **Observability:** events carry run, trace, span, lane, tool, approval, usage,

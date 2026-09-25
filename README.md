@@ -218,6 +218,14 @@ then generated into all nine pipeline commands and the directly invoked
 delivery coordinator. CI rejects a stale, missing, or unexpected copy. See the
 [canonical orchestration contract](docs/orchestration-contract.md).
 
+**The loop is attacked before it is released.** A versioned adversarial matrix
+exercises traversal, symlink substitution, forged evidence, authority spoofing,
+missing measurements, terminal-state escape, replay, routing, stale reports,
+and concurrent claims. It asserts the exact safe post-state, including no
+mutation where denial must be side-effect-free, and its own required CI job
+gates publication. See
+[adversarial engineering-loop testing](docs/adversarial-testing.md).
+
 **Releases are gated artifacts, not a manual checklist.** The manual Release
 workflow freezes one clean `main` commit, requires every named CI job for that
 exact SHA, checks all version manifests and release documents, then creates one

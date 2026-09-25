@@ -41,7 +41,8 @@ jobs:
             .claude-plugin/plugin.json .claude-plugin/marketplace.json \
             .cursor-plugin/plugin.json .cursor-plugin/marketplace.json \
             gemini/gemini-extension.json gemini/hooks/hooks.json \
-            hooks/hooks.json config/agent-harness.json config/release-harness.json; do
+            hooks/hooks.json config/agent-harness.json config/adversarial-harness.json \
+            config/release-harness.json; do
             echo "validating $f"
             jq empty "$f"
           done
@@ -165,6 +166,14 @@ jobs:
         run: python3 -m unittest discover -s tests/kernel -t tests/kernel -v
       - name: Run orchestration contract units (stdlib unittest)
         run: python3 -m unittest discover -s tests/orchestration -t tests/orchestration -v
+
+  adversarial-engineering-loop:
+    name: adversarial engineering loop
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run the versioned adversarial attack matrix (stdlib unittest)
+        run: python3 -m unittest discover -s tests/adversarial -t tests/adversarial -v
 
   eval-cost-python:
     name: eval cost parser units

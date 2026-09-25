@@ -41,6 +41,7 @@ _CRITERION_ID = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
 _CHECKPOINT_ID = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
 _TOOL_SIGNATURE = re.compile(r"^[0-9a-f]{64}$")
 _RETRY_EVENT_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
+_RESOURCE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
 _BUDGET_KEYS = (
     "max_seconds",
     "max_tool_calls",
@@ -243,8 +244,54 @@ class Delivery:
     feedback_events: list = field(default_factory=list)
 
 
+def _safe_identifier(value, label):
+    if not isinstance(value, str) or not _RESOURCE_ID.fullmatch(value):
+        raise PlanError(
+            f"{label} must start with a letter or number and contain only "
+            "letters, numbers, dot, underscore, or hyphen"
+        )
+    return value
+
+
+def _project_path(root, *parts, label="kernel path"):
+    """Return a project path only when its current symlink chain stays inside root."""
+    root = pathlib.Path(root).resolve()
+    candidate = root.joinpath(*parts)
+    resolved = candidate.resolve(strict=False)
+    try:
+        resolved.relative_to(root)
+    except ValueError as exc:
+        raise PlanError(f"{label} escapes the project") from exc
+    return candidate
+
+
+def _delivery_dir(root, name):
+    name = _safe_identifier(name, "delivery name")
+    return _project_path(
+        root, "docs", "delivery", name, label="delivery path"
+    )
+
+
 def _state_path(root, name):
-    return pathlib.Path(root) / "docs" / "delivery" / name / "kernel.json"
+    return _project_path(
+        root,
+        "docs",
+        "delivery",
+        _safe_identifier(name, "delivery name"),
+        "kernel.json",
+        label="delivery path",
+    )
+
+
+def _state_lock_path(root, name):
+    return _project_path(
+        root,
+        "docs",
+        "delivery",
+        _safe_identifier(name, "delivery name"),
+        "kernel.lock",
+        label="delivery lock path",
+    )
 
 
 @contextmanager
@@ -348,7 +395,15 @@ def _lesson_id(norm):
 
 
 def _lessons_path(root):
-    return pathlib.Path(root) / "docs" / "team" / "lessons.json"
+    return _project_path(
+        root, "docs", "team", "lessons.json", label="lesson path"
+    )
+
+
+def _lessons_lock_path(root):
+    return _project_path(
+        root, "docs", "team", "lessons.lock", label="lesson lock path"
+    )
 
 
 def _load_lessons(root):
@@ -417,16 +472,18 @@ def render_lessons(data):
 
 
 def write_lessons_view(root, data):
-    path = pathlib.Path(root) / "docs" / "team" / "lessons.md"
+    path = _project_path(
+        root, "docs", "team", "lessons.md", label="lesson path"
+    )
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(render_lessons(data))
+    _write_text_atomic(path, render_lessons(data))
 
 
 def _record_lesson(root, delivery_name, agent, text):
     norm = _norm_flag(text)
     if not norm or norm == "none":
         return
-    with _file_lock(_lessons_path(root).with_suffix(".lock")):
+    with _file_lock(_lessons_lock_path(root)):
         _record_lesson_unlocked(root, delivery_name, agent, text, norm)
 
 
@@ -472,7 +529,7 @@ def _record_lesson_unlocked(root, delivery_name, agent, text, norm):
 def approve_lesson(root, lesson_id, *, approved_by="user"):
     if approved_by != "user":
         raise PlanError("learned rules can only be approved by the user")
-    with _file_lock(_lessons_path(root).with_suffix(".lock")):
+    with _file_lock(_lessons_lock_path(root)):
         data = _load_lessons(root)
         for lesson in data.get("lessons", []):
             if lesson.get("id") != lesson_id:
@@ -489,7 +546,7 @@ def approve_lesson(root, lesson_id, *, approved_by="user"):
 
 
 def _approved_rules(root, stages):
-    with _file_lock(_lessons_path(root).with_suffix(".lock")):
+    with _file_lock(_lessons_lock_path(root)):
         data = _load_lessons(root)
     agents = {stage.agent for stage in stages}
     rules = []
@@ -754,18 +811,18 @@ def render_feedback(delivery):
 
 
 def write_views(root, delivery, *, verified="none", not_checked="none"):
-    folder = pathlib.Path(root) / "docs" / "delivery" / delivery.name
+    folder = _delivery_dir(root, delivery.name)
     folder.mkdir(parents=True, exist_ok=True)
-    (folder / "close.md").write_text(
+    _write_text_atomic(folder / "close.md",
         render_close(delivery, verified=verified, not_checked=not_checked)
     )
-    (folder / "graph.md").write_text(render_graph(delivery))
-    (folder / "checkpoints.md").write_text(render_checkpoints(delivery))
-    (folder / "loops.md").write_text(render_loops(delivery))
-    (folder / "retries.md").write_text(render_retries(delivery))
-    (folder / "transitions.md").write_text(render_transitions(delivery))
-    (folder / "recoveries.md").write_text(render_recoveries(delivery))
-    (folder / "feedback.md").write_text(render_feedback(delivery))
+    _write_text_atomic(folder / "graph.md", render_graph(delivery))
+    _write_text_atomic(folder / "checkpoints.md", render_checkpoints(delivery))
+    _write_text_atomic(folder / "loops.md", render_loops(delivery))
+    _write_text_atomic(folder / "retries.md", render_retries(delivery))
+    _write_text_atomic(folder / "transitions.md", render_transitions(delivery))
+    _write_text_atomic(folder / "recoveries.md", render_recoveries(delivery))
+    _write_text_atomic(folder / "feedback.md", render_feedback(delivery))
 
 
 def _has_criteria(stage):
@@ -1124,7 +1181,7 @@ def approve_stage_action(
 ):
     if approved_by != "user":
         raise PlanError("stage actions can only be approved by the user")
-    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path = _state_lock_path(root, name)
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with _file_lock(lock_path):
         delivery = load(root, name)
@@ -1185,7 +1242,7 @@ def waive_stage_criterion(
     reason = " ".join(reason.split())
     if len(reason) > 500:
         raise PlanError("criterion waiver reason exceeds 500 characters")
-    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path = _state_lock_path(root, name)
     with _file_lock(lock_path):
         delivery = load(root, name)
         stage = next((item for item in delivery.stages if item.id == stage_id), None)
@@ -1305,7 +1362,7 @@ def open_checkpoint(
         "options": options,
         "recommended": recommended,
     }
-    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path = _state_lock_path(root, name)
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with _file_lock(lock_path):
         delivery = load(root, name)
@@ -1369,7 +1426,7 @@ def resolve_checkpoint(
     if answered_by != "user":
         raise PlanError("checkpoints can only be answered by the user")
     note = _checkpoint_text(note, "answer note", limit=500, required=False)
-    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path = _state_lock_path(root, name)
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with _file_lock(lock_path):
         delivery = load(root, name)
@@ -1604,7 +1661,7 @@ def request_retry(
     event_id,
     requested_by="main",
 ):
-    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path = _state_lock_path(root, name)
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with _file_lock(lock_path):
         delivery = load(root, name)
@@ -1677,7 +1734,7 @@ def interrupt_stage(
             "recovery event id must use letters, numbers, dot, underscore, colon, or hyphen"
         )
     observed_at = now or _now_utc()
-    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path = _state_lock_path(root, name)
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with _file_lock(lock_path):
         delivery = load(root, name)
@@ -1784,7 +1841,7 @@ def resolve_recovery(
     if any(char in note for char in "\r\n"):
         raise PlanError("recovery note must be a single line")
     note = note.strip()
-    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path = _state_lock_path(root, name)
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with _file_lock(lock_path):
         delivery = load(root, name)
@@ -2029,7 +2086,7 @@ def meter_tool_call(
     if target is None:
         return None
     name, stage_id = target
-    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path = _state_lock_path(root, name)
     with _file_lock(lock_path):
         delivery = load(root, name)
         stage = next(
@@ -2095,7 +2152,7 @@ def stop_stage_for_budget(root, agent, reason, *, event_id="", now=None):
     if target is None:
         return None
     name, stage_id = target
-    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path = _state_lock_path(root, name)
     with _file_lock(lock_path):
         delivery = load(root, name)
         stage = next(
@@ -2138,7 +2195,7 @@ def record_stage_usage(
     if target is None:
         return None
     name, stage_id = target
-    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path = _state_lock_path(root, name)
     with _file_lock(lock_path):
         delivery = load(root, name)
         stage = next(
@@ -2263,6 +2320,8 @@ def _validate_stages(stages):
     ids = [stage.id for stage in stages]
     if any(not isinstance(stage_id, str) or not stage_id.strip() for stage_id in ids):
         raise PlanError("stage ids must be nonempty strings")
+    for stage_id in ids:
+        _safe_identifier(stage_id, "stage id")
     if len(ids) != len(set(ids)):
         raise PlanError("stage ids must be unique")
     by_id = {stage.id: stage for stage in stages}
@@ -2306,12 +2365,20 @@ def _wip_count(root, sprint):
 
 
 def running_sprints(root):
-    base = pathlib.Path(root) / "docs" / "sprints"
+    base = _project_path(root, "docs", "sprints", label="sprint path")
     if not base.is_dir():
         return []
     found = []
     for path in sorted(base.glob("*/sprint.json")):
-        sprint = Sprint(**json.loads(path.read_text()))
+        resolved = path.resolve(strict=False)
+        try:
+            resolved.relative_to(base.resolve())
+        except ValueError as exc:
+            raise PlanError("sprint state path escapes the project") from exc
+        sprint = Sprint(**json.loads(resolved.read_text()))
+        _safe_identifier(sprint.id, "sprint id")
+        if sprint.id != path.parent.name:
+            raise PlanError("sprint state id does not match its directory")
         if sprint.status == "running":
             found.append(sprint)
     return found
@@ -2588,7 +2655,7 @@ def _activate_feedback_unlocked(root, delivery, event, stage, *, route):
 
 
 def _record_feedback(root, name, payload, *, asserted_stage=""):
-    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path = _state_lock_path(root, name)
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with _file_lock(lock_path):
         delivery = load(root, name)
@@ -2633,7 +2700,7 @@ def _record_feedback(root, name, payload, *, asserted_stage=""):
 def assign_feedback(root, name, event_id, stage_id, *, assigned_by="main"):
     if assigned_by != _FEEDBACK_POLICY["assignAuthority"]:
         raise PlanError("feedback routes can only be assigned by the main thread")
-    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path = _state_lock_path(root, name)
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with _file_lock(lock_path):
         delivery = load(root, name)
@@ -2892,7 +2959,7 @@ def _ready_for_delivery(delivery):
 
 def claim_stage(root, name, stage_id):
     """Atomically claim one ready lane before dispatching its agent."""
-    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path = _state_lock_path(root, name)
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with _file_lock(lock_path):
         delivery = load(root, name)
@@ -3129,8 +3196,43 @@ def _validate_not_checked(stage, not_checked):
             )
 
 
+def _trusted_report_path(root, name, path):
+    expected = _project_path(
+        root,
+        "docs",
+        "delivery",
+        _safe_identifier(name, "delivery name"),
+        "stages",
+        label="delivery stage directory",
+    )
+    candidate = pathlib.Path(path)
+    if not candidate.is_absolute():
+        candidate = pathlib.Path(root) / candidate
+    if candidate.suffix != ".md" or candidate.is_symlink():
+        raise ReportError(
+            "report must be a regular Markdown file in the delivery stage directory"
+        )
+    try:
+        parent = candidate.parent.resolve(strict=False)
+        expected_parent = expected.resolve(strict=False)
+    except OSError as exc:
+        raise ReportError("cannot resolve the delivery stage directory") from exc
+    if parent != expected_parent:
+        raise ReportError("report must be inside the delivery stage directory")
+    try:
+        candidate.resolve(strict=False).relative_to(pathlib.Path(root).resolve())
+    except ValueError as exc:
+        raise ReportError("report must be inside the delivery stage directory") from exc
+    return candidate
+
+
 def report(root, name, path, runner):
-    fields = _parse_labels(pathlib.Path(path).read_text())
+    path = _trusted_report_path(root, name, path)
+    try:
+        text = path.read_text(encoding="utf-8")
+    except (OSError, UnicodeError) as exc:
+        raise ReportError("cannot read the delivery stage report") from exc
+    fields = _parse_labels(text)
     verifications = []
     for raw in fields["VERIFIED"]:
         verifications.append(_parse_verification(raw))
@@ -3161,7 +3263,7 @@ def report(root, name, path, runner):
         if _run_verification(root, spec, runner) != 0:
             raise ReportError(f"verification failed: {_verification_text(spec)}")
 
-    with _file_lock(_state_path(root, name).with_suffix(".lock")):
+    with _file_lock(_state_lock_path(root, name)):
         return _commit_report(root, name, path, fields, verifications)
 
 
@@ -3303,17 +3405,45 @@ class Sprint:
 
 
 def _sprint_dir(root, sprint_id):
-    return pathlib.Path(root) / "docs" / "sprints" / sprint_id
+    sprint_id = _safe_identifier(sprint_id, "sprint id")
+    return _project_path(
+        root, "docs", "sprints", sprint_id, label="sprint path"
+    )
+
+
+def _sprint_state_path(root, sprint_id):
+    return _project_path(
+        root,
+        "docs",
+        "sprints",
+        _safe_identifier(sprint_id, "sprint id"),
+        "sprint.json",
+        label="sprint state path",
+    )
+
+
+def _sprint_view_path(root, sprint_id):
+    return _project_path(
+        root,
+        "docs",
+        "sprints",
+        _safe_identifier(sprint_id, "sprint id"),
+        "sprint.md",
+        label="sprint view path",
+    )
 
 
 def save_sprint(root, sprint):
     folder = _sprint_dir(root, sprint.id)
     folder.mkdir(parents=True, exist_ok=True)
-    (folder / "sprint.json").write_text(json.dumps(asdict(sprint), indent=2) + "\n")
+    _write_text_atomic(
+        _sprint_state_path(root, sprint.id),
+        json.dumps(asdict(sprint), indent=2) + "\n",
+    )
 
 
 def load_sprint(root, sprint_id):
-    data = json.loads((_sprint_dir(root, sprint_id) / "sprint.json").read_text())
+    data = json.loads(_sprint_state_path(root, sprint_id).read_text())
     return Sprint(**data)
 
 
@@ -3342,7 +3472,7 @@ def render_sprint(root, sprint):
 def write_sprint_view(root, sprint):
     folder = _sprint_dir(root, sprint.id)
     folder.mkdir(parents=True, exist_ok=True)
-    (folder / "sprint.md").write_text(render_sprint(root, sprint))
+    _write_text_atomic(_sprint_view_path(root, sprint.id), render_sprint(root, sprint))
 
 
 def sprint_start(root, *, id, goal, wip):
@@ -3379,4 +3509,4 @@ def sprint_close(root, sprint_id, *, force=False):
 def sprint_text(root, sprint_id):
     sprint = load_sprint(root, sprint_id)
     write_sprint_view(root, sprint)
-    return (_sprint_dir(root, sprint_id) / "sprint.md").read_text()
+    return _sprint_view_path(root, sprint_id).read_text()

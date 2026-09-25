@@ -579,6 +579,19 @@ expect "CI checks the canonical orchestration source" "1" \
   "$(grep -c 'sync-orchestration-contract.py --check' "$SCRIPT_DIR/.github/workflows/ci.yml")"
 expect "CI runs canonical orchestration unit tests" "1" \
   "$(grep -c 'unittest discover -s tests/orchestration' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "one versioned adversarial attack matrix is committed" "1" \
+  "$(python3 - "$SCRIPT_DIR/config/adversarial-harness.json" <<'PY'
+import json, pathlib, sys
+payload = json.loads(pathlib.Path(sys.argv[1]).read_text())
+print(1 if payload.get("schemaVersion") == 1 and len(payload.get("cases", [])) == 18 else 0)
+PY
+)"
+expect "CI has a separate adversarial engineering-loop gate" "1" \
+  "$(grep -c '^    name: adversarial engineering loop$' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "CI runs the versioned adversarial attack suite" "1" \
+  "$(grep -c 'unittest discover -s tests/adversarial' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "release publication requires the adversarial gate" "1" \
+  "$(grep -c '"adversarial engineering loop"' "$SCRIPT_DIR/config/release-harness.json")"
 expect "Interface block binds the final answer to VERIFIED + NOT-CHECKED" "9" \
   "$(grep -l 'Your own final answer closes the same way' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # Tranche item 2 lived only in agents/delivery-coordinator.md, and eval run 6's

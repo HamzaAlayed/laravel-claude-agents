@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.8.0] - 2026-09-25
+
+### Added
+
+- A versioned adversarial engineering-loop harness covering 18 attacks across
+  path containment, artifact and evidence integrity, authority, measurement,
+  terminal states, replay, routing, stale state, trace integrity, and
+  concurrency.
+- A dedicated `adversarial engineering loop` CI job that is required by the
+  immutable release harness, plus a threat-model and failure-recovery runbook.
+
+### Changed
+
+- Delivery, sprint, and stage identifiers now use bounded safe characters, and
+  every kernel-owned delivery, sprint, and lesson path resolves inside the
+  project before it is read or written.
+- Stage reports must be regular Markdown files in the registered delivery's
+  `stages/` directory; foreign and symlinked reports are rejected before any
+  verifier runs.
+
+### Fixed
+
+- Crafted delivery or sprint identifiers can no longer traverse outside the
+  project and create kernel-owned files there.
+- Symlinked delivery, sprint, lesson, or report paths can no longer redirect
+  kernel I/O outside its project boundary.
+- A valid-looking report from an unrelated path can no longer complete a
+  claimed stage.
+
+### Security
+
+- Every attack asserts its exact safe post-state, including no mutation for
+  side-effect-free denials, so a fail-after-write result cannot be counted as
+  protection.
+
 ## [8.7.0] - 2026-09-25
 
 ### Added
