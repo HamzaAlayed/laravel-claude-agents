@@ -41,7 +41,7 @@ jobs:
             .claude-plugin/plugin.json .claude-plugin/marketplace.json \
             .cursor-plugin/plugin.json .cursor-plugin/marketplace.json \
             gemini/gemini-extension.json gemini/hooks/hooks.json \
-            hooks/hooks.json config/agent-harness.json; do
+            hooks/hooks.json config/agent-harness.json config/release-harness.json; do
             echo "validating $f"
             jq empty "$f"
           done
@@ -171,6 +171,16 @@ jobs:
         run: python3 -m unittest discover -s tests/eval -t tests/eval -p 'test_*.py' -v
       - name: Replay recorded SDK traces through the production console normalizer
         run: python3 scripts/replay-console-traces.py tests/eval/fixtures/stream-json-sample.jsonl tests/eval/fixtures/stream-json-subagent.jsonl
+
+  release-automation:
+    name: release automation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run release harness units
+        run: python3 -m unittest discover -s tests/release -t tests/release -v
+      - name: Validate current release artifacts
+        run: python3 scripts/release.py validate --version "$(tr -d '[:space:]' < VERSION)"
 
   console-ui:
     name: console ui

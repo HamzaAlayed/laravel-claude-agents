@@ -1147,6 +1147,37 @@ expect "the eval harness hard-gates committed ceilings" "1" \
   "$(grep -c 'scripts/check-eval-budget.py' "$SCRIPT_DIR/tests/eval/run-evals.sh")"
 expect "CI continuously replays recorded traces" "1" \
   "$(grep -c 'scripts/replay-console-traces.py' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "CI runs the release harness units" "1" \
+  "$(grep -c 'unittest discover -s tests/release' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "CI validates the synchronized release artifacts" "1" \
+  "$(grep -c 'scripts/release.py validate' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "release publication is manual only" "1" \
+  "$(grep -c '^  workflow_dispatch:' "$SCRIPT_DIR/.github/workflows/release.yml")"
+expect "release workflow has no automatic push trigger" "0" \
+  "$(grep -c '^  push:' "$SCRIPT_DIR/.github/workflows/release.yml" || true)"
+# shellcheck disable=SC2016 # literal GitHub expression in the workflow
+expect "release workflow freezes checkout at the requested commit" "1" \
+  "$(grep -c 'ref: \${{ github.sha }}' "$SCRIPT_DIR/.github/workflows/release.yml")"
+expect "release workflow writes a durable receipt artifact" "2" \
+  "$(grep -c 'release-receipt.json' "$SCRIPT_DIR/.github/workflows/release.yml")"
+expect "release workflow invokes the fail-closed publisher once" "1" \
+  "$(grep -c 'scripts/release.py publish' "$SCRIPT_DIR/.github/workflows/release.yml")"
+expect "release publisher exposes no force flag" "0" \
+  "$(grep -c -- '\-\-force' "$SCRIPT_DIR/scripts/release.py" || true)"
+expect "release harness requires annotated non-force publication" "annotated False" \
+  "$(python3 - "$SCRIPT_DIR/config/release-harness.json" <<'PY'
+import json, sys
+policy = json.load(open(sys.argv[1]))["publication"]
+print(policy["tagType"], policy["force"])
+PY
+)"
+expect "release harness gates the release automation job itself" "1" \
+  "$(python3 - "$SCRIPT_DIR/config/release-harness.json" <<'PY'
+import json, sys
+jobs = json.load(open(sys.argv[1]))["requiredCiJobs"]
+print(jobs.count("release automation"))
+PY
+)"
 expect "scheduled live evals require an explicit repository opt-in" "1" \
   "$(grep -c "vars.ENABLE_SCHEDULED_LIVE_EVALS == 'true'" "$SCRIPT_DIR/.github/workflows/live-evals.yml")"
 # Megabytes per case, and tests/eval/results/ is committed. The derived summary

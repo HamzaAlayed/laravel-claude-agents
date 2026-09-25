@@ -7,6 +7,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.6.0] - 2026-09-25
+
+### Added
+
+- A manual GitHub release workflow backed by a versioned, machine-readable
+  release harness and an immutable Python publisher.
+- Release-harness unit tests, a required hosted-CI job, and a retained JSON
+  receipt that records the exact commit, tag, artifacts, and successful gates.
+- A release-automation runbook covering preflight, publication, recovery, and
+  failure diagnosis without deleting or replacing published state.
+
+### Changed
+
+- Releases now require synchronized versions across `VERSION` and all five
+  distribution manifests, complete release notes, an exact clean `main`
+  commit, and every named CI job passing for that commit.
+- Publication uses an annotated `vX.Y.Z` tag and is idempotent: rerunning a
+  matching published release is a no-op, while any conflicting state fails.
+
+### Fixed
+
+- A release can no longer be assembled from a dirty checkout, stale branch,
+  partial manifest bump, missing notes, failed or incomplete CI, lightweight
+  tag, or mismatched existing tag.
+- Git and GitHub inspection failures are no longer mistaken for absent state.
+
+### Security
+
+- The publisher invokes subprocesses without a shell, validates all user
+  inputs, exposes no force or delete path, and grants the workflow only
+  `actions: read` and `contents: write`.
+
 ## [8.5.0] - 2026-09-25
 
 ### Added

@@ -1,0 +1,56 @@
+name: Release
+run-name: Release v${{ inputs.version }}
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Stable version without the v prefix
+        required: true
+        type: string
+      title:
+        description: Full release title (Laravel Guild X.Y.Z — Name)
+        required: true
+        type: string
+
+concurrency:
+  group: release-publication
+  cancel-in-progress: false
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish:
+    name: publish immutable release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          fetch-depth: 0
+          ref: ${{ github.sha }}
+      - name: Configure annotated tag identity
+        run: |
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+      - name: Validate, gate, tag, and publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_VERSION: ${{ inputs.version }}
+          RELEASE_TITLE: ${{ inputs.title }}
+        run: |
+          python3 scripts/release.py publish \
+            --version "$RELEASE_VERSION" \
+            --title "$RELEASE_TITLE" \
+            --repo "$GITHUB_REPOSITORY" \
+            --commit "$GITHUB_SHA" \
+            --receipt "$RUNNER_TEMP/release-receipt.json"
+      - name: Publish release receipt
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-v${{ inputs.version }}-receipt
+          path: ${{ runner.temp }}/release-receipt.json
+          if-no-files-found: error
+          retention-days: 90

@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "branch": "main",
+  "ciWorkflow": "CI",
+  "tagPrefix": "v",
+  "releaseNotesDirectory": "docs/releases",
+  "versionFiles": [
+    {"path": ".claude-plugin/plugin.json", "field": "version"},
+    {"path": ".claude-plugin/marketplace.json", "field": "plugins.0.version"},
+    {"path": ".cursor-plugin/plugin.json", "field": "version"},
+    {"path": ".cursor-plugin/marketplace.json", "field": "plugins.0.version"},
+    {"path": "gemini/gemini-extension.json", "field": "version"}
+  ],
+  "requiredCiJobs": [
+    "shellcheck",
+    "guardrail tests",
+    "plugin & marketplace manifests",
+    "agent & command frontmatter",
+    "gemini extension",
+    "codex target",
+    "ratchet budgets",
+    "console python units",
+    "guild kernel units",
+    "eval cost parser units",
+    "console ui",
+    "release automation"
+  ],
+  "requiredReleaseNoteHeadings": [
+    "## What’s new",
+    "## Breaking changes",
+    "## Fixes",
+    "## Compatibility",
+    "## Verification"
+  ],
+  "publication": {
+    "tagType": "annotated",
+    "draft": false,
+    "prerelease": false,
+    "force": false
+  }
+}

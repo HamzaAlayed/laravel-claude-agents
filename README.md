@@ -212,6 +212,13 @@ lifecycle. Approved lessons feed the next plan. Single-specialist
 work uses a fast path and skips pipeline ceremony. A confirmed process
 interruption freezes its claim before any resumed work is dispatched.
 
+**Releases are gated artifacts, not a manual checklist.** The manual Release
+workflow freezes one clean `main` commit, requires every named CI job for that
+exact SHA, checks all version manifests and release documents, then creates one
+annotated immutable tag and a GitHub release. Safe reruns recover partial
+publication without force-pushing, replacing, or deleting state. See the
+[release automation runbook](docs/release-automation.md).
+
 **One shared harness, 18 narrow policy profiles.** Lifecycle, budgets, owned
 paths, approvals, typed verification, traces, and recovery are shared runtime
 mechanics. Each agent adds only its mutation scope, approval categories, and
@@ -697,7 +704,10 @@ The guardrail scripts are covered by a zero-dependency test harness — no `bats
 ./tests/guardrails.test.sh        # Full hook, fallback, installer, and policy harness
 ```
 
-CI (`.github/workflows/ci.yml`) runs `shellcheck`, the harness (with and without `jq`), JSON manifest validation, and agent/command frontmatter linting on every PR.
+CI (`.github/workflows/ci.yml`) runs `shellcheck`, the harness (with and without
+`jq`), JSON manifest validation, agent/command frontmatter linting, and release
+automation tests on every PR. Maintainers publish a verified commit through the
+manual [release workflow and runbook](docs/release-automation.md).
 
 Adding an agent or command? See [CONTRIBUTING.md](CONTRIBUTING.md) and the deeper [docs/authoring-agents.md](docs/authoring-agents.md). The docs corpus is indexed in [docs/README.md](docs/README.md). Changes are tracked in [CHANGELOG.md](CHANGELOG.md).
 
