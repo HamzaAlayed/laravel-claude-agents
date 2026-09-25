@@ -14,6 +14,8 @@ allowed-tools: Agent, Read, Write, Edit, Bash, Grep, Glob, AskUserQuestion
 
 > **Loop guard:** The runtime hashes every tool name plus input for a claimed specialist. If the exact same 1–4-step cycle reaches three repetitions, it blocks the repeated call, fails that lane, and stops the delivery without storing raw input. On `unproductive ... tool cycle`, call `loop list`, print `board`, and stop dispatch. Never retry the same sequence; a new attempt requires an explicitly changed brief or plan.
 
+> **Retry transitions:** At every start or resume, call `retry list` and `transition list`. A queued lane cannot `report`; only a freshly claimed `running` lane with completion telemetry may report. For an incomplete or failed specialist return, only the main thread calls `retry request --stage <id> --source stage-return|verification --reason <why> --event-id <stable-id>` after telemetry is recorded. The first distinct request invalidates stale stage evidence and requeues the same owner; the next `ready` row carries attempt 2 plus the retry reason, and a normal atomic `claim` starts it. A duplicate event ID is a no-op. A second distinct failure marks the stage `failed` and the delivery `stopped`; print the board and ask the human instead of dispatching again. Confirmed CI and review feedback ingested by the kernel uses this same lifecycle.
+
 Scaffold the feature described by `{{args}}` end-to-end, using the right specialist for each layer. Default to the frontend paradigm already used in the project unless explicitly overridden.
 
 ## Plan

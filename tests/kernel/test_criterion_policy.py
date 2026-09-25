@@ -52,6 +52,23 @@ class CriterionPolicyTest(unittest.TestCase):
         )
 
     def report(self, criteria):
+        stage = kernel.load(self.root, "tag").stages[0]
+        if stage.status == "queued":
+            kernel.claim_stage(self.root, "tag", "backend")
+            stage = kernel.load(self.root, "tag").stages[0]
+        if stage.claimed_at:
+            kernel.record_stage_usage(
+                self.root,
+                stage.agent,
+                {
+                    "seconds": 0,
+                    "tool_calls": 0,
+                    "turns": 0,
+                    "tokens": 0,
+                    "cost_usd": 0,
+                },
+                expected_target=("tag", "backend"),
+            )
         path = self.root / "docs/delivery/tag/stages/backend-developer.md"
         path.parent.mkdir(parents=True, exist_ok=True)
         verified = "".join(
@@ -130,7 +147,7 @@ class CriterionPolicyTest(unittest.TestCase):
         self.plan(ids=["controller", "authorization"])
         with self.assertRaisesRegex(kernel.ReportError, "authorization"):
             self.report(["controller"])
-        self.assertEqual(kernel.load(self.root, "tag").stages[0].status, "queued")
+        self.assertEqual(kernel.load(self.root, "tag").stages[0].status, "running")
 
     def test_every_criterion_with_passing_evidence_completes_stage(self):
         self.plan(ids=["controller", "authorization"])
@@ -143,6 +160,18 @@ class CriterionPolicyTest(unittest.TestCase):
 
     def test_unknown_criterion_is_rejected_before_external_runner(self):
         self.plan(ids=["controller", "authorization"])
+        kernel.claim_stage(self.root, "tag", "backend")
+        kernel.record_stage_usage(
+            self.root,
+            "backend-developer",
+            {
+                "seconds": 0,
+                "tool_calls": 0,
+                "turns": 0,
+                "tokens": 0,
+                "cost_usd": 0,
+            },
+        )
         path = self.root / "docs/delivery/tag/stages/backend-developer.md"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(

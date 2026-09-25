@@ -195,6 +195,21 @@ def main() -> int:
             "shared.loopPolicy must stop repeated exact tool-call cycles",
             errors,
         )
+    if shared.get("retryPolicy") != {
+        "attemptField": "attempts",
+        "reasonField": "retry_reason",
+        "eventField": "retry_events",
+        "transitionField": "transition_events",
+        "maxRetries": 1,
+        "requestAuthority": "main",
+        "retryStatus": "queued",
+        "exhaustedStageStatus": "failed",
+        "exhaustedDeliveryStatus": "stopped",
+    }:
+        fail(
+            "shared.retryPolicy must requeue one main-thread retry then stop",
+            errors,
+        )
     if shared.get("verification") != "registered-runners-only":
         fail("shared.verification must remain registered-runners-only", errors)
 

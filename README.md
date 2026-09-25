@@ -204,10 +204,11 @@ Each run's misses become levers, ship in the next release, and get re-measured �
 ![Laravel Guild engineering loop — request routing, planning, bounded specialist execution, verification, CI feedback, and approved learning](docs/images/engineering-loop.svg)
 
 The default multi-stage loop is `plan → approve if needed → ready → claim → delegate → verify →
-report → integrate → review`. A failed stage is re-briefed to the same owner
-once; a second failure stops the lane for a human decision. Confirmed CI and
-review feedback may reopen one responsible stage. Approved lessons feed the
-next plan. Single-specialist work uses a fast path and skips pipeline ceremony.
+report → integrate → review`. A failed stage is requeued to the same owner for
+one fresh atomic claim; a second distinct failure marks the lane failed and
+stops delivery for a human decision. Confirmed CI and review feedback use the
+same retry lifecycle. Approved lessons feed the next plan. Single-specialist
+work uses a fast path and skips pipeline ceremony.
 
 **One shared harness, 18 narrow policy profiles.** Lifecycle, budgets, owned
 paths, approvals, typed verification, traces, and recovery are shared runtime
@@ -246,6 +247,15 @@ execution, the lane fails, and the delivery stops. Only hashes and tool names
 persist—never raw inputs. `guild loop list` and the generated
 `docs/delivery/<name>/loops.md` explain what repeated. See
 [unproductive-loop detection](docs/loop-policy.md).
+
+**Retries are auditable state transitions.** Only the main thread may request a
+retry, after the completed attempt records its budget telemetry. The first
+distinct failure invalidates stale evidence and requeues the lane; `ready`
+returns attempt 2 and the exact reason, and `claim` rechecks the normal dispatch
+constraints. Duplicate event IDs are safe. A second distinct failure changes
+the stage to `failed` and the delivery to `stopped`. `guild retry list`, `guild
+transition list`, and generated `retries.md` / `transitions.md` views preserve
+the full trail. See [auditable stage retries](docs/retry-policy.md).
 
 **Stage budgets stop work instead of becoming advice.** Every planned lane
 snapshots an effective limit for seconds, tool calls, turns, tokens, and USD.

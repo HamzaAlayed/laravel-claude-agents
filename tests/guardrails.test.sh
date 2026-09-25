@@ -375,6 +375,10 @@ expect "main thread may resolve a durable checkpoint through the kernel CLI" "$A
   "$(run_approval_policy "$APPROVAL_TMP" '{"tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py checkpoint resolve --root . --name tag --id migration-risk --option approve"}}')"
 expect "subagent cannot resolve its own checkpoint" "$BLOCK" \
   "$(run_approval_policy "$APPROVAL_TMP" '{"agent_type":"laravel-team:database-developer","tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py checkpoint resolve --root . --name tag --id migration-risk --option approve"}}')"
+expect "main thread may request an explicit stage retry through the kernel CLI" "$ALLOW" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py retry request --root . --name tag --stage database --source stage-return --reason missing-evidence --event-id turn:1"}}')"
+expect "subagent cannot request its own stage retry" "$BLOCK" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"agent_type":"laravel-team:database-developer","tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py retry request --root . --name tag --stage database --source stage-return --reason self-retry --event-id turn:1"}}')"
 expect "pending approval blocks subagent Bash before claim" "$BLOCK" \
   "$(run_approval_policy "$APPROVAL_TMP" '{"agent_type":"laravel-team:database-developer","tool_name":"Bash","tool_input":{"command":"php artisan migrate"}}')"
 expect "unrelated Guild agent is not blocked by another lane's approval" "$ALLOW" \
@@ -666,6 +670,19 @@ expect "Interface block inspects loop evidence and stops dispatch" "9" \
   "$(grep -l 'call `loop list`, print `board`, and stop dispatch' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block forbids an unchanged loop retry" "9" \
   "$(grep -l 'Never retry the same sequence' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal retry commands in the Interface needle
+expect "Interface block inspects retries and transitions on resume" "9" \
+  "$(grep -l 'every start or resume, call `retry list` and `transition list`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block leaves retry requests to the main thread" "9" \
+  "$(grep -l 'only the main thread calls `retry request' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal `claim` in the Interface needle
+expect "Interface block requires a fresh retry claim" "9" \
+  "$(grep -l 'normal atomic `claim` starts it' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block makes duplicate retry events idempotent" "9" \
+  "$(grep -l 'duplicate event ID is a no-op' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal status backticks in the Interface needle
+expect "Interface block stops after retry exhaustion" "9" \
+  "$(grep -l 'second distinct failure marks the stage `failed` and the delivery `stopped`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # shellcheck disable=SC2016 # literal `board` backticks in the Interface needle
 expect "Interface block prints the kernel board" "9" \
   "$(grep -l '`board` to print' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
@@ -745,6 +762,19 @@ expect "coordinator inspects durable loop evidence" "1" \
   "$(grep -c 'call `loop list`, print the stopped board' "$COORD")"
 expect "coordinator forbids an unchanged loop retry" "1" \
   "$(grep -c 'Never retry the same sequence' "$COORD")"
+# shellcheck disable=SC2016 # literal retry commands in the coordinator needle
+expect "coordinator inspects retries and transitions on resume" "1" \
+  "$(grep -c 'every start or resume, call `retry list` and `transition list`' "$COORD")"
+expect "coordinator leaves retry requests to the main thread" "1" \
+  "$(grep -c 'only the main thread calls `retry request' "$COORD")"
+# shellcheck disable=SC2016 # literal `claim` in the coordinator needle
+expect "coordinator requires a fresh retry claim" "1" \
+  "$(grep -c 'normal atomic `claim` begins the attempt' "$COORD")"
+expect "coordinator makes duplicate retry events idempotent" "1" \
+  "$(grep -c 'Duplicate event IDs are no-ops' "$COORD")"
+# shellcheck disable=SC2016 # literal status backticks in the coordinator needle
+expect "coordinator stops after retry exhaustion" "1" \
+  "$(grep -c 'second distinct failure marks the stage `failed` and the delivery `stopped`' "$COORD")"
 expect "coordinator does not merge" "1" \
   "$(grep -c 'Do not merge\.' "$COORD")"
 expect "coordinator copies the stage-return stub when persisting read-only" "1" \

@@ -3,7 +3,7 @@
 
 Claude Code sends PreToolUse payloads on stdin. The kernel is the only writer
 of docs/delivery/*/kernel.json, and only the main thread may grant approvals,
-waive criteria, or open and resolve checkpoints. Guild subagents participating
+waive criteria, open or resolve checkpoints, or request retries. Guild subagents participating
 in an active delivery must have exactly one claimed stage whose declared
 approvals are complete.
 """
@@ -25,7 +25,7 @@ _KERNEL_PATH = re.compile(r"(?:^|/)docs/delivery/[^/]+/kernel\.json$")
 _KERNEL_TEXT = re.compile(r"(?:^|[\s'\"])(?:[^\s'\"]*/)?docs/delivery/[^\s'\"]+/kernel\.json(?:$|[\s'\"])")
 _CONTROL_PLANE_ACTION = re.compile(
     r"guild\.py\b.*\b(?:approval\s+grant|criterion\s+waive|"
-    r"checkpoint\s+(?:open|resolve))\b",
+    r"checkpoint\s+(?:open|resolve)|retry\s+request)\b",
     re.DOTALL,
 )
 _SHELL_MUTATION = re.compile(
@@ -59,6 +59,7 @@ def _guild_agents() -> set[str]:
         approval_policy = payload["shared"]["approvalPolicy"]
         criterion_policy = payload["shared"]["criterionPolicy"]
         checkpoint_policy = payload["shared"]["checkpointPolicy"]
+        retry_policy = payload["shared"]["retryPolicy"]
     except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
         raise ApprovalStateError(f"invalid agent harness registry at {path}") from exc
     if not isinstance(profiles, dict):
@@ -84,6 +85,18 @@ def _guild_agents() -> set[str]:
         "pausedStatus": "paused",
         "answerAuthority": "user",
         "optionActions": ["continue", "stop"],
+    }:
+        raise ApprovalStateError(f"invalid agent harness registry at {path}")
+    if retry_policy != {
+        "attemptField": "attempts",
+        "reasonField": "retry_reason",
+        "eventField": "retry_events",
+        "transitionField": "transition_events",
+        "maxRetries": 1,
+        "requestAuthority": "main",
+        "retryStatus": "queued",
+        "exhaustedStageStatus": "failed",
+        "exhaustedDeliveryStatus": "stopped",
     }:
         raise ApprovalStateError(f"invalid agent harness registry at {path}")
     return set(profiles)
@@ -211,7 +224,7 @@ def main() -> int:
         if _CONTROL_PLANE_ACTION.search(command) and agent:
             return _block(
                 "subagents cannot grant approvals, create criterion waivers, "
-                "or mutate checkpoints"
+                "mutate checkpoints, or request retries"
             )
         if _KERNEL_TEXT.search(command) and _SHELL_MUTATION.search(command):
             return _block("Bash cannot mutate kernel.json directly")

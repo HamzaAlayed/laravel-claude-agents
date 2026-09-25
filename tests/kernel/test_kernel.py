@@ -12,6 +12,29 @@ sys.path.insert(0, str(REPO / "scripts" / "guild-kernel"))
 import kernel  # noqa: E402
 
 
+def claim_and_measure(root, name, stage_id="a"):
+    delivery = kernel.load(root, name)
+    stage = next(item for item in delivery.stages if item.id == stage_id)
+    if stage.status == "queued":
+        kernel.claim_stage(root, name, stage_id)
+        stage = next(
+            item for item in kernel.load(root, name).stages if item.id == stage_id
+        )
+    if stage.claimed_at:
+        kernel.record_stage_usage(
+            root,
+            stage.agent,
+            {
+                "seconds": 0,
+                "tool_calls": 0,
+                "turns": 0,
+                "tokens": 0,
+                "cost_usd": 0,
+            },
+            expected_target=(name, stage_id),
+        )
+
+
 def verify_artisan(filter_name):
     return json.dumps(
         {"criterion":"criterion-1","runner": "artisan-test", "args": [f"--filter={filter_name}"]},
@@ -307,12 +330,14 @@ class ReportTest(unittest.TestCase):
         self.tmp.cleanup()
 
     def _plan_one(self):
-        return kernel.plan(
+        delivery = kernel.plan(
             root=self.root,
             name="tag",
             done_when="x",
             stages=[scoped_stage("a", "database-developer", "writer", ["tags migration exists"], [])],
         )
+        claim_and_measure(self.root, "tag")
+        return delivery
 
     def test_prose_verified_is_rejected(self):
         self._plan_one()
@@ -453,6 +478,7 @@ class ReportTest(unittest.TestCase):
                 )
             ],
         )
+        claim_and_measure(self.root, "tag")
         path = self.root / "docs/delivery/tag/stages/backend-developer.md"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
@@ -479,6 +505,7 @@ class ReportTest(unittest.TestCase):
                 )
             ],
         )
+        claim_and_measure(self.root, "tag")
         path = self.root / "docs/delivery/tag/stages/backend-developer.md"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
@@ -525,6 +552,12 @@ class SkipCapTest(unittest.TestCase):
         return p
 
     def _ok_report(self, agent="database-developer", *, did="app/Models/Tag.php"):
+        stage = next(
+            item
+            for item in kernel.load(self.root, "tag").stages
+            if item.agent == agent
+        )
+        claim_and_measure(self.root, "tag", stage.id)
         p = self._write_stage(agent, did=did)
         return kernel.report(
             self.root,
@@ -552,15 +585,16 @@ class SkipCapTest(unittest.TestCase):
         did.unlink()
         self.assertEqual(kernel.next_agent(self.root, "tag"), "database-developer")
 
-    def test_spawns_at_cap_stops_when_done_when_unmet(self):
+    def test_duplicate_done_report_cannot_consume_spawn_capacity(self):
         self._plan_two()
-        d = None
-        for _ in range(4):
-            d = self._ok_report()
-        self.assertEqual(d.spawns, 4)
-        self.assertEqual(d.cap, 4)
-        self.assertEqual(d.status, "stopped")
-        self.assertEqual(kernel.next_agent(self.root, "tag"), "STOP")
+        self._ok_report()
+        with self.assertRaisesRegex(
+            kernel.ReportError, "report requires a claimed running stage"
+        ):
+            self._ok_report()
+        delivery = kernel.load(self.root, "tag")
+        self.assertEqual(delivery.spawns, 1)
+        self.assertEqual(delivery.status, "running")
 
     def test_plan_on_running_kernel_does_not_reset_spawns(self):
         self._plan_two()
@@ -663,6 +697,7 @@ class ViewsCliTest(unittest.TestCase):
 
     def test_report_rewrites_close_helper_shape(self):
         self._plan_two()
+        claim_and_measure(self.root, "tag")
         p = self.root / "docs/delivery/tag/stages/database-developer.md"
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(
@@ -1229,6 +1264,7 @@ class LessonTest(unittest.TestCase):
             done_when="POST /api/tags creates a Tag",
             stages=[scoped_stage("a", agent, "writer", ["m"], [])],
         )
+        claim_and_measure(self.root, name)
         path = self.root / f"docs/delivery/{name}/stages/{agent}.md"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
@@ -1451,6 +1487,7 @@ class PairTest(unittest.TestCase):
     def test_writer_report_waits_for_paired_reviewer(self):
         self._plan()
         kernel.pair(self.root, "tag", "a", reviewer="tech-lead")
+        claim_and_measure(self.root, "tag")
         p = self.root / "docs/delivery/tag/stages/database-developer.md"
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(
@@ -1533,6 +1570,7 @@ class PairTest(unittest.TestCase):
     def _waiting_pair(self):
         self._plan()
         kernel.pair(self.root, "tag", "a", reviewer="tech-lead")
+        claim_and_measure(self.root, "tag")
         p = self.root / "docs/delivery/tag/stages/database-developer.md"
         p.parent.mkdir(parents=True, exist_ok=True)
         p.write_text(
@@ -1639,6 +1677,7 @@ class PairTest(unittest.TestCase):
         delivery = kernel.load(self.root, "tag")
         delivery.spawns = delivery.cap - 1
         kernel.save(self.root, delivery)
+        claim_and_measure(self.root, "tag")
         path = self.root / "docs/delivery/tag/stages/database-developer.md"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(
@@ -1987,6 +2026,7 @@ class WorkplaceDoneTest(unittest.TestCase):
 
     def _finish_stages(self):
         self._plan_workplace()
+        claim_and_measure(self.root, "tag")
         path = self._write_stage()
         return kernel.report(
             self.root,
@@ -2035,6 +2075,7 @@ class WorkplaceDoneTest(unittest.TestCase):
                 scoped_stage("a", "database-developer", "writer", ["m"], [])
             ],
         )
+        claim_and_measure(self.root, "tag")
         path = self._write_stage()
         delivery = kernel.report(
             self.root,
@@ -2087,6 +2128,7 @@ class WorkplaceIngestTest(unittest.TestCase):
             issue=42,
             runner=plan_runner,
         )
+        claim_and_measure(self.root, "tag")
         path = self.root / "docs/delivery/tag/stages/database-developer.md"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(STAGE_BODY)
@@ -2114,7 +2156,7 @@ class WorkplaceIngestTest(unittest.TestCase):
             check="pint",
             runner=runner,
         )
-        self.assertEqual(delivery.stages[0].status, "running")
+        self.assertEqual(delivery.stages[0].status, "queued")
         self.assertEqual(delivery.stages[0].reopens, 1)
         self.assertEqual(delivery.status, "running")
         self.assertGreaterEqual(delivery.cap, delivery.spawns + 1)
@@ -2135,7 +2177,7 @@ class WorkplaceIngestTest(unittest.TestCase):
             (self.root / "docs/delivery/tag/kernel.json").read_text(), before
         )
 
-    def test_second_check_stops_the_delivery(self):
+    def test_duplicate_check_delivery_is_idempotent(self):
         runner = FakeRunner({}, {CHECKS: (0, FAIL_CHECK)})
         kernel.ingest(
             self.root,
@@ -2153,11 +2195,10 @@ class WorkplaceIngestTest(unittest.TestCase):
             check="pint",
             runner=runner,
         )
-        self.assertEqual(delivery.status, "stopped")
+        self.assertEqual(delivery.status, "running")
+        self.assertEqual(delivery.stages[0].status, "queued")
         self.assertEqual(delivery.stages[0].reopens, 1)
-        self.assertEqual(kernel.next_agent(self.root, "tag"), "STOP")
-        close = (self.root / "docs/delivery/tag/close.md").read_text()
-        self.assertIn("STATUS: stopped", close)
+        self.assertEqual(len(delivery.retry_events), 1)
 
     def test_missing_check_name_rejects(self):
         other = json.dumps(
@@ -2207,7 +2248,7 @@ class WorkplaceIngestTest(unittest.TestCase):
             comment="99",
             runner=runner,
         )
-        self.assertEqual(delivery.stages[0].status, "running")
+        self.assertEqual(delivery.stages[0].status, "queued")
 
     def test_missing_review_id_rejects(self):
         runner = FakeRunner({}, {REVIEW: (0, "100\n")})
@@ -2492,6 +2533,7 @@ class WatchOnceTest(unittest.TestCase):
             issue=42,
             runner=plan_runner,
         )
+        claim_and_measure(self.root, "tag")
         path = self.root / "docs/delivery/tag/stages/database-developer.md"
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(STAGE_BODY)
@@ -2535,7 +2577,7 @@ class WatchOnceTest(unittest.TestCase):
         result = kernel.watch_once(self.root, "tag", runner)
         delivery = kernel.load(self.root, "tag")
         self.assertEqual(result, {"action": "reopen", "check": "pint"})
-        self.assertEqual(delivery.stages[0].status, "running")
+        self.assertEqual(delivery.stages[0].status, "queued")
         self.assertEqual(delivery.stages[0].reopens, 1)
         self.assertEqual(delivery.seen_checks, ["pint"])
         self.assertEqual(runner.calls, [(str(self.root), CHECKS)])
@@ -2552,6 +2594,7 @@ class WatchOnceTest(unittest.TestCase):
     def test_watch_waits_while_stage_running(self):
         runner = FakeRunner({}, {CHECKS: (0, FAIL_CHECK)})
         kernel.watch_once(self.root, "tag", runner)
+        kernel.claim_stage(self.root, "tag", "a")
         runner2 = FakeRunner({}, {CHECKS: (0, FAIL_CHECK)})
         result = kernel.watch_once(self.root, "tag", runner2)
         self.assertEqual(result, {"action": "wait"})
@@ -2561,8 +2604,16 @@ class WatchOnceTest(unittest.TestCase):
     def test_watch_second_failure_stops(self):
         runner = FakeRunner({}, {CHECKS: (0, FAIL_CHECK)})
         kernel.watch_once(self.root, "tag", runner)
+        claim_and_measure(self.root, "tag")
+        path = self.root / "docs/delivery/tag/stages/database-developer.md"
+        kernel.report(
+            self.root,
+            "tag",
+            path,
+            runner=FakeRunner({VERIFY_CMD: 0}),
+        )
         delivery = kernel.load(self.root, "tag")
-        delivery.stages[0].status = "done"
+        delivery.status = "running"
         kernel.save(self.root, delivery)
         phpunit_fail = json.dumps(
             [
@@ -2597,7 +2648,7 @@ class WatchOnceTest(unittest.TestCase):
         result = kernel.watch_once(self.root, "tag", runner)
         delivery = kernel.load(self.root, "tag")
         self.assertEqual(result, {"action": "reopen", "comment": "99"})
-        self.assertEqual(delivery.stages[0].status, "running")
+        self.assertEqual(delivery.stages[0].status, "queued")
         self.assertEqual(delivery.seen_comments, ["99"])
         self.assertEqual(
             runner.calls,

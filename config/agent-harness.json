@@ -112,6 +112,17 @@
       "terminalStageStatus": "failed",
       "terminalDeliveryStatus": "stopped"
     },
+    "retryPolicy": {
+      "attemptField": "attempts",
+      "reasonField": "retry_reason",
+      "eventField": "retry_events",
+      "transitionField": "transition_events",
+      "maxRetries": 1,
+      "requestAuthority": "main",
+      "retryStatus": "queued",
+      "exhaustedStageStatus": "failed",
+      "exhaustedDeliveryStatus": "stopped"
+    },
     "verification": "registered-runners-only"
   },
   "agents": {

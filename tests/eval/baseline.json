@@ -125,6 +125,11 @@
       "date": "2026-09-25",
       "sha256": "c9b0e96d0cef75ef803a7c43d1ed2980670e8e7758392d364e9bb830486d9b16",
       "reason": "Unproductive-loop detection adds a pre-tool stop boundary without changing feature construction: claimed specialists are stopped before completing a third exact one-to-four-step tool cycle, raw inputs are represented only by SHA-256 digests, and unchanged retries are prohibited. Covered by kernel units, hook integration, guardrail ratchets, and generated-target checks. No billed feature run was authorized; ceilings were not raised."
+    },
+    {
+      "date": "2026-09-25",
+      "sha256": "1d894a885c7b11946515dc4d461bae24709390faacf347d87d425bb56b47e51f",
+      "reason": "Auditable retry transitions tighten the shared orchestration contract without changing feature construction: one main-thread retry request requeues for a fresh claim, stable event IDs make duplicate feedback idempotent, reports require a claimed measured lane, and a second distinct failure stops with consistent stage status. Covered by kernel units, CLI tests, hook integration, orchestration ratchets, and generated-target checks. No billed feature run was authorized; ceilings were not raised."
     }
     ]
   }

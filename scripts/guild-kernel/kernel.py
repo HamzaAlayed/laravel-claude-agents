@@ -40,6 +40,7 @@ _INTERNAL_VERIFICATION_RUNNERS = {"file-exists", "file-has-lines"}
 _CRITERION_ID = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
 _CHECKPOINT_ID = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
 _TOOL_SIGNATURE = re.compile(r"^[0-9a-f]{64}$")
+_RETRY_EVENT_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _BUDGET_KEYS = (
     "max_seconds",
     "max_tool_calls",
@@ -77,6 +78,27 @@ _LOOP_POLICY = {
     "historyLimit": 24,
     "terminalStageStatus": "failed",
     "terminalDeliveryStatus": "stopped",
+}
+_RETRY_POLICY = {
+    "attemptField": "attempts",
+    "reasonField": "retry_reason",
+    "eventField": "retry_events",
+    "transitionField": "transition_events",
+    "maxRetries": 1,
+    "requestAuthority": "main",
+    "retryStatus": "queued",
+    "exhaustedStageStatus": "failed",
+    "exhaustedDeliveryStatus": "stopped",
+}
+_RETRY_SOURCES = frozenset({"stage-return", "verification", "ci", "review"})
+_STAGE_TRANSITIONS = {
+    "queued": frozenset({"running", "paused"}),
+    "running": frozenset({"queued", "paused", "done", "failed", "budget_exceeded"}),
+    "paused": frozenset({"queued", "failed"}),
+    "done": frozenset({"queued", "failed"}),
+    "failed": frozenset(),
+    "budget_exceeded": frozenset(),
+    "skipped": frozenset(),
 }
 _EMPTY_USAGE = {
     "seconds": 0.0,
@@ -155,6 +177,9 @@ class StageSpec:
     checkpoint_id: str = ""
     loop_history: list = field(default_factory=list)
     loop_detected_reason: str = ""
+    attempts: int = 0
+    retry_reason: str = ""
+    retry_source: str = ""
 
 
 @dataclass
@@ -175,6 +200,8 @@ class Delivery:
     max_parallel: int = 3
     checkpoints: list = field(default_factory=list)
     loop_events: list = field(default_factory=list)
+    retry_events: list = field(default_factory=list)
+    transition_events: list = field(default_factory=list)
 
 
 def _state_path(root, name):
@@ -227,6 +254,8 @@ def load(root, name):
     data.setdefault("max_parallel", 1)
     data.setdefault("checkpoints", [])
     data.setdefault("loop_events", [])
+    data.setdefault("retry_events", [])
+    data.setdefault("transition_events", [])
     stages = []
     for stage in data.pop("stages"):
         stage.setdefault("flags", [])
@@ -253,6 +282,12 @@ def load(root, name):
         stage.setdefault("checkpoint_id", "")
         stage.setdefault("loop_history", [])
         stage.setdefault("loop_detected_reason", "")
+        stage.setdefault(
+            "attempts",
+            stage.get("reopens", 0) + (0 if stage.get("status") == "queued" else 1),
+        )
+        stage.setdefault("retry_reason", "")
+        stage.setdefault("retry_source", "")
         stages.append(StageSpec(**stage))
     return Delivery(stages=stages, **data)
 
@@ -438,6 +473,8 @@ def board_line(delivery):
             label += f" checkpoint:{stage.checkpoint_id}"
         if stage.loop_detected_reason:
             label += f" loop:{stage.loop_detected_reason}"
+        if stage.retry_reason:
+            label += f" retry:{stage.retry_source} attempt:{stage.attempts + (stage.status == 'queued')}"
         matrix = ",".join(
             f"{row['id']}:{row['mark']}" for row in criterion_rows_for_stage(stage)
         )
@@ -551,6 +588,40 @@ def render_loops(delivery):
     return "\n".join(lines)
 
 
+def render_retries(delivery):
+    lines = ["# Stage retries", ""]
+    if not delivery.retry_events:
+        return "\n".join([*lines, "None.", ""])
+    for event in delivery.retry_events:
+        lines.extend(
+            [
+                f"## {event['stage']} — {event['action']}",
+                "",
+                f"- Event: `{event['event_id']}`",
+                f"- Source: `{event['source']}`",
+                f"- Attempt: {event['attempt']}",
+                f"- Requested: {event['at']} by {event['by']}",
+                f"- Reason: {event['reason']}",
+                "",
+            ]
+        )
+    return "\n".join(lines)
+
+
+def render_transitions(delivery):
+    lines = ["# Stage transitions", ""]
+    if not delivery.transition_events:
+        return "\n".join([*lines, "None.", ""])
+    for event in delivery.transition_events:
+        lines.append(
+            f"- {event['at']} `{event['stage']}`: `{event['from']}` → "
+            f"`{event['to']}` via `{event['source']}` by {event['by']} — "
+            f"{event['reason']}"
+        )
+    lines.append("")
+    return "\n".join(lines)
+
+
 def write_views(root, delivery, *, verified="none", not_checked="none"):
     folder = pathlib.Path(root) / "docs" / "delivery" / delivery.name
     folder.mkdir(parents=True, exist_ok=True)
@@ -560,6 +631,8 @@ def write_views(root, delivery, *, verified="none", not_checked="none"):
     (folder / "graph.md").write_text(render_graph(delivery))
     (folder / "checkpoints.md").write_text(render_checkpoints(delivery))
     (folder / "loops.md").write_text(render_loops(delivery))
+    (folder / "retries.md").write_text(render_retries(delivery))
+    (folder / "transitions.md").write_text(render_transitions(delivery))
 
 
 def _has_criteria(stage):
@@ -1135,7 +1208,14 @@ def open_checkpoint(
         }
         delivery.checkpoints.append(checkpoint)
         stage.checkpoint_id = checkpoint_id
-        stage.status = "paused"
+        _transition_stage(
+            delivery,
+            stage,
+            "paused",
+            source="checkpoint",
+            reason=f"checkpoint opened: {checkpoint_id}",
+            by="main",
+        )
         save(root, delivery)
         write_views(root, delivery, not_checked=delivery.done_when or "none")
         return checkpoint
@@ -1201,10 +1281,24 @@ def resolve_checkpoint(
         }
         stage.checkpoint_id = ""
         if option["action"] == "stop":
-            stage.status = "failed"
+            _transition_stage(
+                delivery,
+                stage,
+                "failed",
+                source="checkpoint",
+                reason=f"checkpoint stopped: {checkpoint_id}",
+                by="user",
+            )
             delivery.status = "stopped"
         else:
-            stage.status = "queued"
+            _transition_stage(
+                delivery,
+                stage,
+                "queued",
+                source="checkpoint",
+                reason=f"checkpoint continued: {checkpoint_id}",
+                by="user",
+            )
         save(root, delivery)
         write_views(root, delivery, not_checked=delivery.done_when or "none")
         return checkpoint
@@ -1212,6 +1306,184 @@ def resolve_checkpoint(
 
 def _now_utc():
     return datetime.now(timezone.utc)
+
+
+def _transition_stage(delivery, stage, to_status, *, source, reason, by):
+    from_status = stage.status
+    allowed = _STAGE_TRANSITIONS.get(from_status, frozenset())
+    if to_status not in allowed:
+        raise PlanError(
+            f"illegal stage transition {stage.id}: {from_status} -> {to_status}"
+        )
+    if not isinstance(reason, str) or not reason.strip() or len(reason.strip()) > 500:
+        raise PlanError("stage transition reason must be 1 to 500 characters")
+    if not isinstance(source, str) or not source.strip() or len(source.strip()) > 64:
+        raise PlanError("stage transition source must be 1 to 64 characters")
+    if not isinstance(by, str) or not by.strip() or len(by.strip()) > 100:
+        raise PlanError("stage transition actor must be 1 to 100 characters")
+    event = {
+        "stage": stage.id,
+        "from": from_status,
+        "to": to_status,
+        "source": source.strip(),
+        "reason": reason.strip(),
+        "by": by.strip(),
+        "at": _now_utc().isoformat(timespec="seconds"),
+    }
+    stage.status = to_status
+    delivery.transition_events.append(event)
+    return event
+
+
+def transition_rows(root, name):
+    delivery = load(root, name)
+    return list(delivery.transition_events)
+
+
+def retry_rows(root, name):
+    delivery = load(root, name)
+    return list(delivery.retry_events)
+
+
+def _retry_event_seen(delivery, event_id):
+    return next(
+        (
+            event
+            for event in delivery.retry_events
+            if isinstance(event, dict) and event.get("event_id") == event_id
+        ),
+        None,
+    )
+
+
+def _retry_text(value, label):
+    if not isinstance(value, str) or not value.strip() or len(value.strip()) > 500:
+        raise PlanError(f"retry {label} must be 1 to 500 characters")
+    if any(char in value for char in "\r\n"):
+        raise PlanError(f"retry {label} must be a single line")
+    return value.strip()
+
+
+def _request_retry_unlocked(
+    root,
+    delivery,
+    stage,
+    *,
+    source,
+    reason,
+    event_id,
+    requested_by,
+):
+    if requested_by != _RETRY_POLICY["requestAuthority"]:
+        raise PlanError("stage retries can only be requested by the main thread")
+    if source not in _RETRY_SOURCES:
+        raise PlanError(
+            "retry source must be one of: " + ", ".join(sorted(_RETRY_SOURCES))
+        )
+    reason = _retry_text(reason, "reason")
+    if not isinstance(event_id, str) or not _RETRY_EVENT_ID.fullmatch(event_id):
+        raise PlanError(
+            "retry event id must use letters, numbers, dot, underscore, colon, or hyphen"
+        )
+    existing = _retry_event_seen(delivery, event_id)
+    if existing is not None:
+        expected = {
+            "stage": stage.id,
+            "source": source,
+            "reason": reason,
+            "by": requested_by,
+        }
+        if all(existing.get(key) == value for key, value in expected.items()):
+            return existing
+        raise PlanError(f"retry event id {event_id} already exists with different data")
+    if delivery.status not in ("running", "done"):
+        raise PlanError(f"delivery {delivery.name} is {delivery.status}")
+    if stage.status not in ("running", "done"):
+        raise PlanError(f"stage {stage.id} is {stage.status}; retry requires running or done")
+    if stage.claimed_at:
+        raise PlanError(
+            f"stage {stage.id} requires completion telemetry before retry"
+        )
+    if _pending_checkpoint(delivery, stage.id) is not None:
+        raise PlanError(f"stage {stage.id} has a pending checkpoint")
+
+    exhausted = stage.reopens >= _RETRY_POLICY["maxRetries"]
+    action = "stopped" if exhausted else "queued"
+    event = {
+        "stage": stage.id,
+        "attempt": max(stage.attempts, 1),
+        "source": source,
+        "reason": reason,
+        "event_id": event_id,
+        "action": action,
+        "by": requested_by,
+        "at": _now_utc().isoformat(timespec="seconds"),
+    }
+    delivery.retry_events.append(event)
+    if exhausted:
+        _transition_stage(
+            delivery,
+            stage,
+            _RETRY_POLICY["exhaustedStageStatus"],
+            source=f"retry:{source}",
+            reason=f"retry exhausted: {reason}",
+            by=requested_by,
+        )
+        stage.retry_reason = reason
+        stage.retry_source = source
+        delivery.status = _RETRY_POLICY["exhaustedDeliveryStatus"]
+    else:
+        _transition_stage(
+            delivery,
+            stage,
+            _RETRY_POLICY["retryStatus"],
+            source=f"retry:{source}",
+            reason=reason,
+            by=requested_by,
+        )
+        stage.reopens += 1
+        stage.did = []
+        stage.verified = []
+        stage.flags = []
+        stage.awaiting_pair = False
+        stage.claim_usage = {}
+        stage.loop_history = []
+        stage.loop_detected_reason = ""
+        stage.retry_reason = reason
+        stage.retry_source = source
+        delivery.status = "running"
+        delivery.cap = max(delivery.cap, delivery.spawns + 1)
+    save(root, delivery)
+    write_views(root, delivery, not_checked=delivery.done_when or "none")
+    return event
+
+
+def request_retry(
+    root,
+    name,
+    stage_id,
+    *,
+    source,
+    reason,
+    event_id,
+    requested_by="main",
+):
+    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with _file_lock(lock_path):
+        delivery = load(root, name)
+        stage = next((item for item in delivery.stages if item.id == stage_id), None)
+        if stage is None:
+            raise PlanError(f"stage {stage_id} is missing")
+        return _request_retry_unlocked(
+            root,
+            delivery,
+            stage,
+            source=source,
+            reason=reason,
+            event_id=event_id,
+            requested_by=requested_by,
+        )
 
 
 def _parse_utc_timestamp(raw, *, label):
@@ -1287,7 +1559,14 @@ def _mark_budget_exceeded(root, delivery, stage, reason, *, now):
     if stage.claimed_at:
         stage.usage["seconds"] = _active_seconds(stage, now)
     stage.claimed_at = ""
-    stage.status = "budget_exceeded"
+    _transition_stage(
+        delivery,
+        stage,
+        "budget_exceeded",
+        source="budget",
+        reason=f"budget exceeded: {reason}",
+        by="kernel",
+    )
     stage.budget_exceeded_reason = reason
     delivery.status = "budget_exceeded"
     save(root, delivery)
@@ -1335,7 +1614,14 @@ def _mark_loop_detected(root, delivery, stage, history, cycle_length, *, now):
     if stage.claimed_at:
         stage.usage["seconds"] = _active_seconds(stage, now)
     stage.claimed_at = ""
-    stage.status = _LOOP_POLICY["terminalStageStatus"]
+    _transition_stage(
+        delivery,
+        stage,
+        _LOOP_POLICY["terminalStageStatus"],
+        source="loop",
+        reason=f"unproductive loop: {reason}",
+        by="kernel",
+    )
     stage.loop_history = history[-_LOOP_POLICY["historyLimit"]:]
     stage.loop_detected_reason = reason
     delivery.status = _LOOP_POLICY["terminalDeliveryStatus"]
@@ -1771,25 +2057,9 @@ def record_pr(root, name, number, runner):
     return delivery
 
 
-def _reopen(root, delivery, stage):
-    if stage.reopens >= 1:
-        delivery.status = "stopped"
-        save(root, delivery)
-        write_views(root, delivery, not_checked=delivery.done_when or "none")
-        return delivery
-    if stage.status != "done":
-        raise PlanError(f"stage {stage.id} is {stage.status}")
-    stage.status = "running"
-    stage.claimed_at = _now_utc().isoformat(timespec="seconds")
-    stage.claim_usage = dict(stage.usage)
-    stage.loop_history = []
-    stage.loop_detected_reason = ""
-    stage.reopens = 1
-    delivery.status = "running"
-    delivery.cap = max(delivery.cap, delivery.spawns + 1)
-    save(root, delivery)
-    write_views(root, delivery, not_checked=delivery.done_when or "none")
-    return delivery
+def _external_retry_event_id(source, value):
+    digest = hashlib.sha256(f"{source}:{value}".encode("utf-8")).hexdigest()[:20]
+    return f"{source}:{digest}"
 
 
 def ingest(root, name, *, kind, stage_id, runner, check="", comment=""):
@@ -1821,7 +2091,16 @@ def ingest(root, name, *, kind, stage_id, runner, check="", comment=""):
             raise PlanError(f"check {check} not found")
         if match.get("bucket") != "fail":
             return delivery
-        return _reopen(root, delivery, stage)
+        link = str(match.get("link") or check)
+        request_retry(
+            root,
+            name,
+            stage_id,
+            source="ci",
+            reason=f"failing CI check: {check}",
+            event_id=_external_retry_event_id("ci", link),
+        )
+        return load(root, name)
     if not _REPO_RE.fullmatch(delivery.repo or ""):
         raise PlanError("repo must be owner/name")
     cmd = [
@@ -1834,7 +2113,15 @@ def ingest(root, name, *, kind, stage_id, runner, check="", comment=""):
     ids = {line.strip() for line in out.splitlines() if line.strip()}
     if str(comment) not in ids:
         raise PlanError(f"review comment {comment} not found")
-    return _reopen(root, delivery, stage)
+    request_retry(
+        root,
+        name,
+        stage_id,
+        source="review",
+        reason=f"review comment requires changes: {comment}",
+        event_id=f"review:{comment}",
+    )
+    return load(root, name)
 
 
 def _watch_target(delivery):
@@ -1876,20 +2163,30 @@ def watch_once(root, name, runner):
         raise PlanError("gh pr checks returned malformed JSON") from exc
     if not isinstance(payload, list):
         raise PlanError("gh pr checks returned malformed JSON")
-    check = next(
-        (
-            item.get("name")
-            for item in payload
-            if item.get("bucket") == "fail"
-            and item.get("name") not in delivery.seen_checks
-        ),
+    failed_check = next(
+        (item for item in payload if item.get("bucket") == "fail"),
         None,
     )
-    if check is not None:
-        _reopen(root, delivery, stage)
-        delivery.seen_checks.append(check)
-        save(root, delivery)
-        if delivery.status == "stopped":
+    if failed_check is not None:
+        check = failed_check.get("name")
+        event_id = _external_retry_event_id(
+            "ci", str(failed_check.get("link") or check)
+        )
+        if _retry_event_seen(delivery, event_id) is not None:
+            return {"action": "noop"}
+        event = request_retry(
+            root,
+            name,
+            stage.id,
+            source="ci",
+            reason=f"failing CI check: {check}",
+            event_id=event_id,
+        )
+        delivery = load(root, name)
+        if check not in delivery.seen_checks:
+            delivery.seen_checks.append(check)
+            save(root, delivery)
+        if event["action"] == "stopped":
             return {"action": "stopped", "check": check}
         return {"action": "reopen", "check": check}
     if not _REPO_RE.fullmatch(delivery.repo or ""):
@@ -1903,12 +2200,26 @@ def watch_once(root, name, runner):
         raise PlanError(f"gh api comments exited {code}")
     for line in out.splitlines():
         comment = line.strip()
-        if not comment or comment in delivery.seen_comments:
+        event_id = f"review:{comment}"
+        if (
+            not comment
+            or comment in delivery.seen_comments
+            or _retry_event_seen(delivery, event_id) is not None
+        ):
             continue
-        _reopen(root, delivery, stage)
-        delivery.seen_comments.append(str(comment))
-        save(root, delivery)
-        if delivery.status == "stopped":
+        event = request_retry(
+            root,
+            name,
+            stage.id,
+            source="review",
+            reason=f"review comment requires changes: {comment}",
+            event_id=event_id,
+        )
+        delivery = load(root, name)
+        if str(comment) not in delivery.seen_comments:
+            delivery.seen_comments.append(str(comment))
+            save(root, delivery)
+        if event["action"] == "stopped":
             return {"action": "stopped", "comment": comment}
         return {"action": "reopen", "comment": comment}
     return {"action": "noop"}
@@ -2024,7 +2335,21 @@ def claim_stage(root, name, stage_id):
                     f"stage {stage_id} path ownership collides with running stage {collision.id}"
                 )
             raise PlanError(f"stage {stage_id} is not ready or parallel capacity is full")
-        stage.status = "running"
+        next_attempt = stage.attempts + 1
+        claim_reason = (
+            f"retry attempt {next_attempt}: {stage.retry_reason}"
+            if stage.retry_reason
+            else f"attempt {next_attempt} claimed"
+        )
+        _transition_stage(
+            delivery,
+            stage,
+            "running",
+            source="claim",
+            reason=claim_reason,
+            by="main",
+        )
+        stage.attempts = next_attempt
         stage.claimed_at = _now_utc().isoformat(timespec="seconds")
         stage.claim_usage = dict(stage.usage)
         stage.loop_history = []
@@ -2230,6 +2555,10 @@ def report(root, name, path, runner):
             raise ReportError(
                 f"stage {stage.id} is paused at checkpoint {stage.checkpoint_id}"
             )
+        if stage.status != "running":
+            raise ReportError(
+                f"stage {stage.id} is {stage.status}; report requires a claimed running stage"
+            )
         _validate_verification_criteria(stage, verifications)
 
     for spec in verifications:
@@ -2272,7 +2601,16 @@ def _commit_report(root, name, path, fields, verifications):
                 {**spec, "exit": 0} for spec in verifications
             ]
             stage.awaiting_pair = False
-            stage.status = "done"
+            _transition_stage(
+                delivery,
+                stage,
+                "done",
+                source="report",
+                reason="paired review verified all stage criteria",
+                by=agent,
+            )
+            stage.retry_reason = ""
+            stage.retry_source = ""
             for flag_text in flag_texts:
                 _record_lesson(root, name, agent, flag_text)
             continue
@@ -2293,9 +2631,17 @@ def _commit_report(root, name, path, fields, verifications):
         stage.flags = list(flag_texts)
         if stage.pair:
             stage.awaiting_pair = True
-            stage.status = "running"
         else:
-            stage.status = "done"
+            _transition_stage(
+                delivery,
+                stage,
+                "done",
+                source="report",
+                reason="stage report verified all criteria",
+                by=agent,
+            )
+            stage.retry_reason = ""
+            stage.retry_source = ""
         for flag_text in flag_texts:
             _record_lesson(root, name, agent, flag_text)
     if not matched:

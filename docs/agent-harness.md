@@ -38,6 +38,9 @@ Every agent run inherits these controls:
 - **Loop detection:** claimed specialists stop when an exact one-to-four-step
   tool-call cycle reaches three repetitions. Only SHA-256 input signatures and
   tool names persist; the repeated call is denied before execution.
+- **Retries and transitions:** only the main thread may request a retry. The
+  first distinct failure requeues the lane for a fresh atomic claim; the second
+  fails the stage and stops delivery. Every status change is durably recorded.
 - **Recovery:** interrupted runs reload their original request and current
   workspace state. They inspect durable checkpoint state before continuing,
   present pending prompts exactly as stored, and never repeat resolved prompts.
@@ -139,6 +142,25 @@ remains unverified. A breach sets the stage and delivery to
 success report. Usage is cumulative across the one allowed reopen; a retry does
 not reset its budget. See [runtime stage budgets](runtime-budgets.md) for the
 enforcement and trust boundaries.
+
+A failed or incomplete attempt is not retried by sending another prompt. After
+completion telemetry, the main thread records a typed reason and stable event
+ID:
+
+```sh
+python3 scripts/guild-kernel/guild.py retry request \
+  --root . --name tags --stage backend \
+  --source verification --reason "authorization evidence is missing" \
+  --event-id verification:backend:1
+```
+
+The first request invalidates stale evidence and changes the lane to `queued`.
+`ready` returns attempt 2 and the exact retry context; `claim` then rechecks
+dependencies, WIP, approvals, and path ownership. Duplicate event IDs are
+idempotent. A second distinct request changes the stage to `failed` and the
+delivery to `stopped`. Inspect `retry list`, `transition list`, and the generated
+`retries.md` and `transitions.md` views. See
+[auditable stage retries](retry-policy.md) for the complete lifecycle.
 
 The kernel validates every declared category against the profile, marks the
 lane `⏸`, excludes it from `ready`, and rejects `claim` until all categories

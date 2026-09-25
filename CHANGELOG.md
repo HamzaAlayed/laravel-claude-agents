@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.3.0] - 2026-09-25
+
+### Added
+
+- `guild retry request` and `retry list` for durable, typed retry reasons,
+  stable event IDs, attempt numbers, and main-thread authority.
+- `guild transition list` plus generated
+  `docs/delivery/<name>/retries.md` and `transitions.md` audit views.
+
+### Changed
+
+- The first distinct failure now invalidates stale stage evidence and requeues
+  the same owner for a fresh atomic claim instead of jumping directly to
+  `running` with a fabricated claim timer.
+- `ready` returns the next attempt number and exact retry context for the
+  revised brief. Budget usage remains cumulative across attempts.
+- Confirmed CI and review feedback enters the same retry lifecycle. Duplicate
+  external events are idempotent, while a second distinct failure marks the
+  stage `failed` and the delivery `stopped`.
+- All nine pipeline commands and the delivery coordinator inspect retry and
+  transition history, use the kernel before re-briefing, and stop after retry
+  exhaustion.
+
+### Fixed
+
+- A queued or already-completed stage can no longer submit a report, consume
+  spawn capacity, or bypass dependency, WIP, approval, and ownership checks.
+- Retry exhaustion can no longer leave a stopped delivery with the affected
+  stage incorrectly marked `done`.
+
+### Security
+
+- Subagents cannot request their own retry or erase an active claim before its
+  completion telemetry is recorded.
+
 ## [8.2.0] - 2026-09-25
 
 ### Added

@@ -107,6 +107,23 @@ def build_parser():
     loop = sub.add_parser("loop")
     loop_cmds = loop.add_subparsers(dest="loop_cmd", required=True)
     loop_cmds.add_parser("list", parents=[common])
+    retry = sub.add_parser("retry")
+    retry_cmds = retry.add_subparsers(dest="retry_cmd", required=True)
+    retry_cmds.add_parser("list", parents=[common])
+    retry_request = retry_cmds.add_parser("request", parents=[common])
+    retry_request.add_argument("--stage", required=True)
+    retry_request.add_argument(
+        "--source",
+        required=True,
+        choices=("stage-return", "verification", "ci", "review"),
+    )
+    retry_request.add_argument("--reason", required=True)
+    retry_request.add_argument("--event-id", required=True)
+    transition = sub.add_parser("transition")
+    transition_cmds = transition.add_subparsers(
+        dest="transition_cmd", required=True
+    )
+    transition_cmds.add_parser("list", parents=[common])
     budget = sub.add_parser("budget")
     budget_cmds = budget.add_subparsers(dest="budget_cmd", required=True)
     budget_cmds.add_parser("list", parents=[common])
@@ -241,6 +258,15 @@ def main(argv=None):
                     "owned_paths": stage.owned_paths,
                     "budget": stage.budget,
                     "criteria": kernel.criterion_rows_for_stage(stage),
+                    "attempt": stage.attempts + 1,
+                    "retry": (
+                        {
+                            "source": stage.retry_source,
+                            "reason": stage.retry_reason,
+                        }
+                        if stage.retry_reason
+                        else None
+                    ),
                 }
                 for stage in kernel.ready_stages(args.root, args.name)
             ]
@@ -346,6 +372,28 @@ def main(argv=None):
         if args.cmd == "loop":
             if args.loop_cmd == "list":
                 print(json.dumps(kernel.loop_rows(args.root, args.name)))
+                return 0
+        if args.cmd == "retry":
+            if args.retry_cmd == "list":
+                print(json.dumps(kernel.retry_rows(args.root, args.name)))
+                return 0
+            if args.retry_cmd == "request":
+                event = kernel.request_retry(
+                    args.root,
+                    args.name,
+                    args.stage,
+                    source=args.source,
+                    reason=args.reason,
+                    event_id=args.event_id,
+                )
+                print(
+                    f"RETRY: {event['stage']} {event['action']} "
+                    f"event={event['event_id']}"
+                )
+                return 0
+        if args.cmd == "transition":
+            if args.transition_cmd == "list":
+                print(json.dumps(kernel.transition_rows(args.root, args.name)))
                 return 0
         if args.cmd == "budget":
             if args.budget_cmd == "list":
