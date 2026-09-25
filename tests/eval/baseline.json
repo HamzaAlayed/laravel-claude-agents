@@ -140,6 +140,11 @@
       "date": "2026-09-25",
       "sha256": "b93c76569cae3b8e36f2bba9519370316d39baf4badfbb8c034778e90eb49f67",
       "reason": "Stage-owned PR and CI feedback tightens repair routing without changing feature construction: exact declared check names and longest owned-path matches select the owner, unmatched events block dispatch for main-thread assignment, duplicate events are idempotent, and one passing repair resolves the grouped feedback wave. Covered by kernel and console units, policy integration, orchestration ratchets, generated-target checks, and the existing eval suite. No billed feature run was authorized; ceilings were not raised."
+    },
+    {
+      "date": "2026-09-25",
+      "sha256": "83fc0a2d68f0238b4205387581c01588f74df8609f52af6f674d2e6c91563b04",
+      "reason": "Canonical orchestration generation changes ownership of existing prompt text without changing feature construction: nine commands and the direct coordinator now materialize one byte-identical lifecycle contract, CI rejects missing or unexpected carriers and hand-edited drift, and coordinator-only board, brief, and adaptive rules remain explicit. Covered by dedicated sync units, orchestration ratchets, inventory hashing, and generated-target checks. No billed feature run was authorized; ceilings were not raised."
     }
     ]
   }

@@ -561,6 +561,24 @@ expect "all 9 pipeline commands carry the Interface block" "9" \
   "$(grep -l '^> \*\*Interface:\*\*' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block is byte-identical across them" "1" \
   "$(grep -h '^> \*\*Interface:\*\*' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | sort -u | wc -l | tr -d ' ')"
+expect "one canonical orchestration contract is committed" "1" \
+  "$([ -s "$SCRIPT_DIR/config/orchestration-contract.md" ] && echo 1 || echo 0)"
+expect "canonical orchestration markers wrap all 10 runtime carriers" "10 10" \
+  "$(python3 - "$SCRIPT_DIR" <<'PY'
+import pathlib, sys
+root = pathlib.Path(sys.argv[1])
+paths = list((root / "commands").glob("*.md")) + [root / "agents/delivery-coordinator.md"]
+start = sum("<!-- BEGIN GENERATED ORCHESTRATION CONTRACT -->" in p.read_text() for p in paths)
+end = sum("<!-- END GENERATED ORCHESTRATION CONTRACT -->" in p.read_text() for p in paths)
+print(start, end)
+PY
+)"
+expect "canonical orchestration carriers are generated and current" "0" \
+  "$(python3 "$SCRIPT_DIR/scripts/sync-orchestration-contract.py" --check >/dev/null 2>&1; echo $?)"
+expect "CI checks the canonical orchestration source" "1" \
+  "$(grep -c 'sync-orchestration-contract.py --check' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "CI runs canonical orchestration unit tests" "1" \
+  "$(grep -c 'unittest discover -s tests/orchestration' "$SCRIPT_DIR/.github/workflows/ci.yml")"
 expect "Interface block binds the final answer to VERIFIED + NOT-CHECKED" "9" \
   "$(grep -l 'Your own final answer closes the same way' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # Tranche item 2 lived only in agents/delivery-coordinator.md, and eval run 6's
@@ -761,116 +779,21 @@ expect "peer-router does not require a writer-named packet" "0" \
   "$(grep -c 'writer has named' "$SCRIPT_DIR/agents/peer-router.md")"
 expect "peer-router spawns when a packet exists" "2" \
   "$(grep -c 'a packet exists' "$SCRIPT_DIR/agents/peer-router.md")"
-expect "coordinator never writes a writer stage file" "1" \
-  "$(grep -c 'never write a writer' "$COORD")"
+expect "coordinator never writes a writer stage file" "yes" \
+  "$(grep -q 'never write a writer' "$COORD" && echo yes || echo no)"
 expect "coordinator Reads the stage file before a checkmark" "1" \
   "$(grep -c 'Read that file before' "$COORD")"
-expect "coordinator does not Write close.md; the kernel renders it" "1" \
-  "$(grep -c 'Do not Write close.md; the kernel renders it' "$COORD")"
-expect "coordinator does not Write sprint.md; the kernel renders it" "1" \
-  "$(grep -c 'Do not Write sprint.md; the kernel renders it' "$COORD")"
-expect "coordinator does not Write lessons.md; the kernel renders it" "1" \
-  "$(grep -c 'Do not Write lessons.md; the kernel renders it' "$COORD")"
-expect "coordinator plans via the guild kernel" "1" \
-  "$(grep -c 'python3 scripts/guild-kernel/guild.py plan' "$COORD")"
-# shellcheck disable=SC2016 # literal command backticks in the coordinator needle
-expect "coordinator fetches ready waves" "1" \
-  "$(grep -c 'Call `ready`' "$COORD")"
-# shellcheck disable=SC2016 # literal command backticks in the coordinator needle
-expect "coordinator atomically claims each ready lane" "1" \
-  "$(grep -c 'atomically `claim --stage <id>`' "$COORD")"
-# shellcheck disable=SC2016 # literal field backticks in the coordinator needle
-expect "coordinator declares profile approval categories" "1" \
-  "$(grep -c '`approval_categories` from the selected agent profile' "$COORD")"
-# shellcheck disable=SC2016 # literal field backticks in the coordinator needle
-expect "coordinator plans stable criterion ids" "1" \
-  "$(grep -c 'parallel one-to-one list of stable lowercase-kebab `criterion_ids`' "$COORD")"
-# shellcheck disable=SC2016 # literal field backticks in the coordinator needle
-expect "coordinator briefs criterion rows" "1" \
-  "$(grep -c 'effective budget and `criteria` rows' "$COORD")"
-# shellcheck disable=SC2016 # literal command backticks in the coordinator needle
-expect "coordinator inspects criterion coverage before report" "1" \
-  "$(grep -c 'Before `report`, call `criterion list`' "$COORD")"
-expect "coordinator leaves criterion waivers to the main thread" "1" \
-  "$(grep -c 'only the main thread may call `criterion waive' "$COORD")"
-# shellcheck disable=SC2016 # literal command backticks in the coordinator needle
-expect "coordinator leaves approval grants to the main thread" "1" \
-  "$(grep -c 'only the main thread may call `approval grant`' "$COORD")"
-# shellcheck disable=SC2016 # literal `checkpoint list` in the coordinator needle
-expect "coordinator lists checkpoints on start and resume" "1" \
-  "$(grep -c 'whenever a delivery starts or resumes, call `checkpoint list`' "$COORD")"
-# shellcheck disable=SC2016 # literal `checkpoint open` in the coordinator needle
-expect "coordinator opens checkpoints before presenting them" "1" \
-  "$(grep -c 'Before showing the prompt above, only the main thread calls `checkpoint open`' "$COORD")"
-# shellcheck disable=SC2016 # literal `checkpoint resolve` in the coordinator needle
-expect "coordinator resolves checkpoints on the main thread" "1" \
-  "$(grep -c 'only the main thread calls `checkpoint resolve`' "$COORD")"
-expect "coordinator resumes from the exact stored checkpoint" "1" \
-  "$(grep -c 'present the pending record exactly as stored' "$COORD")"
-expect "coordinator never re-asks resolved checkpoints" "1" \
-  "$(grep -c 'Never ask a resolved checkpoint again' "$COORD")"
-# shellcheck disable=SC2016 # literal `ready` in the coordinator needle
-expect "coordinator keeps independent checkpoint lanes moving" "1" \
-  "$(grep -c 'continue every independent lane returned by `ready`' "$COORD")"
-expect "coordinator defines the exact repeated-cycle window" "1" \
-  "$(grep -c 'repeated tail cycles one to four steps long' "$COORD")"
-# shellcheck disable=SC2016 # literal `loop list` in the coordinator needle
-expect "coordinator inspects durable loop evidence" "1" \
-  "$(grep -c 'call `loop list`, print the stopped board' "$COORD")"
-expect "coordinator forbids an unchanged loop retry" "1" \
-  "$(grep -c 'Never retry the same sequence' "$COORD")"
-# shellcheck disable=SC2016 # literal retry commands in the coordinator needle
-expect "coordinator inspects retries and transitions on resume" "1" \
-  "$(grep -c 'every start or resume, call `retry list` and `transition list`' "$COORD")"
-expect "coordinator leaves retry requests to the main thread" "1" \
-  "$(grep -c 'only the main thread calls `retry request' "$COORD")"
-# shellcheck disable=SC2016 # literal `claim` in the coordinator needle
-expect "coordinator requires a fresh retry claim" "1" \
-  "$(grep -c 'normal atomic `claim` begins the attempt' "$COORD")"
-expect "coordinator makes duplicate retry events idempotent" "1" \
-  "$(grep -c 'Duplicate event IDs are no-ops' "$COORD")"
-# shellcheck disable=SC2016 # literal status backticks in the coordinator needle
-expect "coordinator stops after retry exhaustion" "1" \
-  "$(grep -c 'second distinct failure marks the stage `failed` and the delivery `stopped`' "$COORD")"
-# shellcheck disable=SC2016 # literal field backticks in the coordinator needle
-expect "coordinator declares CI feedback ownership" "1" \
-  "$(grep -c 'declares globally unique `feedback_checks`' "$COORD")"
-# shellcheck disable=SC2016 # literal command backticks in the coordinator needle
-expect "coordinator inspects durable feedback" "1" \
-  "$(grep -c 'call `feedback list`' "$COORD")"
-# shellcheck disable=SC2016 # literal field backticks in the coordinator needle
-expect "coordinator routes reviews by longest owned path" "1" \
-  "$(grep -c 'longest matching `owned_paths`' "$COORD")"
-# shellcheck disable=SC2016 # literal status backticks in the coordinator needle
-expect "coordinator blocks on unrouted feedback" "1" \
-  "$(grep -c 'durable `route_required` and blocks dispatch' "$COORD")"
-expect "coordinator leaves feedback assignment to main" "1" \
-  "$(grep -c 'Only the main thread may call `feedback assign' "$COORD")"
-expect "coordinator forbids last-writer routing" "1" \
-  "$(grep -c 'Never route by last writer' "$COORD")"
-# shellcheck disable=SC2016 # literal recovery command in the coordinator needle
-expect "coordinator inspects recoveries before dispatch" "1" \
-  "$(grep -c 'every start or resume, call `recovery list` before `ready`' "$COORD")"
-expect "coordinator leaves interruption authority to the main thread" "1" \
-  "$(grep -c 'only the main thread calls `recovery interrupt' "$COORD")"
-expect "coordinator freezes at last observed activity" "1" \
-  "$(grep -c 'freezes the claim at its last observed activity' "$COORD")"
-# shellcheck disable=SC2016 # literal action names in the coordinator needle
-expect "coordinator resolves interruption with continue or stop" "1" \
-  "$(grep -c '`recovery resolve --event-id <id> --action continue|stop`' "$COORD")"
-expect "coordinator never fabricates interruption telemetry" "1" \
-  "$(grep -c 'Never edit kernel state, reuse the old report, or fabricate telemetry' "$COORD")"
-expect "coordinator does not merge" "1" \
-  "$(grep -c 'Do not merge\.' "$COORD")"
+expect "coordinator shares the generated orchestration lifecycle" "0" \
+  "$(python3 "$SCRIPT_DIR/scripts/sync-orchestration-contract.py" --check >/dev/null 2>&1; echo $?)"
 expect "coordinator copies the stage-return stub when persisting read-only" "1" \
   "$(grep -c 'copy skills/delivery-templates/stage-return.md' "$COORD")"
 # shellcheck disable=SC2016 # literal `board` backticks in the coordinator Kernel needle
 expect "coordinator prints the kernel board" "1" \
   "$(grep -c 'print `board`' "$COORD")"
 expect "coordinator reports the stage path after each return" "1" \
-  "$(grep -c 'report` the stage path' "$COORD")"
+  "$(grep -c 'report.*docs/delivery/<name>/stages/<agent>.md' "$COORD")"
 expect "coordinator copies the Adaptive packet stub" "1" \
-  "$(grep -c 'copy skills/delivery-templates/packet.md' "$COORD")"
+  "$(grep -c 'skills/delivery-templates/packet.md' "$COORD")"
 expect "coordinator still names Need-to-know briefs" "1" \
   "$(grep -c 'Need-to-know briefs' "$COORD")"
 expect "coordinator specialists never Agent a peer" "1" \
@@ -878,13 +801,13 @@ expect "coordinator specialists never Agent a peer" "1" \
 expect "coordinator names the packet path" "1" \
   "$(grep -c 'docs/delivery/<name>/packets/' "$COORD")"
 expect "coordinator has peer-router validate" "1" \
-  "$(grep -c 'peer-router validates' "$COORD")"
+  "$(grep -c 'validates the packet' "$COORD")"
 expect "coordinator prints a handoff line" "1" \
   "$(grep -c 'print a handoff line' "$COORD")"
 expect "coordinator counts hops against the spawn cap" "1" \
   "$(grep -c 'hops count against the spawn cap' "$COORD")"
 expect "coordinator never spawns peer-router without --adaptive" "1" \
-  "$(grep -c 'never spawn peer-router without --adaptive' "$COORD")"
+  "$(grep -c 'never spawn.*peer-router.*without.*--adaptive' "$COORD")"
 expect "coordinator names one fallback packet per run" "1" \
   "$(grep -c 'one fallback packet per run' "$COORD")"
 expect "coordinator fallback TO is next queued specialist else tech-lead" "1" \
@@ -933,7 +856,7 @@ expect "routing table names database-developer migration docs" "1" \
 expect "low confidence is its own stop trigger" "1" \
   "$(grep -c 'Low confidence is a stop trigger in its own right' "$COORD")"
 expect "the board declares a stage budget" "1" \
-  "$(grep -c 'State the stage budget on the board' "$COORD")"
+  "$(grep -c 'State both budgets:' "$COORD")"
 # shellcheck disable=SC2016 # literal `checkpoints.md` in the coordinator needle
 expect "checkpoints persist authoritative resume state" "1" \
   "$(grep -c '`checkpoints.md` preserves the exact question' "$COORD")"

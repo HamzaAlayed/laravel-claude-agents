@@ -3,7 +3,12 @@
 Laravel Guild uses one shared runtime harness plus a small policy profile for
 each agent. The shared layer owns mechanics that must behave consistently;
 profiles describe the authority and escalation boundary for one role. The
-machine-readable source is [`config/agent-harness.json`](../config/agent-harness.json).
+machine-readable policy source is
+[`config/agent-harness.json`](../config/agent-harness.json). The shared
+human-readable pipeline lifecycle is authored separately in
+[`config/orchestration-contract.md`](../config/orchestration-contract.md) and
+generated into every runtime entry point; see the
+[canonical orchestration contract](orchestration-contract.md).
 
 ## Shared harness
 

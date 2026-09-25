@@ -77,6 +77,12 @@ Create `commands/<name>.md`.
 - Use `{{args}}` to interpolate the user's arguments into the body.
 - **Commands orchestrate; specialists build.** A command detects context, then delegates each layer to the right specialist agent (e.g. `database-developer`, then `backend-developer`, then `qa-engineer`, then `tech-lead` for review). The command itself should not be doing builder work.
 - Include a **Guardrails** section (match the project's conventions, don't import new patterns) and an **Output** section (summarize files, routes, tests, and any human checkpoints surfaced). See `commands/make-feature.md`.
+- Pipeline commands do not own their Interface lifecycle prose. Add the new
+  runtime carrier to `CARRIERS` in `scripts/sync-orchestration-contract.py`,
+  edit `config/orchestration-contract.md` when shared behavior changes, then
+  run the synchronizer with `--write` and `--check`. Never hand-edit text
+  between the generated markers. See
+  [`docs/orchestration-contract.md`](docs/orchestration-contract.md).
 
 ## Model selection
 

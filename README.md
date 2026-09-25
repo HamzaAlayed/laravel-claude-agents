@@ -212,6 +212,12 @@ lifecycle. Approved lessons feed the next plan. Single-specialist
 work uses a fast path and skips pipeline ceremony. A confirmed process
 interruption freezes its claim before any resumed work is dispatched.
 
+**One orchestration contract, ten runtime carriers.** The lifecycle prose for
+checkpoints, loop detection, retries, feedback, and recovery is authored once,
+then generated into all nine pipeline commands and the directly invoked
+delivery coordinator. CI rejects a stale, missing, or unexpected copy. See the
+[canonical orchestration contract](docs/orchestration-contract.md).
+
 **Releases are gated artifacts, not a manual checklist.** The manual Release
 workflow freezes one clean `main` commit, requires every named CI job for that
 exact SHA, checks all version manifests and release documents, then creates one
