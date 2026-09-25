@@ -122,6 +122,7 @@ scripts/
 ├── block-prod-destructive-sql.sh # Block DROP/TRUNCATE/unscoped DELETE/UPDATE
 ├── block-prod-artisan.sh         # Block migrate:fresh, db:wipe, tinker, etc. against prod
 ├── enforce-reviewer-readonly.sh  # Block file-mutating Bash from the read-only reviewers
+├── enforce-agent-paths.sh        # Keep planned native writes inside claimed owned paths
 ├── enforce-sail.sh               # Redirect bare php/composer through ./vendor/bin/sail on Sail projects
 ├── emit-agent-events.sh          # Stream subagent start/finish to .claude/agents-board.jsonl
 ├── board.html                    # Self-contained live dashboard rendering that feed
@@ -141,7 +142,7 @@ skills/                           # 8 on-demand cookbooks (see the Skills sectio
 ├── accessibility-design/         # WCAG 2.2 AA thresholds, Livewire/Inertia focus, mobile a11y
 └── docs-authoring/               # Changelog / release-notes / runbook / API-reference templates
 
-hooks/hooks.json                  # Plugin hook manifest (9 guardrails + the agents-board observer)
+hooks/hooks.json                  # Plugin hook manifest (10 guardrails + the agents-board observer)
 tests/guardrails.test.sh          # Zero-dependency test harness for the guardrails
 .github/workflows/ci.yml          # shellcheck + guardrail tests + manifest validation
 ```
@@ -294,6 +295,7 @@ Wire these as Claude Code `PreToolUse` hooks for `Bash` and `Write|Edit`. They e
 | `enforce-sprint-file.sh`        | Write\|Edit of `docs/sprints/*/sprint.md` that is not helper shape (`GOAL:` / `WIP:` / `BOARD:` / `STATUS:`); also Bash writes of that path (`>`, `>>`, `tee`, heredoc `<<`) — the kernel renders that view |
 | `enforce-lessons-file.sh`       | Write\|Edit of `docs/team/lessons.md` that is not helper shape (`LESSONS:` plus either `none` or `ID:` / `RULE:` / `SCOPE:` / `STATUS:` / `PROVENANCE:`); also Bash writes of that path — the kernel renders that view |
 | `enforce-reviewer-readonly.sh`  | File-mutating Bash (`sed -i`, redirects, `tee`, mutating `git`/`artisan`/`composer`, `pint` without `--test`, `rm`/`mv`/`cp`) **from the read-only reviewers only** — scoped via the hook input's `agent_type`; builders and the main thread are untouched. Claude Code only. |
+| `enforce-agent-paths.sh`        | Native `Write`, `Edit`, and `NotebookEdit` calls from a Guild agent participating in an active delivery before its stage is claimed, outside its stage’s `owned_paths`, or while ownership is ambiguous. `deny` profiles cannot use native write tools; `docs-only` profiles stay inside registry-declared documentation roots. Direct point-work remains the fast path when no active delivery contains that agent. Claude Code only. |
 | `enforce-sail.sh`               | Bare `php artisan` / `composer` / `vendor/bin/{pint,pest,phpunit,phpstan}` on a **Sail** project — the block message carries the exact `./vendor/bin/sail …` rewrite, so the agent self-corrects in one turn. Active only when both `vendor/bin/sail` and a compose file exist (the sail *dependency* alone — the Herd/Valet shape — stays untouched). Opt out with `LARAVEL_AGENTS_SAIL=0`. |
 | `emit-agent-events.sh`          | Nothing — an **observer**, not a guard: wired as `PreToolUse` **and** `PostToolUse` on the subagent tool (`Agent\|Task`), it streams every subagent start / finish (agent, task, duration, tokens) to `.claude/agents-board.jsonl` for the `/board` live dashboard. Always exits 0. Claude Code only. |
 
@@ -339,6 +341,12 @@ Example hook config (`.claude/settings.json`) — this is the shape `install.sh`
         ]
       },
       {
+        "matcher": "Write|Edit|NotebookEdit",
+        "hooks": [
+          { "type": "command", "command": "./scripts/enforce-agent-paths.sh" }
+        ]
+      },
+      {
         "matcher": "Write|Edit",
         "hooks": [
           { "type": "command", "command": "./scripts/protect-env-files.sh" },
@@ -378,7 +386,7 @@ Add the marketplace once, then install the plugin:
 /plugin install laravel-team@laravel-claude-agents
 ```
 
-That registers all 18 agents, the 16 slash commands, the `laravel-conventions` skill, and the nine guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
+That registers all 18 agents, the 16 slash commands, the `laravel-conventions` skill, and the ten guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
 
 ```
 /plugin install laravel-team@laravel-claude-agents --scope project

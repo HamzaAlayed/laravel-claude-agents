@@ -19,7 +19,8 @@ Every agent run inherits these controls:
   mutation-capable stage also requires at least one project-relative owned
   path; only `deny` profiles may remain pathless. The kernel blocks dependency
   violations, WIP overflow, overlapping claims, and reported outputs outside
-  the stage’s ownership.
+  the stage’s ownership. On Claude Code, a pre-tool policy also blocks native
+  file writes before claim and outside the running stage’s ownership.
 - **Tool gateway:** production mutations, destructive database operations,
   secret writes, irreversible external actions, scope expansion, and changes
   to success criteria require a human decision or are denied by a guardrail.
@@ -49,6 +50,16 @@ For new plans, pass typed `--stage-json` records. Each record must include
 an empty array for a `deny` profile. The v6 kernel rejects the former
 comma-delimited `--stage` form because it cannot express a safe ownership
 boundary.
+
+The native-write policy applies when an agent appears in an active kernel
+delivery. A queued or finished stage cannot edit; one running stage may edit
+only its `owned_paths`; multiple running stages for the same agent fail closed
+as ambiguous. Direct point-work keeps the single-specialist fast path when no
+active delivery contains that agent. The policy covers `Write`, `Edit`, and
+`NotebookEdit`. `docs-only` agents remain limited to the documentation roots
+declared in `shared.nativeWritePolicy`, even on the direct fast path. Bash
+mutations remain governed by the production, secret, helper-file, Sail, and
+read-only-reviewer command guards.
 
 | Agent | Class | Mutation | Approval boundary | Primary handoffs |
 | --- | --- | --- | --- | --- |

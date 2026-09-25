@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [6.1.0] - 2026-09-25
+
+### Added
+
+- Claude Code now enforces the shared harness mutation profile and kernel stage
+  ownership before a Guild subagent uses `Write`, `Edit`, or `NotebookEdit`.
+- Planned stages cannot mutate before an atomic claim, and a claimed stage can
+  write only its owned path or a nested path beneath it.
+
+### Security
+
+- Native writes fail closed when delivery state is malformed, ownership is
+  missing or ambiguous, a target escapes through a symlink, or a `deny` agent
+  reaches a write tool despite its frontmatter restrictions.
+- `docs-only` profiles are limited to the documentation roots declared by the
+  shared harness, including during direct single-specialist work.
+- Direct single-specialist work remains available when no active delivery
+  contains that agent; main-thread and unrelated-plugin writes are unaffected.
+
 ## [6.0.0] - 2026-09-25
 
 ### Added

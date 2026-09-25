@@ -250,6 +250,99 @@ expect "FALLBACK (no jq/python3): tech-lead sed -i blocks" "$BLOCK" \
 expect "FALLBACK (no jq/python3): builder payload allows" "$ALLOW" \
   "$(run_hook_noparsers enforce-reviewer-readonly.sh '{"agent_type":"backend-developer","tool_input":{"command":"sed -i s/a/b/ app/file.php"}}')"
 
+echo "enforce-agent-paths.sh (registry-backed native write scope)"
+run_path_policy() {
+  local root="$1" json="$2"
+  printf '%s' "$json" | CLAUDE_PROJECT_DIR="$root" "$SCRIPTS/enforce-agent-paths.sh" >/dev/null 2>&1
+  echo $?
+}
+write_policy_state() {
+  local root="$1" delivery="$2" delivery_status="$3" stage_status="$4"
+  local agent="$5" owned="$6"
+  mkdir -p "$root/docs/delivery/$delivery"
+  printf '{"status":"%s","stages":[{"id":"a","agent":"%s","status":"%s","owned_paths":%s}]}' \
+    "$delivery_status" "$agent" "$stage_status" "$owned" \
+    > "$root/docs/delivery/$delivery/kernel.json"
+}
+
+POLICY_TMP="$(mktemp -d)"
+POLICY_DIRECT="$POLICY_TMP/direct"
+mkdir -p "$POLICY_DIRECT"
+expect "main-thread native write stays outside subagent policy" "$ALLOW" \
+  "$(run_path_policy "$POLICY_DIRECT" '{"tool_input":{"file_path":"app/Models/User.php"}}')"
+expect "agent from another plugin is ignored" "$ALLOW" \
+  "$(run_path_policy "$POLICY_DIRECT" '{"agent_type":"unrelated-agent","tool_input":{"file_path":"app/Models/User.php"}}')"
+expect "direct builder fast path remains writable without an active delivery" "$ALLOW" \
+  "$(run_path_policy "$POLICY_DIRECT" '{"agent_type":"backend-developer","tool_input":{"file_path":"app/Models/User.php"}}')"
+expect "direct builder cannot use native write outside the project" "$BLOCK" \
+  "$(run_path_policy "$POLICY_DIRECT" '{"agent_type":"backend-developer","tool_input":{"file_path":"../escaped.php"}}')"
+expect "direct docs-only fast path may write an approved documentation root" "$ALLOW" \
+  "$(run_path_policy "$POLICY_DIRECT" '{"agent_type":"business-analyst","tool_input":{"file_path":"docs/requirements/story.md"}}')"
+expect "direct docs-only fast path may write the root README" "$ALLOW" \
+  "$(run_path_policy "$POLICY_DIRECT" '{"agent_type":"technical-writer","tool_input":{"file_path":"README.md"}}')"
+expect "direct docs-only profile cannot write application code" "$BLOCK" \
+  "$(run_path_policy "$POLICY_DIRECT" '{"agent_type":"business-analyst","tool_input":{"file_path":"app/Models/User.php"}}')"
+expect "deny profile cannot use native Write even without a delivery" "$BLOCK" \
+  "$(run_path_policy "$POLICY_DIRECT" '{"agent_type":"tech-lead","tool_input":{"file_path":"docs/review.md"}}')"
+
+POLICY_QUEUED="$POLICY_TMP/queued"
+write_policy_state "$POLICY_QUEUED" tag running queued backend-developer '["app/Models"]'
+expect "queued stage must be claimed before native mutation" "$BLOCK" \
+  "$(run_path_policy "$POLICY_QUEUED" '{"agent_type":"backend-developer","tool_input":{"file_path":"app/Models/Tag.php"}}')"
+
+POLICY_RUNNING="$POLICY_TMP/running"
+write_policy_state "$POLICY_RUNNING" tag running running backend-developer '["app/Models"]'
+expect "claimed stage may write its exact owned path" "$ALLOW" \
+  "$(run_path_policy "$POLICY_RUNNING" '{"agent_type":"backend-developer","tool_input":{"file_path":"app/Models"}}')"
+expect "claimed stage may write a nested owned file" "$ALLOW" \
+  "$(run_path_policy "$POLICY_RUNNING" '{"agent_type":"laravel-team:backend-developer","tool_input":{"file_path":"app/Models/Tag.php"}}')"
+expect "claimed stage cannot write a sibling path" "$BLOCK" \
+  "$(run_path_policy "$POLICY_RUNNING" '{"agent_type":"backend-developer","tool_input":{"file_path":"app/Http/TagController.php"}}')"
+expect "claimed stage cannot write outside the project" "$BLOCK" \
+  "$(run_path_policy "$POLICY_RUNNING" '{"agent_type":"backend-developer","tool_input":{"file_path":"../escaped.php"}}')"
+expect "claimed stage blocks a native write with no path" "$BLOCK" \
+  "$(run_path_policy "$POLICY_RUNNING" '{"agent_type":"backend-developer","tool_input":{}}')"
+
+POLICY_DOCS="$POLICY_TMP/docs"
+write_policy_state "$POLICY_DOCS" plan running running technical-writer '["docs/releases"]'
+expect "docs-only stage may write inside its claimed documentation path" "$ALLOW" \
+  "$(run_path_policy "$POLICY_DOCS" '{"agent_type":"technical-writer","tool_input":{"file_path":"docs/releases/next.md"}}')"
+expect "docs-only stage cannot escape its claimed documentation path" "$BLOCK" \
+  "$(run_path_policy "$POLICY_DOCS" '{"agent_type":"technical-writer","tool_input":{"file_path":"README.md"}}')"
+
+POLICY_AMBIGUOUS="$POLICY_TMP/ambiguous"
+write_policy_state "$POLICY_AMBIGUOUS" one running running backend-developer '["app/Models"]'
+write_policy_state "$POLICY_AMBIGUOUS" two running running backend-developer '["app/Http"]'
+expect "two running stages for one agent fail closed as ambiguous" "$BLOCK" \
+  "$(run_path_policy "$POLICY_AMBIGUOUS" '{"agent_type":"backend-developer","tool_input":{"file_path":"app/Models/Tag.php"}}')"
+
+POLICY_DONE="$POLICY_TMP/done"
+write_policy_state "$POLICY_DONE" tag "done" "done" backend-developer '["app/Models"]'
+expect "completed delivery does not disable a later direct fast path" "$ALLOW" \
+  "$(run_path_policy "$POLICY_DONE" '{"agent_type":"backend-developer","tool_input":{"file_path":"app/Http/TagController.php"}}')"
+
+POLICY_BAD="$POLICY_TMP/bad"
+mkdir -p "$POLICY_BAD/docs/delivery/tag"
+printf '{' > "$POLICY_BAD/docs/delivery/tag/kernel.json"
+expect "malformed delivery state fails closed" "$BLOCK" \
+  "$(run_path_policy "$POLICY_BAD" '{"agent_type":"backend-developer","tool_input":{"file_path":"app/Models/Tag.php"}}')"
+
+POLICY_LINK="$POLICY_TMP/link"
+POLICY_OUTSIDE="$POLICY_TMP/outside"
+mkdir -p "$POLICY_LINK/app/Models" "$POLICY_OUTSIDE"
+ln -s "$POLICY_OUTSIDE" "$POLICY_LINK/app/Models/external"
+write_policy_state "$POLICY_LINK" tag running running backend-developer '["app/Models"]'
+expect "symlink escape beneath an owned path is blocked" "$BLOCK" \
+  "$(run_path_policy "$POLICY_LINK" '{"agent_type":"backend-developer","tool_input":{"file_path":"app/Models/external/Tag.php"}}')"
+
+POLICY_STATE_LINK="$POLICY_TMP/state-link"
+mkdir -p "$POLICY_STATE_LINK/docs" "$POLICY_TMP/external-state/tag"
+printf '{"status":"running","stages":[]}' > "$POLICY_TMP/external-state/tag/kernel.json"
+ln -s "$POLICY_TMP/external-state" "$POLICY_STATE_LINK/docs/delivery"
+expect "delivery-state directory symlink outside the project fails closed" "$BLOCK" \
+  "$(run_path_policy "$POLICY_STATE_LINK" '{"agent_type":"backend-developer","tool_input":{"file_path":"app/Models/Tag.php"}}')"
+rm -rf "$POLICY_TMP"
+
 echo "enforce-sail.sh (host-PHP redirect on Sail projects)"
 # Fixture projects: one on Sail (binary + compose file), one with only the
 # sail dependency (the Herd/Valet shape — skeleton ships laravel/sail), one bare.
@@ -1436,6 +1529,10 @@ expect "install dest contains scripts/guild-kernel/guild.py" "1" \
   "$([ -f "$INSTALL_DEST/scripts/guild-kernel/guild.py" ] && echo 1 || echo 0)"
 expect "install dest contains the shared agent harness" "1" \
   "$([ -f "$INSTALL_DEST/config/agent-harness.json" ] && echo 1 || echo 0)"
+expect "install dest contains the native-write policy hook" "1" \
+  "$([ -x "$INSTALL_DEST/scripts/enforce-agent-paths.sh" ] && echo 1 || echo 0)"
+expect "install dest contains the registry-backed policy engine" "1" \
+  "$([ -f "$INSTALL_DEST/scripts/enforce-agent-paths.py" ] && echo 1 || echo 0)"
 rm -rf "$INSTALL_DEST"
 
 echo

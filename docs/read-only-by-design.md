@@ -20,6 +20,10 @@ guarantee is enforced, where it stops, and how a team can make it airtight.
    `docs/breakdowns/…`, etc. No reviewer writes its own artifact.
 4. **Explicit instruction.** Each reviewer's body states it is read-only and must not
    modify files — including via Bash.
+5. **Registry-backed native-write policy.** The `enforce-agent-paths.sh`
+   `PreToolUse` hook loads `config/agent-harness.json`. A `mutation: deny`
+   profile is rejected if it reaches `Write`, `Edit`, or `NotebookEdit`, even
+   if another configuration layer accidentally exposes one of those tools.
 
 ## Where the guarantee stops: bare `Bash`
 
@@ -45,9 +49,10 @@ without `--test`, `rm` / `mv` / `cp` / `chmod`) **only when the caller is
 `->` arrows. The reviewer-body instructions remain as the first layer;
 the hook is the enforcement behind them.
 
-> Scope note: the guard is **Claude Code only** — Gemini CLI's hook input carries no
-> agent identity, so there the control remains instruction + allowlist. Codex Core
-> ships no subagents, so the question doesn't arise.
+> Scope note: both identity-aware guards are **Claude Code only** — Gemini
+> CLI's hook input carries no agent identity, so there the control remains
+> instruction + allowlist. Codex Core ships no subagents, so the question
+> doesn't arise.
 
 ## Opt-in: a stricter project-wide policy
 

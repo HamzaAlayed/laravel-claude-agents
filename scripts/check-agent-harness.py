@@ -9,6 +9,7 @@ policy references before a release can ship. Stdlib only.
 from __future__ import annotations
 
 import json
+import pathlib
 import re
 import sys
 from pathlib import Path
@@ -90,6 +91,27 @@ def main() -> int:
         fail("shared.resultContract must match the six-field stage-return contract", errors)
     if shared.get("ownedPathsRequired") is not True:
         fail("shared.ownedPathsRequired must remain true", errors)
+    native_write = shared.get("nativeWritePolicy")
+    if not isinstance(native_write, dict):
+        fail("shared.nativeWritePolicy must be an object", errors)
+    else:
+        if native_write.get("tools") != ["Write", "Edit", "NotebookEdit"]:
+            fail("shared.nativeWritePolicy.tools must name the three native write tools", errors)
+        if native_write.get("directFastPath") is not True:
+            fail("shared.nativeWritePolicy.directFastPath must remain true", errors)
+        documentation_paths = native_write.get("documentationPaths")
+        if not isinstance(documentation_paths, list) or not documentation_paths:
+            fail("shared.nativeWritePolicy.documentationPaths must be a nonempty list", errors)
+        elif len(documentation_paths) != len(set(documentation_paths)):
+            fail("shared.nativeWritePolicy.documentationPaths contains duplicates", errors)
+        else:
+            for raw in documentation_paths:
+                if not isinstance(raw, str) or not raw.strip():
+                    fail("shared.nativeWritePolicy.documentationPaths must contain strings", errors)
+                    continue
+                path = pathlib.PurePosixPath(raw)
+                if path.is_absolute() or ".." in path.parts:
+                    fail(f"invalid documentation path: {raw}", errors)
     if shared.get("verification") != "registered-runners-only":
         fail("shared.verification must remain registered-runners-only", errors)
 

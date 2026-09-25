@@ -44,6 +44,18 @@
       "success-criterion change"
     ],
     "ownedPathsRequired": true,
+    "nativeWritePolicy": {
+      "tools": ["Write", "Edit", "NotebookEdit"],
+      "directFastPath": true,
+      "documentationPaths": [
+        "docs",
+        "README.md",
+        "CHANGELOG.md",
+        "CONTRIBUTING.md",
+        "CODE_OF_CONDUCT.md",
+        "SECURITY.md"
+      ]
+    },
     "verification": "registered-runners-only"
   },
   "agents": {
