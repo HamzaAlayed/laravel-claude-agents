@@ -130,6 +130,11 @@
       "date": "2026-09-25",
       "sha256": "1d894a885c7b11946515dc4d461bae24709390faacf347d87d425bb56b47e51f",
       "reason": "Auditable retry transitions tighten the shared orchestration contract without changing feature construction: one main-thread retry request requeues for a fresh claim, stable event IDs make duplicate feedback idempotent, reports require a claimed measured lane, and a second distinct failure stops with consistent stage status. Covered by kernel units, CLI tests, hook integration, orchestration ratchets, and generated-target checks. No billed feature run was authorized; ceilings were not raised."
+    },
+    {
+      "date": "2026-09-25",
+      "sha256": "540aed56adce226486d0d8080c94cbfab4fbb2b5b2a7f93418423bf99a5037c2",
+      "reason": "Interruption recovery tightens resumed dispatch without changing feature construction: confirmed dead claims freeze at last observed activity, unavailable completion metrics remain explicit, continue requeues through a fresh claim without consuming the retry, and stop remains terminal. Covered by kernel units, CLI tests, policy integration, orchestration ratchets, and generated-target checks. No billed feature run was authorized; ceilings were not raised."
     }
     ]
   }

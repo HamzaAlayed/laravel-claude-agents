@@ -326,6 +326,11 @@ write_policy_state "$POLICY_DONE" tag "done" "done" backend-developer '["app/Mod
 expect "completed delivery does not disable a later direct fast path" "$ALLOW" \
   "$(run_path_policy "$POLICY_DONE" '{"agent_type":"backend-developer","tool_input":{"file_path":"app/Http/TagController.php"}}')"
 
+POLICY_INTERRUPTED="$POLICY_TMP/interrupted"
+write_policy_state "$POLICY_INTERRUPTED" tag interrupted interrupted backend-developer '["app/Models"]'
+expect "interrupted delivery cannot fall through to the direct write fast path" "$BLOCK" \
+  "$(run_path_policy "$POLICY_INTERRUPTED" '{"agent_type":"backend-developer","tool_input":{"file_path":"app/Models/Tag.php"}}')"
+
 POLICY_BAD="$POLICY_TMP/bad"
 mkdir -p "$POLICY_BAD/docs/delivery/tag"
 printf '{' > "$POLICY_BAD/docs/delivery/tag/kernel.json"
@@ -379,6 +384,21 @@ expect "main thread may request an explicit stage retry through the kernel CLI" 
   "$(run_approval_policy "$APPROVAL_TMP" '{"tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py retry request --root . --name tag --stage database --source stage-return --reason missing-evidence --event-id turn:1"}}')"
 expect "subagent cannot request its own stage retry" "$BLOCK" \
   "$(run_approval_policy "$APPROVAL_TMP" '{"agent_type":"laravel-team:database-developer","tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py retry request --root . --name tag --stage database --source stage-return --reason self-retry --event-id turn:1"}}')"
+expect "main thread may record an interrupted stage through the kernel CLI" "$ALLOW" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py recovery interrupt --root . --name tag --stage database --source process-exit --reason disconnected --event-id process:1"}}')"
+expect "subagent cannot mark its own stage interrupted" "$BLOCK" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"agent_type":"laravel-team:database-developer","tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py recovery interrupt --root . --name tag --stage database --source process-exit --reason disconnected --event-id process:1"}}')"
+expect "main thread may resolve an interrupted stage through the kernel CLI" "$ALLOW" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py recovery resolve --root . --name tag --event-id process:1 --action continue"}}')"
+expect "subagent cannot resolve its own interrupted stage" "$BLOCK" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"agent_type":"laravel-team:database-developer","tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py recovery resolve --root . --name tag --event-id process:1 --action continue"}}')"
+APPROVAL_INTERRUPTED="$(mktemp -d)"
+mkdir -p "$APPROVAL_INTERRUPTED/docs/delivery/tag"
+printf '%s' '{"status":"interrupted","stages":[{"id":"database","agent":"database-developer","status":"interrupted","approval_categories":[],"approvals":[]}]}' \
+  > "$APPROVAL_INTERRUPTED/docs/delivery/tag/kernel.json"
+expect "interrupted delivery keeps subagent Bash blocked until recovery" "$BLOCK" \
+  "$(run_approval_policy "$APPROVAL_INTERRUPTED" '{"agent_type":"database-developer","tool_name":"Bash","tool_input":{"command":"php artisan test"}}')"
+rm -rf "$APPROVAL_INTERRUPTED"
 expect "pending approval blocks subagent Bash before claim" "$BLOCK" \
   "$(run_approval_policy "$APPROVAL_TMP" '{"agent_type":"laravel-team:database-developer","tool_name":"Bash","tool_input":{"command":"php artisan migrate"}}')"
 expect "unrelated Guild agent is not blocked by another lane's approval" "$ALLOW" \
@@ -683,6 +703,18 @@ expect "Interface block makes duplicate retry events idempotent" "9" \
 # shellcheck disable=SC2016 # literal status backticks in the Interface needle
 expect "Interface block stops after retry exhaustion" "9" \
   "$(grep -l 'second distinct failure marks the stage `failed` and the delivery `stopped`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal recovery command in the Interface needle
+expect "Interface block inspects recoveries before dispatch" "9" \
+  "$(grep -l 'every start or resume, call `recovery list` before `ready`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block leaves interruption authority to the main thread" "9" \
+  "$(grep -l 'only the main thread calls `recovery interrupt' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block freezes at last observed activity" "9" \
+  "$(grep -l 'freezes the claim at its last observed activity' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal action names in the Interface needle
+expect "Interface block resolves interruption with continue or stop" "9" \
+  "$(grep -l '`recovery resolve --event-id <id> --action continue|stop`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block never fabricates interruption telemetry" "9" \
+  "$(grep -l 'Never reclaim by editing state, reusing the old report, or fabricating telemetry' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # shellcheck disable=SC2016 # literal `board` backticks in the Interface needle
 expect "Interface block prints the kernel board" "9" \
   "$(grep -l '`board` to print' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
@@ -775,6 +807,18 @@ expect "coordinator makes duplicate retry events idempotent" "1" \
 # shellcheck disable=SC2016 # literal status backticks in the coordinator needle
 expect "coordinator stops after retry exhaustion" "1" \
   "$(grep -c 'second distinct failure marks the stage `failed` and the delivery `stopped`' "$COORD")"
+# shellcheck disable=SC2016 # literal recovery command in the coordinator needle
+expect "coordinator inspects recoveries before dispatch" "1" \
+  "$(grep -c 'every start or resume, call `recovery list` before `ready`' "$COORD")"
+expect "coordinator leaves interruption authority to the main thread" "1" \
+  "$(grep -c 'only the main thread calls `recovery interrupt' "$COORD")"
+expect "coordinator freezes at last observed activity" "1" \
+  "$(grep -c 'freezes the claim at its last observed activity' "$COORD")"
+# shellcheck disable=SC2016 # literal action names in the coordinator needle
+expect "coordinator resolves interruption with continue or stop" "1" \
+  "$(grep -c '`recovery resolve --event-id <id> --action continue|stop`' "$COORD")"
+expect "coordinator never fabricates interruption telemetry" "1" \
+  "$(grep -c 'Never edit kernel state, reuse the old report, or fabricate telemetry' "$COORD")"
 expect "coordinator does not merge" "1" \
   "$(grep -c 'Do not merge\.' "$COORD")"
 expect "coordinator copies the stage-return stub when persisting read-only" "1" \
@@ -1014,6 +1058,9 @@ expect "console trace retention is bounded" "1" \
   "$(grep -c '^DEFAULT_RETENTION_DAYS = 14' "$SCRIPT_DIR/scripts/console/engine.py")"
 expect "console exposes durable resume" "1" \
   "$(grep -c 'manager.resume(run_id)' "$SCRIPT_DIR/scripts/console/server.py")"
+# shellcheck disable=SC2016 # literal recovery commands in the resume prompt
+expect "console resume inspects kernel recovery before dispatch" "1" \
+  "$(grep -c '`guild recovery list` before `ready`' "$SCRIPT_DIR/scripts/console/engine.py")"
 # The harness copies the fixture into every eval workdir, so anything left in
 # tests/fixture-app/.claude leaks into EVERY case's feed. Run 5 was analysed with
 # two qa-engineer stages that never happened, in all five cases, from a local

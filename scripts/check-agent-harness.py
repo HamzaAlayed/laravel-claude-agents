@@ -210,6 +210,22 @@ def main() -> int:
             "shared.retryPolicy must requeue one main-thread retry then stop",
             errors,
         )
+    if shared.get("recoveryPolicy") != {
+        "eventField": "recovery_events",
+        "stageEventField": "recovery_event_id",
+        "activityField": "last_activity_at",
+        "interruptAuthority": "main",
+        "resolveAuthority": "main",
+        "interruptedStatus": "interrupted",
+        "continueStatus": "queued",
+        "stopStageStatus": "failed",
+        "stopDeliveryStatus": "stopped",
+        "unknownCompletionMetrics": ["turns", "tokens", "cost_usd"],
+    }:
+        fail(
+            "shared.recoveryPolicy must freeze, requeue, or stop interrupted claims",
+            errors,
+        )
     if shared.get("verification") != "registered-runners-only":
         fail("shared.verification must remain registered-runners-only", errors)
 

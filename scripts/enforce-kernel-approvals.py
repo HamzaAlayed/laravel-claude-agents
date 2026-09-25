@@ -3,7 +3,8 @@
 
 Claude Code sends PreToolUse payloads on stdin. The kernel is the only writer
 of docs/delivery/*/kernel.json, and only the main thread may grant approvals,
-waive criteria, open or resolve checkpoints, or request retries. Guild subagents participating
+waive criteria, open or resolve checkpoints, request retries, or reconcile
+interruptions. Guild subagents participating
 in an active delivery must have exactly one claimed stage whose declared
 approvals are complete.
 """
@@ -25,7 +26,8 @@ _KERNEL_PATH = re.compile(r"(?:^|/)docs/delivery/[^/]+/kernel\.json$")
 _KERNEL_TEXT = re.compile(r"(?:^|[\s'\"])(?:[^\s'\"]*/)?docs/delivery/[^\s'\"]+/kernel\.json(?:$|[\s'\"])")
 _CONTROL_PLANE_ACTION = re.compile(
     r"guild\.py\b.*\b(?:approval\s+grant|criterion\s+waive|"
-    r"checkpoint\s+(?:open|resolve)|retry\s+request)\b",
+    r"checkpoint\s+(?:open|resolve)|retry\s+request|"
+    r"recovery\s+(?:interrupt|resolve))\b",
     re.DOTALL,
 )
 _SHELL_MUTATION = re.compile(
@@ -60,6 +62,7 @@ def _guild_agents() -> set[str]:
         criterion_policy = payload["shared"]["criterionPolicy"]
         checkpoint_policy = payload["shared"]["checkpointPolicy"]
         retry_policy = payload["shared"]["retryPolicy"]
+        recovery_policy = payload["shared"]["recoveryPolicy"]
     except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
         raise ApprovalStateError(f"invalid agent harness registry at {path}") from exc
     if not isinstance(profiles, dict):
@@ -97,6 +100,19 @@ def _guild_agents() -> set[str]:
         "retryStatus": "queued",
         "exhaustedStageStatus": "failed",
         "exhaustedDeliveryStatus": "stopped",
+    }:
+        raise ApprovalStateError(f"invalid agent harness registry at {path}")
+    if recovery_policy != {
+        "eventField": "recovery_events",
+        "stageEventField": "recovery_event_id",
+        "activityField": "last_activity_at",
+        "interruptAuthority": "main",
+        "resolveAuthority": "main",
+        "interruptedStatus": "interrupted",
+        "continueStatus": "queued",
+        "stopStageStatus": "failed",
+        "stopDeliveryStatus": "stopped",
+        "unknownCompletionMetrics": ["turns", "tokens", "cost_usd"],
     }:
         raise ApprovalStateError(f"invalid agent harness registry at {path}")
     return set(profiles)
@@ -175,7 +191,7 @@ def _active_agent_stages(root: Path, agent: str) -> tuple[list[dict], list[dict]
             raise ApprovalStateError(f"invalid delivery state: {state_path}") from exc
         if not isinstance(delivery, dict):
             raise ApprovalStateError(f"invalid delivery state: {state_path}")
-        if delivery.get("status") != "running":
+        if delivery.get("status") not in ("running", "interrupted"):
             continue
         stages = delivery.get("stages")
         if not isinstance(stages, list):
@@ -224,7 +240,7 @@ def main() -> int:
         if _CONTROL_PLANE_ACTION.search(command) and agent:
             return _block(
                 "subagents cannot grant approvals, create criterion waivers, "
-                "mutate checkpoints, or request retries"
+                "mutate checkpoints, request retries, or reconcile interruptions"
             )
         if _KERNEL_TEXT.search(command) and _SHELL_MUTATION.search(command):
             return _block("Bash cannot mutate kernel.json directly")

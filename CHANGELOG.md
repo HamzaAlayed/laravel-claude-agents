@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.4.0] - 2026-09-25
+
+### Added
+
+- `guild recovery list`, `recovery interrupt`, and `recovery resolve` for
+  discovering active claims, freezing confirmed interruptions, and choosing a
+  durable `continue` or `stop` outcome.
+- Per-stage last-activity timestamps, delivery recovery events, and a generated
+  `docs/delivery/<name>/recoveries.md` audit view.
+
+### Changed
+
+- Continuing an interrupted stage now requeues it for a fresh atomic claim
+  without consuming the one failure retry or resetting cumulative known usage.
+- All nine pipeline commands and the delivery coordinator inspect recovery
+  state before dispatch and carry interruption context into the resumed brief.
+- Recovery records known elapsed time only through the last kernel-observed
+  activity. Missing turns, tokens, and cost are marked unavailable instead of
+  being guessed.
+
+### Fixed
+
+- A process exit can no longer leave a planned stage permanently claimed with
+  no supported path back to `queued`.
+- Interrupted deliveries remain inside the native-write and Bash policy
+  boundary instead of falling through to the direct-work fast path.
+- Recovery cannot bypass `max_seconds`; known activity at the limit preserves
+  the terminal `budget_exceeded` outcome.
+
+### Security
+
+- Only the main thread may record or resolve interruptions. Duplicate events
+  and resolutions are idempotent, while conflicting reuse fails closed.
+
 ## [8.3.0] - 2026-09-25
 
 ### Added

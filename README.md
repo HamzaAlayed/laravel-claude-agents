@@ -51,7 +51,7 @@ N stages · done when: POST /api/donations creates a Donation
 ·    tech-lead
 ```
 
-Statuses are `✔ done / ▶ running / · queued / ✖ failed / ⛔ budget exceeded`. Each specialist returns `STATUS / DID / VERIFIED / NOT-CHECKED / FLAGS / NEXT`. After two or more specialists report, `docs/team/stack.md` and `docs/delivery/<name>/log.md` exist before the closing answer.
+Statuses are `✔ done / ▶ running / · queued / ✖ failed / ⚠ interrupted / ⛔ budget exceeded`. Each specialist returns `STATUS / DID / VERIFIED / NOT-CHECKED / FLAGS / NEXT`. After two or more specialists report, `docs/team/stack.md` and `docs/delivery/<name>/log.md` exist before the closing answer.
 
 In `/console`, stations take the dark floor as the company starts. A parked agent is marked on the floor (cue / needs you). New runs default to **Work independently**: edits and a narrow set of routine checks continue automatically in trusted projects. Other shell commands still ask. Choose **Ask me** to retain approval for every Bash call. See [independent runs and project preferences](docs/independent-runs.md).
 
@@ -208,7 +208,8 @@ report → integrate → review`. A failed stage is requeued to the same owner f
 one fresh atomic claim; a second distinct failure marks the lane failed and
 stops delivery for a human decision. Confirmed CI and review feedback use the
 same retry lifecycle. Approved lessons feed the next plan. Single-specialist
-work uses a fast path and skips pipeline ceremony.
+work uses a fast path and skips pipeline ceremony. A confirmed process
+interruption freezes its claim before any resumed work is dispatched.
 
 **One shared harness, 18 narrow policy profiles.** Lifecycle, budgets, owned
 paths, approvals, typed verification, traces, and recovery are shared runtime
@@ -257,6 +258,16 @@ the stage to `failed` and the delivery to `stopped`. `guild retry list`, `guild
 transition list`, and generated `retries.md` / `transitions.md` views preserve
 the full trail. See [auditable stage retries](docs/retry-policy.md).
 
+**Interrupted claims recover without guessed work.** Every start or resume
+calls `guild recovery list` before dispatch. After confirming that an old
+runtime is gone, the main thread freezes its claim at the last kernel-observed
+activity with a typed source, reason, and stable event ID. Known seconds and
+tool calls remain cumulative; missing turns, tokens, and cost are recorded as
+unavailable rather than zero. `continue` requeues for a fresh claim without
+consuming the retry, while `stop` fails the stage and delivery. Generated
+`recoveries.md` and `transitions.md` preserve the history. See
+[recover interrupted claims](docs/recovery-policy.md).
+
 **Stage budgets stop work instead of becoming advice.** Every planned lane
 snapshots an effective limit for seconds, tool calls, turns, tokens, and USD.
 On Claude Code, the kernel budget hook meters time and tool calls before every
@@ -266,7 +277,7 @@ dispatch and rejects a success report. Duplicate hook delivery is idempotent.
 Use `guild budget list` for the receipt; runtimes without equivalent telemetry
 must record all five dimensions explicitly or leave the lane unverified.
 
-**You can see the team working.** The `delivery-coordinator` and all nine orchestrating commands print a progress board after planning and after every stage (`✔ done / ▶ running / · queued / ✖ failed / ⏸ checkpoint`), demand one stage-return shape from every specialist (`STATUS / DID / VERIFIED / NOT-CHECKED / FLAGS / NEXT` — evidence required, gaps named, claims rejected), and present human checkpoints as numbered options with a recommended default (via `AskUserQuestion` when running main-thread). And `/board` opens a live HTML dashboard — the `emit-agent-events` hook streams every subagent start/finish (agent, task, duration, tokens) to `.claude/agents-board.jsonl` deterministically, so the board fills up no matter which command or agent is orchestrating. Agents spawned from inside another agent nest under their spawner (the hook records the calling agent as `parent`), and async-launched agents get a real completion event via `SubagentStop` — background work shows its true duration instead of vanishing at launch. A multi-agent run reads like a dashboard, not a silence.
+**You can see the team working.** The `delivery-coordinator` and all nine orchestrating commands print a progress board after planning and after every stage (`✔ done / ▶ running / · queued / ✖ failed / ⏸ checkpoint / ⚠ interrupted`), demand one stage-return shape from every specialist (`STATUS / DID / VERIFIED / NOT-CHECKED / FLAGS / NEXT` — evidence required, gaps named, claims rejected), and present human checkpoints as numbered options with a recommended default (via `AskUserQuestion` when running main-thread). And `/board` opens a live HTML dashboard — the `emit-agent-events` hook streams every subagent start/finish (agent, task, duration, tokens) to `.claude/agents-board.jsonl` deterministically, so the board fills up no matter which command or agent is orchestrating. Agents spawned from inside another agent nest under their spawner (the hook records the calling agent as `parent`), and async-launched agents get a real completion event via `SubagentStop` — background work shows its true duration instead of vanishing at launch. A multi-agent run reads like a dashboard, not a silence.
 
 **Every success criterion needs its own evidence.** Plans pair each criterion with a stable lowercase-kebab ID. Stage `VERIFIED:` lines contain a JSON runner record such as `{"criterion":"donation-created","runner":"artisan-test","args":["--filter=DonationTest"]}`. The kernel executes only registered runners, without a shell, and refuses unknown criteria, incomplete coverage, extra fields, and legacy command strings. The board shows `✓` verified, `~` human-waived, and `·` pending for every criterion. A waiver requires an explicit main-thread user decision with a durable reason; a specialist cannot waive its own work. See [criterion-linked evidence](docs/criterion-evidence.md).
 

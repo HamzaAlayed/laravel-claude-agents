@@ -193,6 +193,9 @@ class TestRunLifecycle(EngineTestCase):
         resumed = self.mgr.resume(run_id)
         self.assertNotEqual(resumed, run_id)
         self.assertIn(f"Resume interrupted run {run_id}", self.clients[1].queries[0])
+        self.assertIn("`guild recovery list` before `ready`", self.clients[1].queries[0])
+        self.assertIn("Do not repeat completed work", self.clients[1].queries[0])
+        self.assertIn("invent missing completion telemetry", self.clients[1].queries[0])
         self.assertIn("finish tags", self.clients[1].queries[0])
         self.assertEqual(self.mgr.runs[resumed].spec["resumes_run_id"], run_id)
 

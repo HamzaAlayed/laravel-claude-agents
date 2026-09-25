@@ -123,6 +123,18 @@
       "exhaustedStageStatus": "failed",
       "exhaustedDeliveryStatus": "stopped"
     },
+    "recoveryPolicy": {
+      "eventField": "recovery_events",
+      "stageEventField": "recovery_event_id",
+      "activityField": "last_activity_at",
+      "interruptAuthority": "main",
+      "resolveAuthority": "main",
+      "interruptedStatus": "interrupted",
+      "continueStatus": "queued",
+      "stopStageStatus": "failed",
+      "stopDeliveryStatus": "stopped",
+      "unknownCompletionMetrics": ["turns", "tokens", "cost_usd"]
+    },
     "verification": "registered-runners-only"
   },
   "agents": {

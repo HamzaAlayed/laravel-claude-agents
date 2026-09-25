@@ -92,7 +92,7 @@ def _active_agent_stages(root: Path, agent: str) -> tuple[list[dict], list[dict]
             raise PolicyStateError(f"invalid delivery state: {state_path}") from exc
         if not isinstance(delivery, dict):
             raise PolicyStateError(f"invalid delivery state: {state_path}")
-        if delivery.get("status") != "running":
+        if delivery.get("status") not in ("running", "interrupted"):
             continue
         stages = delivery.get("stages")
         if not isinstance(stages, list):

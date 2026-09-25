@@ -119,6 +119,24 @@ def build_parser():
     )
     retry_request.add_argument("--reason", required=True)
     retry_request.add_argument("--event-id", required=True)
+    recovery = sub.add_parser("recovery")
+    recovery_cmds = recovery.add_subparsers(dest="recovery_cmd", required=True)
+    recovery_cmds.add_parser("list", parents=[common])
+    recovery_interrupt = recovery_cmds.add_parser("interrupt", parents=[common])
+    recovery_interrupt.add_argument("--stage", required=True)
+    recovery_interrupt.add_argument(
+        "--source",
+        required=True,
+        choices=("user", "process-exit", "runtime-error", "host-restart"),
+    )
+    recovery_interrupt.add_argument("--reason", required=True)
+    recovery_interrupt.add_argument("--event-id", required=True)
+    recovery_resolve = recovery_cmds.add_parser("resolve", parents=[common])
+    recovery_resolve.add_argument("--event-id", required=True)
+    recovery_resolve.add_argument(
+        "--action", required=True, choices=("continue", "stop")
+    )
+    recovery_resolve.add_argument("--note", default="")
     transition = sub.add_parser("transition")
     transition_cmds = transition.add_subparsers(
         dest="transition_cmd", required=True
@@ -267,6 +285,15 @@ def main(argv=None):
                         if stage.retry_reason
                         else None
                     ),
+                    "recovery": (
+                        {
+                            "event_id": stage.recovery_event_id,
+                            "source": stage.recovery_source,
+                            "reason": stage.recovery_reason,
+                        }
+                        if stage.recovery_reason
+                        else None
+                    ),
                 }
                 for stage in kernel.ready_stages(args.root, args.name)
             ]
@@ -388,6 +415,37 @@ def main(argv=None):
                 )
                 print(
                     f"RETRY: {event['stage']} {event['action']} "
+                    f"event={event['event_id']}"
+                )
+                return 0
+        if args.cmd == "recovery":
+            if args.recovery_cmd == "list":
+                print(json.dumps(kernel.recovery_rows(args.root, args.name)))
+                return 0
+            if args.recovery_cmd == "interrupt":
+                event = kernel.interrupt_stage(
+                    args.root,
+                    args.name,
+                    args.stage,
+                    source=args.source,
+                    reason=args.reason,
+                    event_id=args.event_id,
+                )
+                print(
+                    f"RECOVERY: {event['stage']} {event['status']} "
+                    f"event={event['event_id']}"
+                )
+                return 0
+            if args.recovery_cmd == "resolve":
+                event = kernel.resolve_recovery(
+                    args.root,
+                    args.name,
+                    args.event_id,
+                    action=args.action,
+                    note=args.note,
+                )
+                print(
+                    f"RECOVERY: {event['stage']} {event['status']} "
                     f"event={event['event_id']}"
                 )
                 return 0

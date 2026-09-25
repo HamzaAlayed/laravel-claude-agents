@@ -339,7 +339,10 @@ class RunManager:
         original = build_prompt(spec)
         prompt = (
             f"Resume interrupted run {run_id}. Inspect the current workspace and any "
-            "guild kernel state before continuing; do not repeat completed work. "
+            "guild kernel state before continuing; for a planned delivery, call "
+            "`guild recovery list` before `ready` and reconcile only claims whose "
+            "previous runtime is confirmed gone. Do not repeat completed work or "
+            "invent missing completion telemetry. "
             f"Original request: {original}"
         )
         return self.start(spec, _prompt_override=prompt)

@@ -41,9 +41,11 @@ Every agent run inherits these controls:
 - **Retries and transitions:** only the main thread may request a retry. The
   first distinct failure requeues the lane for a fresh atomic claim; the second
   fails the stage and stops delivery. Every status change is durably recorded.
-- **Recovery:** interrupted runs reload their original request and current
-  workspace state. They inspect durable checkpoint state before continuing,
-  present pending prompts exactly as stored, and never repeat resolved prompts.
+- **Recovery:** the kernel exposes active claims before dispatch. A confirmed
+  interruption freezes its lane at the last observed activity and stores the
+  reason, source, known usage, and unavailable completion metrics. Continuing
+  requires a fresh claim; stopping fails the lane. Neither action consumes or
+  resets the retry allowance.
 
 The harness enforces what can be decided mechanically. Agent prompts still
 provide domain judgment, such as when a proposed authentication change is
@@ -161,6 +163,48 @@ idempotent. A second distinct request changes the stage to `failed` and the
 delivery to `stopped`. Inspect `retry list`, `transition list`, and the generated
 `retries.md` and `transitions.md` views. See
 [auditable stage retries](retry-policy.md) for the complete lifecycle.
+
+An interrupted process can leave a `running` claim without completion
+telemetry. Inspect recovery state before `ready` whenever a delivery starts or
+resumes:
+
+```sh
+python3 scripts/guild-kernel/guild.py recovery list \
+  --root . --name tags
+```
+
+An `active_claims` row is not automatically stale. First confirm that the
+current runtime no longer owns it. Then only the main thread records the
+interruption with a stable source event:
+
+```sh
+python3 scripts/guild-kernel/guild.py recovery interrupt \
+  --root . --name tags --stage backend \
+  --source process-exit --reason "The previous agent process exited." \
+  --event-id process:run-01K5M9Y4A7
+```
+
+The kernel stops the active timer at `last_activity_at`, keeps cumulative
+seconds and tool calls, and explicitly records that turns, tokens, and USD were
+not available from the missing completion receipt. It does not charge offline
+time or invent zeros. If known activity already reached the time budget, the
+normal `budget_exceeded` terminal state wins.
+
+Resolve the durable event before reclaiming the lane:
+
+```sh
+python3 scripts/guild-kernel/guild.py recovery resolve \
+  --root . --name tags --event-id process:run-01K5M9Y4A7 \
+  --action continue --note "Inspect partial files before changing them."
+```
+
+`continue` requeues the same lane, leaves retry usage unchanged, and puts the
+interruption context in the next `ready` row. A normal `claim` then rechecks
+dependencies, WIP, approvals, and owned paths. `stop` changes the stage to
+`failed` and the delivery to `stopped`. Duplicate interrupt and resolution
+events are idempotent. The generated `recoveries.md` and `transitions.md` views
+preserve the audit trail. See
+[recover interrupted claims](recovery-policy.md) for the complete procedure.
 
 The kernel validates every declared category against the profile, marks the
 lane `⏸`, excludes it from `ready`, and rejects `claim` until all categories

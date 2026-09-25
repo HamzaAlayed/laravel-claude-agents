@@ -91,10 +91,28 @@ _RETRY_POLICY = {
     "exhaustedDeliveryStatus": "stopped",
 }
 _RETRY_SOURCES = frozenset({"stage-return", "verification", "ci", "review"})
+_RECOVERY_POLICY = {
+    "eventField": "recovery_events",
+    "stageEventField": "recovery_event_id",
+    "activityField": "last_activity_at",
+    "interruptAuthority": "main",
+    "resolveAuthority": "main",
+    "interruptedStatus": "interrupted",
+    "continueStatus": "queued",
+    "stopStageStatus": "failed",
+    "stopDeliveryStatus": "stopped",
+    "unknownCompletionMetrics": ["turns", "tokens", "cost_usd"],
+}
+_RECOVERY_SOURCES = frozenset(
+    {"user", "process-exit", "runtime-error", "host-restart"}
+)
 _STAGE_TRANSITIONS = {
     "queued": frozenset({"running", "paused"}),
-    "running": frozenset({"queued", "paused", "done", "failed", "budget_exceeded"}),
+    "running": frozenset(
+        {"queued", "paused", "interrupted", "done", "failed", "budget_exceeded"}
+    ),
     "paused": frozenset({"queued", "failed"}),
+    "interrupted": frozenset({"queued", "failed"}),
     "done": frozenset({"queued", "failed"}),
     "failed": frozenset(),
     "budget_exceeded": frozenset(),
@@ -113,6 +131,7 @@ _BOARD_MARK = {
     "queued": "·",
     "failed": "✖",
     "paused": "⏸",
+    "interrupted": "⚠",
     "budget_exceeded": "⛔",
     "skipped": "·",
 }
@@ -180,6 +199,10 @@ class StageSpec:
     attempts: int = 0
     retry_reason: str = ""
     retry_source: str = ""
+    last_activity_at: str = ""
+    recovery_event_id: str = ""
+    recovery_reason: str = ""
+    recovery_source: str = ""
 
 
 @dataclass
@@ -202,6 +225,7 @@ class Delivery:
     loop_events: list = field(default_factory=list)
     retry_events: list = field(default_factory=list)
     transition_events: list = field(default_factory=list)
+    recovery_events: list = field(default_factory=list)
 
 
 def _state_path(root, name):
@@ -256,6 +280,7 @@ def load(root, name):
     data.setdefault("loop_events", [])
     data.setdefault("retry_events", [])
     data.setdefault("transition_events", [])
+    data.setdefault("recovery_events", [])
     stages = []
     for stage in data.pop("stages"):
         stage.setdefault("flags", [])
@@ -288,6 +313,10 @@ def load(root, name):
         )
         stage.setdefault("retry_reason", "")
         stage.setdefault("retry_source", "")
+        stage.setdefault("last_activity_at", stage.get("claimed_at", ""))
+        stage.setdefault("recovery_event_id", "")
+        stage.setdefault("recovery_reason", "")
+        stage.setdefault("recovery_source", "")
         stages.append(StageSpec(**stage))
     return Delivery(stages=stages, **data)
 
@@ -475,6 +504,11 @@ def board_line(delivery):
             label += f" loop:{stage.loop_detected_reason}"
         if stage.retry_reason:
             label += f" retry:{stage.retry_source} attempt:{stage.attempts + (stage.status == 'queued')}"
+        if stage.recovery_reason:
+            label += (
+                f" recovery:{stage.recovery_source} "
+                f"attempt:{stage.attempts + (stage.status == 'queued')}"
+            )
         matrix = ",".join(
             f"{row['id']}:{row['mark']}" for row in criterion_rows_for_stage(stage)
         )
@@ -622,6 +656,43 @@ def render_transitions(delivery):
     return "\n".join(lines)
 
 
+def render_recoveries(delivery):
+    lines = ["# Interruption recovery", ""]
+    if not delivery.recovery_events:
+        return "\n".join([*lines, "None.", ""])
+    for event in delivery.recovery_events:
+        lines.extend(
+            [
+                f"## {event['stage']} — {event['status']}",
+                "",
+                f"- Event: `{event['event_id']}`",
+                f"- Source: `{event['source']}`",
+                f"- Attempt: {event['attempt']}",
+                f"- Last activity: {event['interrupted_at']}",
+                f"- Recorded: {event['recorded_at']} by {event['recorded_by']}",
+                f"- Accounted seconds: {event['accounted_seconds']}",
+                "- Unavailable completion metrics: "
+                + ", ".join(f"`{item}`" for item in event["unavailable_metrics"]),
+                f"- Reason: {event['reason']}",
+            ]
+        )
+        resolution = event.get("resolution") or {}
+        if resolution:
+            note = f" — {resolution['note']}" if resolution.get("note") else ""
+            lines.append(
+                f"- Resolution: `{resolution['action']}` by {resolution['by']} "
+                f"at {resolution['at']}{note}"
+            )
+        else:
+            lines.append(
+                "- Resolution: pending"
+                if event["status"] == "pending"
+                else "- Resolution: not applicable"
+            )
+        lines.append("")
+    return "\n".join(lines)
+
+
 def write_views(root, delivery, *, verified="none", not_checked="none"):
     folder = pathlib.Path(root) / "docs" / "delivery" / delivery.name
     folder.mkdir(parents=True, exist_ok=True)
@@ -633,6 +704,7 @@ def write_views(root, delivery, *, verified="none", not_checked="none"):
     (folder / "loops.md").write_text(render_loops(delivery))
     (folder / "retries.md").write_text(render_retries(delivery))
     (folder / "transitions.md").write_text(render_transitions(delivery))
+    (folder / "recoveries.md").write_text(render_recoveries(delivery))
 
 
 def _has_criteria(stage):
@@ -1486,6 +1558,238 @@ def request_retry(
         )
 
 
+def _recovery_event_seen(delivery, event_id):
+    return next(
+        (
+            event
+            for event in delivery.recovery_events
+            if isinstance(event, dict) and event.get("event_id") == event_id
+        ),
+        None,
+    )
+
+
+def recovery_rows(root, name):
+    delivery = load(root, name)
+    return {
+        "delivery_status": delivery.status,
+        "active_claims": [
+            {
+                "stage": stage.id,
+                "agent": stage.agent,
+                "attempt": stage.attempts,
+                "claimed_at": stage.claimed_at,
+                "last_activity_at": stage.last_activity_at,
+            }
+            for stage in delivery.stages
+            if stage.status == "running" and stage.claimed_at
+        ],
+        "events": list(delivery.recovery_events),
+    }
+
+
+def interrupt_stage(
+    root,
+    name,
+    stage_id,
+    *,
+    source,
+    reason,
+    event_id,
+    recorded_by="main",
+    now=None,
+):
+    """Freeze one stranded claim at its last kernel-observed activity."""
+    if recorded_by != _RECOVERY_POLICY["interruptAuthority"]:
+        raise PlanError("stage interruption can only be recorded by the main thread")
+    if source not in _RECOVERY_SOURCES:
+        raise PlanError(
+            "recovery source must be one of: "
+            + ", ".join(sorted(_RECOVERY_SOURCES))
+        )
+    reason = _retry_text(reason, "recovery reason")
+    if not isinstance(event_id, str) or not _RETRY_EVENT_ID.fullmatch(event_id):
+        raise PlanError(
+            "recovery event id must use letters, numbers, dot, underscore, colon, or hyphen"
+        )
+    observed_at = now or _now_utc()
+    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with _file_lock(lock_path):
+        delivery = load(root, name)
+        stage = next((item for item in delivery.stages if item.id == stage_id), None)
+        if stage is None:
+            raise PlanError(f"stage {stage_id} is missing")
+        existing = _recovery_event_seen(delivery, event_id)
+        if existing is not None:
+            expected = {
+                "stage": stage.id,
+                "source": source,
+                "reason": reason,
+                "recorded_by": recorded_by,
+            }
+            if all(existing.get(key) == value for key, value in expected.items()):
+                return existing
+            raise PlanError(
+                f"recovery event id {event_id} already exists with different data"
+            )
+        if delivery.status not in ("running", "interrupted"):
+            raise PlanError(f"delivery {delivery.name} is {delivery.status}")
+        if stage.status != "running" or not stage.claimed_at:
+            raise PlanError(
+                f"stage {stage.id} is not an actively claimed running stage"
+            )
+        claimed_at = _parse_utc_timestamp(
+            stage.claimed_at, label=f"stage {stage.id} claimed_at"
+        )
+        activity_raw = stage.last_activity_at or stage.claimed_at
+        activity_at = _parse_utc_timestamp(
+            activity_raw, label=f"stage {stage.id} last_activity_at"
+        )
+        if activity_at < claimed_at:
+            raise PlanError(f"stage {stage.id} last activity predates its claim")
+        if activity_at > observed_at:
+            raise PlanError(f"stage {stage.id} last activity is in the future")
+        accounted_seconds = max(0.0, (activity_at - claimed_at).total_seconds())
+        stage.usage["seconds"] += accounted_seconds
+        stage.claimed_at = ""
+        stage.claim_usage = {}
+        event = {
+            "stage": stage.id,
+            "attempt": max(stage.attempts, 1),
+            "source": source,
+            "reason": reason,
+            "event_id": event_id,
+            "status": "pending",
+            "recorded_by": recorded_by,
+            "recorded_at": observed_at.isoformat(timespec="seconds"),
+            "interrupted_at": activity_at.isoformat(timespec="seconds"),
+            "accounted_seconds": round(accounted_seconds, 3),
+            "unavailable_metrics": list(
+                _RECOVERY_POLICY["unknownCompletionMetrics"]
+            ),
+            "resolution": {},
+        }
+        delivery.recovery_events.append(event)
+        if stage.usage["seconds"] >= stage.budget["max_seconds"]:
+            _transition_stage(
+                delivery,
+                stage,
+                "budget_exceeded",
+                source="recovery",
+                reason="known activity reached budget max_seconds before interruption",
+                by="kernel",
+            )
+            stage.budget_exceeded_reason = "max_seconds"
+            event["status"] = "budget_exceeded"
+            delivery.status = "budget_exceeded"
+        else:
+            _transition_stage(
+                delivery,
+                stage,
+                _RECOVERY_POLICY["interruptedStatus"],
+                source=f"recovery:{source}",
+                reason=reason,
+                by=recorded_by,
+            )
+            stage.recovery_event_id = event_id
+            stage.recovery_reason = reason
+            stage.recovery_source = source
+            if not any(item.status == "running" for item in delivery.stages):
+                delivery.status = "interrupted"
+        save(root, delivery)
+        write_views(root, delivery, not_checked=delivery.done_when or "none")
+        return event
+
+
+def resolve_recovery(
+    root,
+    name,
+    event_id,
+    *,
+    action,
+    note="",
+    resolved_by="main",
+):
+    if resolved_by != _RECOVERY_POLICY["resolveAuthority"]:
+        raise PlanError("interruption recovery can only be resolved by the main thread")
+    if action not in ("continue", "stop"):
+        raise PlanError("recovery action must be continue or stop")
+    if not isinstance(note, str) or len(note.strip()) > 500:
+        raise PlanError("recovery note must be at most 500 characters")
+    if any(char in note for char in "\r\n"):
+        raise PlanError("recovery note must be a single line")
+    note = note.strip()
+    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with _file_lock(lock_path):
+        delivery = load(root, name)
+        event = _recovery_event_seen(delivery, event_id)
+        if event is None:
+            raise PlanError(f"recovery event {event_id} is missing")
+        resolution = event.get("resolution") or {}
+        if resolution:
+            expected = {
+                "action": action,
+                "note": note,
+                "by": resolved_by,
+            }
+            if all(resolution.get(key) == value for key, value in expected.items()):
+                return event
+            raise PlanError(f"recovery event {event_id} is already resolved")
+        if event.get("status") != "pending":
+            raise PlanError(
+                f"recovery event {event_id} is {event.get('status', 'invalid')}"
+            )
+        stage = next(
+            (item for item in delivery.stages if item.id == event.get("stage")),
+            None,
+        )
+        if (
+            stage is None
+            or stage.status != _RECOVERY_POLICY["interruptedStatus"]
+            or stage.recovery_event_id != event_id
+        ):
+            raise PlanError(f"recovery event {event_id} does not own an interrupted stage")
+        if action == "stop":
+            _transition_stage(
+                delivery,
+                stage,
+                _RECOVERY_POLICY["stopStageStatus"],
+                source="recovery-resolution",
+                reason=f"interrupted stage stopped: {note or event['reason']}",
+                by=resolved_by,
+            )
+            event["status"] = "stopped"
+            delivery.status = _RECOVERY_POLICY["stopDeliveryStatus"]
+        else:
+            _transition_stage(
+                delivery,
+                stage,
+                _RECOVERY_POLICY["continueStatus"],
+                source="recovery-resolution",
+                reason=f"interrupted stage continued: {note or event['reason']}",
+                by=resolved_by,
+            )
+            stage.loop_history = []
+            stage.loop_detected_reason = ""
+            event["status"] = "continued"
+            delivery.status = (
+                "interrupted"
+                if any(item.status == "interrupted" for item in delivery.stages)
+                else "running"
+            )
+        event["resolution"] = {
+            "action": action,
+            "note": note,
+            "by": resolved_by,
+            "at": _now_utc().isoformat(timespec="seconds"),
+        }
+        save(root, delivery)
+        write_views(root, delivery, not_checked=delivery.done_when or "none")
+        return event
+
+
 def _parse_utc_timestamp(raw, *, label):
     if not isinstance(raw, str) or not raw:
         raise PlanError(f"{label} is missing")
@@ -1678,6 +1982,7 @@ def meter_tool_call(
         if _budget_event_seen(stage, event_id):
             return stage
         observed_at = now or _now_utc()
+        stage.last_activity_at = observed_at.isoformat(timespec="seconds")
         elapsed = _active_seconds(stage, observed_at)
         if elapsed >= stage.budget["max_seconds"]:
             _mark_budget_exceeded(
@@ -1786,6 +2091,7 @@ def record_stage_usage(
         if _budget_event_seen(stage, event_id):
             return stage
         observed_at = now or _now_utc()
+        stage.last_activity_at = observed_at.isoformat(timespec="seconds")
         current_seconds = 0.0
         if stage.claimed_at:
             current_seconds = max(
@@ -2140,7 +2446,7 @@ def _watch_target(delivery):
 
 def watch_once(root, name, runner):
     delivery = load(root, name)
-    if delivery.status in ("stopped", "done", "budget_exceeded"):
+    if delivery.status in ("stopped", "done", "budget_exceeded", "interrupted"):
         return {"action": "skip"}
     if not delivery.pr.get("number"):
         return {"action": "skip"}
@@ -2279,7 +2585,8 @@ def ready_stages(root, name):
 def _ready_for_delivery(delivery):
     if (
         _dod_met(delivery)
-        or delivery.status in ("stopped", "done", "budget_exceeded")
+        or delivery.status in ("stopped", "done", "budget_exceeded", "interrupted")
+        or any(stage.status == "interrupted" for stage in delivery.stages)
         or _cap_hit(delivery)
     ):
         return []
@@ -2336,11 +2643,14 @@ def claim_stage(root, name, stage_id):
                 )
             raise PlanError(f"stage {stage_id} is not ready or parallel capacity is full")
         next_attempt = stage.attempts + 1
-        claim_reason = (
-            f"retry attempt {next_attempt}: {stage.retry_reason}"
-            if stage.retry_reason
-            else f"attempt {next_attempt} claimed"
-        )
+        claim_context = []
+        if stage.retry_reason:
+            claim_context.append(f"retry: {stage.retry_reason}")
+        if stage.recovery_reason:
+            claim_context.append(f"recovery: {stage.recovery_reason}")
+        claim_reason = f"attempt {next_attempt} claimed"
+        if claim_context:
+            claim_reason += "; " + "; ".join(claim_context)
         _transition_stage(
             delivery,
             stage,
@@ -2351,6 +2661,7 @@ def claim_stage(root, name, stage_id):
         )
         stage.attempts = next_attempt
         stage.claimed_at = _now_utc().isoformat(timespec="seconds")
+        stage.last_activity_at = stage.claimed_at
         stage.claim_usage = dict(stage.usage)
         stage.loop_history = []
         stage.loop_detected_reason = ""
@@ -2371,6 +2682,12 @@ def next_agent(root, name):
             save(root, delivery)
             write_views(root, delivery)
         return "STOP"
+    interrupted = next(
+        (stage for stage in delivery.stages if stage.status == "interrupted"),
+        None,
+    )
+    if interrupted is not None:
+        return f"RECOVERY_REQUIRED: {interrupted.recovery_event_id}"
     by_id = {stage.id: stage for stage in delivery.stages}
     for stage in delivery.stages:
         deps_met = all(
@@ -2611,6 +2928,9 @@ def _commit_report(root, name, path, fields, verifications):
             )
             stage.retry_reason = ""
             stage.retry_source = ""
+            stage.recovery_event_id = ""
+            stage.recovery_reason = ""
+            stage.recovery_source = ""
             for flag_text in flag_texts:
                 _record_lesson(root, name, agent, flag_text)
             continue
@@ -2642,6 +2962,9 @@ def _commit_report(root, name, path, fields, verifications):
             )
             stage.retry_reason = ""
             stage.retry_source = ""
+            stage.recovery_event_id = ""
+            stage.recovery_reason = ""
+            stage.recovery_source = ""
         for flag_text in flag_texts:
             _record_lesson(root, name, agent, flag_text)
     if not matched:
