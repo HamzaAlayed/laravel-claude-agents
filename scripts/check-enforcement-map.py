@@ -29,6 +29,7 @@ REQUIRED_CONTROL_IDS = {
     "orchestration-contract",
     "adversarial-gate",
     "delivery-observability",
+    "outcome-benchmark",
     "immutable-releases",
 }
 CONTROL_FIELDS = {
@@ -180,7 +181,7 @@ def render(payload: dict[str, Any], controls: list[dict[str, Any]]) -> str:
     lines = [
         "# Which Laravel Guild guarantees are actually enforced?",
         "",
-        "Last verified 2026-09-25 against pack v9.0.0.",
+        "Last verified 2026-09-25 against pack v9.1.0.",
         "",
         payload["scope"].strip(),
         "",

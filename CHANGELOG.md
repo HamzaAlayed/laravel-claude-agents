@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.1.0] - 2026-09-25
+
+### Added
+
+- A schema-versioned outcome benchmark harness for repeated, read-only baseline
+  and candidate captures with query median/p95 and latency p50/p95/p99.
+- Source-bound benchmark receipts that prove behavior equivalence and the
+  selected query, latency, or combined objective before stage completion.
+- A registered kernel verification runner, typed `benchmark_criteria`, a
+  dedicated release-required CI job, and an operator runbook.
+
+### Changed
+
+- Performance outcome criteria now require a passing benchmark receipt instead
+  of generic command evidence or manual timing.
+- The enforcement map now covers 15 controls, and immutable publication
+  requires 16 named hosted-CI jobs.
+
+### Fixed
+
+- Query-count improvements cannot pass when response, database, event, or job
+  behavior changes, query p95 regresses, or latency exceeds its tolerance.
+- Mutating, undersampled, unstable, path-escaping, tampered, and source-drifted
+  benchmark evidence now fails closed.
+
+### Security
+
+- Capture artifacts are read-only, repository-contained, non-symlink files and
+  store hashes and aggregates instead of raw SQL, responses, rows, payloads, or
+  secrets.
+
 ## [9.0.0] - 2026-09-25
 
 ### Added

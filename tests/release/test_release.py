@@ -24,6 +24,7 @@ JOBS = [
     "guild kernel units",
     "adversarial engineering loop",
     "observability contract",
+    "outcome benchmark",
     "enforcement map",
     "eval cost parser units",
     "console ui",

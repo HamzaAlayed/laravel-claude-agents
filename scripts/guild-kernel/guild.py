@@ -55,7 +55,7 @@ def build_parser():
         "--stage-json",
         action="append",
         default=[],
-        help="typed stage object with id, agent, role, success_criteria, criterion_ids, depends_on, owned_paths, approval_categories, feedback_checks, budget",
+        help="typed stage object with id, agent, role, success_criteria, criterion_ids, benchmark_criteria, depends_on, owned_paths, approval_categories, feedback_checks, budget",
     )
     plan.add_argument("--max-parallel", type=int, default=3)
     plan.add_argument("--issue", type=int, default=0)
@@ -194,7 +194,7 @@ def _stages_from_args(raw_stages, raw_json_stages=()):
         )
     allowed = {
         "id", "agent", "role", "success_criteria", "depends_on", "owned_paths",
-        "approval_categories", "criterion_ids", "feedback_checks",
+        "approval_categories", "criterion_ids", "benchmark_criteria", "feedback_checks",
         "budget",
     }
     for raw in raw_json_stages:
@@ -220,6 +220,7 @@ def _stages_from_args(raw_stages, raw_json_stages=()):
                 approval_categories=spec.get("approval_categories", []),
                 budget=spec.get("budget", {}),
                 criterion_ids=spec.get("criterion_ids", []),
+                benchmark_criteria=spec.get("benchmark_criteria", []),
                 feedback_checks=spec.get("feedback_checks", []),
             )
         )

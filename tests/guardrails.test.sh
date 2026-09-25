@@ -606,13 +606,40 @@ expect "CI runs delivery observability contract tests" "1" \
   "$(grep -c 'unittest discover -s tests/observability' "$SCRIPT_DIR/.github/workflows/ci.yml")"
 expect "release publication requires the observability gate" "1" \
   "$(grep -c '"observability contract"' "$SCRIPT_DIR/config/release-harness.json")"
+expect "one versioned outcome benchmark contract is committed" "1" \
+  "$(python3 - "$SCRIPT_DIR/config/benchmark-harness.json" <<'PY'
+import json, pathlib, sys
+payload = json.loads(pathlib.Path(sys.argv[1]).read_text())
+valid = payload.get("schemaVersion") == 1
+valid = valid and payload.get("databaseMode") == "read-only"
+valid = valid and payload.get("registeredRunner") == "outcome-benchmark"
+valid = valid and payload.get("minimumRuns") >= 7
+print(1 if valid else 0)
+PY
+)"
+expect "CI has a separate outcome benchmark gate" "1" \
+  "$(grep -c '^    name: outcome benchmark$' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "CI runs outcome benchmark contract tests" "1" \
+  "$(grep -c 'unittest discover -s tests/benchmark' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "release publication requires the outcome benchmark gate" "1" \
+  "$(grep -c '"outcome benchmark"' "$SCRIPT_DIR/config/release-harness.json")"
+expect "kernel registers the outcome benchmark runner" "1" \
+  "$(grep -c '"outcome-benchmark": (' "$SCRIPT_DIR/scripts/guild-kernel/kernel.py")"
+expect "benchmark contract excludes all six raw payload classes" "6" \
+  "$(python3 - "$SCRIPT_DIR/config/benchmark-harness.json" <<'PY'
+import json, sys
+print(len(json.load(open(sys.argv[1]))["forbiddenPayloads"]))
+PY
+)"
+expect "Interface requires outcome receipts for performance claims" "9" \
+  "$(grep -l '^> \*\*Outcome benchmarks:\*\*' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface verifies delivery observability before closure" "9" \
   "$(grep -l 'again before the final answer, call' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "kernel exposes the observability command group" "1" \
   "$(grep -c 'observe = sub.add_parser("observe")' "$SCRIPT_DIR/scripts/guild-kernel/guild.py")"
 expect "shared observability excludes raw payloads" "1" \
   "$(grep -c '"rawPayloads": false' "$SCRIPT_DIR/config/agent-harness.json")"
-expect "one versioned enforcement map is committed" "14" \
+expect "one versioned enforcement map is committed" "15" \
   "$(python3 - "$SCRIPT_DIR/config/enforcement-map.json" <<'PY'
 import json, pathlib, sys
 payload = json.loads(pathlib.Path(sys.argv[1]).read_text())
@@ -1804,6 +1831,10 @@ INSTALL_DEST="$(mktemp -d)"
 bash "$SCRIPT_DIR/install.sh" --no-claudemd "$INSTALL_DEST" >/dev/null
 expect "install dest contains scripts/guild-kernel/guild.py" "1" \
   "$([ -f "$INSTALL_DEST/scripts/guild-kernel/guild.py" ] && echo 1 || echo 0)"
+expect "install dest contains scripts/outcome-benchmark.py" "1" \
+  "$([ -f "$INSTALL_DEST/scripts/outcome-benchmark.py" ] && echo 1 || echo 0)"
+expect "install dest contains the outcome benchmark contract" "1" \
+  "$([ -f "$INSTALL_DEST/config/benchmark-harness.json" ] && echo 1 || echo 0)"
 expect "install dest contains the shared agent harness" "1" \
   "$([ -f "$INSTALL_DEST/config/agent-harness.json" ] && echo 1 || echo 0)"
 expect "install dest contains the native-write policy hook" "1" \

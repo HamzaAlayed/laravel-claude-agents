@@ -21,6 +21,14 @@ _VERIFICATION_RUNNERS = {
     "npm-build": ("npm", "run", "build"),
     "npm-lint": ("npm", "run", "lint"),
     "npm-test": ("npm", "test", "--"),
+    "outcome-benchmark": (
+        "python3",
+        "scripts/outcome-benchmark.py",
+        "verify",
+        "--root",
+        ".",
+        "--",
+    ),
     "phpstan": ("vendor/bin/phpstan",),
     "phpunit": ("vendor/bin/phpunit",),
     "pint-test": ("vendor/bin/pint", "--test"),
@@ -113,6 +121,13 @@ _CRITERION_POLICY = {
     "waiversField": "criterion_waivers",
     "requiredCoverage": "all",
     "waiverAuthority": "user",
+}
+_BENCHMARK_POLICY = {
+    "stageField": "benchmark_criteria",
+    "runner": "outcome-benchmark",
+    "manifest": "config/benchmark-harness.json",
+    "requiredVerdict": "pass",
+    "databaseMode": "read-only",
 }
 _CHECKPOINT_POLICY = {
     "recordField": "checkpoints",
@@ -268,6 +283,7 @@ class StageSpec:
     recovery_source: str = ""
     feedback_checks: list = field(default_factory=list)
     feedback_event_ids: list = field(default_factory=list)
+    benchmark_criteria: list = field(default_factory=list)
 
 
 @dataclass
@@ -658,6 +674,7 @@ def load(root, name):
         stage.setdefault("recovery_source", "")
         stage.setdefault("feedback_checks", [])
         stage.setdefault("feedback_event_ids", [])
+        stage.setdefault("benchmark_criteria", [])
         stages.append(StageSpec(**stage))
     return Delivery(stages=stages, **data)
 
@@ -1259,6 +1276,7 @@ def criterion_rows_for_stage(stage):
                 "status": status,
                 "mark": {"verified": "✓", "waived": "~", "pending": "·"}[status],
                 "waiver": waived.get(criterion_id),
+                "benchmarkRequired": criterion_id in stage.benchmark_criteria,
             }
         )
     return rows
@@ -1277,6 +1295,26 @@ def _validate_criteria(stages):
         stage.criterion_ids = _normalize_criterion_ids(
             stage.success_criteria, stage.criterion_ids
         )
+        if not isinstance(stage.benchmark_criteria, list) or any(
+            not isinstance(item, str) for item in stage.benchmark_criteria
+        ):
+            raise PlanError(
+                f"benchmark_criteria for stage {stage.id} must be a list of criterion ids"
+            )
+        if len(stage.benchmark_criteria) != len(set(stage.benchmark_criteria)):
+            raise PlanError(
+                f"benchmark_criteria for stage {stage.id} must be unique"
+            )
+        unknown_benchmarks = [
+            item
+            for item in stage.benchmark_criteria
+            if item not in stage.criterion_ids
+        ]
+        if unknown_benchmarks:
+            raise PlanError(
+                f"benchmark criterion {unknown_benchmarks[0]!r} is not declared "
+                f"for stage {stage.id}"
+            )
         if stage.criterion_waivers:
             raise PlanError(f"new stage {stage.id} cannot start with criterion waivers")
         stage.criterion_contract = 2
@@ -1291,6 +1329,7 @@ def _harness_registry():
         approval_policy = shared["approvalPolicy"]
         budget_policy = shared["budgetPolicy"]
         criterion_policy = shared["criterionPolicy"]
+        benchmark_policy = shared["benchmarkPolicy"]
         checkpoint_policy = shared["checkpointPolicy"]
         loop_policy = shared["loopPolicy"]
         feedback_policy = shared["feedbackPolicy"]
@@ -1309,6 +1348,8 @@ def _harness_registry():
             raise TypeError("budget policy is invalid")
         if criterion_policy != _CRITERION_POLICY:
             raise TypeError("criterion policy is invalid")
+        if benchmark_policy != _BENCHMARK_POLICY:
+            raise TypeError("benchmark policy is invalid")
         if checkpoint_policy != _CHECKPOINT_POLICY:
             raise TypeError("checkpoint policy is invalid")
         if loop_policy != _LOOP_POLICY:
@@ -3581,6 +3622,8 @@ def _parse_verification(raw):
         raise ReportError("file-exists requires at least one project-relative path")
     if runner == "file-has-lines" and len(args) < 2:
         raise ReportError("file-has-lines requires a project-relative path and at least one prefix")
+    if runner == "outcome-benchmark" and len(args) != 1:
+        raise ReportError("outcome-benchmark requires exactly one receipt path")
     return {"criterion": criterion, "runner": runner, "args": args}
 
 
@@ -3628,6 +3671,23 @@ def _validate_verification_criteria(stage, verifications):
             f"unknown criterion {unknown[0]!r} for stage {stage.id}; "
             f"choose one of: {', '.join(stage.criterion_ids)}"
         )
+    for spec in verifications:
+        criterion = spec["criterion"]
+        runner = spec["runner"]
+        if (
+            criterion in stage.benchmark_criteria
+            and runner != _BENCHMARK_POLICY["runner"]
+        ):
+            raise ReportError(
+                f"criterion {criterion!r} requires the outcome-benchmark runner"
+            )
+        if (
+            criterion not in stage.benchmark_criteria
+            and runner == _BENCHMARK_POLICY["runner"]
+        ):
+            raise ReportError(
+                f"criterion {criterion!r} is not declared in benchmark_criteria"
+            )
 
 
 def _validate_criterion_coverage(stage, verifications):

@@ -1,6 +1,6 @@
 # Which Laravel Guild guarantees are actually enforced?
 
-Last verified 2026-09-25 against pack v9.0.0.
+Last verified 2026-09-25 against pack v9.1.0.
 
 This map separates mechanically enforced controls from pre-tool hooks, release-gated evidence, operator decisions, and prompt guidance across the Laravel Guild engineering loop.
 
@@ -35,6 +35,7 @@ A prompt instruction is never presented as a hard control on its own.
 | [`interruption-recovery`](#interruption-recovery) — Durable interrupted-claim recovery | `runtime`, `ci`, `operator`, `prompt` | Keep the lane interrupted and unavailable until a valid resolution is recorded. |
 | [`loop-detection`](#loop-detection) — Exact repeated-tool-cycle stop | `runtime`, `pre-tool-hook`, `ci`, `prompt` | Fail the lane, stop the delivery, and deny the repeated call before execution. |
 | [`orchestration-contract`](#orchestration-contract) — Canonical lifecycle instructions | `ci`, `prompt` | Fail synchronization or CI when a carrier is stale, missing, duplicated, or structurally corrupt. |
+| [`outcome-benchmark`](#outcome-benchmark) — Read-only outcome benchmark | `runtime`, `ci`, `operator`, `prompt` | Reject malformed, mutating, behavior-changing, non-improving, tampered, or source-drifted evidence and leave the criterion unverified. |
 | [`path-ownership`](#path-ownership) — Claimed path ownership | `runtime`, `pre-tool-hook`, `ci`, `prompt` | Deny the claim, native write, or stage report without accepting an out-of-scope output. |
 | [`runtime-budgets`](#runtime-budgets) — Measured stage budgets | `runtime`, `pre-tool-hook`, `ci`, `operator`, `prompt` | Set stage and delivery to budget_exceeded, deny further dispatch, and reject a success report. |
 
@@ -184,6 +185,18 @@ A prompt instruction is never presented as a hard control on its own.
 - Operator action: Edit the canonical source, regenerate carriers, and review the generated diff rather than patching one carrier.
 - Limitation: Synchronized prompt text guides agents but does not replace runtime checks for protected transitions.
 
+### outcome-benchmark
+
+**Read-only outcome benchmark.** A declared performance outcome cannot complete without a passing, source-bound receipt that compares repeated baseline and candidate runs and proves behavioral equivalence.
+
+- Enforced by: `runtime`, `ci`, `operator`, `prompt`
+- Implementation: [`config/benchmark-harness.json`](../config/benchmark-harness.json), [`scripts/outcome-benchmark.py`](../scripts/outcome-benchmark.py), [`scripts/guild-kernel/kernel.py`](../scripts/guild-kernel/kernel.py)
+- Evidence: [`tests/benchmark/test_outcome_benchmark.py`](../tests/benchmark/test_outcome_benchmark.py), [`tests/benchmark/test_kernel_benchmark_policy.py`](../tests/benchmark/test_kernel_benchmark_policy.py)
+- Required CI: `outcome benchmark`
+- Failure mode: Reject malformed, mutating, behavior-changing, non-improving, tampered, or source-drifted evidence and leave the criterion unverified.
+- Operator action: Select a production-representative dataset, collect read-only captures with complete instrumentation, and review the receipt before accepting the outcome.
+- Limitation: The harness validates capture structure, repeated aggregates, hashes, and thresholds; it cannot prove that producer instrumentation saw every query or that the chosen dataset represents production.
+
 ### path-ownership
 
 **Claimed path ownership.** A mutation-capable stage declares project-relative owned paths, claims them atomically, and cannot report outputs outside them.
@@ -221,7 +234,7 @@ A prompt instruction is never presented as a hard control on its own.
 python3 scripts/check-enforcement-map.py
 ```
 
-A healthy checkout reports `14 controls` and exits `0`. The checker validates
+A healthy checkout reports `15 controls` and exits `0`. The checker validates
 the exact control inventory, safe repository-local evidence paths, release-gated CI
 job names, enforcement-level ordering, and byte-for-byte agreement with this page.
 It does not execute commands stored in data files.

@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "receiptSchemaVersion": 1,
+  "minimumRuns": 7,
+  "maximumRuns": 100,
+  "minimumWarmupRuns": 2,
+  "objectives": ["query-count", "latency", "query-and-latency"],
+  "scenarioKinds": ["http", "command", "job", "livewire"],
+  "databaseMode": "read-only",
+  "requiredRunFields": [
+    "queryCount",
+    "writeQueryCount",
+    "latencyMs",
+    "status",
+    "responseHash",
+    "databaseHash",
+    "eventsHash",
+    "jobsHash"
+  ],
+  "thresholds": {
+    "minimumMedianQueryReductionCount": 1,
+    "minimumMedianQueryReductionPercent": 5.0,
+    "maximumQueryP95RegressionPercent": 0.0,
+    "minimumLatencyP95ImprovementPercent": 5.0,
+    "maximumLatencyP95RegressionForQueryObjectivePercent": 5.0
+  },
+  "percentiles": {
+    "method": "nearest-rank",
+    "reported": [50, 95, 99]
+  },
+  "artifactDirectory": "docs/delivery",
+  "registeredRunner": "outcome-benchmark",
+  "forbiddenPayloads": [
+    "raw SQL",
+    "raw response bodies",
+    "database row values",
+    "event payloads",
+    "job payloads",
+    "secret values"
+  ]
+}

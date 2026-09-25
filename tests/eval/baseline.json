@@ -150,6 +150,11 @@
       "date": "2026-09-25",
       "sha256": "a176c3351bdb3e24d1861a0800800b30108d8408fd96ababd9e8f7356306e581",
       "reason": "Delivery observability adds an integrity check at resume and closure without changing feature construction: every persisted mutation emits a schema-versioned correlated event, deterministic derived views are checked against authoritative kernel state, unhealthy traces stop dispatch, and legacy state is not backfilled with invented history. Covered by observability and kernel units, canonical-sync ratchets, guardrails, and generated-target checks. No billed feature run was authorized; ceilings were not raised."
+    },
+    {
+      "date": "2026-09-25",
+      "sha256": "2bee0f7a7299cfc14cf5b4fb2bc4c884fadd8222bf305d4c5a52d78a7b455d52",
+      "reason": "Outcome benchmark enforcement adds a verification gate without changing feature construction: declared performance criteria require repeated read-only baseline/candidate captures, behavioral equivalence, objective-specific query and latency thresholds, and a source-bound receipt that the kernel re-verifies. Covered by benchmark and kernel units, orchestration ratchets, guardrails, enforcement-map checks, and generated-target checks. No billed feature run was authorized; ceilings were not raised."
     }
     ]
   }

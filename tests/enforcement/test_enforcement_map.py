@@ -79,7 +79,7 @@ class EnforcementMapTest(unittest.TestCase):
         )
 
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("ok: 14 enforcement controls", result.stdout)
+        self.assertIn("ok: 15 enforcement controls", result.stdout)
 
 
 if __name__ == "__main__":

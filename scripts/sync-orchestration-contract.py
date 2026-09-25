@@ -26,7 +26,10 @@ LABELS = (
     "> **Retry transitions:**",
     "> **Feedback routing:**",
     "> **Interruption recovery:**",
+    "> **Delivery observability:**",
+    "> **Outcome benchmarks:**",
 )
+LEGACY_LABELS = LABELS[:6]
 COMMANDS = (
     "commands/add-policy.md",
     "commands/add-test.md",
@@ -85,13 +88,21 @@ def marker_span(text: str, relative: str) -> tuple[int, int]:
 
 
 def legacy_span(text: str, relative: str) -> tuple[int, int]:
-    """Locate the pre-v8.7 six-paragraph command block for one-time migration."""
+    """Locate an unmarked orchestration block for one-time migration."""
     starts = list(re.finditer(r"^> \*\*Interface:\*\*", text, re.MULTILINE))
-    ends = list(re.finditer(r"^> \*\*Interruption recovery:\*\*.*$", text, re.MULTILINE))
+    end_label = next(
+        (
+            label
+            for label in reversed(LABELS)
+            if re.search(rf"^{re.escape(label)}", text, re.MULTILINE)
+        ),
+        "> **Interruption recovery:**",
+    )
+    ends = list(re.finditer(rf"^{re.escape(end_label)}.*$", text, re.MULTILINE))
     if len(starts) != 1 or len(ends) != 1 or ends[0].start() < starts[0].start():
         raise ContractError(f"{relative}: cannot locate the legacy contract block")
     block = text[starts[0].start():ends[0].end()]
-    for label in LABELS:
+    for label in LEGACY_LABELS:
         if block.count(label) != 1:
             raise ContractError(f"{relative}: legacy contract is incomplete")
     return starts[0].start(), ends[0].end()

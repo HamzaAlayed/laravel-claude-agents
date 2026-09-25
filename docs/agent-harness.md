@@ -36,6 +36,11 @@ Every agent run inherits these controls:
   ID needs passing evidence before a stage can finish. `VERIFIED` accepts
   registered runner records only and never executes prose as a shell command.
   Only a main-thread user decision can waive a criterion, with a durable reason.
+- **Outcome benchmarks:** criteria that claim a query or latency improvement
+  declare `benchmark_criteria` and require a passing, source-bound read-only
+  receipt. Repeated baseline/candidate runs must preserve behavior and meet the
+  selected tail-aware threshold. See the
+  [outcome benchmark runbook](outcome-benchmark.md).
 - **Adversarial gate:** the versioned attack matrix tests path containment,
   artifact and evidence integrity, authority, measurement, terminal states,
   replay, routing, and concurrency. Every attack asserts its exact safe
@@ -88,7 +93,9 @@ For new plans, pass typed `--stage-json` records. Each record must include
 an empty array for a `deny` profile. The v6 kernel rejects the former
 comma-delimited `--stage` form because it cannot express a safe ownership
 boundary. Each record also carries a one-to-one `criterion_ids` array,
-`approval_categories`, and `feedback_checks`. Use an empty approval array only
+`benchmark_criteria`, `approval_categories`, and `feedback_checks`. Use an
+empty benchmark array when the stage makes no performance outcome claim. Use
+an empty approval array only
 when none of the selected agent profile's categories applies, and an empty
 feedback array only when the stage owns no CI job. Feedback check names must be
 globally unique within the delivery. IDs are stable lowercase-kebab names so
@@ -104,6 +111,7 @@ envelope:
   "agent": "backend-developer",
   "success_criteria": ["query count is lower and responses are unchanged"],
   "criterion_ids": ["queries-lower-with-same-response"],
+  "benchmark_criteria": ["queries-lower-with-same-response"],
   "depends_on": [],
   "owned_paths": ["app", "tests"],
   "approval_categories": [],
@@ -116,7 +124,7 @@ envelope:
 binds each verification command to one declared ID:
 
 ```text
-VERIFIED: {"criterion":"queries-lower-with-same-response","runner":"artisan-test","args":["--filter=QueryCountTest"]} → 1 passed
+VERIFIED: {"criterion":"queries-lower-with-same-response","runner":"outcome-benchmark","args":["docs/delivery/tags/benchmarks/receipt.json"]}
 ```
 
 Inspect the evidence matrix before reporting:

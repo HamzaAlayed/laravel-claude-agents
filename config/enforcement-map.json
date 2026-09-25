@@ -172,6 +172,18 @@
       "limitation": "The hash chain detects accidental or partial tampering but is not a signature against deliberate same-account rewriting."
     },
     {
+      "id": "outcome-benchmark",
+      "title": "Read-only outcome benchmark",
+      "guarantee": "A declared performance outcome cannot complete without a passing, source-bound receipt that compares repeated baseline and candidate runs and proves behavioral equivalence.",
+      "enforcement": ["runtime", "ci", "operator", "prompt"],
+      "implementation": ["config/benchmark-harness.json", "scripts/outcome-benchmark.py", "scripts/guild-kernel/kernel.py"],
+      "evidence": ["tests/benchmark/test_outcome_benchmark.py", "tests/benchmark/test_kernel_benchmark_policy.py"],
+      "ciJobs": ["outcome benchmark"],
+      "failureMode": "Reject malformed, mutating, behavior-changing, non-improving, tampered, or source-drifted evidence and leave the criterion unverified.",
+      "operatorAction": "Select a production-representative dataset, collect read-only captures with complete instrumentation, and review the receipt before accepting the outcome.",
+      "limitation": "The harness validates capture structure, repeated aggregates, hashes, and thresholds; it cannot prove that producer instrumentation saw every query or that the chosen dataset represents production."
+    },
+    {
       "id": "immutable-releases",
       "title": "Exact-commit release publication",
       "guarantee": "A stable release requires synchronized artifacts, a clean main commit, every named CI job green, an annotated immutable tag, and a retained receipt.",

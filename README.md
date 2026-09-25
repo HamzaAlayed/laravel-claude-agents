@@ -128,6 +128,8 @@ scripts/
 ├── enforce-kernel-approvals.py   # Durable approval and kernel-state policy engine
 ├── enforce-kernel-budgets.sh     # Meter stages and stop exact repeated tool cycles
 ├── enforce-kernel-budgets.py     # Persist usage, enforce budgets, and detect loops
+├── guild-kernel/                 # Durable orchestration state machine and CLI
+├── outcome-benchmark.py          # Compare read-only performance captures and verify receipts
 ├── enforce-sail.sh               # Redirect bare php/composer through ./vendor/bin/sail on Sail projects
 ├── emit-agent-events.sh          # Stream subagent start/finish to .claude/agents-board.jsonl
 ├── board.html                    # Self-contained live dashboard rendering that feed
@@ -233,9 +235,16 @@ prompts, tool inputs, report bodies, or secrets. `guild observe verify` detects
 state or view drift, and a separate required CI job keeps the contract current.
 See [delivery observability](docs/observability.md).
 
+**Performance claims need an outcome receipt.** A stage declares the exact
+criteria that claim fewer queries or lower latency, then supplies repeated,
+read-only baseline and candidate captures from the same dataset and runtime.
+The harness proves behavior equivalence, evaluates median and tail thresholds,
+binds source hashes into a durable receipt, and makes the kernel verify it again
+before completion. See the [outcome benchmark runbook](docs/outcome-benchmark.md).
+
 **Every guarantee names its enforcement boundary.** The versioned enforcement
 map separates runtime rejection, installed pre-tool hooks, required hosted CI,
-authoritative human decisions, and prompt-only guidance for 14 controls. Each
+authoritative human decisions, and prompt-only guidance for 15 controls. Each
 entry links to its implementation, executable evidence, safe failure mode,
 operator action, and known limitation. CI rejects missing or unsafe evidence,
 unknown release gates, prompt-only guarantees, and stale generated prose. See

@@ -1,6 +1,6 @@
 # Canonical orchestration contract
 
-Last verified 2026-09-25 against pack v8.7.0.
+Last verified 2026-09-25 against pack v9.1.0.
 
 Laravel Guild has one human-readable lifecycle contract for pipeline execution.
 Its authoritative source is
@@ -11,8 +11,9 @@ another at runtime.
 
 ## Ownership boundary
 
-The generated block owns six shared behaviors: interface, durable checkpoints,
-loop detection, retry transitions, feedback routing, and interruption recovery.
+The generated block owns eight shared behaviors: interface, durable checkpoints,
+loop detection, retry transitions, feedback routing, interruption recovery,
+delivery observability, and outcome benchmarks.
 Only the text between the generated markers is synchronized. Command-specific
 routing and output instructions, plus coordinator-only board, artifact, and
 adaptive-routing rules, remain hand-authored beside it.

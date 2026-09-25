@@ -171,6 +171,17 @@ def main() -> int:
             "shared.criterionPolicy must require all-criterion evidence or user waivers",
             errors,
         )
+    if shared.get("benchmarkPolicy") != {
+        "stageField": "benchmark_criteria",
+        "runner": "outcome-benchmark",
+        "manifest": "config/benchmark-harness.json",
+        "requiredVerdict": "pass",
+        "databaseMode": "read-only",
+    }:
+        fail(
+            "shared.benchmarkPolicy must require a passing read-only outcome receipt",
+            errors,
+        )
     if shared.get("checkpointPolicy") != {
         "recordField": "checkpoints",
         "stageField": "checkpoint_id",
