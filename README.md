@@ -252,9 +252,16 @@ SQL before execution, rejects production, verifies database-state stability,
 and emits comparator-compatible hashes and measurements without raw payloads.
 See the [Laravel capture adapter runbook](docs/benchmark-capture.md).
 
+**Every specialist starts from a bounded context packet.** After a stage is
+claimed, the coordinator builds and verifies one role-specific brief from
+kernel authority plus explicitly selected repository excerpts. Mandatory
+constraints cannot be trimmed; optional sources are omitted whole by priority;
+hash drift, unsafe paths, symlinks, and secret-shaped content stop dispatch.
+See the [context engineering runbook](docs/context-engineering.md).
+
 **Every guarantee names its enforcement boundary.** The versioned enforcement
 map separates runtime rejection, installed pre-tool hooks, required hosted CI,
-authoritative human decisions, and prompt-only guidance for 16 controls. Each
+authoritative human decisions, and prompt-only guidance for 17 controls. Each
 entry links to its implementation, executable evidence, safe failure mode,
 operator action, and known limitation. CI rejects missing or unsafe evidence,
 unknown release gates, prompt-only guarantees, and stale generated prose. See

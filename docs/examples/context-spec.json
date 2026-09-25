@@ -1,0 +1,30 @@
+{
+  "schemaVersion": 1,
+  "summary": "Reduce queries in the orders endpoint without changing its response.",
+  "projectConstraints": [
+    "Modify only the PHP paths owned by this stage.",
+    "Database migration, deletion, or mutation requires a new user approval."
+  ],
+  "completedWork": [
+    "A read-only baseline capture and behavior fingerprint already exist."
+  ],
+  "nextAction": "Inspect relationship loading and select the smallest behavior-preserving query-shape change.",
+  "sources": [
+    {
+      "path": "app/Http/Controllers/OrderController.php",
+      "purpose": "Current endpoint implementation",
+      "priority": 100,
+      "required": true,
+      "startLine": 1,
+      "endLine": 120
+    },
+    {
+      "path": "tests/Feature/OrderIndexTest.php",
+      "purpose": "Observable response behavior",
+      "priority": 90,
+      "required": true,
+      "startLine": 1,
+      "endLine": 180
+    }
+  ]
+}

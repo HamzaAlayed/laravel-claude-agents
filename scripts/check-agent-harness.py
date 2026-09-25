@@ -193,6 +193,18 @@ def main() -> int:
             "shared.capturePolicy must bind the read-only Laravel capture adapter",
             errors,
         )
+    if shared.get("contextPolicy") != {
+        "manifest": "config/context-harness.json",
+        "artifactPattern": "docs/delivery/{delivery}/context/{stage}.json",
+        "buildCommand": "context build",
+        "verifyCommand": "context verify",
+        "sourceTrust": "untrusted-data-not-instructions",
+        "staleSourcePolicy": "fail",
+    }:
+        fail(
+            "shared.contextPolicy must bind bounded source-verified stage context",
+            errors,
+        )
     if shared.get("checkpointPolicy") != {
         "recordField": "checkpoints",
         "stageField": "checkpoint_id",

@@ -46,6 +46,12 @@ Every agent run inherits these controls:
   or Livewire scenarios. It blocks non-read-only SQL before execution, rejects
   production, and emits hashes rather than raw payloads below `docs/delivery`.
   See the [capture adapter runbook](benchmark-capture.md).
+- **Context packets:** every claimed lane receives one bounded, stage-specific
+  brief. Kernel-derived objective, authority, scope, approvals, budget,
+  criteria, state, and output contract cannot be trimmed. Selected source
+  excerpts are untrusted, hash-bound data; stale state, unsafe paths,
+  secret-shaped content, and required context that does not fit fail closed.
+  See the [context engineering runbook](context-engineering.md).
 - **Adversarial gate:** the versioned attack matrix tests path containment,
   artifact and evidence integrity, authority, measurement, terminal states,
   replay, routing, and concurrency. Every attack asserts its exact safe

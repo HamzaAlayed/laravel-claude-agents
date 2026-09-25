@@ -13,6 +13,7 @@ HERE = pathlib.Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE))
 
 import kernel  # noqa: E402
+import context_packets  # noqa: E402
 
 
 class ProcessRunner:
@@ -153,6 +154,16 @@ def build_parser():
     observe_cmds.add_parser("list", parents=[common])
     observe_cmds.add_parser("verify", parents=[common])
     observe_cmds.add_parser("repair", parents=[common])
+    context = sub.add_parser("context")
+    context_cmds = context.add_subparsers(dest="context_cmd", required=True)
+    context_build = context_cmds.add_parser("build", parents=[common])
+    context_build.add_argument("--stage", required=True)
+    context_build.add_argument("--spec", default="")
+    context_build.add_argument("--max-tokens", type=int)
+    context_show = context_cmds.add_parser("show", parents=[common])
+    context_show.add_argument("--stage", required=True)
+    context_verify = context_cmds.add_parser("verify", parents=[common])
+    context_verify.add_argument("--stage", required=True)
     budget = sub.add_parser("budget")
     budget_cmds = budget.add_subparsers(dest="budget_cmd", required=True)
     budget_cmds.add_parser("list", parents=[common])
@@ -503,6 +514,24 @@ def main(argv=None):
                 result = kernel.repair_observability_views(args.root, args.name)
                 print(json.dumps(result, separators=(",", ":")))
                 return 0
+        if args.cmd == "context":
+            if args.context_cmd == "build":
+                result = context_packets.build(
+                    args.root,
+                    args.name,
+                    args.stage,
+                    spec_path=args.spec,
+                    max_tokens=args.max_tokens,
+                )
+                print(json.dumps(result, separators=(",", ":")))
+                return 0
+            if args.context_cmd == "show":
+                print(context_packets.show(args.root, args.name, args.stage), end="")
+                return 0
+            if args.context_cmd == "verify":
+                result = context_packets.verify(args.root, args.name, args.stage)
+                print(json.dumps(result, separators=(",", ":")))
+                return 0
         if args.cmd == "budget":
             if args.budget_cmd == "list":
                 print(json.dumps(kernel.budget_rows(args.root, args.name)))
@@ -542,7 +571,7 @@ def main(argv=None):
                 lesson = kernel.approve_lesson(args.root, args.id)
                 print(f"APPROVED: {lesson['id']} {lesson['text']}")
                 return 0
-    except kernel.PlanError as exc:
+    except (kernel.PlanError, context_packets.ContextPacketError) as exc:
         raise SystemExit(str(exc)) from None
     raise SystemExit(2)
 

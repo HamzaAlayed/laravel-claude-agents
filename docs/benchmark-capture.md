@@ -18,7 +18,7 @@ as a VCS repository in the Laravel application you want to measure:
 ```sh
 composer config repositories.laravel-guild-benchmark vcs \
   https://github.com/HamzaAlayed/laravel-claude-agents
-composer require --dev hamzaalayed/laravel-guild-benchmark-capture:^9.2
+composer require --dev hamzaalayed/laravel-guild-benchmark-capture:^9.3
 ```
 
 Keep it in `require-dev`. The command rejects production even if the package is

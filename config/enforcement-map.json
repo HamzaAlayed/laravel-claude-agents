@@ -196,6 +196,18 @@
       "limitation": "The adapter cannot prove that database functions are side-effect-free, observe external-system mutations, or decide whether an application-defined fingerprint and dataset are representative."
     },
     {
+      "id": "context-packets",
+      "title": "Bounded source-bound context packets",
+      "guarantee": "A built stage packet preserves mandatory kernel authority, admits only explicit repository-local excerpts as untrusted data, stays within its declared token budget, and fails verification after source or state drift.",
+      "enforcement": ["runtime", "ci", "prompt"],
+      "implementation": ["config/context-harness.json", "scripts/guild-kernel/context_packets.py", "scripts/guild-kernel/guild.py"],
+      "evidence": ["tests/context/test_context_packets.py"],
+      "ciJobs": ["context packet harness"],
+      "failureMode": "Refuse construction or verification and stop dispatch when mandatory context does not fit, an input is unsafe, integrity fails, or authoritative state is stale.",
+      "operatorAction": "Select narrow relevant line ranges, review omissions, rebuild after legitimate state changes, and give only the verified stage packet to the named specialist.",
+      "limitation": "The runtime cannot prove that every supported host passed the packet to the agent, detect every possible secret format, or defend against a same-account process rewriting code and hashes together."
+    },
+    {
       "id": "immutable-releases",
       "title": "Exact-commit release publication",
       "guarantee": "A stable release requires synchronized artifacts, a clean main commit, every named CI job green, an annotated immutable tag, and a retained receipt.",

@@ -1,6 +1,6 @@
 # Which Laravel Guild guarantees are actually enforced?
 
-Last verified 2026-09-25 against pack v9.2.0.
+Last verified 2026-09-25 against pack v9.3.0.
 
 This map separates mechanically enforced controls from pre-tool hooks, release-gated evidence, operator decisions, and prompt guidance across the Laravel Guild engineering loop.
 
@@ -26,6 +26,7 @@ A prompt instruction is never presented as a hard control on its own.
 | [`adversarial-gate`](#adversarial-gate) — Versioned attack matrix | `ci` | Fail hosted CI and prevent immutable release publication for the exact commit. |
 | [`agent-policy-profiles`](#agent-policy-profiles) — Shared and role-specific harness policy | `runtime`, `pre-tool-hook`, `ci`, `prompt` | Reject an unknown, incomplete, or contradictory profile before release or planned execution. |
 | [`bounded-retries`](#bounded-retries) — One auditable retry | `runtime`, `ci`, `operator`, `prompt` | Requeue once with stale evidence invalidated, then fail the stage and stop delivery on exhaustion. |
+| [`context-packets`](#context-packets) — Bounded source-bound context packets | `runtime`, `ci`, `prompt` | Refuse construction or verification and stop dispatch when mandatory context does not fit, an input is unsafe, integrity fails, or authoritative state is stale. |
 | [`criterion-evidence`](#criterion-evidence) — Criterion-linked verification | `runtime`, `ci`, `operator`, `prompt` | Reject the report and leave the stage nonterminal when evidence coverage is missing or untrusted. |
 | [`delivery-observability`](#delivery-observability) — Correlated delivery event integrity | `runtime`, `ci`, `operator`, `prompt` | Report unhealthy, refuse authoritative-chain growth, and block dispatch or closure until integrity is restored. |
 | [`durable-checkpoints`](#durable-checkpoints) — Typed human checkpoints | `runtime`, `ci`, `operator`, `prompt` | Keep the affected stage paused and exclude it from ready work until a valid resolution exists. |
@@ -77,6 +78,18 @@ A prompt instruction is never presented as a hard control on its own.
 - Failure mode: Requeue once with stale evidence invalidated, then fail the stage and stop delivery on exhaustion.
 - Operator action: Review the typed failure and approve a new delivery if the exhausted work should continue under a new scope.
 - Limitation: The retry classifier relies on the main thread to describe the failure source and reason accurately.
+
+### context-packets
+
+**Bounded source-bound context packets.** A built stage packet preserves mandatory kernel authority, admits only explicit repository-local excerpts as untrusted data, stays within its declared token budget, and fails verification after source or state drift.
+
+- Enforced by: `runtime`, `ci`, `prompt`
+- Implementation: [`config/context-harness.json`](../config/context-harness.json), [`scripts/guild-kernel/context_packets.py`](../scripts/guild-kernel/context_packets.py), [`scripts/guild-kernel/guild.py`](../scripts/guild-kernel/guild.py)
+- Evidence: [`tests/context/test_context_packets.py`](../tests/context/test_context_packets.py)
+- Required CI: `context packet harness`
+- Failure mode: Refuse construction or verification and stop dispatch when mandatory context does not fit, an input is unsafe, integrity fails, or authoritative state is stale.
+- Operator action: Select narrow relevant line ranges, review omissions, rebuild after legitimate state changes, and give only the verified stage packet to the named specialist.
+- Limitation: The runtime cannot prove that every supported host passed the packet to the agent, detect every possible secret format, or defend against a same-account process rewriting code and hashes together.
 
 ### criterion-evidence
 
@@ -247,7 +260,7 @@ A prompt instruction is never presented as a hard control on its own.
 python3 scripts/check-enforcement-map.py
 ```
 
-A healthy checkout reports `16 controls` and exits `0`. The checker validates
+A healthy checkout reports `17 controls` and exits `0`. The checker validates
 the exact control inventory, safe repository-local evidence paths, release-gated CI
 job names, enforcement-level ordering, and byte-for-byte agreement with this page.
 It does not execute commands stored in data files.

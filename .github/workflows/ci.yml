@@ -43,7 +43,7 @@ jobs:
             gemini/gemini-extension.json gemini/hooks/hooks.json \
             hooks/hooks.json config/agent-harness.json config/adversarial-harness.json \
             config/observability-harness.json config/benchmark-harness.json \
-            config/capture-harness.json composer.json \
+            config/capture-harness.json config/context-harness.json composer.json \
             config/enforcement-map.json \
             config/release-harness.json; do
             echo "validating $f"
@@ -209,6 +209,14 @@ jobs:
         run: composer install --no-interaction --prefer-dist --no-progress
       - name: Run Laravel capture adapter tests
         run: vendor/bin/pest tests/capture-adapter --colors=never
+
+  context-packet:
+    name: context packet harness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run bounded context packet contract tests (stdlib unittest)
+        run: python3 -m unittest discover -s tests/context -t tests/context -v
 
   enforcement-map:
     name: enforcement map

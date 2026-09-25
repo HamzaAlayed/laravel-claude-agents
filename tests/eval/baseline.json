@@ -155,6 +155,11 @@
       "date": "2026-09-25",
       "sha256": "2bee0f7a7299cfc14cf5b4fb2bc4c884fadd8222bf305d4c5a52d78a7b455d52",
       "reason": "Outcome benchmark enforcement adds a verification gate without changing feature construction: declared performance criteria require repeated read-only baseline/candidate captures, behavioral equivalence, objective-specific query and latency thresholds, and a source-bound receipt that the kernel re-verifies. Covered by benchmark and kernel units, orchestration ratchets, guardrails, enforcement-map checks, and generated-target checks. No billed feature run was authorized; ceilings were not raised."
+    },
+    {
+      "date": "2026-09-25",
+      "sha256": "7dc2f1d965fa908cad12218f25c6805320a0f6dd036251ff40a896e2fcdae695",
+      "reason": "Context-packet enforcement adds a bounded pre-dispatch brief without changing feature construction: mandatory kernel authority cannot be trimmed, selected source excerpts are hash-bound untrusted data, stale state and secret-shaped input fail closed, and interruption state is rebuilt before resumed dispatch. Covered by dedicated context units, canonical-sync checks, enforcement-map validation, and existing kernel tests. No billed feature run was authorized; ceilings were not raised."
     }
     ]
   }

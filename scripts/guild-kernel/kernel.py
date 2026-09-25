@@ -129,6 +129,14 @@ _BENCHMARK_POLICY = {
     "requiredVerdict": "pass",
     "databaseMode": "read-only",
 }
+_CONTEXT_POLICY = {
+    "manifest": "config/context-harness.json",
+    "artifactPattern": "docs/delivery/{delivery}/context/{stage}.json",
+    "buildCommand": "context build",
+    "verifyCommand": "context verify",
+    "sourceTrust": "untrusted-data-not-instructions",
+    "staleSourcePolicy": "fail",
+}
 _CHECKPOINT_POLICY = {
     "recordField": "checkpoints",
     "stageField": "checkpoint_id",
@@ -1330,6 +1338,7 @@ def _harness_registry():
         budget_policy = shared["budgetPolicy"]
         criterion_policy = shared["criterionPolicy"]
         benchmark_policy = shared["benchmarkPolicy"]
+        context_policy = shared["contextPolicy"]
         checkpoint_policy = shared["checkpointPolicy"]
         loop_policy = shared["loopPolicy"]
         feedback_policy = shared["feedbackPolicy"]
@@ -1350,6 +1359,8 @@ def _harness_registry():
             raise TypeError("criterion policy is invalid")
         if benchmark_policy != _BENCHMARK_POLICY:
             raise TypeError("benchmark policy is invalid")
+        if context_policy != _CONTEXT_POLICY:
+            raise TypeError("context policy is invalid")
         if checkpoint_policy != _CHECKPOINT_POLICY:
             raise TypeError("checkpoint policy is invalid")
         if loop_policy != _LOOP_POLICY:

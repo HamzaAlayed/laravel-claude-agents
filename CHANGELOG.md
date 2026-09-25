@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.3.0] - 2026-09-25
+
+### Added
+
+- A schema-versioned context-packet harness that derives non-trimmable
+  objective, authority, scope, approvals, budget, criteria, current state, and
+  output contract from each claimed delivery stage.
+- `guild context build`, `context show`, and `context verify` commands with
+  deterministic token estimates, whole-source priority trimming, SHA-256
+  source binding, and atomic packet writes.
+- A context-engineering runbook, strict example source specification, 16
+  adversarial unit tests, and a dedicated release-required CI job.
+
+### Changed
+
+- The canonical orchestration contract now requires a verified stage-specific
+  context packet between claim and specialist dispatch, including fresh packet
+  construction after recovery.
+- The shared harness now names its context policy, the enforcement map now
+  covers 17 controls, and immutable publication requires 18 named hosted-CI
+  jobs.
+
+### Fixed
+
+- Agent briefs no longer depend on unbounded transcript copying, silent
+  mid-source truncation, or conversational memory for completed dependency,
+  retry, recovery, and feedback state.
+- Source, spec, kernel-state, target, token-estimate, and packet drift now fail
+  verification before dispatch.
+
+### Security
+
+- Selected repository excerpts are always labeled untrusted data and cannot
+  populate higher-authority sections; traversal, symlinks, excluded paths,
+  secret-shaped values, unknown spec fields, and authority spoofing fail
+  closed.
+
 ## [9.2.0] - 2026-09-25
 
 ### Added

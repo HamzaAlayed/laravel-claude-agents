@@ -1,6 +1,6 @@
 # How do I prove a performance improvement without changing behavior?
 
-Last verified 2026-09-25 against pack v9.2.0.
+Last verified 2026-09-25 against pack v9.3.0.
 
 Laravel Guild accepts a performance outcome only when repeated baseline and
 candidate captures produce a passing, durable receipt. The machine-readable
