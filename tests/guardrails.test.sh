@@ -633,13 +633,31 @@ PY
 )"
 expect "Interface requires outcome receipts for performance claims" "9" \
   "$(grep -l '^> \*\*Outcome benchmarks:\*\*' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "one versioned Laravel capture contract is committed" "1" \
+  "$(python3 - "$SCRIPT_DIR/config/capture-harness.json" <<'PY'
+import json, pathlib, sys
+payload = json.loads(pathlib.Path(sys.argv[1]).read_text())
+valid = payload.get("schemaVersion") == 1
+valid = valid and payload.get("command") == "guild:benchmark-capture"
+valid = valid and payload.get("databaseMode") == "read-only"
+valid = valid and payload.get("minimumWarmupRuns") >= 2
+valid = valid and payload.get("minimumMeasuredRuns") >= 7
+print(1 if valid else 0)
+PY
+)"
+expect "CI has a separate Laravel capture gate" "1" \
+  "$(grep -c '^    name: laravel benchmark capture$' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "CI runs Laravel capture adapter tests" "1" \
+  "$(grep -c 'pest tests/capture-adapter' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "release publication requires the Laravel capture gate" "1" \
+  "$(grep -c '"laravel benchmark capture"' "$SCRIPT_DIR/config/release-harness.json")"
 expect "Interface verifies delivery observability before closure" "9" \
   "$(grep -l 'again before the final answer, call' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "kernel exposes the observability command group" "1" \
   "$(grep -c 'observe = sub.add_parser("observe")' "$SCRIPT_DIR/scripts/guild-kernel/guild.py")"
 expect "shared observability excludes raw payloads" "1" \
   "$(grep -c '"rawPayloads": false' "$SCRIPT_DIR/config/agent-harness.json")"
-expect "one versioned enforcement map is committed" "15" \
+expect "one versioned enforcement map is committed" "16" \
   "$(python3 - "$SCRIPT_DIR/config/enforcement-map.json" <<'PY'
 import json, pathlib, sys
 payload = json.loads(pathlib.Path(sys.argv[1]).read_text())

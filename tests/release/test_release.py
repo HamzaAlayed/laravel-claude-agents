@@ -25,6 +25,7 @@ JOBS = [
     "adversarial engineering loop",
     "observability contract",
     "outcome benchmark",
+    "laravel benchmark capture",
     "enforcement map",
     "eval cost parser units",
     "console ui",

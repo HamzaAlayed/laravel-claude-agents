@@ -182,6 +182,17 @@ def main() -> int:
             "shared.benchmarkPolicy must require a passing read-only outcome receipt",
             errors,
         )
+    if shared.get("capturePolicy") != {
+        "command": "guild:benchmark-capture",
+        "manifest": "config/capture-harness.json",
+        "artifactDirectory": "docs/delivery",
+        "databaseMode": "read-only",
+        "productionAllowed": False,
+    }:
+        fail(
+            "shared.capturePolicy must bind the read-only Laravel capture adapter",
+            errors,
+        )
     if shared.get("checkpointPolicy") != {
         "recordField": "checkpoints",
         "stageField": "checkpoint_id",

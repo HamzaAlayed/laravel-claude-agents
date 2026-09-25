@@ -1,6 +1,6 @@
 # Canonical orchestration contract
 
-Last verified 2026-09-25 against pack v9.1.0.
+Last verified 2026-09-25 against pack v9.2.0.
 
 Laravel Guild has one human-readable lifecycle contract for pipeline execution.
 Its authoritative source is

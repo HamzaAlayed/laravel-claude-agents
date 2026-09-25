@@ -1,6 +1,6 @@
 # Which Laravel Guild guarantees are actually enforced?
 
-Last verified 2026-09-25 against pack v9.1.0.
+Last verified 2026-09-25 against pack v9.2.0.
 
 This map separates mechanically enforced controls from pre-tool hooks, release-gated evidence, operator decisions, and prompt guidance across the Laravel Guild engineering loop.
 
@@ -33,6 +33,7 @@ A prompt instruction is never presented as a hard control on its own.
 | [`human-approvals`](#human-approvals) — Durable protected-action approval | `runtime`, `pre-tool-hook`, `ci`, `operator`, `prompt` | Keep the stage queued and reject claim or mutation until the approval exists. |
 | [`immutable-releases`](#immutable-releases) — Exact-commit release publication | `runtime`, `ci`, `operator` | Refuse publication or a conflicting rerun without force, deletion, or tag replacement. |
 | [`interruption-recovery`](#interruption-recovery) — Durable interrupted-claim recovery | `runtime`, `ci`, `operator`, `prompt` | Keep the lane interrupted and unavailable until a valid resolution is recorded. |
+| [`laravel-benchmark-capture`](#laravel-benchmark-capture) — Guarded Laravel benchmark capture | `runtime`, `ci`, `operator`, `prompt` | Exit unsuccessfully and leave no new capture when SQL, environment, path, database state, behavior stability, or schema checks fail. |
 | [`loop-detection`](#loop-detection) — Exact repeated-tool-cycle stop | `runtime`, `pre-tool-hook`, `ci`, `prompt` | Fail the lane, stop the delivery, and deny the repeated call before execution. |
 | [`orchestration-contract`](#orchestration-contract) — Canonical lifecycle instructions | `ci`, `prompt` | Fail synchronization or CI when a carrier is stale, missing, duplicated, or structurally corrupt. |
 | [`outcome-benchmark`](#outcome-benchmark) — Read-only outcome benchmark | `runtime`, `ci`, `operator`, `prompt` | Reject malformed, mutating, behavior-changing, non-improving, tampered, or source-drifted evidence and leave the criterion unverified. |
@@ -161,6 +162,18 @@ A prompt instruction is never presented as a hard control on its own.
 - Operator action: Confirm the prior process no longer owns the claim, inspect partial outputs, then choose continue or stop.
 - Limitation: The kernel cannot independently prove that an external process died or reconstruct completion telemetry it never received.
 
+### laravel-benchmark-capture
+
+**Guarded Laravel benchmark capture.** The Laravel adapter rejects non-read-only SQL before execution, refuses unsafe environments and paths, and emits only stable hashes and aggregate measurements in comparator-compatible captures.
+
+- Enforced by: `runtime`, `ci`, `operator`, `prompt`
+- Implementation: [`config/capture-harness.json`](../config/capture-harness.json), [`src/BenchmarkCapture/CaptureRunner.php`](../src/BenchmarkCapture/CaptureRunner.php), [`src/BenchmarkCapture/Support/QueryMonitor.php`](../src/BenchmarkCapture/Support/QueryMonitor.php), [`src/BenchmarkCapture/Commands/BenchmarkCaptureCommand.php`](../src/BenchmarkCapture/Commands/BenchmarkCaptureCommand.php)
+- Evidence: [`tests/capture-adapter/UnitTest.php`](../tests/capture-adapter/UnitTest.php), [`tests/capture-adapter/CommandTest.php`](../tests/capture-adapter/CommandTest.php)
+- Required CI: `laravel benchmark capture`
+- Failure mode: Exit unsuccessfully and leave no new capture when SQL, environment, path, database state, behavior stability, or schema checks fail.
+- Operator action: Use a read-only credential and representative disposable data, implement a minimal scenario fingerprint, and preserve failed evidence for diagnosis.
+- Limitation: The adapter cannot prove that database functions are side-effect-free, observe external-system mutations, or decide whether an application-defined fingerprint and dataset are representative.
+
 ### loop-detection
 
 **Exact repeated-tool-cycle stop.** The runtime blocks the call that would complete a third identical one-to-four-step tool cycle and stores only bounded signatures.
@@ -234,7 +247,7 @@ A prompt instruction is never presented as a hard control on its own.
 python3 scripts/check-enforcement-map.py
 ```
 
-A healthy checkout reports `15 controls` and exits `0`. The checker validates
+A healthy checkout reports `16 controls` and exits `0`. The checker validates
 the exact control inventory, safe repository-local evidence paths, release-gated CI
 job names, enforcement-level ordering, and byte-for-byte agreement with this page.
 It does not execute commands stored in data files.

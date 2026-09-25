@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "id": "orders-index",
+  "version": 1,
+  "kind": "http",
+  "target": "GET /api/orders",
+  "objective": "query-count",
+  "handler": "App\\Benchmarks\\OrdersIndexScenario",
+  "datasetHash": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "datasetRows": 10000,
+  "databaseMode": "read-only",
+  "warmupRuns": 2,
+  "measuredRuns": 7,
+  "dedicatedTarget": false
+}

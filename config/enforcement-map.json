@@ -184,6 +184,18 @@
       "limitation": "The harness validates capture structure, repeated aggregates, hashes, and thresholds; it cannot prove that producer instrumentation saw every query or that the chosen dataset represents production."
     },
     {
+      "id": "laravel-benchmark-capture",
+      "title": "Guarded Laravel benchmark capture",
+      "guarantee": "The Laravel adapter rejects non-read-only SQL before execution, refuses unsafe environments and paths, and emits only stable hashes and aggregate measurements in comparator-compatible captures.",
+      "enforcement": ["runtime", "ci", "operator", "prompt"],
+      "implementation": ["config/capture-harness.json", "src/BenchmarkCapture/CaptureRunner.php", "src/BenchmarkCapture/Support/QueryMonitor.php", "src/BenchmarkCapture/Commands/BenchmarkCaptureCommand.php"],
+      "evidence": ["tests/capture-adapter/UnitTest.php", "tests/capture-adapter/CommandTest.php"],
+      "ciJobs": ["laravel benchmark capture"],
+      "failureMode": "Exit unsuccessfully and leave no new capture when SQL, environment, path, database state, behavior stability, or schema checks fail.",
+      "operatorAction": "Use a read-only credential and representative disposable data, implement a minimal scenario fingerprint, and preserve failed evidence for diagnosis.",
+      "limitation": "The adapter cannot prove that database functions are side-effect-free, observe external-system mutations, or decide whether an application-defined fingerprint and dataset are representative."
+    },
+    {
       "id": "immutable-releases",
       "title": "Exact-commit release publication",
       "guarantee": "A stable release requires synchronized artifacts, a clean main commit, every named CI job green, an annotated immutable tag, and a retained receipt.",

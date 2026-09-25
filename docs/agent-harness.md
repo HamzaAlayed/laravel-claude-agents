@@ -41,6 +41,11 @@ Every agent run inherits these controls:
   receipt. Repeated baseline/candidate runs must preserve behavior and meet the
   selected tail-aware threshold. See the
   [outcome benchmark runbook](outcome-benchmark.md).
+- **Laravel capture adapter:** `php artisan guild:benchmark-capture` produces
+  comparator-compatible captures from application-owned HTTP, command, job,
+  or Livewire scenarios. It blocks non-read-only SQL before execution, rejects
+  production, and emits hashes rather than raw payloads below `docs/delivery`.
+  See the [capture adapter runbook](benchmark-capture.md).
 - **Adversarial gate:** the versioned attack matrix tests path containment,
   artifact and evidence integrity, authority, measurement, terminal states,
   replay, routing, and concurrency. Every attack asserts its exact safe

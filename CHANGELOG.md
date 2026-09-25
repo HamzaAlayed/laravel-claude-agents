@@ -7,6 +7,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.2.0] - 2026-09-25
+
+### Added
+
+- An auto-discovered Laravel Composer package with the
+  `guild:benchmark-capture` Artisan command for HTTP, command, job, and
+  Livewire performance scenarios.
+- Strict scenario loading, repeated warmup/measured runs, query and latency
+  measurement, database-state checks, and stable response/event/job hashes in
+  the exact v9.1 comparator schema.
+- A dedicated `laravel benchmark capture` release gate backed by Laravel 13,
+  Orchestra Testbench, Pest, and a pinned Composer dependency graph.
+
+### Changed
+
+- The shared harness now names the application-side capture policy as well as
+  the comparator policy, and the outcome runbook links directly to a supported
+  producer.
+- The enforcement map now covers 16 controls, and immutable publication
+  requires 17 named hosted-CI jobs.
+
+### Fixed
+
+- Teams no longer need to invent incompatible instrumentation to produce
+  benchmark captures accepted by the outcome comparator.
+- Production, unknown environments, path escapes, symlink traversal, unstable
+  behavior, changed database state, malformed scenarios, and undersampled runs
+  now fail before an artifact is accepted.
+
+### Security
+
+- A pre-execution Laravel connection callback blocks SQL outside a narrow
+  read-only grammar; artifacts exclude raw SQL, bindings, response bodies,
+  database values, event payloads, job payloads, and secrets.
+
 ## [9.1.0] - 2026-09-25
 
 ### Added

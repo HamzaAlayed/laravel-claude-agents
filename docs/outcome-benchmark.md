@@ -1,6 +1,6 @@
 # How do I prove a performance improvement without changing behavior?
 
-Last verified 2026-09-25 against pack v9.1.0.
+Last verified 2026-09-25 against pack v9.2.0.
 
 Laravel Guild accepts a performance outcome only when repeated baseline and
 candidate captures produce a passing, durable receipt. The machine-readable
@@ -10,8 +10,10 @@ the comparator is
 focused contract tests live in [`tests/benchmark/`](../tests/benchmark/).
 
 The comparator does not execute the application or connect to its database.
-Your application-specific instrumentation produces captures; the comparator
-validates and compares them without running a migration or database mutation.
+The optional [Laravel capture adapter](benchmark-capture.md) runs an
+application-owned scenario behind a fail-closed query guard and produces this
+exact schema. The comparator then validates and compares the artifacts without
+running a migration or database mutation.
 
 ## What must a capture contain?
 

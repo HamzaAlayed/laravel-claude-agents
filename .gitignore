@@ -2,6 +2,10 @@
 __pycache__/
 *.pyc
 
+# PHP package test runtime
+vendor/
+.phpunit.cache/
+
 # Brainstorming companion screens + SDD workspaces
 .superpowers/
 

@@ -1,0 +1,47 @@
+{
+  "name": "hamzaalayed/laravel-guild-benchmark-capture",
+  "description": "Read-only Laravel benchmark capture adapter for Laravel Guild outcome receipts.",
+  "type": "library",
+  "license": "MIT",
+  "require": {
+    "php": "^8.3",
+    "illuminate/console": "^11.0 || ^12.0 || ^13.0",
+    "illuminate/contracts": "^11.0 || ^12.0 || ^13.0",
+    "illuminate/database": "^11.0 || ^12.0 || ^13.0",
+    "illuminate/events": "^11.0 || ^12.0 || ^13.0",
+    "illuminate/support": "^11.0 || ^12.0 || ^13.0"
+  },
+  "require-dev": {
+    "orchestra/testbench": "^11.3",
+    "pestphp/pest": "^4.1"
+  },
+  "autoload": {
+    "psr-4": {
+      "LaravelGuild\\BenchmarkCapture\\": "src/BenchmarkCapture/"
+    }
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\BenchmarkCapture\\": "tests/capture-adapter/"
+    }
+  },
+  "extra": {
+    "laravel": {
+      "providers": [
+        "LaravelGuild\\BenchmarkCapture\\BenchmarkCaptureServiceProvider"
+      ]
+    }
+  },
+  "scripts": {
+    "test:capture": "pest tests/capture-adapter"
+  },
+  "config": {
+    "sort-packages": true,
+    "platform": {
+      "php": "8.3.0"
+    },
+    "allow-plugins": {
+      "pestphp/pest-plugin": true
+    }
+  }
+}

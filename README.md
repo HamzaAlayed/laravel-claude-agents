@@ -139,6 +139,9 @@ scripts/
 ├── enforce-sprint-file.sh        # Bounce sprint.md Writes that are not helper shape
 └── enforce-lessons-file.sh       # Bounce lessons.md Writes that are not helper shape
 
+src/BenchmarkCapture/             # Auto-discovered Laravel read-only capture package
+benchmarks/                        # Strict scenario example for the capture command
+
 skills/                           # 8 on-demand cookbooks (see the Skills section)
 ├── laravel-conventions/          # Which primitive to reach for, which antipattern to refuse
 ├── laravel-testing/              # Fakes syntax, Pest v4 browser tests, factories, time control
@@ -242,9 +245,16 @@ The harness proves behavior equivalence, evaluates median and tail thresholds,
 binds source hashes into a durable receipt, and makes the kernel verify it again
 before completion. See the [outcome benchmark runbook](docs/outcome-benchmark.md).
 
+**Laravel can produce those captures directly.** Install the repository's
+Composer package in a Laravel 11–13 application, implement one typed scenario,
+then run `php artisan guild:benchmark-capture`. The command blocks non-read-only
+SQL before execution, rejects production, verifies database-state stability,
+and emits comparator-compatible hashes and measurements without raw payloads.
+See the [Laravel capture adapter runbook](docs/benchmark-capture.md).
+
 **Every guarantee names its enforcement boundary.** The versioned enforcement
 map separates runtime rejection, installed pre-tool hooks, required hosted CI,
-authoritative human decisions, and prompt-only guidance for 15 controls. Each
+authoritative human decisions, and prompt-only guidance for 16 controls. Each
 entry links to its implementation, executable evidence, safe failure mode,
 operator action, and known limitation. CI rejects missing or unsafe evidence,
 unknown release gates, prompt-only guarantees, and stale generated prose. See

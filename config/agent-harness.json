@@ -103,6 +103,13 @@
       "requiredVerdict": "pass",
       "databaseMode": "read-only"
     },
+    "capturePolicy": {
+      "command": "guild:benchmark-capture",
+      "manifest": "config/capture-harness.json",
+      "artifactDirectory": "docs/delivery",
+      "databaseMode": "read-only",
+      "productionAllowed": false
+    },
     "checkpointPolicy": {
       "recordField": "checkpoints",
       "stageField": "checkpoint_id",

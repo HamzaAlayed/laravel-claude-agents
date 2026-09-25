@@ -4,7 +4,7 @@ This page maps the `docs/` corpus so the next review — human or agent — star
 
 Adopting the pack on a Laravel app? [Run your first delivery](onboarding.md). Seeing it work in five minutes? The [README quickstart](../README.md#five-minute-quickstart).
 
-Last verified 2026-09-25 against pack v9.1.0.
+Last verified 2026-09-25 against pack v9.2.0.
 
 ## What lives where
 
@@ -26,6 +26,7 @@ Last verified 2026-09-25 against pack v9.1.0.
 | [`docs/adversarial-testing.md`](adversarial-testing.md) | Versioned engineering-loop attack matrix, threat boundary, protected invariants, and failure runbook. |
 | [`docs/observability.md`](observability.md) | Delivery event schema, hash-chain verification, derived trace artifacts, and integrity-recovery runbook. |
 | [`docs/outcome-benchmark.md`](outcome-benchmark.md) | Read-only baseline/candidate capture contract, query and latency thresholds, durable receipts, and failure recovery. |
+| [`docs/benchmark-capture.md`](benchmark-capture.md) | Laravel package installation, typed scenarios, guarded capture command, safety boundary, and failure recovery. |
 | [`docs/enforcement-map.md`](enforcement-map.md) | Generated map of runtime, hook, CI, operator, and prompt enforcement with evidence, limits, and recovery actions. |
 | [`docs/feedback-routing.md`](feedback-routing.md) | How CI failures and review comments route to stage owners, pause when unresolved, and close with repair evidence. |
 | [`docs/recovery-policy.md`](recovery-policy.md) | How to inspect, freeze, continue, or stop a stranded stage claim without guessing work. |

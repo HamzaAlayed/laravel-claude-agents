@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "command": "guild:benchmark-capture",
+  "scenarioSchemaVersion": 1,
+  "captureSchemaVersion": 1,
+  "supportedLaravelMajors": [11, 12, 13],
+  "scenarioKinds": ["http", "command", "job", "livewire"],
+  "objectives": ["query-count", "latency", "query-and-latency"],
+  "databaseMode": "read-only",
+  "minimumWarmupRuns": 2,
+  "minimumMeasuredRuns": 7,
+  "maximumRuns": 100,
+  "allowedEnvironments": ["local", "testing"],
+  "conditionalEnvironment": "staging",
+  "conditionalRequirements": ["dedicatedTarget=true", "--allow-staging"],
+  "deniedEnvironments": ["production", "prod"],
+  "artifactDirectory": "docs/delivery",
+  "forbiddenArtifactPayloads": [
+    "raw SQL",
+    "SQL bindings",
+    "raw response bodies",
+    "database row values",
+    "event payloads",
+    "job payloads",
+    "secret values"
+  ],
+  "requiredBehaviorHashes": [
+    "responseHash",
+    "databaseHash",
+    "eventsHash",
+    "jobsHash"
+  ]
+}
