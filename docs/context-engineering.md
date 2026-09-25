@@ -9,6 +9,8 @@ The machine policy is
 [`config/context-harness.json`](../config/context-harness.json); the stdlib-only
 builder and verifier are in
 [`scripts/guild-kernel/context_packets.py`](../scripts/guild-kernel/context_packets.py).
+Packet schema 2 also carries bounded durable-memory retrieval from the
+[memory-engineering harness](memory-engineering.md).
 
 ## What is always in a packet?
 
@@ -27,6 +29,12 @@ Authority is stored in separate `system`, `user`, `project`, `runtime`, and
 `agent` sections. Lower-authority notes cannot replace higher-authority
 constraints. Selected repository text lives outside those sections under
 `sources` and is always labeled `untrusted-data-not-instructions`.
+
+Approved durable memories live in a separate `memories` data section labeled
+`memory-data-not-instructions`. Project records and records scoped to the exact
+target agent may be selected; candidates, stale evidence, expiry, scope
+mismatches, and irrelevant records are withheld. The packet binds the current
+memory-store hash, so any later memory transition requires a rebuild.
 
 This is deliberate context isolation: the backend specialist does not receive
 the frontend specialist's full history, and neither receives a broad repository
@@ -90,8 +98,9 @@ files, or another agent's unrestricted diff.
 ## What does verification prove?
 
 The verifier checks the packet hash, token estimate, delivery and stage target,
-kernel-state hash, source-spec hash, full source-file hashes, selected excerpt
-hashes, path containment, symlinks, and source trust label. The builder rejects
+kernel-state hash, memory-store hash, reproduced memory eligibility, source-spec
+hash, full source-file hashes, selected excerpt hashes, path containment,
+symlinks, and source trust labels. The builder rejects
 `.env`, `.git`, `vendor`, `node_modules`, and `storage` paths plus common
 private-key, credential, and token shapes.
 
@@ -124,8 +133,8 @@ is genuinely required. Do not mark it optional merely to make the command pass.
 
 ### Verification says the packet is stale
 
-**Symptoms:** `context verify` reports that kernel state, the context spec, or a
-selected source changed.
+**Symptoms:** `context verify` reports that kernel state, the memory store, the
+context spec, or a selected source changed.
 
 **Triage:** inspect the current claim, recovery, feedback, and source diff. A
 legitimate edit after packet construction is still drift and must be reviewed.

@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "packetSchemaVersion": 1,
+  "packetSchemaVersion": 2,
   "artifactPattern": "docs/delivery/{delivery}/context/{stage}.json",
   "defaultMaxTokens": 12000,
   "minimumMaxTokens": 1024,

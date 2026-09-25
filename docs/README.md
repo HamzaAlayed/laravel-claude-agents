@@ -4,7 +4,7 @@ This page maps the `docs/` corpus so the next review — human or agent — star
 
 Adopting the pack on a Laravel app? [Run your first delivery](onboarding.md). Seeing it work in five minutes? The [README quickstart](../README.md#five-minute-quickstart).
 
-Last verified 2026-09-25 against pack v9.3.0.
+Last verified 2026-09-25 against pack v9.4.0.
 
 ## What lives where
 
@@ -28,6 +28,7 @@ Last verified 2026-09-25 against pack v9.3.0.
 | [`docs/outcome-benchmark.md`](outcome-benchmark.md) | Read-only baseline/candidate capture contract, query and latency thresholds, durable receipts, and failure recovery. |
 | [`docs/benchmark-capture.md`](benchmark-capture.md) | Laravel package installation, typed scenarios, guarded capture command, safety boundary, and failure recovery. |
 | [`docs/context-engineering.md`](context-engineering.md) | Bounded stage packets, authority separation, source selection, token budgets, staleness checks, and interruption recovery. |
+| [`docs/memory-engineering.md`](memory-engineering.md) | Approval-gated durable memory, scoped retrieval, evidence freshness, supersession, tombstone deletion, and recovery. |
 | [`docs/enforcement-map.md`](enforcement-map.md) | Generated map of runtime, hook, CI, operator, and prompt enforcement with evidence, limits, and recovery actions. |
 | [`docs/feedback-routing.md`](feedback-routing.md) | How CI failures and review comments route to stage owners, pause when unresolved, and close with repair evidence. |
 | [`docs/recovery-policy.md`](recovery-policy.md) | How to inspect, freeze, continue, or stop a stranded stage claim without guessing work. |
@@ -37,7 +38,10 @@ Last verified 2026-09-25 against pack v9.3.0.
 | [`CHANGELOG.md`](../CHANGELOG.md) | Shipped user-facing changes. Keep a Changelog. |
 | [`CONTRIBUTING.md`](../CONTRIBUTING.md) | How to add an agent or command. |
 
-`docs/team/` is a **consumer** convention the pack writes into *your* Laravel repo (`conventions.md`, `stack.md`, `decisions.md`). It is not a directory in this repository. A captured instance lives in [`docs/examples/team-memory/`](examples/team-memory/).
+`docs/team/` is both a consumer convention and the installed durable-memory
+location. This repository commits an empty hash-valid `memory.json`; deliveries
+may also create `conventions.md`, `stack.md`, and `decisions.md`. A historical
+captured example lives in [`docs/examples/team-memory/`](examples/team-memory/).
 
 ## Spec vs plan vs eval record
 

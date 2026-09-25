@@ -43,7 +43,8 @@ jobs:
             gemini/gemini-extension.json gemini/hooks/hooks.json \
             hooks/hooks.json config/agent-harness.json config/adversarial-harness.json \
             config/observability-harness.json config/benchmark-harness.json \
-            config/capture-harness.json config/context-harness.json composer.json \
+            config/capture-harness.json config/context-harness.json \
+            config/memory-harness.json docs/team/memory.json composer.json \
             config/enforcement-map.json \
             config/release-harness.json; do
             echo "validating $f"
@@ -217,6 +218,14 @@ jobs:
       - uses: actions/checkout@v5
       - name: Run bounded context packet contract tests (stdlib unittest)
         run: python3 -m unittest discover -s tests/context -t tests/context -v
+
+  memory-retrieval:
+    name: memory retrieval harness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Run durable memory and scoped retrieval contract tests (stdlib unittest)
+        run: python3 -m unittest discover -s tests/memory -t tests/memory -v
 
   enforcement-map:
     name: enforcement map

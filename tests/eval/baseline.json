@@ -160,6 +160,11 @@
       "date": "2026-09-25",
       "sha256": "7dc2f1d965fa908cad12218f25c6805320a0f6dd036251ff40a896e2fcdae695",
       "reason": "Context-packet enforcement adds a bounded pre-dispatch brief without changing feature construction: mandatory kernel authority cannot be trimmed, selected source excerpts are hash-bound untrusted data, stale state and secret-shaped input fail closed, and interruption state is rebuilt before resumed dispatch. Covered by dedicated context units, canonical-sync checks, enforcement-map validation, and existing kernel tests. No billed feature run was authorized; ceilings were not raised."
+    },
+    {
+      "date": "2026-09-25",
+      "sha256": "ff4818f1191ba8e8667eb90c659712d3e5f461b8439a2584630d975cf3f87760",
+      "reason": "Durable memory retrieval adds an approval-gated pre-dispatch data source without changing feature construction: candidate facts require main-thread approval, project and exact-agent scopes prevent leakage, evidence drift and expiry withhold records, explicit supersession resolves conflicts, two-step deletion leaves tombstones, and packets bind the store hash. Covered by dedicated memory and context units, hook integration, canonical-sync ratchets, guardrails, enforcement-map validation, and generated-target checks. No billed feature run was authorized; ceilings were not raised."
     }
     ]
   }

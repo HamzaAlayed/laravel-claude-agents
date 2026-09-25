@@ -208,6 +208,18 @@
       "limitation": "The runtime cannot prove that every supported host passed the packet to the agent, detect every possible secret format, or defend against a same-account process rewriting code and hashes together."
     },
     {
+      "id": "durable-memory-retrieval",
+      "title": "Approval-gated durable memory retrieval",
+      "guarantee": "Only approved, unexpired, scope-matching, evidence-current memories enter a bounded context packet; conflicting facts require explicit supersession and deletion requires a separately approved tombstone transition.",
+      "enforcement": ["runtime", "pre-tool-hook", "ci", "operator", "prompt"],
+      "implementation": ["config/memory-harness.json", "config/agent-harness.json", "scripts/guild-kernel/memory_store.py", "scripts/guild-kernel/context_packets.py", "scripts/enforce-kernel-approvals.py"],
+      "evidence": ["tests/memory/test_memory_store.py", "tests/context/test_context_packets.py"],
+      "ciJobs": ["memory retrieval harness", "context packet harness"],
+      "failureMode": "Exclude stale, expired, irrelevant, unapproved, or wrong-scope memory; reject tampering, unresolved conflicts, unauthorized approval, mandatory-memory overflow, and unapproved deletion.",
+      "operatorAction": "Review candidate provenance and wording, approve from the main thread, supersede rather than overwrite conflicts, and approve a deletion request only after confirming the audit tombstone is appropriate.",
+      "limitation": "Hash chains detect partial or accidental changes but are not signatures against same-account rewriting; lexical retrieval may miss semantically relevant wording, and a human can still approve a poor memory."
+    },
+    {
       "id": "immutable-releases",
       "title": "Exact-commit release publication",
       "guarantee": "A stable release requires synchronized artifacts, a clean main commit, every named CI job green, an annotated immutable tag, and a retained receipt.",

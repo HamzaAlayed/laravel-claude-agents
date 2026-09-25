@@ -259,9 +259,17 @@ constraints cannot be trimmed; optional sources are omitted whole by priority;
 hash drift, unsafe paths, symlinks, and secret-shaped content stop dispatch.
 See the [context engineering runbook](docs/context-engineering.md).
 
+**Durable memory is reviewed, scoped, and retrieved—not replayed.** Agents may
+propose source-bound project facts, procedures, episodes, and user decisions;
+only the main thread can approve conflicts, supersession, or tombstone
+deletion. Retrieval injects only approved, unexpired, evidence-current records
+for the project or exact agent, labels them as untrusted data, and drops
+optional records whole under budget. See
+[memory engineering](docs/memory-engineering.md).
+
 **Every guarantee names its enforcement boundary.** The versioned enforcement
 map separates runtime rejection, installed pre-tool hooks, required hosted CI,
-authoritative human decisions, and prompt-only guidance for 17 controls. Each
+authoritative human decisions, and prompt-only guidance for 18 controls. Each
 entry links to its implementation, executable evidence, safe failure mode,
 operator action, and known limitation. CI rejects missing or unsafe evidence,
 unknown release gates, prompt-only guarantees, and stale generated prose. See

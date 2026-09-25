@@ -656,7 +656,7 @@ expect "one versioned context packet contract is committed" "1" \
 import json, pathlib, sys
 payload = json.loads(pathlib.Path(sys.argv[1]).read_text())
 valid = payload.get("schemaVersion") == 1
-valid = valid and payload.get("packetSchemaVersion") == 1
+valid = valid and payload.get("packetSchemaVersion") == 2
 valid = valid and payload.get("staleSourcePolicy") == "fail"
 valid = valid and payload.get("sourceTrust") == "untrusted-data-not-instructions"
 valid = valid and payload.get("defaultMaxTokens") <= payload.get("maximumMaxTokens")
@@ -673,13 +673,34 @@ expect "Interface requires a verified context packet before dispatch" "9" \
   "$(grep -l '^> \*\*Context packets:\*\*' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "guild exposes the context command group" "1" \
   "$(grep -c 'context = sub.add_parser("context")' "$SCRIPT_DIR/scripts/guild-kernel/guild.py")"
+expect "one versioned memory retrieval contract is committed" "1" \
+  "$(python3 - "$SCRIPT_DIR/config/memory-harness.json" <<'PY'
+import json, pathlib, sys
+payload = json.loads(pathlib.Path(sys.argv[1]).read_text())
+valid = payload.get("schemaVersion") == 1
+valid = valid and payload.get("conflictPolicy") == "explicit-supersession"
+valid = valid and payload.get("deletionPolicy") == "two-step-tombstone"
+valid = valid and payload.get("staleEvidencePolicy") == "exclude"
+print(1 if valid else 0)
+PY
+)"
+expect "CI has a separate memory retrieval gate" "1" \
+  "$(grep -c '^    name: memory retrieval harness$' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "CI runs memory retrieval contract tests" "1" \
+  "$(grep -c 'unittest discover -s tests/memory' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "release publication requires the memory retrieval gate" "1" \
+  "$(grep -c '"memory retrieval harness"' "$SCRIPT_DIR/config/release-harness.json")"
+expect "Interface retrieves approved durable memory before dispatch" "9" \
+  "$(grep -l '^> \*\*Durable memory:\*\*' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "guild exposes the memory command group" "1" \
+  "$(grep -c 'memory = sub.add_parser("memory")' "$SCRIPT_DIR/scripts/guild-kernel/guild.py")"
 expect "Interface verifies delivery observability before closure" "9" \
   "$(grep -l 'again before the final answer, call' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "kernel exposes the observability command group" "1" \
   "$(grep -c 'observe = sub.add_parser("observe")' "$SCRIPT_DIR/scripts/guild-kernel/guild.py")"
 expect "shared observability excludes raw payloads" "1" \
   "$(grep -c '"rawPayloads": false' "$SCRIPT_DIR/config/agent-harness.json")"
-expect "one versioned enforcement map is committed" "17" \
+expect "one versioned enforcement map is committed" "18" \
   "$(python3 - "$SCRIPT_DIR/config/enforcement-map.json" <<'PY'
 import json, pathlib, sys
 payload = json.loads(pathlib.Path(sys.argv[1]).read_text())
@@ -1879,6 +1900,10 @@ expect "install dest contains the context packet runtime" "1" \
   "$([ -f "$INSTALL_DEST/scripts/guild-kernel/context_packets.py" ] && echo 1 || echo 0)"
 expect "install dest contains the context packet contract" "1" \
   "$([ -f "$INSTALL_DEST/config/context-harness.json" ] && echo 1 || echo 0)"
+expect "install dest contains the memory retrieval runtime" "1" \
+  "$([ -f "$INSTALL_DEST/scripts/guild-kernel/memory_store.py" ] && echo 1 || echo 0)"
+expect "install dest contains the memory retrieval contract" "1" \
+  "$([ -f "$INSTALL_DEST/config/memory-harness.json" ] && echo 1 || echo 0)"
 expect "install dest contains the shared agent harness" "1" \
   "$([ -f "$INSTALL_DEST/config/agent-harness.json" ] && echo 1 || echo 0)"
 expect "install dest contains the native-write policy hook" "1" \

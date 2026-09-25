@@ -26,6 +26,8 @@ JOBS = [
     "observability contract",
     "outcome benchmark",
     "laravel benchmark capture",
+    "context packet harness",
+    "memory retrieval harness",
     "enforcement map",
     "eval cost parser units",
     "console ui",

@@ -52,6 +52,11 @@ Every agent run inherits these controls:
   excerpts are untrusted, hash-bound data; stale state, unsafe paths,
   secret-shaped content, and required context that does not fit fail closed.
   See the [context engineering runbook](context-engineering.md).
+- **Durable memory:** agents may propose source-bound candidates, while only
+  the main thread can approve, supersede, or approve tombstone deletion.
+  Retrieval admits approved, unexpired, evidence-current project records and
+  exact-agent records as untrusted data under a whole-record token budget.
+  See [memory engineering](memory-engineering.md).
 - **Adversarial gate:** the versioned attack matrix tests path containment,
   artifact and evidence integrity, authority, measurement, terminal states,
   replay, routing, and concurrency. Every attack asserts its exact safe

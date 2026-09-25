@@ -7,6 +7,44 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.4.0] - 2026-09-25
+
+### Added
+
+- An approval-gated durable memory store with typed project and exact-agent
+  scopes, provenance, confidence, expiry, evidence hashes, record hashes, and a
+  monotonic event hash chain.
+- `guild memory propose`, `approve`, `search`, `show`, `verify`, `supersede`,
+  `delete-request`, and `delete-approve` commands with atomic writes and
+  explicit omission reasons.
+- A memory-engineering runbook, 15 focused memory and hook tests, context
+  integration tests, and a dedicated release-required CI job.
+
+### Changed
+
+- Context packet schema 2 now retrieves approved, current, relevant memory as
+  untrusted data and binds the packet to the durable memory-store hash.
+- The canonical orchestration contract now governs proposal, approval,
+  supersession, deletion, and packet rebuilding across all ten carriers.
+- The shared harness now names its memory policy, the enforcement map covers 18
+  controls, and immutable publication requires 19 named hosted-CI jobs.
+
+### Fixed
+
+- Cross-delivery knowledge no longer depends on replaying transcripts or
+  treating traces, speculation, stale evidence, and wrong-agent records as
+  durable truth.
+- Conflicting approved facts can no longer silently coexist; replacements must
+  supersede the exact prior topic and scope.
+
+### Security
+
+- Subagents cannot approve, supersede, or execute memory deletion; direct and
+  shell writes to the store are blocked by the installed pre-tool policy.
+- Non-user memory requires repository evidence, and secrets, path traversal,
+  excluded paths, symlinks, tampering, expiry, stale evidence, and mandatory
+  memory overflow fail closed or are explicitly withheld.
+
 ## [9.3.0] - 2026-09-25
 
 ### Added

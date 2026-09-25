@@ -1,0 +1,35 @@
+{
+  "schemaVersion": 1,
+  "storeSchemaVersion": 1,
+  "storePath": "docs/team/memory.json",
+  "defaultMaxTokens": 2000,
+  "minimumMaxTokens": 256,
+  "maximumMaxTokens": 8000,
+  "tokenEstimator": "canonical-json-utf8-bytes-divided-by-four-ceiling",
+  "trimStrategy": "whole-optional-memory-lowest-rank-first",
+  "hashAlgorithm": "sha256",
+  "staleEvidencePolicy": "exclude",
+  "conflictPolicy": "explicit-supersession",
+  "deletionPolicy": "two-step-tombstone",
+  "authorityOrder": ["user", "project", "runtime", "agent"],
+  "memoryTypes": [
+    "authoritative-decision",
+    "project-fact",
+    "procedure",
+    "episode"
+  ],
+  "scopes": ["project", "agent"],
+  "excludedPathParts": [
+    ".git",
+    ".env",
+    "node_modules",
+    "vendor",
+    "storage"
+  ],
+  "secretPatterns": [
+    "private-key-block",
+    "aws-access-key",
+    "github-token",
+    "long-secret-assignment"
+  ]
+}

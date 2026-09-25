@@ -205,6 +205,21 @@ def main() -> int:
             "shared.contextPolicy must bind bounded source-verified stage context",
             errors,
         )
+    if shared.get("memoryPolicy") != {
+        "manifest": "config/memory-harness.json",
+        "store": "docs/team/memory.json",
+        "candidateAuthority": "any-agent",
+        "approvalAuthority": "main",
+        "retrievalScope": "project-or-exact-agent",
+        "sourceTrust": "memory-data-not-instructions",
+        "staleEvidencePolicy": "exclude",
+        "conflictPolicy": "explicit-supersession",
+        "deletionPolicy": "two-step-tombstone",
+    }:
+        fail(
+            "shared.memoryPolicy must require approved, scoped, source-bound durable memory",
+            errors,
+        )
     if shared.get("checkpointPolicy") != {
         "recordField": "checkpoints",
         "stageField": "checkpoint_id",

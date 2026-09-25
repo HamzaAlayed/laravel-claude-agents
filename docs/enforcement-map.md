@@ -1,6 +1,6 @@
 # Which Laravel Guild guarantees are actually enforced?
 
-Last verified 2026-09-25 against pack v9.3.0.
+Last verified 2026-09-25 against pack v9.4.0.
 
 This map separates mechanically enforced controls from pre-tool hooks, release-gated evidence, operator decisions, and prompt guidance across the Laravel Guild engineering loop.
 
@@ -30,6 +30,7 @@ A prompt instruction is never presented as a hard control on its own.
 | [`criterion-evidence`](#criterion-evidence) — Criterion-linked verification | `runtime`, `ci`, `operator`, `prompt` | Reject the report and leave the stage nonterminal when evidence coverage is missing or untrusted. |
 | [`delivery-observability`](#delivery-observability) — Correlated delivery event integrity | `runtime`, `ci`, `operator`, `prompt` | Report unhealthy, refuse authoritative-chain growth, and block dispatch or closure until integrity is restored. |
 | [`durable-checkpoints`](#durable-checkpoints) — Typed human checkpoints | `runtime`, `ci`, `operator`, `prompt` | Keep the affected stage paused and exclude it from ready work until a valid resolution exists. |
+| [`durable-memory-retrieval`](#durable-memory-retrieval) — Approval-gated durable memory retrieval | `runtime`, `pre-tool-hook`, `ci`, `operator`, `prompt` | Exclude stale, expired, irrelevant, unapproved, or wrong-scope memory; reject tampering, unresolved conflicts, unauthorized approval, mandatory-memory overflow, and unapproved deletion. |
 | [`feedback-routing`](#feedback-routing) — Ownership-derived PR and CI routing | `runtime`, `ci`, `operator`, `prompt` | Persist route_required and block new dispatch, or reject a caller-asserted wrong owner without recording it. |
 | [`human-approvals`](#human-approvals) — Durable protected-action approval | `runtime`, `pre-tool-hook`, `ci`, `operator`, `prompt` | Keep the stage queued and reject claim or mutation until the approval exists. |
 | [`immutable-releases`](#immutable-releases) — Exact-commit release publication | `runtime`, `ci`, `operator` | Refuse publication or a conflicting rerun without force, deletion, or tag replacement. |
@@ -126,6 +127,18 @@ A prompt instruction is never presented as a hard control on its own.
 - Failure mode: Keep the affected stage paused and exclude it from ready work until a valid resolution exists.
 - Operator action: Select one presented option after reviewing the persisted question, risk, and recommendation.
 - Limitation: The harness preserves the choice but cannot decide whether the human's risk judgment was correct.
+
+### durable-memory-retrieval
+
+**Approval-gated durable memory retrieval.** Only approved, unexpired, scope-matching, evidence-current memories enter a bounded context packet; conflicting facts require explicit supersession and deletion requires a separately approved tombstone transition.
+
+- Enforced by: `runtime`, `pre-tool-hook`, `ci`, `operator`, `prompt`
+- Implementation: [`config/memory-harness.json`](../config/memory-harness.json), [`config/agent-harness.json`](../config/agent-harness.json), [`scripts/guild-kernel/memory_store.py`](../scripts/guild-kernel/memory_store.py), [`scripts/guild-kernel/context_packets.py`](../scripts/guild-kernel/context_packets.py), [`scripts/enforce-kernel-approvals.py`](../scripts/enforce-kernel-approvals.py)
+- Evidence: [`tests/memory/test_memory_store.py`](../tests/memory/test_memory_store.py), [`tests/context/test_context_packets.py`](../tests/context/test_context_packets.py)
+- Required CI: `memory retrieval harness`, `context packet harness`
+- Failure mode: Exclude stale, expired, irrelevant, unapproved, or wrong-scope memory; reject tampering, unresolved conflicts, unauthorized approval, mandatory-memory overflow, and unapproved deletion.
+- Operator action: Review candidate provenance and wording, approve from the main thread, supersede rather than overwrite conflicts, and approve a deletion request only after confirming the audit tombstone is appropriate.
+- Limitation: Hash chains detect partial or accidental changes but are not signatures against same-account rewriting; lexical retrieval may miss semantically relevant wording, and a human can still approve a poor memory.
 
 ### feedback-routing
 
@@ -260,7 +273,7 @@ A prompt instruction is never presented as a hard control on its own.
 python3 scripts/check-enforcement-map.py
 ```
 
-A healthy checkout reports `17 controls` and exits `0`. The checker validates
+A healthy checkout reports `18 controls` and exits `0`. The checker validates
 the exact control inventory, safe repository-local evidence paths, release-gated CI
 job names, enforcement-level ordering, and byte-for-byte agreement with this page.
 It does not execute commands stored in data files.

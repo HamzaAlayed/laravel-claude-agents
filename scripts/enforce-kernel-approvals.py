@@ -23,11 +23,14 @@ class ApprovalStateError(Exception):
 
 
 _KERNEL_PATH = re.compile(r"(?:^|/)docs/delivery/[^/]+/kernel\.json$")
+_MEMORY_PATH = re.compile(r"(?:^|/)docs/team/memory\.json$")
 _KERNEL_TEXT = re.compile(r"(?:^|[\s'\"])(?:[^\s'\"]*/)?docs/delivery/[^\s'\"]+/kernel\.json(?:$|[\s'\"])")
+_MEMORY_TEXT = re.compile(r"(?:^|[\s'\"])(?:[^\s'\"]*/)?docs/team/memory\.json(?:$|[\s'\"])")
 _CONTROL_PLANE_ACTION = re.compile(
     r"guild\.py\b.*\b(?:approval\s+grant|criterion\s+waive|"
     r"checkpoint\s+(?:open|resolve)|retry\s+request|"
-    r"recovery\s+(?:interrupt|resolve)|feedback\s+assign)\b",
+    r"recovery\s+(?:interrupt|resolve)|feedback\s+assign|"
+    r"memory\s+(?:approve|supersede|delete-approve))\b",
     re.DOTALL,
 )
 _SHELL_MUTATION = re.compile(
@@ -64,6 +67,7 @@ def _guild_agents() -> set[str]:
         retry_policy = payload["shared"]["retryPolicy"]
         recovery_policy = payload["shared"]["recoveryPolicy"]
         feedback_policy = payload["shared"]["feedbackPolicy"]
+        memory_policy = payload["shared"]["memoryPolicy"]
     except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
         raise ApprovalStateError(f"invalid agent harness registry at {path}") from exc
     if not isinstance(profiles, dict):
@@ -129,6 +133,18 @@ def _guild_agents() -> set[str]:
         "stoppedStatus": "stopped",
     }:
         raise ApprovalStateError(f"invalid agent harness registry at {path}")
+    if memory_policy != {
+        "manifest": "config/memory-harness.json",
+        "store": "docs/team/memory.json",
+        "candidateAuthority": "any-agent",
+        "approvalAuthority": "main",
+        "retrievalScope": "project-or-exact-agent",
+        "sourceTrust": "memory-data-not-instructions",
+        "staleEvidencePolicy": "exclude",
+        "conflictPolicy": "explicit-supersession",
+        "deletionPolicy": "two-step-tombstone",
+    }:
+        raise ApprovalStateError(f"invalid agent harness registry at {path}")
     return set(profiles)
 
 
@@ -159,6 +175,14 @@ def _is_kernel_state(path: Path, root: Path) -> bool:
     except ValueError:
         return False
     return bool(_KERNEL_PATH.search(relative))
+
+
+def _is_memory_state(path: Path, root: Path) -> bool:
+    try:
+        relative = path.relative_to(root).as_posix()
+    except ValueError:
+        return False
+    return bool(_MEMORY_PATH.search(relative))
 
 
 def _pending(stage: dict) -> list[str]:
@@ -249,16 +273,20 @@ def main() -> int:
     target = _native_target(payload, root)
     if target is not None and _is_kernel_state(target, root):
         return _block("kernel.json is kernel-owned and cannot be edited directly")
+    if target is not None and _is_memory_state(target, root):
+        return _block("memory.json is memory-runtime-owned and cannot be edited directly")
 
     if isinstance(command, str) and command.strip():
         if _CONTROL_PLANE_ACTION.search(command) and agent:
             return _block(
                 "subagents cannot grant approvals, create criterion waivers, "
                 "mutate checkpoints, request retries, reconcile interruptions, "
-                "or assign feedback routes"
+                "assign feedback routes, or approve, supersede, or delete memory"
             )
         if _KERNEL_TEXT.search(command) and _SHELL_MUTATION.search(command):
             return _block("Bash cannot mutate kernel.json directly")
+        if _MEMORY_TEXT.search(command) and _SHELL_MUTATION.search(command):
+            return _block("Bash cannot mutate memory.json directly")
 
     if not agent:
         return 0

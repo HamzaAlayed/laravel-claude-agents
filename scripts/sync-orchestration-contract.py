@@ -28,6 +28,7 @@ LABELS = (
     "> **Interruption recovery:**",
     "> **Delivery observability:**",
     "> **Context packets:**",
+    "> **Durable memory:**",
     "> **Outcome benchmarks:**",
 )
 LEGACY_LABELS = LABELS[:6]

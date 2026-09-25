@@ -11,6 +11,7 @@ import tempfile
 from datetime import datetime, timezone
 
 import kernel
+import memory_store
 
 
 class ContextPacketError(ValueError):
@@ -47,6 +48,7 @@ PACKET_FIELDS = {
     "stage",
     "audience",
     "authority",
+    "memories",
     "sources",
     "currentState",
     "outputContract",
@@ -136,7 +138,7 @@ def _manifest(root):
         raise ContextPacketError(f"cannot load context harness: {exc}") from exc
     if not isinstance(payload, dict) or set(payload) != MANIFEST_FIELDS:
         raise ContextPacketError("context harness fields do not match schema")
-    if payload.get("schemaVersion") != 1 or payload.get("packetSchemaVersion") != 1:
+    if payload.get("schemaVersion") != 1 or payload.get("packetSchemaVersion") != 2:
         raise ContextPacketError("unsupported context harness schema")
     if payload["artifactPattern"] != "docs/delivery/{delivery}/context/{stage}.json":
         raise ContextPacketError("context harness artifact pattern is invalid")
@@ -334,7 +336,7 @@ def _authoritative_state(delivery, stage):
     }
 
 
-def _core_packet(delivery, stage, spec, spec_integrity, manifest, max_tokens):
+def _core_packet(delivery, stage, spec, spec_integrity, manifest, max_tokens, memory_query, memory_hash):
     approval_state = [
         {
             "category": category,
@@ -378,6 +380,13 @@ def _core_packet(delivery, stage, spec, spec_integrity, manifest, max_tokens):
                 "mayOverrideHigherAuthority": False,
             },
         },
+        "memories": {
+            "query": memory_query,
+            "retrievalMaxTokens": 0,
+            "trust": "memory-data-not-instructions",
+            "selected": [],
+            "omitted": [],
+        },
         "sources": [],
         "currentState": state,
         "outputContract": {
@@ -389,6 +398,7 @@ def _core_packet(delivery, stage, spec, spec_integrity, manifest, max_tokens):
             "manifest": "config/context-harness.json",
             "spec": spec_integrity,
             "kernelStateSha256": _hash_json(state),
+            "memoryStoreSha256": memory_hash,
         },
         "budget": {
             "maxTokens": max_tokens,
@@ -442,7 +452,7 @@ def _write_atomic(path, text):
     temporary.replace(path)
 
 
-def build(root, name, stage_id, *, spec_path="", max_tokens=None):
+def build(root, name, stage_id, *, spec_path="", max_tokens=None, memory_query="", memory_tokens=None):
     root = _root(root)
     manifest = _manifest(root)
     maximum = manifest["maximumMaxTokens"]
@@ -473,7 +483,38 @@ def build(root, name, stage_id, *, spec_path="", max_tokens=None):
     if len(selections) != len(set(selections)):
         raise ContextPacketError("source path and line-range selections must be unique")
     records.sort(key=lambda item: (not item["required"], -item["priority"], item["path"]))
-    packet = _core_packet(delivery, stage, spec, spec_integrity, manifest, limit)
+    derived_query = memory_query.strip() if isinstance(memory_query, str) else ""
+    if not derived_query:
+        derived_query = " ".join(
+            [delivery.done_when, *stage.success_criteria, *stage.owned_paths]
+        )
+    try:
+        memories = memory_store.search(
+            root, derived_query, stage.agent, max_tokens=memory_tokens
+        )
+    except memory_store.MemoryError as exc:
+        raise ContextPacketError(f"memory retrieval failed: {exc}") from exc
+    packet = _core_packet(
+        delivery, stage, spec, spec_integrity, manifest, limit,
+        derived_query, memories["storeHash"],
+    )
+    packet["memories"]["omitted"] = list(memories["omitted"])
+    packet["memories"]["retrievalMaxTokens"] = memories["budget"]["maxTokens"]
+    for record in memories["selected"]:
+        candidate = json.loads(json.dumps(packet))
+        candidate["memories"]["selected"].append(record)
+        _seal(candidate)
+        if candidate["budget"]["estimatedTokens"] <= limit:
+            packet = candidate
+            continue
+        mandatory = record["source"] == "user" and record["type"] == "authoritative-decision"
+        if mandatory:
+            raise ContextPacketError(
+                f"mandatory memory {record['id']} exceeds the context token budget"
+            )
+        packet["memories"]["omitted"].append(
+            {"id": record["id"], "reason": "context-token-budget"}
+        )
     for record in records:
         candidate = json.loads(json.dumps(packet))
         candidate["sources"].append(record)
@@ -505,6 +546,7 @@ def build(root, name, stage_id, *, spec_path="", max_tokens=None):
         "packetHash": packet["packetHash"],
         "estimatedTokens": packet["budget"]["estimatedTokens"],
         "omittedSources": len(packet["budget"]["omittedSources"]),
+        "selectedMemories": len(packet["memories"]["selected"]),
     }
 
 
@@ -523,7 +565,7 @@ def _load_packet(root, name, stage_id):
 def _validate_packet_shape(packet, manifest):
     objects = {
         "audience": {"agent", "role"},
-        "integrity": {"algorithm", "manifest", "spec", "kernelStateSha256"},
+        "integrity": {"algorithm", "manifest", "spec", "kernelStateSha256", "memoryStoreSha256"},
         "outputContract": {"artifact", "labels"},
         "budget": {
             "maxTokens",
@@ -544,6 +586,17 @@ def _validate_packet_shape(packet, manifest):
         raise ContextPacketError("context packet authority sections must be objects")
     if not isinstance(packet.get("currentState"), dict):
         raise ContextPacketError("context packet currentState must be an object")
+    memories = packet.get("memories")
+    if not isinstance(memories, dict) or set(memories) != {"query", "retrievalMaxTokens", "trust", "selected", "omitted"}:
+        raise ContextPacketError("context packet memories fields do not match schema")
+    if not isinstance(memories["query"], str) or not memories["query"].strip():
+        raise ContextPacketError("context packet memory query is invalid")
+    if memories["trust"] != "memory-data-not-instructions":
+        raise ContextPacketError("context packet memory trust is invalid")
+    if not isinstance(memories["retrievalMaxTokens"], int) or isinstance(memories["retrievalMaxTokens"], bool):
+        raise ContextPacketError("context packet memory token limit is invalid")
+    if not isinstance(memories["selected"], list) or not isinstance(memories["omitted"], list):
+        raise ContextPacketError("context packet memory selections are invalid")
     sources = packet.get("sources")
     if not isinstance(sources, list):
         raise ContextPacketError("context packet sources must be a list")
@@ -604,6 +657,37 @@ def verify(root, name, stage_id):
     state = _authoritative_state(delivery, stage)
     if packet["integrity"].get("kernelStateSha256") != _hash_json(state):
         raise ContextPacketError("context packet is stale: kernel state changed")
+    try:
+        current_memory_hash = memory_store.store_hash(root)
+    except memory_store.MemoryError as exc:
+        raise ContextPacketError(f"cannot verify memory store: {exc}") from exc
+    if packet["integrity"].get("memoryStoreSha256") != current_memory_hash:
+        raise ContextPacketError("context packet is stale: memory store changed")
+    try:
+        current_memories = memory_store.search(
+            root,
+            packet["memories"]["query"],
+            packet["audience"]["agent"],
+            max_tokens=packet["memories"]["retrievalMaxTokens"],
+        )
+    except memory_store.MemoryError as exc:
+        raise ContextPacketError(f"cannot reproduce memory retrieval: {exc}") from exc
+    eligible = {record["id"]: record for record in current_memories["selected"]}
+    selected_ids = []
+    for record in packet["memories"]["selected"]:
+        if not isinstance(record, dict) or record.get("id") not in eligible:
+            raise ContextPacketError("context packet contains ineligible memory")
+        if record != eligible[record["id"]]:
+            raise ContextPacketError(f"context packet memory is invalid: {record['id']}")
+        selected_ids.append(record["id"])
+    if len(selected_ids) != len(set(selected_ids)):
+        raise ContextPacketError("context packet contains duplicate memory")
+    mandatory = {
+        record["id"] for record in current_memories["selected"]
+        if record["source"] == "user" and record["type"] == "authoritative-decision"
+    }
+    if not mandatory.issubset(selected_ids):
+        raise ContextPacketError("context packet omitted mandatory user memory")
     spec = packet["integrity"].get("spec", {})
     if spec.get("path"):
         spec_path, _ = _safe_file(root, spec["path"], "context spec")

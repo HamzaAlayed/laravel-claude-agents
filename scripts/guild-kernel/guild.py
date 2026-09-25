@@ -14,6 +14,7 @@ sys.path.insert(0, str(HERE))
 
 import kernel  # noqa: E402
 import context_packets  # noqa: E402
+import memory_store  # noqa: E402
 
 
 class ProcessRunner:
@@ -160,10 +161,46 @@ def build_parser():
     context_build.add_argument("--stage", required=True)
     context_build.add_argument("--spec", default="")
     context_build.add_argument("--max-tokens", type=int)
+    context_build.add_argument("--memory-query", default="")
+    context_build.add_argument("--memory-tokens", type=int)
     context_show = context_cmds.add_parser("show", parents=[common])
     context_show.add_argument("--stage", required=True)
     context_verify = context_cmds.add_parser("verify", parents=[common])
     context_verify.add_argument("--stage", required=True)
+    memory = sub.add_parser("memory")
+    memory_cmds = memory.add_subparsers(dest="memory_cmd", required=True)
+    memory_common = argparse.ArgumentParser(add_help=False)
+    memory_common.add_argument("--root", required=True)
+    memory_propose = memory_cmds.add_parser("propose", parents=[memory_common])
+    memory_propose.add_argument("--id", required=True)
+    memory_propose.add_argument("--type", required=True)
+    memory_propose.add_argument("--scope", required=True, choices=("project", "agent"))
+    memory_propose.add_argument("--agent", default="")
+    memory_propose.add_argument("--topic", required=True)
+    memory_propose.add_argument("--statement", required=True)
+    memory_propose.add_argument("--source", required=True, choices=("user", "project", "runtime", "agent"))
+    memory_propose.add_argument("--evidence", action="append", default=[])
+    memory_propose.add_argument("--confidence", type=float, default=1.0)
+    memory_propose.add_argument("--expires-at", default="")
+    memory_approve = memory_cmds.add_parser("approve", parents=[memory_common])
+    memory_approve.add_argument("--id", required=True)
+    memory_search = memory_cmds.add_parser("search", parents=[memory_common])
+    memory_search.add_argument("--query", required=True)
+    memory_search.add_argument("--agent", required=True)
+    memory_search.add_argument("--max-tokens", type=int)
+    memory_show = memory_cmds.add_parser("show", parents=[memory_common])
+    memory_show.add_argument("--id", required=True)
+    memory_verify = memory_cmds.add_parser("verify", parents=[memory_common])
+    memory_verify.add_argument("--strict-evidence", action="store_true")
+    memory_supersede = memory_cmds.add_parser("supersede", parents=[memory_common])
+    memory_supersede.add_argument("--id", required=True)
+    memory_supersede.add_argument("--replacement", required=True)
+    memory_delete_request = memory_cmds.add_parser("delete-request", parents=[memory_common])
+    memory_delete_request.add_argument("--id", required=True)
+    memory_delete_request.add_argument("--request-id", required=True)
+    memory_delete_request.add_argument("--reason", required=True)
+    memory_delete_approve = memory_cmds.add_parser("delete-approve", parents=[memory_common])
+    memory_delete_approve.add_argument("--request-id", required=True)
     budget = sub.add_parser("budget")
     budget_cmds = budget.add_subparsers(dest="budget_cmd", required=True)
     budget_cmds.add_parser("list", parents=[common])
@@ -522,6 +559,8 @@ def main(argv=None):
                     args.stage,
                     spec_path=args.spec,
                     max_tokens=args.max_tokens,
+                    memory_query=args.memory_query,
+                    memory_tokens=args.memory_tokens,
                 )
                 print(json.dumps(result, separators=(",", ":")))
                 return 0
@@ -532,6 +571,33 @@ def main(argv=None):
                 result = context_packets.verify(args.root, args.name, args.stage)
                 print(json.dumps(result, separators=(",", ":")))
                 return 0
+        if args.cmd == "memory":
+            if args.memory_cmd == "propose":
+                result = memory_store.propose(
+                    args.root, record_id=args.id, memory_type=args.type,
+                    scope=args.scope, agent=args.agent, topic=args.topic,
+                    statement=args.statement, source=args.source,
+                    evidence=args.evidence, confidence=args.confidence,
+                    expires_at=args.expires_at,
+                )
+            elif args.memory_cmd == "approve":
+                result = memory_store.approve(args.root, args.id)
+            elif args.memory_cmd == "search":
+                result = memory_store.search(args.root, args.query, args.agent, args.max_tokens)
+            elif args.memory_cmd == "show":
+                result = memory_store.show(args.root, args.id)
+            elif args.memory_cmd == "verify":
+                result = memory_store.verify(args.root, strict_evidence=args.strict_evidence)
+            elif args.memory_cmd == "supersede":
+                result = memory_store.supersede(args.root, args.id, args.replacement)
+            elif args.memory_cmd == "delete-request":
+                result = memory_store.delete_request(args.root, args.id, args.request_id, args.reason)
+            elif args.memory_cmd == "delete-approve":
+                result = memory_store.delete_approve(args.root, args.request_id)
+            else:
+                raise SystemExit(2)
+            print(json.dumps(result, separators=(",", ":"), ensure_ascii=False))
+            return 0
         if args.cmd == "budget":
             if args.budget_cmd == "list":
                 print(json.dumps(kernel.budget_rows(args.root, args.name)))
@@ -571,7 +637,7 @@ def main(argv=None):
                 lesson = kernel.approve_lesson(args.root, args.id)
                 print(f"APPROVED: {lesson['id']} {lesson['text']}")
                 return 0
-    except (kernel.PlanError, context_packets.ContextPacketError) as exc:
+    except (kernel.PlanError, context_packets.ContextPacketError, memory_store.MemoryError) as exc:
         raise SystemExit(str(exc)) from None
     raise SystemExit(2)
 
