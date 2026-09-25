@@ -38,6 +38,7 @@ _VERIFICATION_RUNNERS = {
 }
 _INTERNAL_VERIFICATION_RUNNERS = {"file-exists", "file-has-lines"}
 _CRITERION_ID = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
+_CHECKPOINT_ID = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
 _BUDGET_KEYS = (
     "max_seconds",
     "max_tool_calls",
@@ -60,6 +61,13 @@ _CRITERION_POLICY = {
     "requiredCoverage": "all",
     "waiverAuthority": "user",
 }
+_CHECKPOINT_POLICY = {
+    "recordField": "checkpoints",
+    "stageField": "checkpoint_id",
+    "pausedStatus": "paused",
+    "answerAuthority": "user",
+    "optionActions": ["continue", "stop"],
+}
 _EMPTY_USAGE = {
     "seconds": 0.0,
     "tool_calls": 0,
@@ -72,6 +80,7 @@ _BOARD_MARK = {
     "running": "▶",
     "queued": "·",
     "failed": "✖",
+    "paused": "⏸",
     "budget_exceeded": "⛔",
     "skipped": "·",
 }
@@ -133,6 +142,7 @@ class StageSpec:
     criterion_ids: list = field(default_factory=list)
     criterion_waivers: list = field(default_factory=list)
     criterion_contract: int = 2
+    checkpoint_id: str = ""
 
 
 @dataclass
@@ -151,6 +161,7 @@ class Delivery:
     seen_checks: list = field(default_factory=list)
     seen_comments: list = field(default_factory=list)
     max_parallel: int = 3
+    checkpoints: list = field(default_factory=list)
 
 
 def _state_path(root, name):
@@ -201,6 +212,7 @@ def load(root, name):
     data.setdefault("seen_checks", [])
     data.setdefault("seen_comments", [])
     data.setdefault("max_parallel", 1)
+    data.setdefault("checkpoints", [])
     stages = []
     for stage in data.pop("stages"):
         stage.setdefault("flags", [])
@@ -224,6 +236,7 @@ def load(root, name):
             stage.get("success_criteria", []), stage.get("criterion_ids", [])
         )
         stage.setdefault("criterion_waivers", [])
+        stage.setdefault("checkpoint_id", "")
         stages.append(StageSpec(**stage))
     return Delivery(stages=stages, **data)
 
@@ -405,6 +418,8 @@ def board_line(delivery):
             label += f" approval:{','.join(pending)}"
         if stage.budget_exceeded_reason:
             label += f" budget:{stage.budget_exceeded_reason}"
+        if stage.checkpoint_id:
+            label += f" checkpoint:{stage.checkpoint_id}"
         matrix = ",".join(
             f"{row['id']}:{row['mark']}" for row in criterion_rows_for_stage(stage)
         )
@@ -462,6 +477,40 @@ def render_graph(delivery):
     )
 
 
+def render_checkpoints(delivery):
+    lines = ["# Human checkpoints", ""]
+    if not delivery.checkpoints:
+        return "\n".join([*lines, "None.", ""])
+    for checkpoint in delivery.checkpoints:
+        lines.extend(
+            [
+                f"## {checkpoint['id']} — {checkpoint['status']}",
+                "",
+                f"- Stage: `{checkpoint['stage']}`",
+                f"- Question: {checkpoint['question']}",
+                f"- Risk: {checkpoint['risk']}",
+                f"- Opened: {checkpoint['opened_at']} by {checkpoint['opened_by']}",
+                "- Options:",
+            ]
+        )
+        for index, option in enumerate(checkpoint["options"], start=1):
+            recommended = " (recommended)" if option["id"] == checkpoint["recommended"] else ""
+            lines.append(
+                f"  {index}. `{option['id']}`{recommended} [{option['action']}] — "
+                f"{option['label']}"
+            )
+        answer = checkpoint.get("answer") or {}
+        if answer:
+            note = f" — {answer['note']}" if answer.get("note") else ""
+            lines.append(
+                f"- Answer: `{answer['option']}` by {answer['by']} at {answer['at']}{note}"
+            )
+        else:
+            lines.append("- Answer: pending")
+        lines.append("")
+    return "\n".join(lines)
+
+
 def write_views(root, delivery, *, verified="none", not_checked="none"):
     folder = pathlib.Path(root) / "docs" / "delivery" / delivery.name
     folder.mkdir(parents=True, exist_ok=True)
@@ -469,6 +518,7 @@ def write_views(root, delivery, *, verified="none", not_checked="none"):
         render_close(delivery, verified=verified, not_checked=not_checked)
     )
     (folder / "graph.md").write_text(render_graph(delivery))
+    (folder / "checkpoints.md").write_text(render_checkpoints(delivery))
 
 
 def _has_criteria(stage):
@@ -578,6 +628,7 @@ def _harness_registry():
         approval_policy = shared["approvalPolicy"]
         budget_policy = shared["budgetPolicy"]
         criterion_policy = shared["criterionPolicy"]
+        checkpoint_policy = shared["checkpointPolicy"]
         budgets = shared["budgets"]
         if not isinstance(profiles, dict):
             raise TypeError("agent profiles must be an object")
@@ -592,6 +643,8 @@ def _harness_registry():
             raise TypeError("budget policy is invalid")
         if criterion_policy != _CRITERION_POLICY:
             raise TypeError("criterion policy is invalid")
+        if checkpoint_policy != _CHECKPOINT_POLICY:
+            raise TypeError("checkpoint policy is invalid")
         defaults = budgets["defaults"]
         ceilings = budgets["hardCeilings"]
         if set(defaults) != set(_BUDGET_KEYS) or set(ceilings) != set(_BUDGET_KEYS):
@@ -883,7 +936,7 @@ def waive_stage_criterion(
         stage = next((item for item in delivery.stages if item.id == stage_id), None)
         if stage is None:
             raise PlanError(f"stage {stage_id} is missing")
-        if stage.status not in ("queued", "running"):
+        if stage.status not in ("queued", "running", "paused"):
             raise PlanError(f"stage {stage_id} is {stage.status}")
         if criterion_id not in stage.criterion_ids:
             raise PlanError(
@@ -907,6 +960,203 @@ def waive_stage_criterion(
         save(root, delivery)
         write_views(root, delivery, not_checked=delivery.done_when or "none")
         return waiver
+
+
+def _checkpoint_text(raw, label, *, limit, required=True):
+    if not isinstance(raw, str):
+        raise PlanError(f"checkpoint {label} must be text")
+    normalized = " ".join(raw.split())
+    if required and not normalized:
+        raise PlanError(f"checkpoint {label} is required")
+    if len(normalized) > limit:
+        raise PlanError(f"checkpoint {label} exceeds {limit} characters")
+    return normalized
+
+
+def _normalize_checkpoint_options(options):
+    if not isinstance(options, list) or not 2 <= len(options) <= 5:
+        raise PlanError("checkpoint requires between 2 and 5 options")
+    normalized = []
+    for option in options:
+        if not isinstance(option, dict) or set(option) != {"id", "label", "action"}:
+            raise PlanError("checkpoint options require exactly id, label, and action")
+        option_id = option.get("id")
+        if not isinstance(option_id, str) or not _CHECKPOINT_ID.fullmatch(option_id):
+            raise PlanError("checkpoint option ids must be lowercase kebab-case")
+        action = option.get("action")
+        if action not in _CHECKPOINT_POLICY["optionActions"]:
+            raise PlanError("checkpoint option action must be continue or stop")
+        normalized.append(
+            {
+                "id": option_id,
+                "label": _checkpoint_text(
+                    option.get("label"), "option label", limit=200
+                ),
+                "action": action,
+            }
+        )
+    ids = [option["id"] for option in normalized]
+    if len(ids) != len(set(ids)):
+        raise PlanError("checkpoint option ids must be unique")
+    return normalized
+
+
+def _pending_checkpoint(delivery, stage_id=None):
+    return next(
+        (
+            checkpoint
+            for checkpoint in delivery.checkpoints
+            if isinstance(checkpoint, dict)
+            and checkpoint.get("status") == "pending"
+            and (stage_id is None or checkpoint.get("stage") == stage_id)
+        ),
+        None,
+    )
+
+
+def checkpoint_rows(root, name):
+    delivery = load(root, name)
+    return list(delivery.checkpoints)
+
+
+def open_checkpoint(
+    root,
+    name,
+    stage_id,
+    checkpoint_id,
+    question,
+    risk,
+    options,
+    recommended,
+):
+    if not isinstance(checkpoint_id, str) or not _CHECKPOINT_ID.fullmatch(checkpoint_id):
+        raise PlanError("checkpoint id must be a lowercase kebab-case identifier")
+    question = _checkpoint_text(question, "question", limit=500)
+    risk = _checkpoint_text(risk, "risk", limit=500)
+    options = _normalize_checkpoint_options(options)
+    option_ids = {option["id"] for option in options}
+    if recommended not in option_ids:
+        raise PlanError("checkpoint recommended option must name a declared option")
+    expected = {
+        "id": checkpoint_id,
+        "stage": stage_id,
+        "question": question,
+        "risk": risk,
+        "options": options,
+        "recommended": recommended,
+    }
+    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with _file_lock(lock_path):
+        delivery = load(root, name)
+        stage = next((item for item in delivery.stages if item.id == stage_id), None)
+        if stage is None:
+            raise PlanError(f"stage {stage_id} is missing")
+        existing = next(
+            (
+                item for item in delivery.checkpoints
+                if isinstance(item, dict) and item.get("id") == checkpoint_id
+            ),
+            None,
+        )
+        if existing is not None:
+            actual = {key: existing.get(key) for key in expected}
+            if existing.get("status") == "pending" and actual == expected:
+                return existing
+            raise PlanError(f"checkpoint id {checkpoint_id} already exists")
+        pending = _pending_checkpoint(delivery, stage_id)
+        if pending is not None:
+            raise PlanError(
+                f"stage {stage_id} already has pending checkpoint {pending['id']}"
+            )
+        if stage.status not in ("queued", "running"):
+            raise PlanError(f"stage {stage_id} is {stage.status}")
+        if stage.claimed_at:
+            raise PlanError(
+                f"stage {stage_id} requires completion telemetry before checkpoint"
+            )
+        checkpoint = {
+            **expected,
+            "status": "pending",
+            "opened_by": "main",
+            "opened_at": _now_utc().isoformat(timespec="seconds"),
+            "answer": {},
+        }
+        delivery.checkpoints.append(checkpoint)
+        stage.checkpoint_id = checkpoint_id
+        stage.status = "paused"
+        save(root, delivery)
+        write_views(root, delivery, not_checked=delivery.done_when or "none")
+        return checkpoint
+
+
+def resolve_checkpoint(
+    root,
+    name,
+    checkpoint_id,
+    option_id,
+    *,
+    note="",
+    answered_by="user",
+):
+    if answered_by != "user":
+        raise PlanError("checkpoints can only be answered by the user")
+    note = _checkpoint_text(note, "answer note", limit=500, required=False)
+    lock_path = _state_path(root, name).with_suffix(".lock")
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    with _file_lock(lock_path):
+        delivery = load(root, name)
+        checkpoint = next(
+            (
+                item for item in delivery.checkpoints
+                if isinstance(item, dict) and item.get("id") == checkpoint_id
+            ),
+            None,
+        )
+        if checkpoint is None:
+            raise PlanError(f"checkpoint {checkpoint_id} is missing")
+        if checkpoint.get("status") == "resolved":
+            answer = checkpoint.get("answer", {})
+            if answer.get("option") == option_id and answer.get("note", "") == note:
+                return checkpoint
+            raise PlanError(f"checkpoint {checkpoint_id} is already resolved")
+        if checkpoint.get("status") != "pending":
+            raise PlanError(f"checkpoint {checkpoint_id} is invalid")
+        option = next(
+            (
+                item for item in checkpoint.get("options", [])
+                if isinstance(item, dict) and item.get("id") == option_id
+            ),
+            None,
+        )
+        if option is None:
+            raise PlanError(
+                f"checkpoint {checkpoint_id} option {option_id} is not declared"
+            )
+        stage = next(
+            (item for item in delivery.stages if item.id == checkpoint.get("stage")),
+            None,
+        )
+        if stage is None or stage.checkpoint_id != checkpoint_id or stage.status != "paused":
+            raise PlanError(f"checkpoint {checkpoint_id} stage state is inconsistent")
+        checkpoint["status"] = "resolved"
+        checkpoint["answer"] = {
+            "option": option["id"],
+            "label": option["label"],
+            "action": option["action"],
+            "note": note,
+            "by": "user",
+            "at": _now_utc().isoformat(timespec="seconds"),
+        }
+        stage.checkpoint_id = ""
+        if option["action"] == "stop":
+            stage.status = "failed"
+            delivery.status = "stopped"
+        else:
+            stage.status = "queued"
+        save(root, delivery)
+        write_views(root, delivery, not_checked=delivery.done_when or "none")
+        return checkpoint
 
 
 def _now_utc():
@@ -1324,6 +1574,8 @@ def plan(
 
 
 def _dod_met(delivery):
+    if _pending_checkpoint(delivery) is not None:
+        return False
     if not all(stage.status in ("done", "skipped") for stage in delivery.stages):
         return False
     return all(
@@ -1600,6 +1852,10 @@ def claim_stage(root, name, stage_id):
         stage = next((item for item in delivery.stages if item.id == stage_id), None)
         if stage is None:
             raise PlanError(f"stage {stage_id} is missing")
+        if stage.status == "paused" and stage.checkpoint_id:
+            raise PlanError(
+                f"stage {stage_id} is paused at checkpoint {stage.checkpoint_id}"
+            )
         pending = _pending_approvals(stage)
         if pending:
             raise PlanError(
@@ -1644,6 +1900,8 @@ def next_agent(root, name):
             continue
         if stage.awaiting_pair and stage.pair:
             return stage.pair
+        if stage.status == "paused" and stage.checkpoint_id:
+            return f"CHECKPOINT_REQUIRED: {stage.checkpoint_id}"
         pending = _pending_approvals(stage)
         if stage.status == "queued" and pending:
             return f"APPROVAL_REQUIRED: {stage.id}: {', '.join(pending)}"
@@ -1813,6 +2071,10 @@ def report(root, name, path, runner):
     if not matching:
         raise ReportError(f"no stage matched report agent {agent}")
     for stage in matching:
+        if stage.status == "paused" or _pending_checkpoint(delivery, stage.id):
+            raise ReportError(
+                f"stage {stage.id} is paused at checkpoint {stage.checkpoint_id}"
+            )
         _validate_verification_criteria(stage, verifications)
 
     for spec in verifications:
@@ -1835,6 +2097,12 @@ def _commit_report(root, name, path, fields, verifications):
     ]
     matched = False
     for stage in delivery.stages:
+        if (stage.agent == agent or stage.pair == agent) and (
+            stage.status == "paused" or _pending_checkpoint(delivery, stage.id)
+        ):
+            raise ReportError(
+                f"stage {stage.id} is paused at checkpoint {stage.checkpoint_id}"
+            )
         if stage.status == "budget_exceeded" and (
             stage.agent == agent or stage.pair == agent
         ):

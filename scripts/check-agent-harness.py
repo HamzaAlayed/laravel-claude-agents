@@ -171,6 +171,17 @@ def main() -> int:
             "shared.criterionPolicy must require all-criterion evidence or user waivers",
             errors,
         )
+    if shared.get("checkpointPolicy") != {
+        "recordField": "checkpoints",
+        "stageField": "checkpoint_id",
+        "pausedStatus": "paused",
+        "answerAuthority": "user",
+        "optionActions": ["continue", "stop"],
+    }:
+        fail(
+            "shared.checkpointPolicy must persist typed user-resolved checkpoints",
+            errors,
+        )
     if shared.get("verification") != "registered-runners-only":
         fail("shared.verification must remain registered-runners-only", errors)
 

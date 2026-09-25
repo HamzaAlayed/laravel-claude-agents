@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.1.0] - 2026-09-25
+
+### Added
+
+- Durable `guild checkpoint open`, `list`, and `resolve` commands for human
+  decisions discovered while a delivery is running.
+- Typed checkpoint options with an explicit `continue` or `stop` action,
+  recommended choice, risk statement, stable ID, and optional answer note.
+- A generated `docs/delivery/<name>/checkpoints.md` view showing pending and
+  resolved decision history without exposing kernel state to direct edits.
+
+### Changed
+
+- A pending checkpoint pauses only its stage, leaving independent lanes
+  available to `ready`; continuing requeues the affected stage and stopping
+  fails the lane and delivery.
+- All nine pipeline commands and the delivery coordinator inspect checkpoints
+  on start or resume, persist before asking, replay pending prompts exactly,
+  and never re-ask resolved decisions.
+- Delivery completion, claim, and report now reject a stage whose checkpoint
+  remains unanswered.
+
+### Security
+
+- Only the main thread may open or resolve a checkpoint, and every answer
+  records `by: user` with a UTC timestamp.
+- Subagents cannot create or answer their own checkpoint, rewrite a resolved
+  answer, or mutate `kernel.json` directly.
+
 ## [8.0.0] - 2026-09-25
 
 ### Added

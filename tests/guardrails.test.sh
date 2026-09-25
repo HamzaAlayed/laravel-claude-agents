@@ -367,6 +367,14 @@ expect "main thread may record an explicit criterion waiver through the kernel C
   "$(run_approval_policy "$APPROVAL_TMP" '{"tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py criterion waive --root . --name tag --stage database --criterion rollback-documented --reason accepted-by-user"}}')"
 expect "subagent cannot waive its own success criterion" "$BLOCK" \
   "$(run_approval_policy "$APPROVAL_TMP" '{"agent_type":"laravel-team:database-developer","tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py criterion waive --root . --name tag --stage database --criterion rollback-documented --reason self-approved"}}')"
+expect "main thread may open a durable checkpoint through the kernel CLI" "$ALLOW" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py checkpoint open --root . --name tag --stage database --id migration-risk --question proceed --risk data-loss --option-json option --recommended approve"}}')"
+expect "subagent cannot open its own checkpoint" "$BLOCK" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"agent_type":"laravel-team:database-developer","tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py checkpoint open --root . --name tag --stage database --id migration-risk --question proceed --risk data-loss --option-json option --recommended approve"}}')"
+expect "main thread may resolve a durable checkpoint through the kernel CLI" "$ALLOW" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py checkpoint resolve --root . --name tag --id migration-risk --option approve"}}')"
+expect "subagent cannot resolve its own checkpoint" "$BLOCK" \
+  "$(run_approval_policy "$APPROVAL_TMP" '{"agent_type":"laravel-team:database-developer","tool_name":"Bash","tool_input":{"command":"python3 scripts/guild-kernel/guild.py checkpoint resolve --root . --name tag --id migration-risk --option approve"}}')"
 expect "pending approval blocks subagent Bash before claim" "$BLOCK" \
   "$(run_approval_policy "$APPROVAL_TMP" '{"agent_type":"laravel-team:database-developer","tool_name":"Bash","tool_input":{"command":"php artisan migrate"}}')"
 expect "unrelated Guild agent is not blocked by another lane's approval" "$ALLOW" \
@@ -635,6 +643,22 @@ expect "Interface block declares profile approval categories" "9" \
 # shellcheck disable=SC2016 # literal command backticks in the Interface needle
 expect "Interface block lists and grants approvals before ready" "9" \
   "$(grep -l 'call `approval list`.*main thread may call `approval grant`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal `checkpoint list` in the Interface needle
+expect "Interface block lists durable checkpoints on start and resume" "9" \
+  "$(grep -l 'every start or resume, call `checkpoint list`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal `checkpoint open` in the Interface needle
+expect "Interface block persists a checkpoint before asking" "9" \
+  "$(grep -l 'Before asking.*main thread calls `checkpoint open`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal `checkpoint resolve` in the Interface needle
+expect "Interface block resolves checkpoints only on the main thread" "9" \
+  "$(grep -l 'only the main thread calls `checkpoint resolve`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block preserves exact pending prompts across resume" "9" \
+  "$(grep -l 'present the pending record exactly as stored' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "Interface block never re-asks a resolved checkpoint" "9" \
+  "$(grep -l 'resolved checkpoint is not asked again' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+# shellcheck disable=SC2016 # literal `ready` in the Interface needle
+expect "Interface block continues independent lanes during a checkpoint" "9" \
+  "$(grep -l 'continue dispatching independent `ready` lanes' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # shellcheck disable=SC2016 # literal `board` backticks in the Interface needle
 expect "Interface block prints the kernel board" "9" \
   "$(grep -l '`board` to print' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
@@ -691,6 +715,22 @@ expect "coordinator leaves criterion waivers to the main thread" "1" \
 # shellcheck disable=SC2016 # literal command backticks in the coordinator needle
 expect "coordinator leaves approval grants to the main thread" "1" \
   "$(grep -c 'only the main thread may call `approval grant`' "$COORD")"
+# shellcheck disable=SC2016 # literal `checkpoint list` in the coordinator needle
+expect "coordinator lists checkpoints on start and resume" "1" \
+  "$(grep -c 'whenever a delivery starts or resumes, call `checkpoint list`' "$COORD")"
+# shellcheck disable=SC2016 # literal `checkpoint open` in the coordinator needle
+expect "coordinator opens checkpoints before presenting them" "1" \
+  "$(grep -c 'Before showing the prompt above, only the main thread calls `checkpoint open`' "$COORD")"
+# shellcheck disable=SC2016 # literal `checkpoint resolve` in the coordinator needle
+expect "coordinator resolves checkpoints on the main thread" "1" \
+  "$(grep -c 'only the main thread calls `checkpoint resolve`' "$COORD")"
+expect "coordinator resumes from the exact stored checkpoint" "1" \
+  "$(grep -c 'present the pending record exactly as stored' "$COORD")"
+expect "coordinator never re-asks resolved checkpoints" "1" \
+  "$(grep -c 'Never ask a resolved checkpoint again' "$COORD")"
+# shellcheck disable=SC2016 # literal `ready` in the coordinator needle
+expect "coordinator keeps independent checkpoint lanes moving" "1" \
+  "$(grep -c 'continue every independent lane returned by `ready`' "$COORD")"
 expect "coordinator does not merge" "1" \
   "$(grep -c 'Do not merge\.' "$COORD")"
 expect "coordinator copies the stage-return stub when persisting read-only" "1" \
@@ -765,8 +805,9 @@ expect "low confidence is its own stop trigger" "1" \
   "$(grep -c 'Low confidence is a stop trigger in its own right' "$COORD")"
 expect "the board declares a stage budget" "1" \
   "$(grep -c 'State the stage budget on the board' "$COORD")"
-expect "checkpoints flush resume state" "1" \
-  "$(grep -c 'flush the resume state' "$COORD")"
+# shellcheck disable=SC2016 # literal `checkpoints.md` in the coordinator needle
+expect "checkpoints persist authoritative resume state" "1" \
+  "$(grep -c '`checkpoints.md` preserves the exact question' "$COORD")"
 # All three edit the coordinator ONLY. The 9 pipeline commands share a
 # byte-identical Interface block; a tranche edit that leaked into it would
 # diverge them and drift the delegation contract per command.

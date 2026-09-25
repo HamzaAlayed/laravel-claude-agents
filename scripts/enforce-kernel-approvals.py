@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Protect durable stage approvals and require a claimed lane before Bash.
+"""Protect kernel control-plane decisions and require a claimed lane before Bash.
 
 Claude Code sends PreToolUse payloads on stdin. The kernel is the only writer
-of docs/delivery/*/kernel.json, and only the main thread may invoke the explicit
-approval grant command. Guild subagents participating in an active delivery
-must have exactly one claimed stage whose declared approvals are complete.
+of docs/delivery/*/kernel.json, and only the main thread may grant approvals,
+waive criteria, or open and resolve checkpoints. Guild subagents participating
+in an active delivery must have exactly one claimed stage whose declared
+approvals are complete.
 """
 
 from __future__ import annotations
@@ -22,8 +23,10 @@ class ApprovalStateError(Exception):
 
 _KERNEL_PATH = re.compile(r"(?:^|/)docs/delivery/[^/]+/kernel\.json$")
 _KERNEL_TEXT = re.compile(r"(?:^|[\s'\"])(?:[^\s'\"]*/)?docs/delivery/[^\s'\"]+/kernel\.json(?:$|[\s'\"])")
-_USER_AUTHORITY_ACTION = re.compile(
-    r"guild\.py\b.*\b(?:approval\s+grant|criterion\s+waive)\b", re.DOTALL
+_CONTROL_PLANE_ACTION = re.compile(
+    r"guild\.py\b.*\b(?:approval\s+grant|criterion\s+waive|"
+    r"checkpoint\s+(?:open|resolve))\b",
+    re.DOTALL,
 )
 _SHELL_MUTATION = re.compile(
     r">|\btee\b|\b(?:sed|perl)\b[^;&|]*\s-i\b|"
@@ -55,6 +58,7 @@ def _guild_agents() -> set[str]:
         profiles = payload["agents"]
         approval_policy = payload["shared"]["approvalPolicy"]
         criterion_policy = payload["shared"]["criterionPolicy"]
+        checkpoint_policy = payload["shared"]["checkpointPolicy"]
     except (OSError, json.JSONDecodeError, KeyError, TypeError) as exc:
         raise ApprovalStateError(f"invalid agent harness registry at {path}") from exc
     if not isinstance(profiles, dict):
@@ -72,6 +76,14 @@ def _guild_agents() -> set[str]:
         "waiversField": "criterion_waivers",
         "requiredCoverage": "all",
         "waiverAuthority": "user",
+    }:
+        raise ApprovalStateError(f"invalid agent harness registry at {path}")
+    if checkpoint_policy != {
+        "recordField": "checkpoints",
+        "stageField": "checkpoint_id",
+        "pausedStatus": "paused",
+        "answerAuthority": "user",
+        "optionActions": ["continue", "stop"],
     }:
         raise ApprovalStateError(f"invalid agent harness registry at {path}")
     return set(profiles)
@@ -168,11 +180,11 @@ def _active_agent_stages(root: Path, agent: str) -> tuple[list[dict], list[dict]
 
 
 def _block(reason: str) -> int:
-    print("blocked: kernel approval policy denied this tool call.", file=sys.stderr)
+    print("blocked: kernel control-plane policy denied this tool call.", file=sys.stderr)
     print(f"reason: {reason}", file=sys.stderr)
     print(
-        "declare sensitive categories in approval_categories, obtain explicit "
-        "user approval on the main thread, then claim the stage.",
+        "use the main thread for user-authoritative decisions; declare sensitive "
+        "categories, persist checkpoints, then claim the stage.",
         file=sys.stderr,
     )
     return 2
@@ -196,8 +208,11 @@ def main() -> int:
         return _block("kernel.json is kernel-owned and cannot be edited directly")
 
     if isinstance(command, str) and command.strip():
-        if _USER_AUTHORITY_ACTION.search(command) and agent:
-            return _block("subagents cannot grant approvals or criterion waivers")
+        if _CONTROL_PLANE_ACTION.search(command) and agent:
+            return _block(
+                "subagents cannot grant approvals, create criterion waivers, "
+                "or mutate checkpoints"
+            )
         if _KERNEL_TEXT.search(command) and _SHELL_MUTATION.search(command):
             return _block("Bash cannot mutate kernel.json directly")
 

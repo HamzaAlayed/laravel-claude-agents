@@ -230,6 +230,15 @@ them from `ready`, and rejects `claim` until the main thread records an explicit
 user grant. The approval category, user provenance, and UTC timestamp survive
 in `kernel.json`; subagents cannot approve themselves or edit that state.
 
+**Human decisions survive interruption.** Before asking a checkpoint question,
+the main thread stores its exact wording, risk, typed options, and recommendation
+with `guild checkpoint open`. Only that stage pauses; independent lanes remain
+eligible for `ready`. A user answer recorded by `guild checkpoint resolve`
+either requeues the lane with a durable note or stops it, and a resumed delivery
+never reconstructs or re-asks an answered question. Inspect the generated
+`docs/delivery/<name>/checkpoints.md` view or see the
+[durable checkpoint policy](docs/checkpoint-policy.md).
+
 **Stage budgets stop work instead of becoming advice.** Every planned lane
 snapshots an effective limit for seconds, tool calls, turns, tokens, and USD.
 On Claude Code, the kernel budget hook meters time and tool calls before every

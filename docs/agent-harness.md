@@ -36,8 +36,8 @@ Every agent run inherits these controls:
 - **Observability:** events carry run, trace, span, lane, tool, approval, usage,
   and budget evidence; persisted values are redacted and retention-bounded.
 - **Recovery:** interrupted runs reload their original request and current
-  workspace state. They are told to inspect persisted kernel state before
-  continuing.
+  workspace state. They inspect durable checkpoint state before continuing,
+  present pending prompts exactly as stored, and never repeat resolved prompts.
 
 The harness enforces what can be decided mechanically. Agent prompts still
 provide domain judgment, such as when a proposed authentication change is
@@ -152,6 +152,42 @@ python3 scripts/guild-kernel/guild.py approval grant \
 The category, `by: user`, and UTC timestamp persist in `kernel.json`. The
 approval hook denies subagent grants and direct edits of kernel state. See
 [runtime stage approvals](approval-policy.md) for the boundary and examples.
+
+Human decisions that arise after dispatch use a separate durable checkpoint
+lifecycle. Inspect it whenever a delivery starts or resumes:
+
+```sh
+python3 scripts/guild-kernel/guild.py checkpoint list \
+  --root . --name tags
+```
+
+Before presenting a question, the main thread stores the exact prompt and its
+typed options. Each `--option-json` object has exactly `id`, `label`, and
+`action`; `action` is `continue` or `stop`:
+
+```sh
+python3 scripts/guild-kernel/guild.py checkpoint open \
+  --root . --name tags --stage database --id migration-risk \
+  --question "Proceed with the non-reversible backfill?" \
+  --risk "A failed deployment can require restoring the snapshot." \
+  --option-json '{"id":"proceed","label":"Proceed after snapshot","action":"continue"}' \
+  --option-json '{"id":"stop","label":"Stop this delivery","action":"stop"}' \
+  --recommended proceed
+```
+
+Only the affected stage becomes `paused`; independent stages stay available to
+`ready`. After the user answers, only the main thread resolves the record:
+
+```sh
+python3 scripts/guild-kernel/guild.py checkpoint resolve \
+  --root . --name tags --id migration-risk --option proceed \
+  --note "Use the verified snapshot from change CHG-204."
+```
+
+The answer includes the option, action, note, `by: user`, and UTC timestamp.
+The generated `docs/delivery/<name>/checkpoints.md` view makes that history
+readable without allowing direct state edits. See
+[durable human checkpoints](checkpoint-policy.md) for resume and failure rules.
 
 The native-write policy applies when an agent appears in an active kernel
 delivery. A queued or finished stage cannot edit; one running stage may edit

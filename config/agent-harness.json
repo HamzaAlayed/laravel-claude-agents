@@ -96,6 +96,13 @@
       "requiredCoverage": "all",
       "waiverAuthority": "user"
     },
+    "checkpointPolicy": {
+      "recordField": "checkpoints",
+      "stageField": "checkpoint_id",
+      "pausedStatus": "paused",
+      "answerAuthority": "user",
+      "optionActions": ["continue", "stop"]
+    },
     "verification": "registered-runners-only"
   },
   "agents": {

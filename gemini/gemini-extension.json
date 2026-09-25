@@ -1,6 +1,6 @@
 {
   "name": "laravel-team",
-  "version": "8.0.0",
+  "version": "8.1.0",
   "description": "A 18-agent Laravel-specialized team plus 14 workflow commands, 8 on-demand skills, and 9 production guardrail hooks.",
   "contextFileName": "GEMINI.md"
 }

@@ -90,6 +90,20 @@ def build_parser():
     criterion_waive.add_argument("--stage", required=True)
     criterion_waive.add_argument("--criterion", required=True)
     criterion_waive.add_argument("--reason", required=True)
+    checkpoint = sub.add_parser("checkpoint")
+    checkpoint_cmds = checkpoint.add_subparsers(dest="checkpoint_cmd", required=True)
+    checkpoint_cmds.add_parser("list", parents=[common])
+    checkpoint_open = checkpoint_cmds.add_parser("open", parents=[common])
+    checkpoint_open.add_argument("--stage", required=True)
+    checkpoint_open.add_argument("--id", required=True)
+    checkpoint_open.add_argument("--question", required=True)
+    checkpoint_open.add_argument("--risk", required=True)
+    checkpoint_open.add_argument("--option-json", action="append", default=[])
+    checkpoint_open.add_argument("--recommended", required=True)
+    checkpoint_resolve = checkpoint_cmds.add_parser("resolve", parents=[common])
+    checkpoint_resolve.add_argument("--id", required=True)
+    checkpoint_resolve.add_argument("--option", required=True)
+    checkpoint_resolve.add_argument("--note", default="")
     budget = sub.add_parser("budget")
     budget_cmds = budget.add_subparsers(dest="budget_cmd", required=True)
     budget_cmds.add_parser("list", parents=[common])
@@ -160,6 +174,19 @@ def _stages_from_args(raw_stages, raw_json_stages=()):
             )
         )
     return stages
+
+
+def _checkpoint_options(raw_options):
+    options = []
+    for raw in raw_options:
+        try:
+            option = json.loads(raw)
+        except json.JSONDecodeError as exc:
+            raise SystemExit(f"--option-json is invalid JSON: {exc.msg}") from None
+        if not isinstance(option, dict):
+            raise SystemExit("--option-json must be an object")
+        options.append(option)
+    return options
 
 
 def _sprint_main(args):
@@ -277,6 +304,40 @@ def main(argv=None):
                 print(
                     f"WAIVED: {args.stage} {waiver['criterion']} "
                     f"by {waiver['by']} at {waiver['at']}"
+                )
+                return 0
+        if args.cmd == "checkpoint":
+            if args.checkpoint_cmd == "list":
+                print(json.dumps(kernel.checkpoint_rows(args.root, args.name)))
+                return 0
+            if args.checkpoint_cmd == "open":
+                checkpoint = kernel.open_checkpoint(
+                    args.root,
+                    args.name,
+                    args.stage,
+                    args.id,
+                    args.question,
+                    args.risk,
+                    _checkpoint_options(args.option_json),
+                    args.recommended,
+                )
+                print(
+                    f"CHECKPOINT: {checkpoint['id']} pending for "
+                    f"{checkpoint['stage']}"
+                )
+                return 0
+            if args.checkpoint_cmd == "resolve":
+                checkpoint = kernel.resolve_checkpoint(
+                    args.root,
+                    args.name,
+                    args.id,
+                    args.option,
+                    note=args.note,
+                )
+                answer = checkpoint["answer"]
+                print(
+                    f"RESOLVED: {checkpoint['id']} {answer['option']} "
+                    f"by {answer['by']} at {answer['at']}"
                 )
                 return 0
         if args.cmd == "budget":

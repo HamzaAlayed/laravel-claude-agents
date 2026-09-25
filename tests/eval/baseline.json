@@ -115,6 +115,11 @@
       "date": "2026-09-25",
       "sha256": "3d17cd1fd5920093d59e20b7649676ace8945a919a1f16fb9afb4db264cdc185",
       "reason": "Criterion-linked verification changes the reporting contract but not feature construction: plans assign stable criterion IDs, every passing runner record covers exactly one declared criterion, incomplete coverage fails closed, and only a durable main-thread user decision may waive evidence. Covered by kernel units, hook integration, guardrails, and generated-target checks. No billed feature run was authorized; ceilings were not raised."
+    },
+    {
+      "date": "2026-09-25",
+      "sha256": "bd7b20705c048c947142646d5e68fc98b5fa04e33fb72458966cb39f60c38ef6",
+      "reason": "Durable human checkpoints change interruption recovery but not feature construction: the main thread stores the exact prompt before asking, pending state pauses only its lane, user answers requeue or stop deterministically, and resumes never reconstruct or repeat decisions. Covered by kernel units, CLI tests, hook integration, orchestration ratchets, and generated-target checks. No billed feature run was authorized; ceilings were not raised."
     }
     ]
   }

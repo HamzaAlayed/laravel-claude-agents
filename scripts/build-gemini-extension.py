@@ -33,6 +33,8 @@ SANITIZE = [
     # AskUserQuestion is a Claude Code tool; Gemini asks in plain text.
     ("Running main-thread → present it via AskUserQuestion; running as a subagent (where that tool is unavailable) → print the same shape as text and stop the lane until the orchestrator relays the answer.",
      "Print the shape as text and wait for the human's answer before proceeding."),
+    ("Running main-thread → persist with `checkpoint open`, then present it via AskUserQuestion; running as a subagent (where mutation authority is unavailable) → return the same shape as text so the main-thread orchestrator can open it and stop the lane until the answer arrives.",
+     "Persist with `checkpoint open`, print the stored shape as text, and wait for the human's answer before proceeding."),
     ("with a recommended default (AskUserQuestion when available), never a paragraph",
      "with a recommended default, never a paragraph"),
     ("Uses Opus for thorough analysis.", "Reasons deeply — pair it with a high-capability model."),
