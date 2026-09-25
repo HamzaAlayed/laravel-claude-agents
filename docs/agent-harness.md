@@ -38,13 +38,18 @@ Every agent run inherits these controls:
   Only a main-thread user decision can waive a criterion, with a durable reason.
 - **Adversarial gate:** the versioned attack matrix tests path containment,
   artifact and evidence integrity, authority, measurement, terminal states,
-  replay, routing, and concurrency. Every denied attack also asserts that
-  kernel state and outside files remain unchanged. See
+  replay, routing, and concurrency. Every attack asserts its exact safe
+  post-state, including no mutation where denial must be side-effect-free. See
   [adversarial engineering-loop testing](adversarial-testing.md).
 - **Return contract:** every specialist reports `STATUS`, `DID`, `VERIFIED`,
   `NOT-CHECKED`, `FLAGS`, and `NEXT`.
-- **Observability:** events carry run, trace, span, lane, tool, approval, usage,
-  and budget evidence; persisted values are redacted and retention-bounded.
+- **Observability:** every persisted delivery mutation emits a versioned,
+  monotonic, hash-chained event carrying delivery/stage correlation, status,
+  actor, aggregate usage, and state integrity. `kernel.json` is authoritative;
+  `events.jsonl` and `observability.md` are deterministic views. Raw prompts,
+  tool inputs, report bodies, and secrets are excluded. Console diagnostics
+  remain separately redacted and retention-bounded. See
+  [delivery observability](observability.md).
 - **Loop detection:** claimed specialists stop when an exact one-to-four-step
   tool-call cycle reaches three repetitions. Only SHA-256 input signatures and
   tool names persist; the repeated call is denied before execution.

@@ -226,6 +226,13 @@ mutation where denial must be side-effect-free, and its own required CI job
 gates publication. See
 [adversarial engineering-loop testing](docs/adversarial-testing.md).
 
+**Every delivery mutation leaves a correlated receipt.** The kernel records a
+versioned, monotonic, hash-chained event with stage, actor, status, and aggregate
+usage, then derives `events.jsonl` and `observability.md` without persisting raw
+prompts, tool inputs, report bodies, or secrets. `guild observe verify` detects
+state or view drift, and a separate required CI job keeps the contract current.
+See [delivery observability](docs/observability.md).
+
 **Releases are gated artifacts, not a manual checklist.** The manual Release
 workflow freezes one clean `main` commit, requires every named CI job for that
 exact SHA, checks all version manifests and release documents, then creates one

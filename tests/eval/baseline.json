@@ -145,6 +145,11 @@
       "date": "2026-09-25",
       "sha256": "83fc0a2d68f0238b4205387581c01588f74df8609f52af6f674d2e6c91563b04",
       "reason": "Canonical orchestration generation changes ownership of existing prompt text without changing feature construction: nine commands and the direct coordinator now materialize one byte-identical lifecycle contract, CI rejects missing or unexpected carriers and hand-edited drift, and coordinator-only board, brief, and adaptive rules remain explicit. Covered by dedicated sync units, orchestration ratchets, inventory hashing, and generated-target checks. No billed feature run was authorized; ceilings were not raised."
+    },
+    {
+      "date": "2026-09-25",
+      "sha256": "a176c3351bdb3e24d1861a0800800b30108d8408fd96ababd9e8f7356306e581",
+      "reason": "Delivery observability adds an integrity check at resume and closure without changing feature construction: every persisted mutation emits a schema-versioned correlated event, deterministic derived views are checked against authoritative kernel state, unhealthy traces stop dispatch, and legacy state is not backfilled with invented history. Covered by observability and kernel units, canonical-sync ratchets, guardrails, and generated-target checks. No billed feature run was authorized; ceilings were not raised."
     }
     ]
   }

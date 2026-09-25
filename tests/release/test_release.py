@@ -23,6 +23,7 @@ JOBS = [
     "console python units",
     "guild kernel units",
     "adversarial engineering loop",
+    "observability contract",
     "eval cost parser units",
     "console ui",
     "release automation",

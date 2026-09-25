@@ -42,6 +42,56 @@ _CHECKPOINT_ID = re.compile(r"^[a-z][a-z0-9-]{0,63}$")
 _TOOL_SIGNATURE = re.compile(r"^[0-9a-f]{64}$")
 _RETRY_EVENT_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _RESOURCE_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+OBSERVABILITY_SCHEMA = 1
+OBSERVABILITY_FIELDS = (
+    "schemaVersion",
+    "seq",
+    "eventId",
+    "type",
+    "at",
+    "traceId",
+    "spanId",
+    "parentSpanId",
+    "delivery",
+    "stage",
+    "actor",
+    "deliveryStatus",
+    "stageStatus",
+    "usage",
+    "stateHash",
+    "previousEventHash",
+    "eventHash",
+)
+OBSERVABILITY_EVENT_TYPES = (
+    "delivery.planned",
+    "approval.granted",
+    "criterion.waived",
+    "checkpoint.opened",
+    "checkpoint.resolved",
+    "retry.requested",
+    "recovery.interrupted",
+    "recovery.resolved",
+    "budget.exceeded",
+    "loop.detected",
+    "tool.metered",
+    "usage.recorded",
+    "pr.recorded",
+    "feedback.recorded",
+    "stage.claimed",
+    "delivery.stopped",
+    "pair.assigned",
+    "stage.reported",
+    "state.synchronized",
+)
+_OBSERVABILITY_POLICY = {
+    "schemaVersion": OBSERVABILITY_SCHEMA,
+    "eventField": "observability_events",
+    "authority": "kernel.json",
+    "derivedArtifacts": ["events.jsonl", "observability.md"],
+    "verifyCommand": "observe verify",
+    "rawPayloads": False,
+    "eventManifest": "config/observability-harness.json",
+}
 _BUDGET_KEYS = (
     "max_seconds",
     "max_tool_calls",
@@ -242,6 +292,7 @@ class Delivery:
     transition_events: list = field(default_factory=list)
     recovery_events: list = field(default_factory=list)
     feedback_events: list = field(default_factory=list)
+    observability_events: list = field(default_factory=list)
 
 
 def _safe_identifier(value, label):
@@ -294,6 +345,28 @@ def _state_lock_path(root, name):
     )
 
 
+def _observability_path(root, name):
+    return _project_path(
+        root,
+        "docs",
+        "delivery",
+        _safe_identifier(name, "delivery name"),
+        "events.jsonl",
+        label="observability event path",
+    )
+
+
+def _observability_view_path(root, name):
+    return _project_path(
+        root,
+        "docs",
+        "delivery",
+        _safe_identifier(name, "delivery name"),
+        "observability.md",
+        label="observability view path",
+    )
+
+
 @contextmanager
 def _file_lock(path):
     path = pathlib.Path(path)
@@ -323,9 +396,211 @@ def _write_text_atomic(path, text):
             temporary.unlink(missing_ok=True)
 
 
-def save(root, delivery):
+def _canonical_hash(value):
+    payload = json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=False
+    )
+    return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _observable_state(delivery):
+    payload = asdict(delivery)
+    payload.pop("observability_events", None)
+    return payload
+
+
+def _observable_state_hash(delivery):
+    return _canonical_hash(_observable_state(delivery))
+
+
+def _aggregate_usage(delivery):
+    usage = dict(_EMPTY_USAGE)
+    for stage in delivery.stages:
+        stage_usage = _normalize_usage(stage.usage)
+        for key in usage:
+            usage[key] += stage_usage[key]
+    usage["seconds"] = round(float(usage["seconds"]), 6)
+    usage["cost_usd"] = round(float(usage["cost_usd"]), 8)
+    return usage
+
+
+def _event_digest(event):
+    unsigned = dict(event)
+    unsigned.pop("eventHash", None)
+    return _canonical_hash(unsigned)
+
+
+def _event_chain_errors(events, delivery_name=""):
+    errors = []
+    previous = ""
+    if not isinstance(events, list):
+        return ["observability events must be a list"]
+    for index, event in enumerate(events, start=1):
+        if not isinstance(event, dict):
+            errors.append(f"event {index} is not an object")
+            continue
+        if set(event) != set(OBSERVABILITY_FIELDS):
+            errors.append(f"event {index} fields do not match schema")
+        if event.get("schemaVersion") != OBSERVABILITY_SCHEMA:
+            errors.append(f"event {index} schema version is invalid")
+        if event.get("seq") != index:
+            errors.append(f"event {index} sequence is invalid")
+        if delivery_name and event.get("delivery") != delivery_name:
+            errors.append(f"event {index} delivery is invalid")
+        if event.get("eventId") != f"{event.get('delivery')}:{index}":
+            errors.append(f"event {index} id is invalid")
+        if event.get("traceId") != f"delivery:{event.get('delivery')}":
+            errors.append(f"event {index} trace id is invalid")
+        if event.get("spanId") != f"{event.get('delivery')}:{index:06d}":
+            errors.append(f"event {index} span id is invalid")
+        stage_id = event.get("stage")
+        expected_parent = f"stage:{stage_id}" if stage_id else ""
+        if event.get("parentSpanId") != expected_parent:
+            errors.append(f"event {index} parent span id is invalid")
+        if not isinstance(event.get("actor"), str) or not event.get("actor"):
+            errors.append(f"event {index} actor is invalid")
+        try:
+            at = datetime.fromisoformat(event.get("at", ""))
+        except (TypeError, ValueError):
+            errors.append(f"event {index} timestamp is invalid")
+        else:
+            if at.tzinfo is None:
+                errors.append(f"event {index} timestamp lacks a timezone")
+        try:
+            if not isinstance(event.get("usage"), dict):
+                raise PlanError("event usage must be an object")
+            _normalize_usage(event["usage"])
+        except PlanError:
+            errors.append(f"event {index} usage is invalid")
+        state_hash = event.get("stateHash")
+        if (
+            not isinstance(state_hash, str)
+            or not re.fullmatch(r"[0-9a-f]{64}", state_hash)
+        ):
+            errors.append(f"event {index} state hash is invalid")
+        if event.get("type") not in OBSERVABILITY_EVENT_TYPES:
+            errors.append(f"event {index} type is invalid")
+        if event.get("previousEventHash") != previous:
+            errors.append(f"event {index} previous hash is invalid")
+        if event.get("eventHash") != _event_digest(event):
+            errors.append(f"event {index} hash is invalid")
+        previous = event.get("eventHash", "")
+    return errors
+
+
+def _append_observability_event(delivery, event_type, *, stage_id="", actor="kernel"):
+    if event_type not in OBSERVABILITY_EVENT_TYPES:
+        raise PlanError(f"unknown observability event type: {event_type}")
+    errors = _event_chain_errors(delivery.observability_events, delivery.name)
+    if errors:
+        raise PlanError(f"observability ledger is invalid: {errors[0]}")
+    stage = next((item for item in delivery.stages if item.id == stage_id), None)
+    if stage_id and stage is None:
+        raise PlanError(f"observability stage {stage_id} is missing")
+    seq = len(delivery.observability_events) + 1
+    event = {
+        "schemaVersion": OBSERVABILITY_SCHEMA,
+        "seq": seq,
+        "eventId": f"{delivery.name}:{seq}",
+        "type": event_type,
+        "at": _now_utc().isoformat(timespec="seconds"),
+        "traceId": f"delivery:{delivery.name}",
+        "spanId": f"{delivery.name}:{seq:06d}",
+        "parentSpanId": f"stage:{stage_id}" if stage_id else "",
+        "delivery": delivery.name,
+        "stage": stage_id,
+        "actor": str(actor or "kernel"),
+        "deliveryStatus": delivery.status,
+        "stageStatus": stage.status if stage is not None else "",
+        "usage": _aggregate_usage(delivery),
+        "stateHash": _observable_state_hash(delivery),
+        "previousEventHash": (
+            delivery.observability_events[-1]["eventHash"]
+            if delivery.observability_events
+            else ""
+        ),
+        "eventHash": "",
+    }
+    event["eventHash"] = _event_digest(event)
+    delivery.observability_events.append(event)
+    return event
+
+
+def _render_observability_events(events):
+    return "".join(
+        json.dumps(event, sort_keys=True, separators=(",", ":")) + "\n"
+        for event in events
+    )
+
+
+def render_observability(delivery):
+    events = delivery.observability_events
+    counts = {}
+    for event in events:
+        counts[event["type"]] = counts.get(event["type"], 0) + 1
+    usage = _aggregate_usage(delivery)
+    lines = [
+        "# Delivery observability",
+        "",
+        f"- Trace: `delivery:{delivery.name}`",
+        f"- Schema: {OBSERVABILITY_SCHEMA}",
+        f"- Events: {len(events)}",
+        f"- Delivery status: `{delivery.status}`",
+        f"- Latest state hash: `{events[-1]['stateHash'] if events else 'unavailable'}`",
+        "- Usage: "
+        f"{usage['seconds']}s, {usage['tool_calls']} tools, {usage['turns']} turns, "
+        f"{usage['tokens']} tokens, ${usage['cost_usd']:.8f}",
+        "",
+        "## Event counts",
+        "",
+    ]
+    if counts:
+        for event_type in sorted(counts):
+            lines.append(f"- `{event_type}`: {counts[event_type]}")
+    else:
+        lines.append("- none")
+    lines.extend(["", "## Stage status", ""])
+    for stage in delivery.stages:
+        lines.append(f"- `{stage.id}` ({stage.agent}): `{stage.status}`")
+    lines.append("")
+    return "\n".join(lines)
+
+
+def _write_observability_views(root, delivery):
+    _write_text_atomic(
+        _observability_path(root, delivery.name),
+        _render_observability_events(delivery.observability_events),
+    )
+    _write_text_atomic(
+        _observability_view_path(root, delivery.name),
+        render_observability(delivery),
+    )
+
+
+def save(
+    root,
+    delivery,
+    *,
+    event_type="state.synchronized",
+    stage_id="",
+    actor="kernel",
+):
+    append_event = True
+    if event_type == "state.synchronized" and delivery.observability_events:
+        errors = _event_chain_errors(delivery.observability_events, delivery.name)
+        if errors:
+            raise PlanError(f"observability ledger is invalid: {errors[0]}")
+        append_event = (
+            delivery.observability_events[-1].get("stateHash")
+            != _observable_state_hash(delivery)
+        )
+    if append_event:
+        _append_observability_event(
+            delivery, event_type, stage_id=stage_id, actor=actor
+        )
     path = _state_path(root, delivery.name)
     _write_text_atomic(path, json.dumps(asdict(delivery), indent=2) + "\n")
+    _write_observability_views(root, delivery)
 
 
 def load(root, name):
@@ -344,6 +619,7 @@ def load(root, name):
     data.setdefault("transition_events", [])
     data.setdefault("recovery_events", [])
     data.setdefault("feedback_events", [])
+    data.setdefault("observability_events", [])
     stages = []
     for stage in data.pop("stages"):
         stage.setdefault("flags", [])
@@ -384,6 +660,89 @@ def load(root, name):
         stage.setdefault("feedback_event_ids", [])
         stages.append(StageSpec(**stage))
     return Delivery(stages=stages, **data)
+
+
+def observability_rows(root, name):
+    return list(load(root, name).observability_events)
+
+
+def observability_status(root, name):
+    delivery = load(root, name)
+    events = delivery.observability_events
+    if not events:
+        return {
+            "status": "unavailable",
+            "events": 0,
+            "latestStateHash": "",
+            "errors": [],
+        }
+    errors = _event_chain_errors(events, delivery.name)
+    latest = events[-1] if isinstance(events[-1], dict) else {}
+    expected_state_hash = _observable_state_hash(delivery)
+    if latest.get("stateHash") != expected_state_hash:
+        errors.append("latest event state hash does not match kernel state")
+    try:
+        event_path = _observability_path(root, name)
+    except PlanError:
+        errors.append("derived event ledger escapes the project")
+        event_path = None
+    if event_path is None or event_path.is_symlink() or not event_path.is_file():
+        if event_path is not None:
+            errors.append("derived event ledger is missing or not a regular file")
+    else:
+        try:
+            derived = [
+                json.loads(line)
+                for line in event_path.read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+        except (OSError, UnicodeError, json.JSONDecodeError):
+            errors.append("derived event ledger is unreadable")
+        else:
+            if derived != events:
+                errors.append("derived event ledger does not match kernel state")
+    try:
+        view_path = _observability_view_path(root, name)
+    except PlanError:
+        errors.append("derived observability view escapes the project")
+        view_path = None
+    if view_path is None or view_path.is_symlink() or not view_path.is_file():
+        if view_path is not None:
+            errors.append("derived observability view is missing or not a regular file")
+    else:
+        try:
+            rendered = view_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            errors.append("derived observability view is unreadable")
+        else:
+            try:
+                expected_view = render_observability(delivery)
+            except (KeyError, TypeError, PlanError):
+                errors.append("derived observability view cannot be rendered from invalid state")
+            else:
+                if rendered != expected_view:
+                    errors.append("derived observability view does not match kernel state")
+    return {
+        "status": "unhealthy" if errors else "healthy",
+        "events": len(events),
+        "latestStateHash": latest.get("stateHash", ""),
+        "errors": errors,
+    }
+
+
+def repair_observability_views(root, name):
+    delivery = load(root, name)
+    events = delivery.observability_events
+    if not events:
+        raise PlanError("observability is unavailable for this legacy delivery")
+    errors = _event_chain_errors(events, delivery.name)
+    latest = events[-1] if isinstance(events[-1], dict) else {}
+    if latest.get("stateHash") != _observable_state_hash(delivery):
+        errors.append("latest event state hash does not match kernel state")
+    if errors:
+        raise PlanError(f"authoritative observability state is invalid: {errors[0]}")
+    _write_observability_views(root, delivery)
+    return observability_status(root, name)
 
 
 def _norm_flag(text):
@@ -935,6 +1294,7 @@ def _harness_registry():
         checkpoint_policy = shared["checkpointPolicy"]
         loop_policy = shared["loopPolicy"]
         feedback_policy = shared["feedbackPolicy"]
+        observability_policy = shared["observabilityPolicy"]
         budgets = shared["budgets"]
         if not isinstance(profiles, dict):
             raise TypeError("agent profiles must be an object")
@@ -955,6 +1315,8 @@ def _harness_registry():
             raise TypeError("loop policy is invalid")
         if feedback_policy != _FEEDBACK_POLICY:
             raise TypeError("feedback policy is invalid")
+        if observability_policy != _OBSERVABILITY_POLICY:
+            raise TypeError("observability policy is invalid")
         defaults = budgets["defaults"]
         ceilings = budgets["hardCeilings"]
         if set(defaults) != set(_BUDGET_KEYS) or set(ceilings) != set(_BUDGET_KEYS):
@@ -1209,7 +1571,13 @@ def approve_stage_action(
             "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         }
         stage.approvals.append(approval)
-        save(root, delivery)
+        save(
+            root,
+            delivery,
+            event_type="approval.granted",
+            stage_id=stage.id,
+            actor="user",
+        )
         write_views(root, delivery, not_checked=delivery.done_when or "none")
         return approval
 
@@ -1269,7 +1637,13 @@ def waive_stage_criterion(
             "at": datetime.now(timezone.utc).isoformat(timespec="seconds"),
         }
         stage.criterion_waivers.append(waiver)
-        save(root, delivery)
+        save(
+            root,
+            delivery,
+            event_type="criterion.waived",
+            stage_id=stage.id,
+            actor="user",
+        )
         write_views(root, delivery, not_checked=delivery.done_when or "none")
         return waiver
 
@@ -1409,7 +1783,13 @@ def open_checkpoint(
             reason=f"checkpoint opened: {checkpoint_id}",
             by="main",
         )
-        save(root, delivery)
+        save(
+            root,
+            delivery,
+            event_type="checkpoint.opened",
+            stage_id=stage.id,
+            actor="main",
+        )
         write_views(root, delivery, not_checked=delivery.done_when or "none")
         return checkpoint
 
@@ -1492,7 +1872,13 @@ def resolve_checkpoint(
                 reason=f"checkpoint continued: {checkpoint_id}",
                 by="user",
             )
-        save(root, delivery)
+        save(
+            root,
+            delivery,
+            event_type="checkpoint.resolved",
+            stage_id=stage.id,
+            actor="user",
+        )
         write_views(root, delivery, not_checked=delivery.done_when or "none")
         return checkpoint
 
@@ -1566,6 +1952,7 @@ def _request_retry_unlocked(
     reason,
     event_id,
     requested_by,
+    observability_type="retry.requested",
 ):
     if requested_by != _RETRY_POLICY["requestAuthority"]:
         raise PlanError("stage retries can only be requested by the main thread")
@@ -1646,7 +2033,13 @@ def _request_retry_unlocked(
         stage.retry_source = source
         delivery.status = "running"
         delivery.cap = max(delivery.cap, delivery.spawns + 1)
-    save(root, delivery)
+    save(
+        root,
+        delivery,
+        event_type=observability_type,
+        stage_id=stage.id,
+        actor=requested_by,
+    )
     write_views(root, delivery, not_checked=delivery.done_when or "none")
     return event
 
@@ -1818,7 +2211,13 @@ def interrupt_stage(
             stage.recovery_source = source
             if not any(item.status == "running" for item in delivery.stages):
                 delivery.status = "interrupted"
-        save(root, delivery)
+        save(
+            root,
+            delivery,
+            event_type="recovery.interrupted",
+            stage_id=stage.id,
+            actor=recorded_by,
+        )
         write_views(root, delivery, not_checked=delivery.done_when or "none")
         return event
 
@@ -1906,7 +2305,13 @@ def resolve_recovery(
             "by": resolved_by,
             "at": _now_utc().isoformat(timespec="seconds"),
         }
-        save(root, delivery)
+        save(
+            root,
+            delivery,
+            event_type="recovery.resolved",
+            stage_id=stage.id,
+            actor=resolved_by,
+        )
         write_views(root, delivery, not_checked=delivery.done_when or "none")
         return event
 
@@ -1994,7 +2399,13 @@ def _mark_budget_exceeded(root, delivery, stage, reason, *, now):
     )
     stage.budget_exceeded_reason = reason
     delivery.status = "budget_exceeded"
-    save(root, delivery)
+    save(
+        root,
+        delivery,
+        event_type="budget.exceeded",
+        stage_id=stage.id,
+        actor="kernel",
+    )
     write_views(root, delivery, not_checked=delivery.done_when or "none")
 
 
@@ -2060,7 +2471,13 @@ def _mark_loop_detected(root, delivery, stage, history, cycle_length, *, now):
             "at": now.isoformat(timespec="seconds"),
         }
     )
-    save(root, delivery)
+    save(
+        root,
+        delivery,
+        event_type="loop.detected",
+        stage_id=stage.id,
+        actor="kernel",
+    )
     write_views(root, delivery, not_checked=delivery.done_when or "none")
 
 
@@ -2142,7 +2559,13 @@ def meter_tool_call(
             stage.loop_history = history[-_LOOP_POLICY["historyLimit"]:]
         stage.usage["tool_calls"] += 1
         _remember_budget_event(stage, event_id)
-        save(root, delivery)
+        save(
+            root,
+            delivery,
+            event_type="tool.metered",
+            stage_id=stage.id,
+            actor=agent,
+        )
         return stage
 
 
@@ -2243,7 +2666,13 @@ def record_stage_usage(
         if reason:
             _mark_budget_exceeded(root, delivery, stage, reason, now=observed_at)
             raise PlanError(f"stage {stage.id} exceeded budget {reason}")
-        save(root, delivery)
+        save(
+            root,
+            delivery,
+            event_type="usage.recorded",
+            stage_id=stage.id,
+            actor="main",
+        )
         write_views(root, delivery, not_checked=delivery.done_when or "none")
         return stage
 
@@ -2470,7 +2899,7 @@ def plan(
         max_parallel=max_parallel,
     )
     delivery.rules_printed = _approved_rules(root, delivery.stages)
-    save(root, delivery)
+    save(root, delivery, event_type="delivery.planned", actor="main")
     write_views(root, delivery, not_checked=done_when or "none")
     _remember_story(root, sprint_id, name)
     return delivery
@@ -2518,7 +2947,7 @@ def record_pr(root, name, number, runner):
     delivery.pr = pr_data
     if pr_data["state"] == "open" and _dod_met(delivery):
         delivery.status = "done"
-    save(root, delivery)
+    save(root, delivery, event_type="pr.recorded", actor="main")
     write_views(root, delivery, not_checked=delivery.done_when or "none")
     return delivery
 
@@ -2626,7 +3055,13 @@ def _activate_feedback_unlocked(root, delivery, event, stage, *, route):
     if stage.status in ("queued", "running"):
         event["status"] = _FEEDBACK_POLICY["openStatus"]
         event["action"] = "attached"
-        save(root, delivery)
+        save(
+            root,
+            delivery,
+            event_type="feedback.recorded",
+            stage_id=stage.id,
+            actor="main",
+        )
         write_views(root, delivery, not_checked=delivery.done_when or "none")
         return event
     if stage.status == "done":
@@ -2645,11 +3080,18 @@ def _activate_feedback_unlocked(root, delivery, event, stage, *, route):
             reason=event["summary"],
             event_id=event["event_id"],
             requested_by="main",
+            observability_type="feedback.recorded",
         )
         return event
     event["status"] = _FEEDBACK_POLICY["stoppedStatus"]
     event["action"] = "stopped"
-    save(root, delivery)
+    save(
+        root,
+        delivery,
+        event_type="feedback.recorded",
+        stage_id=stage.id,
+        actor="main",
+    )
     write_views(root, delivery, not_checked=delivery.done_when or "none")
     return event
 
@@ -2689,7 +3131,12 @@ def _record_feedback(root, name, payload, *, asserted_stage=""):
         }
         delivery.feedback_events.append(event)
         if owner is None:
-            save(root, delivery)
+            save(
+                root,
+                delivery,
+                event_type="feedback.recorded",
+                actor="main",
+            )
             write_views(root, delivery, not_checked=delivery.done_when or "none")
             return _feedback_result(event)
         route = "declared-check" if event["kind"] == "check" else "owned-path"
@@ -3008,7 +3455,13 @@ def claim_stage(root, name, stage_id):
         stage.claim_usage = dict(stage.usage)
         stage.loop_history = []
         stage.loop_detected_reason = ""
-        save(root, delivery)
+        save(
+            root,
+            delivery,
+            event_type="stage.claimed",
+            stage_id=stage.id,
+            actor="main",
+        )
         write_views(root, delivery, not_checked=delivery.done_when or "none")
         return stage
 
@@ -3025,7 +3478,7 @@ def next_agent(root, name):
             "stopped", "done", "budget_exceeded"
         ):
             delivery.status = "stopped"
-            save(root, delivery)
+            save(root, delivery, event_type="delivery.stopped", actor="kernel")
             write_views(root, delivery)
         return "STOP"
     interrupted = next(
@@ -3075,7 +3528,13 @@ def pair(root, name, stage_id, *, reviewer="tech-lead"):
     if stage.pair == reviewer:
         return delivery
     stage.pair = reviewer
-    save(root, delivery)
+    save(
+        root,
+        delivery,
+        event_type="pair.assigned",
+        stage_id=stage.id,
+        actor="main",
+    )
     return delivery
 
 
@@ -3301,6 +3760,7 @@ def _commit_report(root, name, path, fields, verifications):
         if _norm_flag(raw) and _norm_flag(raw) != "none"
     ]
     matched = False
+    reported_stage_id = ""
     for stage in delivery.stages:
         if (stage.agent == agent or stage.pair == agent) and (
             stage.status == "paused" or _pending_checkpoint(delivery, stage.id)
@@ -3316,6 +3776,7 @@ def _commit_report(root, name, path, fields, verifications):
             )
         if stage.awaiting_pair and stage.pair == agent:
             matched = True
+            reported_stage_id = reported_stage_id or stage.id
             _validate_not_checked(stage, not_checked)
             _validate_criterion_coverage(stage, verifications)
             stage.verified = list(stage.verified) + [
@@ -3344,6 +3805,7 @@ def _commit_report(root, name, path, fields, verifications):
         if stage.awaiting_pair:
             raise ReportError(f"stage {stage.id} is awaiting pair {stage.pair}")
         matched = True
+        reported_stage_id = reported_stage_id or stage.id
         if stage.claimed_at:
             raise ReportError(
                 f"stage {stage.id} requires budget telemetry before report"
@@ -3383,7 +3845,13 @@ def _commit_report(root, name, path, fields, verifications):
             delivery.status = "done"
     elif _cap_hit(delivery):
         delivery.status = "stopped"
-    save(root, delivery)
+    save(
+        root,
+        delivery,
+        event_type="stage.reported",
+        stage_id=reported_stage_id,
+        actor=agent,
+    )
     write_views(
         root,
         delivery,

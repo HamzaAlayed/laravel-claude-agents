@@ -592,6 +592,26 @@ expect "CI runs the versioned adversarial attack suite" "1" \
   "$(grep -c 'unittest discover -s tests/adversarial' "$SCRIPT_DIR/.github/workflows/ci.yml")"
 expect "release publication requires the adversarial gate" "1" \
   "$(grep -c '"adversarial engineering loop"' "$SCRIPT_DIR/config/release-harness.json")"
+expect "one versioned observability contract is committed" "1" \
+  "$(python3 - "$SCRIPT_DIR/config/observability-harness.json" <<'PY'
+import json, pathlib, sys
+payload = json.loads(pathlib.Path(sys.argv[1]).read_text())
+required = {"events.jsonl", "observability.md", "kernel.json"}
+print(1 if payload.get("schemaVersion") == 1 and required == set(payload.get("artifacts", [])) else 0)
+PY
+)"
+expect "CI has a separate observability contract gate" "1" \
+  "$(grep -c '^    name: observability contract$' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "CI runs delivery observability contract tests" "1" \
+  "$(grep -c 'unittest discover -s tests/observability' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "release publication requires the observability gate" "1" \
+  "$(grep -c '"observability contract"' "$SCRIPT_DIR/config/release-harness.json")"
+expect "Interface verifies delivery observability before closure" "9" \
+  "$(grep -l 'again before the final answer, call `observe verify`' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "kernel exposes the observability command group" "1" \
+  "$(grep -c 'observe = sub.add_parser("observe")' "$SCRIPT_DIR/scripts/guild-kernel/guild.py")"
+expect "shared observability excludes raw payloads" "1" \
+  "$(grep -c '"rawPayloads": false' "$SCRIPT_DIR/config/agent-harness.json")"
 expect "Interface block binds the final answer to VERIFIED + NOT-CHECKED" "9" \
   "$(grep -l 'Your own final answer closes the same way' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # Tranche item 2 lived only in agents/delivery-coordinator.md, and eval run 6's

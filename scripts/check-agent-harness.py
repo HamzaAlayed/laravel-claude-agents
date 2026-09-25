@@ -242,6 +242,19 @@ def main() -> int:
             "shared.feedbackPolicy must route CI and review feedback to stage owners",
             errors,
         )
+    if shared.get("observabilityPolicy") != {
+        "schemaVersion": 1,
+        "eventField": "observability_events",
+        "authority": "kernel.json",
+        "derivedArtifacts": ["events.jsonl", "observability.md"],
+        "verifyCommand": "observe verify",
+        "rawPayloads": False,
+        "eventManifest": "config/observability-harness.json",
+    }:
+        fail(
+            "shared.observabilityPolicy must bind authoritative, redacted delivery events",
+            errors,
+        )
     if shared.get("verification") != "registered-runners-only":
         fail("shared.verification must remain registered-runners-only", errors)
 

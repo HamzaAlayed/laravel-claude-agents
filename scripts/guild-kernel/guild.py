@@ -148,6 +148,11 @@ def build_parser():
         dest="transition_cmd", required=True
     )
     transition_cmds.add_parser("list", parents=[common])
+    observe = sub.add_parser("observe")
+    observe_cmds = observe.add_subparsers(dest="observe_cmd", required=True)
+    observe_cmds.add_parser("list", parents=[common])
+    observe_cmds.add_parser("verify", parents=[common])
+    observe_cmds.add_parser("repair", parents=[common])
     budget = sub.add_parser("budget")
     budget_cmds = budget.add_subparsers(dest="budget_cmd", required=True)
     budget_cmds.add_parser("list", parents=[common])
@@ -482,6 +487,20 @@ def main(argv=None):
         if args.cmd == "transition":
             if args.transition_cmd == "list":
                 print(json.dumps(kernel.transition_rows(args.root, args.name)))
+                return 0
+        if args.cmd == "observe":
+            if args.observe_cmd == "list":
+                print(json.dumps(kernel.observability_rows(args.root, args.name)))
+                return 0
+            if args.observe_cmd == "verify":
+                result = kernel.observability_status(args.root, args.name)
+                print(json.dumps(result, separators=(",", ":")))
+                if result["status"] == "unhealthy":
+                    return 1
+                return 0
+            if args.observe_cmd == "repair":
+                result = kernel.repair_observability_views(args.root, args.name)
+                print(json.dumps(result, separators=(",", ":")))
                 return 0
         if args.cmd == "budget":
             if args.budget_cmd == "list":

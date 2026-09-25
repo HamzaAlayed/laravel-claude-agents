@@ -1,0 +1,52 @@
+{
+  "schemaVersion": 1,
+  "eventSchemaVersion": 1,
+  "authority": "kernel.json remains authoritative; events.jsonl and observability.md are derived views",
+  "artifacts": ["kernel.json", "events.jsonl", "observability.md"],
+  "requiredFields": [
+    "schemaVersion",
+    "seq",
+    "eventId",
+    "type",
+    "at",
+    "traceId",
+    "spanId",
+    "parentSpanId",
+    "delivery",
+    "stage",
+    "actor",
+    "deliveryStatus",
+    "stageStatus",
+    "usage",
+    "stateHash",
+    "previousEventHash",
+    "eventHash"
+  ],
+  "eventTypes": [
+    "delivery.planned",
+    "approval.granted",
+    "criterion.waived",
+    "checkpoint.opened",
+    "checkpoint.resolved",
+    "retry.requested",
+    "recovery.interrupted",
+    "recovery.resolved",
+    "budget.exceeded",
+    "loop.detected",
+    "tool.metered",
+    "usage.recorded",
+    "pr.recorded",
+    "feedback.recorded",
+    "stage.claimed",
+    "delivery.stopped",
+    "pair.assigned",
+    "stage.reported",
+    "state.synchronized"
+  ],
+  "forbiddenPayloads": [
+    "raw prompts",
+    "raw tool inputs",
+    "report bodies",
+    "secret values"
+  ]
+}

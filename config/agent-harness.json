@@ -147,6 +147,15 @@
       "resolvedStatus": "resolved",
       "stoppedStatus": "stopped"
     },
+    "observabilityPolicy": {
+      "schemaVersion": 1,
+      "eventField": "observability_events",
+      "authority": "kernel.json",
+      "derivedArtifacts": ["events.jsonl", "observability.md"],
+      "verifyCommand": "observe verify",
+      "rawPayloads": false,
+      "eventManifest": "config/observability-harness.json"
+    },
     "verification": "registered-runners-only"
   },
   "agents": {

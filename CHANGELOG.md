@@ -7,6 +7,37 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [8.9.0] - 2026-09-25
+
+### Added
+
+- A schema-versioned delivery observability ledger with monotonic sequence,
+  trace/span correlation, aggregate usage, state hashes, and an event hash
+  chain for every persisted kernel mutation.
+- Deterministic `events.jsonl` and `observability.md` delivery views plus
+  `guild observe list`, `verify`, and fail-closed `repair` commands.
+- A dedicated `observability contract` CI job required by release publication,
+  with tests for legacy migration, redaction, tampering, and safe view repair.
+
+### Changed
+
+- The canonical orchestration contract now verifies delivery trace integrity
+  at resume and before closure. An unhealthy trace stops further dispatch.
+- The shared harness distinguishes authoritative kernel events from bounded,
+  non-authoritative console diagnostics.
+
+### Fixed
+
+- Lifecycle evidence no longer lacks a common correlation and integrity
+  contract across approvals, usage, retries, recovery, feedback, and reports.
+- Missing, reordered, modified, or stale derived observability artifacts now
+  fail explicitly instead of appearing current.
+
+### Security
+
+- Delivery events exclude raw prompts, tool inputs, report bodies, and secret
+  values. A corrupted authoritative chain cannot be extended by another save.
+
 ## [8.8.0] - 2026-09-25
 
 ### Added
