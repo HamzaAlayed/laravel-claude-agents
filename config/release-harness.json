@@ -28,6 +28,7 @@
     "context packet harness",
     "memory retrieval harness",
     "enforcement map",
+    "evaluation harness",
     "eval cost parser units",
     "console ui",
     "release automation"

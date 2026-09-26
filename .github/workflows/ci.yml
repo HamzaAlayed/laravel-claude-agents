@@ -45,6 +45,7 @@ jobs:
             config/observability-harness.json config/benchmark-harness.json \
             config/capture-harness.json config/context-harness.json \
             config/memory-harness.json docs/team/memory.json composer.json \
+            config/evaluation-harness.json config/evaluation-cases.json \
             config/enforcement-map.json \
             config/release-harness.json; do
             echo "validating $f"
@@ -237,13 +238,25 @@ jobs:
           python3 -m unittest discover -s tests/enforcement -t tests/enforcement -v
           python3 scripts/check-enforcement-map.py
 
+  evaluation-harness:
+    name: evaluation harness
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate case contracts, receipts, and regression comparisons
+        run: |
+          python3 scripts/evaluation-harness.py validate --root .
+          python3 -m unittest tests/eval/test_evaluation_harness.py -v
+
   eval-cost-python:
     name: eval cost parser units
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Run eval-cost unit tests (parses the recorded stream-json fixtures)
-        run: python3 -m unittest discover -s tests/eval -t tests/eval -p 'test_*.py' -v
+      - name: Run eval-cost, budget, and coordinator-hash units
+        run: |
+          python3 -m unittest tests/eval/test_coordinator_hash.py -v
+          python3 -m unittest discover -s tests/eval -t tests/eval -p 'test_eval_*.py' -v
       - name: Replay recorded SDK traces through the production console normalizer
         run: python3 scripts/replay-console-traces.py tests/eval/fixtures/stream-json-sample.jsonl tests/eval/fixtures/stream-json-subagent.jsonl
 

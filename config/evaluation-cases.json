@@ -1,0 +1,169 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {
+      "id": "n-plus-one",
+      "suite": "default",
+      "prompt": "/audit-n-plus-one posts.index",
+      "description": "finds the N+1 in posts.index (user + comments in Blade loop)",
+      "minimumChecks": 4,
+      "requiredOutcomes": [
+        {"id": "diagnose-relations", "statement": "Identify the user and comments relation reads on posts.index."},
+        {"id": "query-shape", "statement": "Recommend eager loading plus withCount instead of hydrating comments only to count them."}
+      ],
+      "forbiddenOutcomes": [
+        {"id": "generic-only", "statement": "Return generic N+1 advice without naming the fixture path or relations."}
+      ],
+      "comparisonMetrics": ["durationSeconds", "tokens", "billedUsd", "toolCalls"]
+    },
+    {
+      "id": "policy",
+      "suite": "default",
+      "prompt": "/add-policy Post",
+      "description": "creates PostPolicy and guards the open update route",
+      "minimumChecks": 3,
+      "requiredOutcomes": [
+        {"id": "policy-created", "statement": "Create a Post policy."},
+        {"id": "update-enforced", "statement": "Wire authorization into the update path so non-owners are refused."}
+      ],
+      "forbiddenOutcomes": [
+        {"id": "unwired-policy", "statement": "Create an unreferenced policy while leaving the update route open."}
+      ],
+      "comparisonMetrics": ["durationSeconds", "tokens", "billedUsd", "toolCalls"]
+    },
+    {
+      "id": "action",
+      "suite": "default",
+      "prompt": "/refactor-to-action PostController@store",
+      "description": "extracts fat PostController@store into an Action",
+      "minimumChecks": 4,
+      "requiredOutcomes": [
+        {"id": "action-created", "statement": "Move store responsibilities into an Action and delegate from the controller."},
+        {"id": "behavior-covered", "statement": "Preserve behavior and add or update tests."}
+      ],
+      "forbiddenOutcomes": [
+        {"id": "partial-extraction", "statement": "Drop validation, mail, statistics, or logging behavior during extraction."}
+      ],
+      "comparisonMetrics": ["durationSeconds", "tokens", "billedUsd", "toolCalls"]
+    },
+    {
+      "id": "tests",
+      "suite": "default",
+      "prompt": "/add-test PostController",
+      "description": "writes feature tests incl. update authorization",
+      "minimumChecks": 4,
+      "requiredOutcomes": [
+        {"id": "route-coverage", "statement": "Add feature coverage for the posts update route."},
+        {"id": "secure-expectation", "statement": "Assert that a non-owner is refused with 403."}
+      ],
+      "forbiddenOutcomes": [
+        {"id": "freeze-idor", "statement": "Assert that the insecure non-owner update succeeds."}
+      ],
+      "comparisonMetrics": ["durationSeconds", "tokens", "billedUsd", "toolCalls"]
+    },
+    {
+      "id": "hygiene",
+      "suite": "default",
+      "prompt": "/team-hygiene",
+      "description": "flags the planted duplicate/conflict/stale entries, applies nothing headless",
+      "minimumChecks": 4,
+      "requiredOutcomes": [
+        {"id": "classify-ledger", "statement": "Classify duplicate, conflicting, and stale team-memory entries."},
+        {"id": "proposal-only", "statement": "Leave the conventions ledger unchanged without human approval."}
+      ],
+      "forbiddenOutcomes": [
+        {"id": "unapproved-edit", "statement": "Modify the team conventions during a headless proposal run."}
+      ],
+      "comparisonMetrics": ["durationSeconds", "tokens", "billedUsd", "toolCalls"]
+    },
+    {
+      "id": "feature",
+      "suite": "opt-in",
+      "prompt": "/make-feature Tag --api",
+      "description": "scaffolds an API Tag feature across specialists — the only case that must delegate",
+      "minimumChecks": 14,
+      "requiredOutcomes": [
+        {"id": "feature-layers", "statement": "Create schema, model, HTTP entry, route, and feature test."},
+        {"id": "delegated-delivery", "statement": "Delegate through specialists and preserve board, graph, stage, close, and kernel evidence."}
+      ],
+      "forbiddenOutcomes": [
+        {"id": "inline-build", "statement": "Have the coordinator build the feature entirely on the main thread."}
+      ],
+      "comparisonMetrics": ["durationSeconds", "tokens", "billedUsd", "toolCalls"]
+    },
+    {
+      "id": "teach",
+      "suite": "opt-in",
+      "prompt": "/teach New tables use ULID primary keys, never auto-increment integers — sortable and non-enumerable",
+      "description": "records a taught rule in docs/team/conventions.md in the Rule/Why/Scope/Source contract",
+      "minimumChecks": 6,
+      "requiredOutcomes": [
+        {"id": "ledger-contract", "statement": "Record the user rule with Rule, Why, Scope, and Source fields."}
+      ],
+      "forbiddenOutcomes": [
+        {"id": "extra-mutation", "statement": "Edit anything outside the conventions ledger."}
+      ],
+      "comparisonMetrics": ["durationSeconds", "tokens", "billedUsd", "toolCalls"]
+    },
+    {
+      "id": "teach-delivery",
+      "suite": "opt-in",
+      "prompt": "/make-feature Donation --api",
+      "description": "delivers a feature that must OBEY two seeded taught rules where defaults differ, and harvest without being asked",
+      "minimumChecks": 8,
+      "requiredOutcomes": [
+        {"id": "obey-rules", "statement": "Use integer cents and ULID primary keys."},
+        {"id": "harvest", "statement": "Persist the stack snapshot and delivery log without being asked."}
+      ],
+      "forbiddenOutcomes": [
+        {"id": "default-schema", "statement": "Use float or decimal money or an auto-increment primary key."}
+      ],
+      "comparisonMetrics": ["durationSeconds", "tokens", "billedUsd", "toolCalls"]
+    },
+    {
+      "id": "feature-adaptive",
+      "suite": "opt-in",
+      "prompt": "/make-feature Tag --api --adaptive",
+      "description": "Adaptive Tag --api; packet + peer-router + handoff",
+      "minimumChecks": 19,
+      "requiredOutcomes": [
+        {"id": "feature-layers", "statement": "Deliver the same complete Tag API feature as the standard feature case."},
+        {"id": "adaptive-handoff", "statement": "Validate and route a peer packet and expose the handoff."}
+      ],
+      "forbiddenOutcomes": [
+        {"id": "unvalidated-peer", "statement": "Spawn the adaptive peer without peer-router validation."}
+      ],
+      "comparisonMetrics": ["durationSeconds", "tokens", "billedUsd", "toolCalls"]
+    },
+    {
+      "id": "feature-resume",
+      "suite": "opt-in",
+      "prompt": "/make-feature Tag --api",
+      "description": "resume Tag --api; skip completed database-developer",
+      "minimumChecks": 15,
+      "requiredOutcomes": [
+        {"id": "resume-feature", "statement": "Finish the complete Tag API delivery from durable state."},
+        {"id": "skip-complete", "statement": "Do not relaunch the completed database stage."}
+      ],
+      "forbiddenOutcomes": [
+        {"id": "repeat-stage", "statement": "Repeat the already completed database stage."}
+      ],
+      "comparisonMetrics": ["durationSeconds", "tokens", "billedUsd", "toolCalls"]
+    },
+    {
+      "id": "feature-replay",
+      "suite": "opt-in",
+      "prompt": "/make-feature Tag --api",
+      "description": "replay a taught Model::all ban",
+      "minimumChecks": 16,
+      "requiredOutcomes": [
+        {"id": "replay-rule", "statement": "Print and obey the taught Model::all prohibition."},
+        {"id": "feature-layers", "statement": "Still deliver the complete Tag API feature."}
+      ],
+      "forbiddenOutcomes": [
+        {"id": "model-all", "statement": "Introduce Model::all() in PHP code."}
+      ],
+      "comparisonMetrics": ["durationSeconds", "tokens", "billedUsd", "toolCalls"]
+    }
+  ]
+}

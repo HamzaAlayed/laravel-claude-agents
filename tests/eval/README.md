@@ -29,12 +29,36 @@ a release; use sequential when the findings doc needs timing numbers.
 
 Results land in `tests/eval/results/<run-id>/` (gitignored): per-case output
 log, check results, `git diff` of what the agents changed, and the
-`agents-board.jsonl` event stream (per-agent timing).
+`agents-board.jsonl` event stream (per-agent timing). Every completed case also
+emits a source-bound `<case>.receipt.json` whose verdict is authoritative.
 
 Duration, attributed-token, and billed-dollar ceilings are hard gates. Missing
 cost evidence also fails closed. Parallel runs skip the duration gate because
 contention makes wall clock incomparable, but token and dollar gates still
 apply.
+
+Case prompts, descriptions, expected outcomes, forbidden outcomes, minimum
+check coverage, and comparison dimensions live in
+`config/evaluation-cases.json`. Validate the registry, shell dispatch, and
+budget alignment without a billed run:
+
+```sh
+python3 scripts/evaluation-harness.py validate --root .
+```
+
+Verify a receipt and its evidence, or compare an accepted same-definition
+baseline with a candidate:
+
+```sh
+python3 scripts/evaluation-harness.py verify --root . \
+  --receipt tests/eval/results/<run-id>/<case>.receipt.json --check-sources
+python3 scripts/evaluation-harness.py compare --root . \
+  --baseline /path/to/baseline.receipt.json \
+  --candidate tests/eval/results/<run-id>/<case>.receipt.json
+```
+
+See [How do we know an agent change got better?](../../docs/evaluation-engineering.md)
+for the authority model, receipt fields, comparison policy, and failure runbook.
 
 Three derived text artifacts are rebuilt from the stream-json transcript by
 `scripts/eval-cost.py`. `checks_*` functions must grep these files, never
@@ -160,7 +184,9 @@ Env: `EVAL_JUDGE_MODEL` pins the judge model, `EVAL_JUDGE_TIMEOUT` (default
 ## Extending
 
 Add a planted flaw to the fixture (no hints in the fixture!), then register a
-case: name in `ALL_CASES`, a `case_prompt`/`case_desc`/`case_rubric` entry, and
-a `checks_<name>` function in `run-evals.sh`, and a row in both tables above.
-A guardrails test asserts every case has a rubric, so the judge can't silently
-skip a case you added.
+case in `config/evaluation-cases.json`, add its name to `ALL_CASES` or
+`OPT_IN_CASES`, add a `case_rubric` branch and `checks_<name>` function in
+`run-evals.sh`, seed a budget in `baseline.json`, and add a row in both tables
+above. Prompts and descriptions come from the registry. Validation and
+guardrails require every case to have expected and forbidden outcomes, a
+budget, deterministic checks, and an advisory rubric.

@@ -267,9 +267,17 @@ for the project or exact agent, labels them as untrusted data, and drops
 optional records whole under budget. See
 [memory engineering](docs/memory-engineering.md).
 
+**Agent improvements need evaluation receipts, not a convincing demo.** Eleven
+registered cases declare expected and forbidden outcomes, run deterministic
+checks against disposable fixture worktrees, meter duration, tokens, billed
+USD, and tool calls, and seal the evidence with source hashes. An optional LLM
+judge stays advisory; same-definition receipt comparison exits nonzero on lost
+quality or a material operational regression. See
+[evaluation engineering](docs/evaluation-engineering.md).
+
 **Every guarantee names its enforcement boundary.** The versioned enforcement
 map separates runtime rejection, installed pre-tool hooks, required hosted CI,
-authoritative human decisions, and prompt-only guidance for 18 controls. Each
+authoritative human decisions, and prompt-only guidance for 19 controls. Each
 entry links to its implementation, executable evidence, safe failure mode,
 operator action, and known limitation. CI rejects missing or unsafe evidence,
 unknown release gates, prompt-only guarantees, and stale generated prose. See

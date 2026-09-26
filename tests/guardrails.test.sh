@@ -700,7 +700,7 @@ expect "kernel exposes the observability command group" "1" \
   "$(grep -c 'observe = sub.add_parser("observe")' "$SCRIPT_DIR/scripts/guild-kernel/guild.py")"
 expect "shared observability excludes raw payloads" "1" \
   "$(grep -c '"rawPayloads": false' "$SCRIPT_DIR/config/agent-harness.json")"
-expect "one versioned enforcement map is committed" "18" \
+expect "one versioned enforcement map is committed" "19" \
   "$(python3 - "$SCRIPT_DIR/config/enforcement-map.json" <<'PY'
 import json, pathlib, sys
 payload = json.loads(pathlib.Path(sys.argv[1]).read_text())
@@ -1032,6 +1032,34 @@ expect "no haiku-pinned agent declares effort" "" \
 # scoring of nondeterministic output. The rubric judge is the second opinion, so
 # a case registered without a rubric would be silently unjudged.
 EVAL_SH="$SCRIPT_DIR/tests/eval/run-evals.sh"
+expect "one strict evaluation harness contract is committed" "1" \
+  "$(python3 - "$SCRIPT_DIR/config/evaluation-harness.json" <<'PY'
+import json, pathlib, sys
+d = json.loads(pathlib.Path(sys.argv[1]).read_text())
+print(int(d.get("schemaVersion") == 1 and d.get("receiptSchemaVersion") == 1
+          and d.get("verdictPolicy", {}).get("rubricJudge") == "advisory-only"))
+PY
+)"
+expect "evaluation registry covers all eleven live cases" "11" \
+  "$(python3 - "$SCRIPT_DIR/config/evaluation-cases.json" <<'PY'
+import json, pathlib, sys
+d = json.loads(pathlib.Path(sys.argv[1]).read_text())
+cases = d.get("cases", [])
+print(len(cases) if d.get("schemaVersion") == 1
+      and all(c.get("requiredOutcomes") and c.get("forbiddenOutcomes") for c in cases)
+      else 0)
+PY
+)"
+expect "live evals seal authoritative source-bound receipts" "1" \
+  "$(grep -c 'evaluation-harness.py.*receipt' "$EVAL_SH")"
+expect "CI has a separate evaluation harness gate" "1" \
+  "$(grep -c '^    name: evaluation harness$' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "CI validates the evaluation contract" "1" \
+  "$(grep -c 'evaluation-harness.py validate' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "release publication requires the evaluation harness gate" "1" \
+  "$(grep -c '"evaluation harness"' "$SCRIPT_DIR/config/release-harness.json")"
+expect "README links the evaluation-engineering runbook" "1" \
+  "$(grep -c 'evaluation engineering' "$SCRIPT_DIR/README.md")"
 MISSING_RUBRIC=""
 read -r -a EVAL_CASE_LIST <<<"$(sed -n 's/^ALL_CASES=(\(.*\))$/\1/p' "$EVAL_SH")"
 # Opt-in cases count too: excluded from the default sweep is not excluded from
@@ -1904,6 +1932,12 @@ expect "install dest contains the memory retrieval runtime" "1" \
   "$([ -f "$INSTALL_DEST/scripts/guild-kernel/memory_store.py" ] && echo 1 || echo 0)"
 expect "install dest contains the memory retrieval contract" "1" \
   "$([ -f "$INSTALL_DEST/config/memory-harness.json" ] && echo 1 || echo 0)"
+expect "install dest contains the evaluation runtime" "1" \
+  "$([ -f "$INSTALL_DEST/scripts/evaluation-harness.py" ] && echo 1 || echo 0)"
+expect "install dest contains the evaluation contract" "1" \
+  "$([ -f "$INSTALL_DEST/config/evaluation-harness.json" ] && echo 1 || echo 0)"
+expect "install dest contains the evaluation case registry" "1" \
+  "$([ -f "$INSTALL_DEST/config/evaluation-cases.json" ] && echo 1 || echo 0)"
 expect "install dest contains the shared agent harness" "1" \
   "$([ -f "$INSTALL_DEST/config/agent-harness.json" ] && echo 1 || echo 0)"
 expect "install dest contains the native-write policy hook" "1" \

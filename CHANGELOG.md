@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.5.0] - 2026-09-26
+
+### Added
+
+- A schema-versioned evaluation contract for all eleven live-agent cases,
+  including representative prompts, expected outcomes, forbidden outcomes,
+  minimum deterministic coverage, and comparison dimensions.
+- Source-bound evaluation receipts that seal execution status, deterministic
+  results, duration, tokens, billed USD, tool calls, budget decisions, contract
+  identity, and artifact hashes without copying raw transcripts or diffs.
+- A same-definition regression comparator, an evaluation-engineering runbook,
+  twelve focused contract tests, and a dedicated release-required CI job.
+
+### Changed
+
+- The live eval runner now reads prompts and descriptions from the case
+  registry and makes the sealed receipt verdict authoritative.
+- Nonzero or timed-out agent execution now fails the receipt even when partial
+  artifacts happen to satisfy every answer-key check.
+- The enforcement map now covers 19 controls and immutable publication
+  requires 20 named hosted-CI jobs.
+
+### Fixed
+
+- Evaluation expectations can no longer drift silently between an informal
+  case description, shell dispatch, committed budgets, and the release gate.
+- Candidate results can no longer claim improvement while losing deterministic
+  coverage, omitting an operational metric, exceeding a hard ceiling, or
+  materially regressing duration, tokens, cost, or tool calls.
+
+### Security
+
+- Receipt evidence rejects traversal, symlinks, stale contracts, changed
+  sources, missing artifacts, and content/hash tampering.
+- Rubric judges remain explicitly advisory and cannot alter deterministic,
+  budget, execution, or release decisions.
+
 ## [9.4.0] - 2026-09-25
 
 ### Added

@@ -1,6 +1,6 @@
 # Which Laravel Guild guarantees are actually enforced?
 
-Last verified 2026-09-25 against pack v9.4.0.
+Last verified 2026-09-26 against pack v9.5.0.
 
 This map separates mechanically enforced controls from pre-tool hooks, release-gated evidence, operator decisions, and prompt guidance across the Laravel Guild engineering loop.
 
@@ -31,6 +31,7 @@ A prompt instruction is never presented as a hard control on its own.
 | [`delivery-observability`](#delivery-observability) — Correlated delivery event integrity | `runtime`, `ci`, `operator`, `prompt` | Report unhealthy, refuse authoritative-chain growth, and block dispatch or closure until integrity is restored. |
 | [`durable-checkpoints`](#durable-checkpoints) — Typed human checkpoints | `runtime`, `ci`, `operator`, `prompt` | Keep the affected stage paused and exclude it from ready work until a valid resolution exists. |
 | [`durable-memory-retrieval`](#durable-memory-retrieval) — Approval-gated durable memory retrieval | `runtime`, `pre-tool-hook`, `ci`, `operator`, `prompt` | Exclude stale, expired, irrelevant, unapproved, or wrong-scope memory; reject tampering, unresolved conflicts, unauthorized approval, mandatory-memory overflow, and unapproved deletion. |
+| [`evaluation-receipts`](#evaluation-receipts) — Source-bound agent evaluation receipts | `runtime`, `ci`, `operator` | Reject malformed, stale, incomplete, tampered, source-drifted, wrong-case, failing, or materially regressed evidence without allowing an advisory judge to change the verdict. |
 | [`feedback-routing`](#feedback-routing) — Ownership-derived PR and CI routing | `runtime`, `ci`, `operator`, `prompt` | Persist route_required and block new dispatch, or reject a caller-asserted wrong owner without recording it. |
 | [`human-approvals`](#human-approvals) — Durable protected-action approval | `runtime`, `pre-tool-hook`, `ci`, `operator`, `prompt` | Keep the stage queued and reject claim or mutation until the approval exists. |
 | [`immutable-releases`](#immutable-releases) — Exact-commit release publication | `runtime`, `ci`, `operator` | Refuse publication or a conflicting rerun without force, deletion, or tag replacement. |
@@ -139,6 +140,18 @@ A prompt instruction is never presented as a hard control on its own.
 - Failure mode: Exclude stale, expired, irrelevant, unapproved, or wrong-scope memory; reject tampering, unresolved conflicts, unauthorized approval, mandatory-memory overflow, and unapproved deletion.
 - Operator action: Review candidate provenance and wording, approve from the main thread, supersede rather than overwrite conflicts, and approve a deletion request only after confirming the audit tombstone is appropriate.
 - Limitation: Hash chains detect partial or accidental changes but are not signatures against same-account rewriting; lexical retrieval may miss semantically relevant wording, and a human can still approve a poor memory.
+
+### evaluation-receipts
+
+**Source-bound agent evaluation receipts.** Every registered live-agent case declares required and forbidden outcomes, deterministic checks remain authoritative, all four operational metrics are sealed with source hashes, and a material candidate regression exits unsuccessfully.
+
+- Enforced by: `runtime`, `ci`, `operator`
+- Implementation: [`config/evaluation-harness.json`](../config/evaluation-harness.json), [`config/evaluation-cases.json`](../config/evaluation-cases.json), [`scripts/evaluation-harness.py`](../scripts/evaluation-harness.py), [`tests/eval/run-evals.sh`](../tests/eval/run-evals.sh)
+- Evidence: [`tests/eval/test_evaluation_harness.py`](../tests/eval/test_evaluation_harness.py), [`tests/eval/test_eval_budget.py`](../tests/eval/test_eval_budget.py), [`tests/eval/test_eval_cost.py`](../tests/eval/test_eval_cost.py)
+- Required CI: `evaluation harness`, `eval cost parser units`
+- Failure mode: Reject malformed, stale, incomplete, tampered, source-drifted, wrong-case, failing, or materially regressed evidence without allowing an advisory judge to change the verdict.
+- Operator action: Authorize only the representative billed cases affected by a change, retain their derived receipts, compare candidate to an accepted same-definition baseline, and investigate every reported regression before release.
+- Limitation: CI validates the evaluator and recorded fixtures without spending model credits; live-agent outcomes remain stochastic and billed, source hashes are not signatures against same-account rewriting, and case selection remains an operator judgment.
 
 ### feedback-routing
 
@@ -273,7 +286,7 @@ A prompt instruction is never presented as a hard control on its own.
 python3 scripts/check-enforcement-map.py
 ```
 
-A healthy checkout reports `18 controls` and exits `0`. The checker validates
+A healthy checkout reports `19 controls` and exits `0`. The checker validates
 the exact control inventory, safe repository-local evidence paths, release-gated CI
 job names, enforcement-level ordering, and byte-for-byte agreement with this page.
 It does not execute commands stored in data files.

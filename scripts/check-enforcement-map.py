@@ -33,6 +33,7 @@ REQUIRED_CONTROL_IDS = {
     "laravel-benchmark-capture",
     "context-packets",
     "durable-memory-retrieval",
+    "evaluation-receipts",
     "immutable-releases",
 }
 CONTROL_FIELDS = {
@@ -184,7 +185,7 @@ def render(payload: dict[str, Any], controls: list[dict[str, Any]]) -> str:
     lines = [
         "# Which Laravel Guild guarantees are actually enforced?",
         "",
-        "Last verified 2026-09-25 against pack v9.4.0.",
+        "Last verified 2026-09-26 against pack v9.5.0.",
         "",
         payload["scope"].strip(),
         "",

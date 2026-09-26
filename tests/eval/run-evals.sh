@@ -71,37 +71,13 @@ ALL_CASES=(n-plus-one policy action tests hygiene)
 # feature-adaptive: same Tag --api floor as feature, plus packet / peer-router / handoff.
 OPT_IN_CASES=(feature teach teach-delivery feature-adaptive feature-resume feature-replay)
 
-case_prompt() {
-  case "$1" in
-    n-plus-one) echo "/audit-n-plus-one posts.index" ;;
-    policy)     echo "/add-policy Post" ;;
-    action)     echo "/refactor-to-action PostController@store" ;;
-    tests)      echo "/add-test PostController" ;;
-    hygiene)    echo "/team-hygiene" ;;
-    feature)    echo "/make-feature Tag --api" ;;
-    teach)      echo "/teach New tables use ULID primary keys, never auto-increment integers — sortable and non-enumerable" ;;
-    teach-delivery) echo "/make-feature Donation --api" ;;
-    feature-adaptive) echo "/make-feature Tag --api --adaptive" ;;
-    feature-resume) echo "/make-feature Tag --api" ;;
-    feature-replay) echo "/make-feature Tag --api" ;;
-  esac
+case_field() { # case_field <case> <prompt|description>
+  python3 "$ROOT/scripts/evaluation-harness.py" case --root "$ROOT" --id "$1" --field "$2" 2>/dev/null
 }
 
-case_desc() {
-  case "$1" in
-    n-plus-one) echo "finds the N+1 in posts.index (user + comments in Blade loop)" ;;
-    policy)     echo "creates PostPolicy and guards the open update route" ;;
-    action)     echo "extracts fat PostController@store into an Action" ;;
-    tests)      echo "writes feature tests incl. update authorization" ;;
-    hygiene)    echo "flags the planted duplicate/conflict/stale entries, applies nothing headless" ;;
-    feature)    echo "scaffolds an API Tag feature across specialists — the only case that must delegate" ;;
-    teach)      echo "records a taught rule in docs/team/conventions.md in the Rule/Why/Scope/Source contract" ;;
-    teach-delivery) echo "delivers a feature that must OBEY two seeded taught rules where defaults differ, and harvest without being asked" ;;
-    feature-adaptive) echo "Adaptive Tag --api; packet + peer-router + handoff" ;;
-    feature-resume) echo "resume Tag --api; skip completed database-developer" ;;
-    feature-replay) echo "replay a taught Model::all ban" ;;
-  esac
-}
+case_prompt() { case_field "$1" prompt; }
+
+case_desc() { case_field "$1" description; }
 
 # Intent-level rubric per case, for the optional LLM judge (EVAL_JUDGE=1).
 # The regex answer key asserts *wording and paths*; a rubric asserts *outcome* —
@@ -1180,6 +1156,7 @@ run_case() { # run_case <name> <results-dir>
   fi
 
   "checks_$(echo "$name" | tr '-' '_')"
+  printf '%s\n' "${CHECK_LINES[@]}" >"$results/$name.checks.txt"
 
   # Evidence for the findings doc + the rubric judge: what changed, and the
   # per-agent event timing. Status is captured BEFORE the intent-to-add below, so
@@ -1211,7 +1188,10 @@ run_case() { # run_case <name> <results-dir>
   if ! python3 "$ROOT/scripts/check-eval-budget.py" "${budget_args[@]}"; then
     verdict=FAIL
   fi
-  echo "   $verdict — $CHECK_PASS/$((CHECK_PASS + CHECK_FAIL)) checks, ${dur}s"
+  if [ "$rc" -ne 0 ] || [ "$dur" -ge "$EVAL_TIMEOUT" ]; then
+    verdict=FAIL
+  fi
+  echo "   checks: $CHECK_PASS/$((CHECK_PASS + CHECK_FAIL)) deterministic, ${dur}s"
 
   if [ -s "$results/$name.cost.json" ] && command -v python3 >/dev/null 2>&1; then
     python3 - "$results/$name.cost.json" <<'PY' || true
@@ -1247,6 +1227,32 @@ PY
   JUDGE_CELL=""
   [ "$EVAL_JUDGE" = "1" ] && judge_case "$name" "$results" "$verdict"
 
+  # Seal the deterministic verdict, budget metrics, execution status, and
+  # source hashes into a machine-verifiable receipt. The optional judge remains
+  # advisory: its value is recorded, but create_receipt never consults it when
+  # calculating PASS/FAIL.
+  local rel_results="${results#"$ROOT/"}"
+  local -a receipt_args=(
+    receipt --root "$ROOT" --case "$name" --run-id "$RUN_ID"
+    --duration "$dur" --exit-code "$rc"
+    --checks "$rel_results/$name.checks.txt"
+    --cost "$rel_results/$name.cost.json"
+    --status "$rel_results/$name.status.txt"
+    --diff "$rel_results/$name.diff.patch"
+    --output "$rel_results/$name.receipt.json"
+  )
+  [ "$dur" -ge "$EVAL_TIMEOUT" ] && receipt_args+=(--timed-out)
+  [ "$MODE" = "parallel" ] && receipt_args+=(--ignore-duration)
+  [ -s "$results/$name.judge.json" ] && receipt_args+=(--judge "$rel_results/$name.judge.json")
+  local receipt_verdict
+  if receipt_verdict="$(python3 "$ROOT/scripts/evaluation-harness.py" "${receipt_args[@]}")"; then
+    verdict="$receipt_verdict"
+    echo "   receipt: $name.receipt.json ($verdict, source-bound)"
+  else
+    verdict=FAIL
+    echo "   receipt: FAIL — evaluation evidence could not be sealed"
+  fi
+
   echo
 
   if [ "$EVAL_JUDGE" = "1" ]; then
@@ -1254,8 +1260,6 @@ PY
   else
     echo "| $name | $verdict | $CHECK_PASS/$((CHECK_PASS + CHECK_FAIL)) | ${dur}s |" >"$results/.$name.row"
   fi
-  printf '%s\n' "${CHECK_LINES[@]}" >"$results/$name.checks.txt"
-
   if [ "$KEEP_WORKDIR" != "1" ]; then
     rm -rf "$WORK"
   else

@@ -220,6 +220,18 @@
       "limitation": "Hash chains detect partial or accidental changes but are not signatures against same-account rewriting; lexical retrieval may miss semantically relevant wording, and a human can still approve a poor memory."
     },
     {
+      "id": "evaluation-receipts",
+      "title": "Source-bound agent evaluation receipts",
+      "guarantee": "Every registered live-agent case declares required and forbidden outcomes, deterministic checks remain authoritative, all four operational metrics are sealed with source hashes, and a material candidate regression exits unsuccessfully.",
+      "enforcement": ["runtime", "ci", "operator"],
+      "implementation": ["config/evaluation-harness.json", "config/evaluation-cases.json", "scripts/evaluation-harness.py", "tests/eval/run-evals.sh"],
+      "evidence": ["tests/eval/test_evaluation_harness.py", "tests/eval/test_eval_budget.py", "tests/eval/test_eval_cost.py"],
+      "ciJobs": ["evaluation harness", "eval cost parser units"],
+      "failureMode": "Reject malformed, stale, incomplete, tampered, source-drifted, wrong-case, failing, or materially regressed evidence without allowing an advisory judge to change the verdict.",
+      "operatorAction": "Authorize only the representative billed cases affected by a change, retain their derived receipts, compare candidate to an accepted same-definition baseline, and investigate every reported regression before release.",
+      "limitation": "CI validates the evaluator and recorded fixtures without spending model credits; live-agent outcomes remain stochastic and billed, source hashes are not signatures against same-account rewriting, and case selection remains an operator judgment."
+    },
+    {
       "id": "immutable-releases",
       "title": "Exact-commit release publication",
       "guarantee": "A stable release requires synchronized artifacts, a clean main commit, every named CI job green, an annotated immutable tag, and a retained receipt.",

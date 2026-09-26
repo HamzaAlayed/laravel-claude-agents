@@ -1,0 +1,44 @@
+{
+  "schemaVersion": 1,
+  "receiptSchemaVersion": 1,
+  "caseRegistry": "config/evaluation-cases.json",
+  "budgetBaseline": "tests/eval/baseline.json",
+  "resultsDirectory": "tests/eval/results",
+  "hashAlgorithm": "sha256",
+  "verdictPolicy": {
+    "deterministicChecks": "authoritative",
+    "budgetCeilings": "authoritative",
+    "executionStatus": "authoritative",
+    "rubricJudge": "advisory-only"
+  },
+  "requiredMetrics": [
+    "durationSeconds",
+    "tokens",
+    "billedUsd",
+    "toolCalls"
+  ],
+  "sourceArtifacts": [
+    "checks",
+    "cost",
+    "status",
+    "diff"
+  ],
+  "excludedReceiptData": [
+    "rawTranscript",
+    "assistantText",
+    "toolInputs",
+    "secrets"
+  ],
+  "comparisonPolicy": {
+    "sameCaseDefinitionRequired": true,
+    "baselineMustPass": true,
+    "candidateMustPass": true,
+    "qualityMayNotDecrease": true,
+    "thresholds": {
+      "durationSeconds": {"ratio": 1.25, "minimumDelta": 60},
+      "tokens": {"ratio": 1.20, "minimumDelta": 500000},
+      "billedUsd": {"ratio": 1.15, "minimumDelta": 0.50},
+      "toolCalls": {"ratio": 1.25, "minimumDelta": 5}
+    }
+  }
+}
