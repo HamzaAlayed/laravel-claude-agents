@@ -175,6 +175,11 @@
       "date": "2026-09-27",
       "sha256": "6bca334e8213722779549c6b52b9bf87b441ecdf07f5a41375d1ef04a82e9ed3",
       "reason": "Agent Reliability & Operations adds a post-release evidence gate without changing feature construction: baseline and canary cohorts are assessed against declared SLOs, nine degraded-condition scenarios replay deterministically, side-effecting retries require stable idempotency, and promote, hold, or rollback receipts remain operator-controlled. Covered by 18 focused reliability tests, scenario replay, shared-harness validation, canonical-sync checks, receipt tamper/source-drift verification, and enforcement-map validation. No billed feature run was authorized; ceilings were not raised."
+    },
+    {
+      "date": "2026-09-27",
+      "sha256": "adbf049f5439079f8ac5551c9899f6e27cb42b842392e2ce1c10e66011dfb079",
+      "reason": "Multi-Agent Architecture & Coordination adds a deterministic pre-dispatch and adoption gate without changing feature construction: capability-routed task graphs reject cycles, missing approvals, write collisions, duplicate side effects, and double-booked agents; typed handoffs bind context, paths, budgets, and dependencies; representative comparison receipts require preserved quality and material value. Covered by 10 scenarios, 22 focused coordination tests, canonical-sync checks, receipt tamper/source-drift verification, and enforcement-map validation. No billed feature run was authorized; ceilings were not raised."
     }
     ]
   }

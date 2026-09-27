@@ -256,6 +256,18 @@
       "limitation": "The harness evaluates recorded evidence but does not route traffic, stop arbitrary host processes, prove telemetry completeness, or perform platform and database rollback."
     },
     {
+      "id": "multi-agent-coordination",
+      "title": "Measured multi-agent planning and coordination",
+      "guarantee": "A workload is delegated only through an acyclic, capability-routed, approval-complete, conflict-free plan with bounded waves and typed handoffs; adoption requires representative evidence that coordination preserves quality and produces material value.",
+      "enforcement": ["runtime", "ci", "operator", "prompt"],
+      "implementation": ["config/coordination-harness.json", "config/coordination-scenarios.json", "scripts/coordination-harness.py", "config/agent-harness.json", "config/orchestration-contract.md"],
+      "evidence": ["tests/coordination/test_coordination_harness.py"],
+      "ciJobs": ["multi-agent coordination"],
+      "failureMode": "Keep narrow or low-value work with one agent; hold cyclic, unroutable, unapproved, conflicting, or duplicate-side-effect plans; and reject adoption when recorded multi-agent runs regress quality, completion, cost, tool calls, human intervention, or coordination safety.",
+      "operatorAction": "Declare complete task dependencies and ownership, resolve every hold reason, dispatch only emitted waves, retain dependency receipts, and compare representative single-agent and multi-agent runs before making delegation the default.",
+      "limitation": "The harness evaluates declarations and recorded aggregates but does not spawn agents, discover hidden dependencies, enforce OS isolation, prove evidence representativeness, or replace human approval quality."
+    },
+    {
       "id": "immutable-releases",
       "title": "Exact-commit release publication",
       "guarantee": "A stable release requires synchronized artifacts, a clean main commit, every named CI job green, an annotated immutable tag, and a retained receipt.",

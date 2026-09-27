@@ -1,0 +1,166 @@
+{
+  "schemaVersion": 1,
+  "policyId": "laravel-guild-multi-agent-coordination-v1",
+  "scenarios": [
+    {
+      "id": "COORD-001",
+      "name": "one narrow task stays with one agent",
+      "workload": {
+        "schemaVersion": 1,
+        "workloadId": "narrow-backend-fix",
+        "coordinator": "delivery-coordinator",
+        "tasks": [
+          {"id": "backend", "capability": "backend", "dependencies": [], "ownedPaths": ["app/Actions/FixOrder.php"], "estimatedSeconds": 120, "estimatedCostUsd": 0.20, "mutates": true, "sideEffectKey": null, "requiresSpecialist": false, "approvalsRequired": [], "approvalsGranted": [], "contextPacketHash": "0000000000000000000000000000000000000000000000000000000000000001", "expectedOutput": "Tested PHP repair"}
+        ]
+      },
+      "expectedDecision": "single-agent",
+      "expectedTopology": "single-agent",
+      "expectedReasons": ["coordination-not-justified"]
+    },
+    {
+      "id": "COORD-002",
+      "name": "independent backend and frontend work runs in parallel",
+      "workload": {
+        "schemaVersion": 1,
+        "workloadId": "parallel-feature",
+        "coordinator": "delivery-coordinator",
+        "tasks": [
+          {"id": "backend", "capability": "backend", "dependencies": [], "ownedPaths": ["app/Actions/CreateOrder.php"], "estimatedSeconds": 300, "estimatedCostUsd": 0.40, "mutates": true, "sideEffectKey": null, "requiresSpecialist": true, "approvalsRequired": [], "approvalsGranted": [], "contextPacketHash": "0000000000000000000000000000000000000000000000000000000000000002", "expectedOutput": "Backend implementation and tests"},
+          {"id": "frontend", "capability": "frontend", "dependencies": [], "ownedPaths": ["resources/js/pages/orders/create.tsx"], "estimatedSeconds": 300, "estimatedCostUsd": 0.40, "mutates": true, "sideEffectKey": null, "requiresSpecialist": true, "approvalsRequired": [], "approvalsGranted": [], "contextPacketHash": "0000000000000000000000000000000000000000000000000000000000000003", "expectedOutput": "Frontend implementation and tests"}
+        ]
+      },
+      "expectedDecision": "delegate",
+      "expectedTopology": "parallel",
+      "expectedReasons": ["predicted-speedup"]
+    },
+    {
+      "id": "COORD-003",
+      "name": "specialist dependency chain uses a pipeline",
+      "workload": {
+        "schemaVersion": 1,
+        "workloadId": "database-backend-pipeline",
+        "coordinator": "delivery-coordinator",
+        "tasks": [
+          {"id": "database", "capability": "database", "dependencies": [], "ownedPaths": ["database/migrations/orders.php"], "estimatedSeconds": 180, "estimatedCostUsd": 0.25, "mutates": true, "sideEffectKey": "orders-schema", "requiresSpecialist": true, "approvalsRequired": [], "approvalsGranted": [], "contextPacketHash": "0000000000000000000000000000000000000000000000000000000000000004", "expectedOutput": "Schema change and model tests"},
+          {"id": "backend", "capability": "backend", "dependencies": ["database"], "ownedPaths": ["app/Actions/CreateOrder.php"], "estimatedSeconds": 180, "estimatedCostUsd": 0.25, "mutates": true, "sideEffectKey": null, "requiresSpecialist": true, "approvalsRequired": [], "approvalsGranted": [], "contextPacketHash": "0000000000000000000000000000000000000000000000000000000000000005", "expectedOutput": "Backend implementation against verified schema"}
+        ]
+      },
+      "expectedDecision": "delegate",
+      "expectedTopology": "pipeline",
+      "expectedReasons": ["required-specialists"]
+    },
+    {
+      "id": "COORD-004",
+      "name": "fan-out after schema work uses a hybrid topology",
+      "workload": {
+        "schemaVersion": 1,
+        "workloadId": "schema-fan-out",
+        "coordinator": "delivery-coordinator",
+        "tasks": [
+          {"id": "database", "capability": "database", "dependencies": [], "ownedPaths": ["database/migrations/orders.php"], "estimatedSeconds": 200, "estimatedCostUsd": 0.30, "mutates": true, "sideEffectKey": "orders-schema-v2", "requiresSpecialist": true, "approvalsRequired": [], "approvalsGranted": [], "contextPacketHash": "0000000000000000000000000000000000000000000000000000000000000006", "expectedOutput": "Verified schema contract"},
+          {"id": "backend", "capability": "backend", "dependencies": ["database"], "ownedPaths": ["app/Actions/CreateOrder.php"], "estimatedSeconds": 200, "estimatedCostUsd": 0.30, "mutates": true, "sideEffectKey": null, "requiresSpecialist": true, "approvalsRequired": [], "approvalsGranted": [], "contextPacketHash": "0000000000000000000000000000000000000000000000000000000000000007", "expectedOutput": "Backend implementation"},
+          {"id": "testing", "capability": "testing", "dependencies": ["database"], "ownedPaths": ["tests/Feature/CreateOrderTest.php"], "estimatedSeconds": 200, "estimatedCostUsd": 0.30, "mutates": true, "sideEffectKey": null, "requiresSpecialist": true, "approvalsRequired": [], "approvalsGranted": [], "contextPacketHash": "0000000000000000000000000000000000000000000000000000000000000008", "expectedOutput": "Independent acceptance tests"}
+        ]
+      },
+      "expectedDecision": "delegate",
+      "expectedTopology": "hybrid",
+      "expectedReasons": ["predicted-speedup"]
+    },
+    {
+      "id": "COORD-005",
+      "name": "dependency cycle holds before dispatch",
+      "workload": {
+        "schemaVersion": 1,
+        "workloadId": "cyclic-graph",
+        "coordinator": "delivery-coordinator",
+        "tasks": [
+          {"id": "backend", "capability": "backend", "dependencies": ["testing"], "ownedPaths": ["app/Actions/CreateOrder.php"], "estimatedSeconds": 120, "estimatedCostUsd": 0.20, "mutates": true, "sideEffectKey": null, "requiresSpecialist": true, "approvalsRequired": [], "approvalsGranted": [], "contextPacketHash": "0000000000000000000000000000000000000000000000000000000000000009", "expectedOutput": "Backend implementation"},
+          {"id": "testing", "capability": "testing", "dependencies": ["backend"], "ownedPaths": ["tests/Feature/CreateOrderTest.php"], "estimatedSeconds": 120, "estimatedCostUsd": 0.20, "mutates": true, "sideEffectKey": null, "requiresSpecialist": true, "approvalsRequired": [], "approvalsGranted": [], "contextPacketHash": "000000000000000000000000000000000000000000000000000000000000000a", "expectedOutput": "Acceptance tests"}
+        ]
+      },
+      "expectedDecision": "hold",
+      "expectedTopology": "single-agent",
+      "expectedReasons": ["dependency-cycle"]
+    },
+    {
+      "id": "COORD-006",
+      "name": "unordered shared write path holds",
+      "workload": {
+        "schemaVersion": 1,
+        "workloadId": "write-collision",
+        "coordinator": "delivery-coordinator",
+        "tasks": [
+          {"id": "backend", "capability": "backend", "dependencies": [], "ownedPaths": ["routes/api.php"], "estimatedSeconds": 120, "estimatedCostUsd": 0.20, "mutates": true, "sideEffectKey": null, "requiresSpecialist": true, "approvalsRequired": [], "approvalsGranted": [], "contextPacketHash": "000000000000000000000000000000000000000000000000000000000000000b", "expectedOutput": "API route"},
+          {"id": "deployment", "capability": "deployment", "dependencies": [], "ownedPaths": ["routes/api.php"], "estimatedSeconds": 120, "estimatedCostUsd": 0.20, "mutates": true, "sideEffectKey": null, "requiresSpecialist": true, "approvalsRequired": [], "approvalsGranted": [], "contextPacketHash": "000000000000000000000000000000000000000000000000000000000000000c", "expectedOutput": "Deployment route probe"}
+        ]
+      },
+      "expectedDecision": "hold",
+      "expectedTopology": "single-agent",
+      "expectedReasons": ["unordered-write-conflict"]
+    },
+    {
+      "id": "COORD-007",
+      "name": "missing approval holds the graph",
+      "workload": {
+        "schemaVersion": 1,
+        "workloadId": "approval-gated",
+        "coordinator": "delivery-coordinator",
+        "tasks": [
+          {"id": "database", "capability": "database", "dependencies": [], "ownedPaths": ["database/migrations/orders.php"], "estimatedSeconds": 180, "estimatedCostUsd": 0.25, "mutates": true, "sideEffectKey": "drop-orders-column", "requiresSpecialist": true, "approvalsRequired": ["destructive migration"], "approvalsGranted": [], "contextPacketHash": "000000000000000000000000000000000000000000000000000000000000000d", "expectedOutput": "Approved migration"},
+          {"id": "backend", "capability": "backend", "dependencies": ["database"], "ownedPaths": ["app/Models/Order.php"], "estimatedSeconds": 180, "estimatedCostUsd": 0.25, "mutates": true, "sideEffectKey": null, "requiresSpecialist": true, "approvalsRequired": [], "approvalsGranted": [], "contextPacketHash": "000000000000000000000000000000000000000000000000000000000000000e", "expectedOutput": "Model update"}
+        ]
+      },
+      "expectedDecision": "hold",
+      "expectedTopology": "single-agent",
+      "expectedReasons": ["missing-approval"]
+    },
+    {
+      "id": "COORD-008",
+      "name": "duplicate logical side effect holds",
+      "workload": {
+        "schemaVersion": 1,
+        "workloadId": "duplicate-effect",
+        "coordinator": "delivery-coordinator",
+        "tasks": [
+          {"id": "backend", "capability": "backend", "dependencies": [], "ownedPaths": ["app/Jobs/SendReceipt.php"], "estimatedSeconds": 160, "estimatedCostUsd": 0.25, "mutates": true, "sideEffectKey": "send-receipt-42", "requiresSpecialist": true, "approvalsRequired": [], "approvalsGranted": [], "contextPacketHash": "000000000000000000000000000000000000000000000000000000000000000f", "expectedOutput": "Receipt job"},
+          {"id": "testing", "capability": "testing", "dependencies": [], "ownedPaths": ["tests/Feature/SendReceiptTest.php"], "estimatedSeconds": 160, "estimatedCostUsd": 0.25, "mutates": true, "sideEffectKey": "send-receipt-42", "requiresSpecialist": true, "approvalsRequired": [], "approvalsGranted": [], "contextPacketHash": "0000000000000000000000000000000000000000000000000000000000000010", "expectedOutput": "Receipt acceptance test"}
+        ]
+      },
+      "expectedDecision": "hold",
+      "expectedTopology": "single-agent",
+      "expectedReasons": ["duplicate-side-effect-key"]
+    },
+    {
+      "id": "COORD-009",
+      "name": "unroutable capability holds",
+      "workload": {
+        "schemaVersion": 1,
+        "workloadId": "missing-specialist",
+        "coordinator": "delivery-coordinator",
+        "tasks": [
+          {"id": "legal", "capability": "legal", "dependencies": [], "ownedPaths": ["docs/legal/terms.md"], "estimatedSeconds": 240, "estimatedCostUsd": 0.40, "mutates": true, "sideEffectKey": null, "requiresSpecialist": true, "approvalsRequired": [], "approvalsGranted": [], "contextPacketHash": "0000000000000000000000000000000000000000000000000000000000000011", "expectedOutput": "Legal terms review"},
+          {"id": "documentation", "capability": "documentation", "dependencies": [], "ownedPaths": ["docs/legal/summary.md"], "estimatedSeconds": 240, "estimatedCostUsd": 0.40, "mutates": true, "sideEffectKey": null, "requiresSpecialist": true, "approvalsRequired": [], "approvalsGranted": [], "contextPacketHash": "0000000000000000000000000000000000000000000000000000000000000012", "expectedOutput": "Terms summary"}
+        ]
+      },
+      "expectedDecision": "hold",
+      "expectedTopology": "single-agent",
+      "expectedReasons": ["missing-capability"]
+    },
+    {
+      "id": "COORD-010",
+      "name": "coordination overhead keeps tiny work with one agent",
+      "workload": {
+        "schemaVersion": 1,
+        "workloadId": "tiny-tasks",
+        "coordinator": "delivery-coordinator",
+        "tasks": [
+          {"id": "backend-a", "capability": "backend", "dependencies": [], "ownedPaths": ["app/Actions/A.php"], "estimatedSeconds": 10, "estimatedCostUsd": 0.05, "mutates": true, "sideEffectKey": null, "requiresSpecialist": false, "approvalsRequired": [], "approvalsGranted": [], "contextPacketHash": "0000000000000000000000000000000000000000000000000000000000000013", "expectedOutput": "Small PHP edit"},
+          {"id": "backend-b", "capability": "backend", "dependencies": ["backend-a"], "ownedPaths": ["app/Actions/B.php"], "estimatedSeconds": 10, "estimatedCostUsd": 0.05, "mutates": true, "sideEffectKey": null, "requiresSpecialist": false, "approvalsRequired": [], "approvalsGranted": [], "contextPacketHash": "0000000000000000000000000000000000000000000000000000000000000014", "expectedOutput": "Second small PHP edit"}
+        ]
+      },
+      "expectedDecision": "single-agent",
+      "expectedTopology": "single-agent",
+      "expectedReasons": ["coordination-not-justified"]
+    }
+  ]
+}

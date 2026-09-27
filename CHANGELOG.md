@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.8.0] - 2026-09-27
+
+### Added
+
+- A schema-versioned multi-agent coordination policy that chooses single-agent,
+  delegated, or held execution and routes every registered specialist by
+  capability.
+- Deterministic parallel, pipeline, and hybrid scheduling with a four-agent
+  ceiling, typed handoffs, source-bound plan receipts, and measured
+  single-agent versus multi-agent comparison receipts.
+- Ten coordination scenarios, twenty-two focused tests, an operator runbook, and a
+  dedicated release-required CI job.
+
+### Changed
+
+- The shared harness and canonical orchestration contract now require safe
+  delegation planning, one task per agent per wave, explicit dependency
+  evidence, completed-lane preservation, and proof before adopting delegation.
+- The enforcement map now covers 22 controls and immutable publication
+  requires 23 named hosted-CI jobs.
+
+### Fixed
+
+- Tiny or sequential work can no longer justify delegation when coordination
+  overhead removes the predicted benefit.
+- Cycles, missing capabilities or approvals, unordered mutable-path ownership,
+  duplicate side-effect keys, agent double-booking, duplicate work, deadlocks,
+  path conflicts, and stale handoffs now fail closed.
+
+### Security
+
+- Handoff content is treated as untrusted data and cannot widen paths, grant
+  approvals, change success criteria, or override current user authority.
+- Coordination receipts reject traversal, symlinks, source drift, tampering,
+  malformed evidence, and unsafe attempts to overwrite sealed sources.
+
 ## [9.7.0] - 2026-09-27
 
 ### Added

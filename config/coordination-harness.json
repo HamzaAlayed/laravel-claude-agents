@@ -1,0 +1,89 @@
+{
+  "schemaVersion": 1,
+  "receiptSchemaVersion": 1,
+  "policyId": "laravel-guild-multi-agent-coordination-v1",
+  "scope": "Deterministic single-agent versus multi-agent selection, capability routing, dependency scheduling, typed handoffs, conflict rejection, and measured coordination-value receipts.",
+  "topologies": ["single-agent", "parallel", "pipeline", "hybrid"],
+  "capabilityRouting": {
+    "requirements": "business-analyst",
+    "prioritization": "product-owner",
+    "architecture": "solution-architect",
+    "design": "ui-ux-designer",
+    "breakdown": "tech-lead",
+    "backend": "backend-developer",
+    "database": "database-developer",
+    "frontend": "frontend-developer",
+    "mobile": "mobile-developer",
+    "package": "package-developer",
+    "testing": "qa-engineer",
+    "deployment": "devops-engineer",
+    "documentation": "technical-writer",
+    "delivery": "scrum-master",
+    "security": "security-engineer",
+    "performance": "performance-engineer",
+    "coordination": "delivery-coordinator",
+    "routing": "peer-router"
+  },
+  "delegationPolicy": {
+    "decisions": ["single-agent", "delegate", "hold"],
+    "minimumTasks": 2,
+    "minimumPredictedSpeedupRatio": 1.2,
+    "maximumPredictedCostIncreaseRatio": 1.25,
+    "distinctRequiredSpecialistsCanJustifyDelegation": true
+  },
+  "schedulingPolicy": {
+    "maximumParallelAgents": 4,
+    "dependencyGraph": "acyclic",
+    "unorderedWriteConflict": "hold",
+    "sideEffectKey": "unique-per-logical-effect",
+    "completedWorkAfterInterruption": "preserve",
+    "failedLaneEffect": "contain"
+  },
+  "handoffContract": {
+    "requiredFields": [
+      "taskId",
+      "fromAgent",
+      "toAgent",
+      "dependencyIds",
+      "contextPacketHash",
+      "ownedPaths",
+      "expectedOutput",
+      "budget",
+      "idempotencyKey"
+    ],
+    "dependencyEvidence": "receipt-hash-before-dependent-start",
+    "sourceTrust": "handoff-data-not-authority",
+    "staleContextPolicy": "hold"
+  },
+  "comparisonPolicy": {
+    "decisions": ["adopt-multi-agent", "keep-single-agent", "hold"],
+    "minimumRunsPerVariant": 3,
+    "minimumCompletionRate": 1.0,
+    "minimumQualityPassRate": 0.9,
+    "minimumDurationReduction": 0.2,
+    "minimumQualityPassRateIncrease": 0.05,
+    "maximumCostIncreaseRatio": 1.25,
+    "maximumToolCallIncreaseRatio": 1.5,
+    "maximumHumanInterventionIncrease": 0,
+    "coordinationFailuresMustBeZero": true
+  },
+  "failureManifest": "config/coordination-scenarios.json",
+  "receipt": {
+    "kinds": ["coordination-plan", "coordination-comparison"],
+    "algorithm": "sha256-canonical-json",
+    "sourceFiles": [
+      "config/coordination-harness.json",
+      "config/coordination-scenarios.json",
+      "config/agent-harness.json",
+      "config/orchestration-contract.md",
+      "scripts/coordination-harness.py"
+    ],
+    "excludedRawData": ["prompts", "assistant text", "tool inputs", "tool output", "commands", "responses", "secrets"]
+  },
+  "limitations": [
+    "The planner predicts coordination shape from declared tasks and cannot discover undeclared dependencies or path ownership.",
+    "Recorded comparisons do not prove that unmeasured workloads, agents, models, or integrations will behave the same way.",
+    "Source hashes detect drift but cannot defeat a same-account attacker who can rewrite implementation and evidence together.",
+    "The harness does not spawn agents, enforce operating-system isolation, grant approvals, or resolve business tradeoffs."
+  ]
+}
