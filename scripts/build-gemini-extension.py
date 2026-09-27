@@ -14,7 +14,7 @@ What it produces (all under gemini/):
   commands/*.toml         Claude .md slash commands -> Gemini TOML ({{args}} kept)
   skills/                 laravel-conventions copied verbatim (shared agentskills.io standard)
   hooks/hooks.json        PreToolUse -> BeforeTool wiring (${extensionPath})
-  scripts/*.sh            the five guard scripts, copied (self-contained extension)
+  scripts/*               guard scripts and policy runtime, copied (self-contained extension)
 
 Deterministic: no network, no LLM. Bodies are preserved byte-for-byte.
 """
@@ -205,7 +205,7 @@ def build_scripts():
     src = os.path.join(ROOT, "scripts")
     dst = os.path.join(GEM, "scripts")
     os.makedirs(dst, exist_ok=True)
-    for fn in ("block-prod-destructive-sql.sh", "block-prod-artisan.sh", "enforce-sail.sh", "protect-env-files.sh", "enforce-close-file.sh", "enforce-stage-return.sh", "enforce-sprint-file.sh", "enforce-lessons-file.sh"):
+    for fn in ("block-prod-destructive-sql.sh", "block-prod-artisan.sh", "enforce-sail.sh", "protect-env-files.sh", "enforce-close-file.sh", "enforce-stage-return.sh", "enforce-sprint-file.sh", "enforce-lessons-file.sh", "enforce-sensitive-access.sh", "enforce-sensitive-access.py"):
         with open(os.path.join(src, fn)) as f:
             txt = f.read()
         out = os.path.join(dst, fn)
@@ -227,6 +227,12 @@ def build_hooks():
     hooks = '''{
   "hooks": {
     "BeforeTool": [
+      {
+        "matcher": "read_file|read_many_files|search_file_content|run_shell_command|web_fetch",
+        "hooks": [
+          { "type": "command", "name": "enforce-sensitive-access", "command": "${extensionPath}/scripts/enforce-sensitive-access.sh" }
+        ]
+      },
       {
         "matcher": "run_shell_command",
         "hooks": [

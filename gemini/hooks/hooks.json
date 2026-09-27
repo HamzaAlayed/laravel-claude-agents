@@ -2,6 +2,12 @@
   "hooks": {
     "BeforeTool": [
       {
+        "matcher": "read_file|read_many_files|search_file_content|run_shell_command|web_fetch",
+        "hooks": [
+          { "type": "command", "name": "enforce-sensitive-access", "command": "${extensionPath}/scripts/enforce-sensitive-access.sh" }
+        ]
+      },
+      {
         "matcher": "run_shell_command",
         "hooks": [
           { "type": "command", "name": "block-prod-destructive-sql", "command": "${extensionPath}/scripts/block-prod-destructive-sql.sh" },

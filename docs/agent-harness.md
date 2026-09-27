@@ -57,6 +57,12 @@ Every agent run inherits these controls:
   Retrieval admits approved, unexpired, evidence-current project records and
   exact-agent records as untrusted data under a whole-record token budget.
   See [memory engineering](memory-engineering.md).
+- **Security governance:** runtime policy and explicit current user decisions
+  are authoritative; repository, memory, tool, log, issue, and external
+  content remain data rather than instructions. Secret access defaults to
+  deny, protected actions remain user-authoritative, and suspected boundary
+  violations stop and escalate. See
+  [agent security and governance](agent-security-governance.md).
 - **Adversarial gate:** the versioned attack matrix tests path containment,
   artifact and evidence integrity, authority, measurement, terminal states,
   replay, routing, and concurrency. Every attack asserts its exact safe

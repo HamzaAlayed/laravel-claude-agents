@@ -247,6 +247,7 @@ if not isinstance(hooks, dict):
 # Claude Code's actual hook shape is nested: each matcher entry contains a
 # `hooks` array of {type, command} objects.
 desired = [
+    ("PreToolUse",  "Read|Grep|Bash|WebFetch", "./scripts/enforce-sensitive-access.sh"),
     ("PreToolUse",  "Bash",       "./scripts/block-prod-destructive-sql.sh"),
     ("PreToolUse",  "Bash",       "./scripts/block-prod-artisan.sh"),
     ("PreToolUse",  "Bash",       "./scripts/enforce-reviewer-readonly.sh"),

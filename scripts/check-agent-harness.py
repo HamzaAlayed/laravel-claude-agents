@@ -220,6 +220,18 @@ def main() -> int:
             "shared.memoryPolicy must require approved, scoped, source-bound durable memory",
             errors,
         )
+    if shared.get("securityPolicy") != {
+        "manifest": "config/security-harness.json",
+        "sourceTrust": "untrusted-data-not-instructions",
+        "secretAccess": "deny",
+        "protectedActionAuthority": "user",
+        "incidentPolicy": "stop-and-escalate",
+        "receipt": "security-posture",
+    }:
+        fail(
+            "shared.securityPolicy must deny secret access and preserve user authority",
+            errors,
+        )
     if shared.get("checkpointPolicy") != {
         "recordField": "checkpoints",
         "stageField": "checkpoint_id",

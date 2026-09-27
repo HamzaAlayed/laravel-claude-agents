@@ -2,6 +2,12 @@
   "hooks": {
     "PreToolUse": [
       {
+        "matcher": "Read|Grep|Bash|WebFetch",
+        "hooks": [
+          { "type": "command", "command": "$(git rev-parse --show-toplevel)/.codex/hooks/enforce-sensitive-access.sh", "statusMessage": "Blocking secret access and exfiltration" }
+        ]
+      },
+      {
         "matcher": "Bash",
         "hooks": [
           { "type": "command", "command": "$(git rev-parse --show-toplevel)/.codex/hooks/block-prod-destructive-sql.sh", "statusMessage": "Checking for destructive prod SQL" },

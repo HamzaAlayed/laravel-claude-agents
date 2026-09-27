@@ -12,7 +12,7 @@ Produces (under codex/):
   AGENTS.md                         from CLAUDE.md.template (Codex's native context)
   .agents/skills/laravel-conventions/  the skill, verbatim (agentskills.io standard)
   .codex/hooks.json                 PreToolUse wiring (git-root-resolved script paths)
-  .codex/hooks/*.sh                 block-prod-* (verbatim) + codex apply_patch-aware .env guard
+  .codex/hooks/*                    guardrail scripts + sensitive-access policy runtime
   (install-codex.sh is hand-authored and left untouched.)
 
 Deterministic: no network, no LLM.
@@ -117,11 +117,23 @@ def build_hooks():
     out = os.path.join(hooks_dir, "enforce-lessons-file.sh")
     write(out, txt)
     os.chmod(out, 0o755)
+    for fn in ("enforce-sensitive-access.sh", "enforce-sensitive-access.py"):
+        with open(os.path.join(ROOT, "scripts", fn)) as f:
+            txt = sanitize(f.read())
+        out = os.path.join(hooks_dir, fn)
+        write(out, txt)
+        os.chmod(out, 0o755)
 
     git_root = "$(git rev-parse --show-toplevel)"
     hooks_json = '''{
   "hooks": {
     "PreToolUse": [
+      {
+        "matcher": "Read|Grep|Bash|WebFetch",
+        "hooks": [
+          { "type": "command", "command": "%(r)s/.codex/hooks/enforce-sensitive-access.sh", "statusMessage": "Blocking secret access and exfiltration" }
+        ]
+      },
       {
         "matcher": "Bash",
         "hooks": [
@@ -156,7 +168,7 @@ def main():
     build_agents_md()
     build_skill()
     build_hooks()
-    print("codex target built: AGENTS.md + 8 skills + 8 PreToolUse guardrail hooks")
+    print("codex target built: AGENTS.md + 8 skills + 9 PreToolUse guardrail hooks")
 
 
 if __name__ == "__main__":

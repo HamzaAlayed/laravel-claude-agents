@@ -129,6 +129,14 @@
       "conflictPolicy": "explicit-supersession",
       "deletionPolicy": "two-step-tombstone"
     },
+    "securityPolicy": {
+      "manifest": "config/security-harness.json",
+      "sourceTrust": "untrusted-data-not-instructions",
+      "secretAccess": "deny",
+      "protectedActionAuthority": "user",
+      "incidentPolicy": "stop-and-escalate",
+      "receipt": "security-posture"
+    },
     "checkpointPolicy": {
       "recordField": "checkpoints",
       "stageField": "checkpoint_id",

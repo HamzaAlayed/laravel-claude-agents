@@ -1,6 +1,6 @@
 # Which Laravel Guild guarantees are actually enforced?
 
-Last verified 2026-09-26 against pack v9.5.0.
+Last verified 2026-09-27 against pack v9.6.0.
 
 This map separates mechanically enforced controls from pre-tool hooks, release-gated evidence, operator decisions, and prompt guidance across the Laravel Guild engineering loop.
 
@@ -25,6 +25,7 @@ A prompt instruction is never presented as a hard control on its own.
 | --- | --- | --- |
 | [`adversarial-gate`](#adversarial-gate) — Versioned attack matrix | `ci` | Fail hosted CI and prevent immutable release publication for the exact commit. |
 | [`agent-policy-profiles`](#agent-policy-profiles) — Shared and role-specific harness policy | `runtime`, `pre-tool-hook`, `ci`, `prompt` | Reject an unknown, incomplete, or contradictory profile before release or planned execution. |
+| [`agent-security-governance`](#agent-security-governance) — Agent security and governance boundary | `runtime`, `pre-tool-hook`, `ci`, `operator`, `prompt` | Deny the covered tool call or reject stale evidence before execution, omit sensitive input from diagnostics, stop the affected lane, and require explicit user resolution. |
 | [`bounded-retries`](#bounded-retries) — One auditable retry | `runtime`, `ci`, `operator`, `prompt` | Requeue once with stale evidence invalidated, then fail the stage and stop delivery on exhaustion. |
 | [`context-packets`](#context-packets) — Bounded source-bound context packets | `runtime`, `ci`, `prompt` | Refuse construction or verification and stop dispatch when mandatory context does not fit, an input is unsafe, integrity fails, or authoritative state is stale. |
 | [`criterion-evidence`](#criterion-evidence) — Criterion-linked verification | `runtime`, `ci`, `operator`, `prompt` | Reject the report and leave the stage nonterminal when evidence coverage is missing or untrusted. |
@@ -68,6 +69,18 @@ A prompt instruction is never presented as a hard control on its own.
 - Failure mode: Reject an unknown, incomplete, or contradictory profile before release or planned execution.
 - Operator action: Choose the registered specialist whose authority matches the requested work; do not widen a profile inside a task.
 - Limitation: Direct shell access outside installed hooks is not converted into an operating-system sandbox by this profile.
+
+### agent-security-governance
+
+**Agent security and governance boundary.** Untrusted content cannot grant authority, registered agents remain least-privilege, covered secret reads and exfiltration shapes are denied before execution, and security posture evidence is source-bound.
+
+- Enforced by: `runtime`, `pre-tool-hook`, `ci`, `operator`, `prompt`
+- Implementation: [`config/security-harness.json`](../config/security-harness.json), [`config/security-attacks.json`](../config/security-attacks.json), [`scripts/security-harness.py`](../scripts/security-harness.py), [`scripts/enforce-sensitive-access.py`](../scripts/enforce-sensitive-access.py), [`scripts/enforce-sensitive-access.sh`](../scripts/enforce-sensitive-access.sh)
+- Evidence: [`tests/security/test_security_governance.py`](../tests/security/test_security_governance.py), [`tests/security/test_security_harness.py`](../tests/security/test_security_harness.py), [`tests/guardrails.test.sh`](../tests/guardrails.test.sh)
+- Required CI: `security governance`, `guardrail tests`
+- Failure mode: Deny the covered tool call or reject stale evidence before execution, omit sensitive input from diagnostics, stop the affected lane, and require explicit user resolution.
+- Operator action: Investigate with non-sensitive metadata, rotate exposed credentials outside the repository, repair the control or install, and authorize any protected recovery action explicitly.
+- Limitation: Installed hooks are not an OS sandbox, pattern matching cannot cover every covert channel or encoding, source hashes are not signatures against same-account rewriting, and human approval quality remains external.
 
 ### bounded-retries
 
@@ -286,7 +299,7 @@ A prompt instruction is never presented as a hard control on its own.
 python3 scripts/check-enforcement-map.py
 ```
 
-A healthy checkout reports `19 controls` and exits `0`. The checker validates
+A healthy checkout reports `20 controls` and exits `0`. The checker validates
 the exact control inventory, safe repository-local evidence paths, release-gated CI
 job names, enforcement-level ordering, and byte-for-byte agreement with this page.
 It does not execute commands stored in data files.

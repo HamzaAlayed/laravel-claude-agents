@@ -128,6 +128,9 @@ scripts/
 ├── enforce-kernel-approvals.py   # Durable approval and kernel-state policy engine
 ├── enforce-kernel-budgets.sh     # Meter stages and stop exact repeated tool cycles
 ├── enforce-kernel-budgets.py     # Persist usage, enforce budgets, and detect loops
+├── enforce-sensitive-access.sh   # Block secret reads and common exfiltration shapes
+├── enforce-sensitive-access.py   # Cross-runtime sensitive-access policy engine
+├── security-harness.py           # Validate security policy and seal posture receipts
 ├── guild-kernel/                 # Durable orchestration state machine and CLI
 ├── outcome-benchmark.py          # Compare read-only performance captures and verify receipts
 ├── enforce-sail.sh               # Redirect bare php/composer through ./vendor/bin/sail on Sail projects
@@ -152,7 +155,7 @@ skills/                           # 8 on-demand cookbooks (see the Skills sectio
 ├── accessibility-design/         # WCAG 2.2 AA thresholds, Livewire/Inertia focus, mobile a11y
 └── docs-authoring/               # Changelog / release-notes / runbook / API-reference templates
 
-hooks/hooks.json                  # Plugin hook manifest (12 guardrails + the agents-board observer)
+hooks/hooks.json                  # Plugin hook manifest (13 guardrails + the agents-board observer)
 tests/guardrails.test.sh          # Zero-dependency test harness for the guardrails
 .github/workflows/ci.yml          # shellcheck + guardrail tests + manifest validation
 ```
@@ -275,9 +278,18 @@ judge stays advisory; same-definition receipt comparison exits nonzero on lost
 quality or a material operational regression. See
 [evaluation engineering](docs/evaluation-engineering.md).
 
+**Agent security is an enforced trust boundary.** Runtime policy and explicit
+current user decisions are authoritative; repository, memory, tool, log, issue,
+and external content remain data and cannot grant capability or approval. A
+cross-runtime pre-tool guard denies direct secret reads and common environment,
+variable-output, and dynamic-upload exfiltration shapes without echoing the
+submitted input. Thirteen registered zero-side-effect attacks and a
+source-bound posture receipt gate release. See
+[agent security and governance](docs/agent-security-governance.md).
+
 **Every guarantee names its enforcement boundary.** The versioned enforcement
 map separates runtime rejection, installed pre-tool hooks, required hosted CI,
-authoritative human decisions, and prompt-only guidance for 19 controls. Each
+authoritative human decisions, and prompt-only guidance for 20 controls. Each
 entry links to its implementation, executable evidence, safe failure mode,
 operator action, and known limitation. CI rejects missing or unsafe evidence,
 unknown release gates, prompt-only guarantees, and stale generated prose. See
@@ -303,7 +315,7 @@ frontmatter in CI; see the [complete harness table](docs/agent-harness.md).
 
 **Reviewers cannot edit code.** `tech-lead`, `security-engineer`, and `performance-engineer` are read-only (`disallowedTools: Edit, Write`). They return findings; the `delivery-coordinator` persists the reports and builders apply the changes. This keeps reviews trustworthy and prevents reviewer drift. (On the residual `Bash` write-vector and how to fully sandbox a reviewer, see [docs/read-only-by-design.md](docs/read-only-by-design.md).)
 
-**Guardrails fail closed.** The twelve guardrail hooks are deny-rules. Shell guards use a tested parser-fallback chain (jq → python3 → conservative bare-string matching), while the Python-backed kernel policies fail closed if their runtime or state is invalid. CI runs the full shell harness with and without jq. The one fail-open script is the board observer, deliberately: a dashboard must never block delivery.
+**Guardrails fail closed.** The thirteen guardrail hooks are deny-rules. Shell guards use a tested parser-fallback chain (jq → python3 → conservative bare-string matching), while the Python-backed kernel and security policies fail closed if their runtime or state is invalid. CI runs the full shell harness with and without jq. The one fail-open script is the board observer, deliberately: a dashboard must never block delivery.
 
 **Sensitive work waits for the human.** A stage declares `approval_categories`
 from its selected agent profile. The kernel shows pending lanes as `⏸`, omits
@@ -438,6 +450,7 @@ They exit `2` to block and print a clear reason.
 | `block-prod-destructive-sql.sh` | `DROP`, `TRUNCATE`, unscoped `DELETE` / `UPDATE`                                                                            |
 | `block-prod-artisan.sh`         | `migrate:fresh`, `db:wipe`, `migrate:reset`, `tinker`, `queue:flush`, etc., against `--env=production` or `.env.production` |
 | `protect-env-files.sh`          | Writes to `.env`, `.env.production`, `.env.prod`, `.env.live`, `.env.staging`, `.env.local`, and credential-looking paths   |
+| `enforce-sensitive-access.sh`   | Read, grep, shell, or web-fetch calls that directly access common secret paths, enumerate the environment, print secret-shaped variables, place credentials in URLs, or dynamically upload shell-expanded data. Diagnostics omit the submitted input. |
 | `enforce-close-file.sh`         | Write\|Edit of `docs/delivery/*/close.md` that is not helper shape (`VERIFIED:` / `NOT-CHECKED:` / `STATUS: running\|done\|stopped\|budget_exceeded` / `BOARD:`); also Bash writes of that path (`>`, `>>`, `tee`, heredoc `<<`) — use the Write tool and copy `skills/delivery-templates/close.md` |
 | `enforce-stage-return.sh`       | Write\|Edit of `docs/delivery/*/stages/*.md` that is not helper shape (`STATUS:` / `DID:` / `VERIFIED:` / `NOT-CHECKED:` / `FLAGS:` / `NEXT:`); also Bash writes of that path (`>`, `>>`, `tee`, heredoc `<<`) — use the Write tool and copy `skills/delivery-templates/stage-return.md` |
 | `enforce-sprint-file.sh`        | Write\|Edit of `docs/sprints/*/sprint.md` that is not helper shape (`GOAL:` / `WIP:` / `BOARD:` / `STATUS:`); also Bash writes of that path (`>`, `>>`, `tee`, heredoc `<<`) — the kernel renders that view |
@@ -454,6 +467,12 @@ Example hook config (`.claude/settings.json`) — this is the shape `install.sh`
 {
   "hooks": {
     "PreToolUse": [
+      {
+        "matcher": "Read|Grep|Bash|WebFetch",
+        "hooks": [
+          { "type": "command", "command": "./scripts/enforce-sensitive-access.sh" }
+        ]
+      },
       {
         "matcher": "Bash",
         "hooks": [
@@ -536,7 +555,7 @@ Add the marketplace once, then install the plugin:
 /plugin install laravel-team@laravel-claude-agents
 ```
 
-That registers all 18 agents, the 16 slash commands, the `laravel-conventions` skill, and the twelve guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
+That registers all 18 agents, the 16 slash commands, the `laravel-conventions` skill, and the 13 guardrail hooks (wired through `${CLAUDE_PLUGIN_ROOT}`). Update with `/plugin marketplace update laravel-claude-agents`. To share with a team, install at project scope:
 
 ```
 /plugin install laravel-team@laravel-claude-agents --scope project
@@ -563,14 +582,14 @@ It registers the 17 subagents (auto-delegated, or call `@backend-developer` etc.
 
 #### Codex CLI
 
-Codex has no one-command install, so the pack ships a **Codex Core** target under [`codex/`](codex/) — `AGENTS.md` (Codex's native context file), the `laravel-conventions` skill, and the 8 guardrail hooks as `PreToolUse`. Install it into your project:
+Codex has no one-command install, so the pack ships a **Codex Core** target under [`codex/`](codex/) — `AGENTS.md` (Codex's native context file), the `laravel-conventions` skill, and the 9 guardrail hooks as `PreToolUse`. Install it into your project:
 
 ```bash
 git clone https://github.com/HamzaAlayed/laravel-claude-agents
 ./laravel-claude-agents/codex/install-codex.sh /path/to/your/laravel/project
 ```
 
-It drops `AGENTS.md` (only if absent), `.agents/skills/laravel-conventions/`, and `.codex/hooks.json` + `.codex/hooks/*.sh` (hook paths resolve from the git root). On the next `codex` run you're asked to review and trust the hooks. The guard scripts use the same `.tool_input.command` / `exit 2` contract as Claude, with an `apply_patch`-aware `.env` guard that inspects the patch's target paths.
+It drops `AGENTS.md` (only if absent), `.agents/skills/laravel-conventions/`, and `.codex/hooks.json` + `.codex/hooks/*` (hook paths resolve from the git root). On the next `codex` run you're asked to review and trust the hooks. The guard scripts use the same `.tool_input.command` / `exit 2` contract as Claude, with an `apply_patch`-aware `.env` guard and the shared Python sensitive-access policy.
 
 > **Scope:** the full 18-agent team is **not** ported to Codex — its subagent model is a different `config.toml` schema. Codex Core ships the conventions skill + guardrails; use Claude Code or Gemini CLI for the full team.
 
