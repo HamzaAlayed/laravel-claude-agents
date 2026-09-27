@@ -36,6 +36,7 @@ REQUIRED_CONTROL_IDS = {
     "evaluation-receipts",
     "agent-security-governance",
     "agent-reliability-operations",
+    "multi-agent-coordination",
     "immutable-releases",
 }
 CONTROL_FIELDS = {

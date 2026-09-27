@@ -131,6 +131,8 @@ scripts/
 ├── enforce-sensitive-access.sh   # Block secret reads and common exfiltration shapes
 ├── enforce-sensitive-access.py   # Cross-runtime sensitive-access policy engine
 ├── security-harness.py           # Validate security policy and seal posture receipts
+├── reliability-harness.py        # Evaluate SLOs, canaries, circuits, and rollback evidence
+├── coordination-harness.py       # Plan agent waves and prove coordination value
 ├── guild-kernel/                 # Durable orchestration state machine and CLI
 ├── outcome-benchmark.py          # Compare read-only performance captures and verify receipts
 ├── enforce-sail.sh               # Redirect bare php/composer through ./vendor/bin/sail on Sail projects
@@ -296,9 +298,18 @@ agent instructions, model, tools, policies, and harness version while leaving
 traffic routing and every database action under operator control. See
 [agent reliability and operations](docs/agent-reliability-operations.md).
 
+**Multiple agents must earn their coordination cost.** A deterministic planner
+routes all 18 capabilities, rejects cycles, missing approvals, conflicting
+writes, duplicate logical side effects, and agent double-booking, then emits
+bounded dependency-ready waves and typed handoffs. A separate source-bound
+comparison accepts multi-agent execution only when representative runs preserve
+quality, avoid coordination failures, and show material value within cost,
+tool-call, and intervention ceilings. See
+[multi-agent architecture and coordination](docs/multi-agent-coordination.md).
+
 **Every guarantee names its enforcement boundary.** The versioned enforcement
 map separates runtime rejection, installed pre-tool hooks, required hosted CI,
-authoritative human decisions, and prompt-only guidance for 21 controls. Each
+authoritative human decisions, and prompt-only guidance for 22 controls. Each
 entry links to its implementation, executable evidence, safe failure mode,
 operator action, and known limitation. CI rejects missing or unsafe evidence,
 unknown release gates, prompt-only guarantees, and stale generated prose. See

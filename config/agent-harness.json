@@ -146,6 +146,16 @@
       "databaseAction": "never-automatic",
       "receipt": "agent-operational-health"
     },
+    "coordinationPolicy": {
+      "manifest": "config/coordination-harness.json",
+      "failureManifest": "config/coordination-scenarios.json",
+      "planningDecisions": ["single-agent", "delegate", "hold"],
+      "comparisonDecisions": ["adopt-multi-agent", "keep-single-agent", "hold"],
+      "maximumParallelAgents": 4,
+      "unorderedWriteConflict": "hold",
+      "completedWorkAfterInterruption": "preserve",
+      "receipt": ["coordination-plan", "coordination-comparison"]
+    },
     "checkpointPolicy": {
       "recordField": "checkpoints",
       "stageField": "checkpoint_id",

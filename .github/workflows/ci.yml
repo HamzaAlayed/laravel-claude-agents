@@ -48,6 +48,7 @@ jobs:
             config/evaluation-harness.json config/evaluation-cases.json \
             config/security-harness.json config/security-attacks.json \
             config/reliability-harness.json config/reliability-scenarios.json \
+            config/coordination-harness.json config/coordination-scenarios.json \
             config/enforcement-map.json \
             config/release-harness.json; do
             echo "validating $f"
@@ -252,6 +253,17 @@ jobs:
           python3 scripts/reliability-harness.py validate --root .
           python3 scripts/reliability-harness.py exercise --root .
           python3 -m unittest discover -s tests/reliability -t tests/reliability -v
+
+  multi-agent-coordination:
+    name: multi-agent coordination
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate routing, scheduling, failure scenarios, and value receipts
+        run: |
+          python3 scripts/coordination-harness.py validate --root .
+          python3 scripts/coordination-harness.py exercise --root . > "$RUNNER_TEMP/coordination-scenarios.json"
+          python3 -m unittest discover -s tests/coordination -t tests/coordination -v
 
   enforcement-map:
     name: enforcement map

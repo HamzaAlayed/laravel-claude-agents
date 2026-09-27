@@ -40,6 +40,7 @@ A prompt instruction is never presented as a hard control on its own.
 | [`interruption-recovery`](#interruption-recovery) — Durable interrupted-claim recovery | `runtime`, `ci`, `operator`, `prompt` | Keep the lane interrupted and unavailable until a valid resolution is recorded. |
 | [`laravel-benchmark-capture`](#laravel-benchmark-capture) — Guarded Laravel benchmark capture | `runtime`, `ci`, `operator`, `prompt` | Exit unsuccessfully and leave no new capture when SQL, environment, path, database state, behavior stability, or schema checks fail. |
 | [`loop-detection`](#loop-detection) — Exact repeated-tool-cycle stop | `runtime`, `pre-tool-hook`, `ci`, `prompt` | Fail the lane, stop the delivery, and deny the repeated call before execution. |
+| [`multi-agent-coordination`](#multi-agent-coordination) — Measured multi-agent planning and coordination | `runtime`, `ci`, `operator`, `prompt` | Keep narrow or low-value work with one agent; hold cyclic, unroutable, unapproved, conflicting, or duplicate-side-effect plans; and reject adoption when recorded multi-agent runs regress quality, completion, cost, tool calls, human intervention, or coordination safety. |
 | [`orchestration-contract`](#orchestration-contract) — Canonical lifecycle instructions | `ci`, `prompt` | Fail synchronization or CI when a carrier is stale, missing, duplicated, or structurally corrupt. |
 | [`outcome-benchmark`](#outcome-benchmark) — Read-only outcome benchmark | `runtime`, `ci`, `operator`, `prompt` | Reject malformed, mutating, behavior-changing, non-improving, tampered, or source-drifted evidence and leave the criterion unverified. |
 | [`path-ownership`](#path-ownership) — Claimed path ownership | `runtime`, `pre-tool-hook`, `ci`, `prompt` | Deny the claim, native write, or stage report without accepting an out-of-scope output. |
@@ -251,6 +252,18 @@ A prompt instruction is never presented as a hard control on its own.
 - Operator action: Inspect the loop record and create a materially changed plan rather than replaying the same sequence.
 - Limitation: Semantically repetitive work with changing tool names or inputs is not classified as an exact cycle.
 
+### multi-agent-coordination
+
+**Measured multi-agent planning and coordination.** A workload is delegated only through an acyclic, capability-routed, approval-complete, conflict-free plan with bounded waves and typed handoffs; adoption requires representative evidence that coordination preserves quality and produces material value.
+
+- Enforced by: `runtime`, `ci`, `operator`, `prompt`
+- Implementation: [`config/coordination-harness.json`](../config/coordination-harness.json), [`config/coordination-scenarios.json`](../config/coordination-scenarios.json), [`scripts/coordination-harness.py`](../scripts/coordination-harness.py), [`config/agent-harness.json`](../config/agent-harness.json), [`config/orchestration-contract.md`](../config/orchestration-contract.md)
+- Evidence: [`tests/coordination/test_coordination_harness.py`](../tests/coordination/test_coordination_harness.py)
+- Required CI: `multi-agent coordination`
+- Failure mode: Keep narrow or low-value work with one agent; hold cyclic, unroutable, unapproved, conflicting, or duplicate-side-effect plans; and reject adoption when recorded multi-agent runs regress quality, completion, cost, tool calls, human intervention, or coordination safety.
+- Operator action: Declare complete task dependencies and ownership, resolve every hold reason, dispatch only emitted waves, retain dependency receipts, and compare representative single-agent and multi-agent runs before making delegation the default.
+- Limitation: The harness evaluates declarations and recorded aggregates but does not spawn agents, discover hidden dependencies, enforce OS isolation, prove evidence representativeness, or replace human approval quality.
+
 ### orchestration-contract
 
 **Canonical lifecycle instructions.** The shared lifecycle text is authored once and materialized byte-for-byte into all registered command and coordinator carriers.
@@ -312,7 +325,7 @@ A prompt instruction is never presented as a hard control on its own.
 python3 scripts/check-enforcement-map.py
 ```
 
-A healthy checkout reports `21 controls` and exits `0`. The checker validates
+A healthy checkout reports `22 controls` and exits `0`. The checker validates
 the exact control inventory, safe repository-local evidence paths, release-gated CI
 job names, enforcement-level ordering, and byte-for-byte agreement with this page.
 It does not execute commands stored in data files.

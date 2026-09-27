@@ -30,6 +30,7 @@ JOBS = [
     "memory retrieval harness",
     "security governance",
     "agent reliability operations",
+    "multi-agent coordination",
     "enforcement map",
     "evaluation harness",
     "eval cost parser units",
