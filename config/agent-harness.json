@@ -156,6 +156,15 @@
       "completedWorkAfterInterruption": "preserve",
       "receipt": ["coordination-plan", "coordination-comparison"]
     },
+    "economicsPolicy": {
+      "manifest": "config/economics-harness.json",
+      "failureManifest": "config/economics-scenarios.json",
+      "routingDecisions": ["route", "hold"],
+      "comparisonDecisions": ["adopt-candidate", "keep-baseline", "hold"],
+      "metricOfRecord": "billedUsdPerSuccessfulOutcome",
+      "protectedActionRequiresApproval": true,
+      "receipt": ["economics-route", "economics-comparison"]
+    },
     "checkpointPolicy": {
       "recordField": "checkpoints",
       "stageField": "checkpoint_id",

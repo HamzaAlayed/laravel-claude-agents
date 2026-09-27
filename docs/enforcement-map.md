@@ -24,6 +24,7 @@ A prompt instruction is never presented as a hard control on its own.
 | Control | Enforcement | Failure mode |
 | --- | --- | --- |
 | [`adversarial-gate`](#adversarial-gate) — Versioned attack matrix | `ci` | Fail hosted CI and prevent immutable release publication for the exact commit. |
+| [`agent-economics`](#agent-economics) — Quality-gated agent cost optimization | `runtime`, `ci`, `operator`, `prompt` | Hold unknown, unapproved, or over-budget routing; keep the baseline when candidate evidence is insufficient, unchanged, unsafe, lower-quality, operationally worse, or saves less than the material threshold; reject malformed, tampered, or source-drifted receipts. |
 | [`agent-policy-profiles`](#agent-policy-profiles) — Shared and role-specific harness policy | `runtime`, `pre-tool-hook`, `ci`, `prompt` | Reject an unknown, incomplete, or contradictory profile before release or planned execution. |
 | [`agent-reliability-operations`](#agent-reliability-operations) — SLO-gated canary and rollback decisions | `runtime`, `ci`, `operator`, `prompt` | Hold insufficient or unhealthy baseline evidence; roll back an unhealthy or materially regressed canary; open the circuit on safety violations, duplicate side effects, or repeated dependency failures; and reject tampered or stale receipts. |
 | [`agent-security-governance`](#agent-security-governance) — Agent security and governance boundary | `runtime`, `pre-tool-hook`, `ci`, `operator`, `prompt` | Deny the covered tool call or reject stale evidence before execution, omit sensitive input from diagnostics, stop the affected lane, and require explicit user resolution. |
@@ -59,6 +60,18 @@ A prompt instruction is never presented as a hard control on its own.
 - Failure mode: Fail hosted CI and prevent immutable release publication for the exact commit.
 - Operator action: Add a stable attack ID and regression before accepting a newly discovered bypass as fixed.
 - Limitation: The committed matrix covers named threat families and is not a proof against unknown attacks or same-account arbitrary code execution.
+
+### agent-economics
+
+**Quality-gated agent cost optimization.** Work is routed through explicit complexity, risk, context, approval, and budget floors; a cheaper configuration is adopted only when representative recorded runs materially reduce billed cost per successful outcome without regressing completion, quality, safety, latency, tool calls, retries, or human intervention.
+
+- Enforced by: `runtime`, `ci`, `operator`, `prompt`
+- Implementation: [`config/economics-harness.json`](../config/economics-harness.json), [`config/economics-scenarios.json`](../config/economics-scenarios.json), [`scripts/economics-harness.py`](../scripts/economics-harness.py), [`config/agent-harness.json`](../config/agent-harness.json), [`config/orchestration-contract.md`](../config/orchestration-contract.md)
+- Evidence: [`tests/economics/test_economics_harness.py`](../tests/economics/test_economics_harness.py)
+- Required CI: `agent economics`
+- Failure mode: Hold unknown, unapproved, or over-budget routing; keep the baseline when candidate evidence is insufficient, unchanged, unsafe, lower-quality, operationally worse, or saves less than the material threshold; reject malformed, tampered, or source-drifted receipts.
+- Operator action: Classify the workload before dispatch, collect actual billed totals from representative repeated runs, review every hold or keep-baseline reason, and adopt only a verified source-bound receipt decision.
+- Limitation: Tier names are project selectors rather than provider guarantees; the harness evaluates recorded evidence but does not invoke models, prove workload representativeness, validate provider billing, or make protected-action approvals.
 
 ### agent-policy-profiles
 
@@ -325,7 +338,7 @@ A prompt instruction is never presented as a hard control on its own.
 python3 scripts/check-enforcement-map.py
 ```
 
-A healthy checkout reports `22 controls` and exits `0`. The checker validates
+A healthy checkout reports `23 controls` and exits `0`. The checker validates
 the exact control inventory, safe repository-local evidence paths, release-gated CI
 job names, enforcement-level ordering, and byte-for-byte agreement with this page.
 It does not execute commands stored in data files.

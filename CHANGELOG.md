@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.9.0] - 2026-09-27
+
+### Added
+
+- A schema-versioned Agent Economics & Cost Optimization policy that routes
+  work through economy, standard, or premium project tiers using explicit
+  complexity, risk, context, approval, and budget floors.
+- Safe cache and batch eligibility, verification-bound early stopping, and
+  source-bound comparisons using actual billed USD per successful outcome.
+- Ten economics scenarios, twenty-four focused tests, an operator runbook, and
+  a dedicated release-required CI job.
+
+### Changed
+
+- The shared harness and canonical orchestration contract now require cost
+  optimization to preserve completion, criteria, safety, latency, tool-call,
+  retry, intervention, and approval boundaries.
+- The enforcement map now covers 23 controls and immutable publication
+  requires 24 named hosted-CI jobs.
+
+### Fixed
+
+- A candidate can no longer claim savings from cheaper individual requests
+  when failures raise total billed cost per successful outcome.
+- Protected-risk work, unchanged configurations, excess attempts or batch
+  sizes, weakened criteria, and insufficient evidence now fail closed.
+
+### Security
+
+- Economics receipts exclude prompts, assistant text, commands, responses,
+  tool payloads, and secrets while binding policy and evidence sources.
+- Traversal, symlinks, source drift, receipt tampering, sealed-source
+  replacement, and silent hard-budget increases are rejected.
+
 ## [9.8.0] - 2026-09-27
 
 ### Added

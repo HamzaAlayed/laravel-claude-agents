@@ -1,0 +1,79 @@
+{
+  "schemaVersion": 1,
+  "receiptSchemaVersion": 1,
+  "policyId": "laravel-guild-agent-economics-v1",
+  "scope": "Deterministic model-tier routing, cache and batch eligibility, early-stop boundaries, hard task budgets, and source-bound cost-per-success comparisons.",
+  "tierProfiles": {
+    "economy": {"selector": "haiku", "rank": 1, "intendedUse": "Routine, low-risk work with bounded context and explicit checks."},
+    "standard": {"selector": "sonnet", "rank": 2, "intendedUse": "Default implementation work, tool use, and bounded specialist reasoning."},
+    "premium": {"selector": "opus", "rank": 3, "intendedUse": "Complex or high-risk reasoning where failure cost dominates token cost."}
+  },
+  "routingPolicy": {
+    "decisions": ["route", "hold"],
+    "complexityMinimumTier": {"routine": "economy", "bounded": "standard", "complex": "premium"},
+    "riskMinimumTier": {"low": "economy", "medium": "standard", "high": "premium", "protected": "premium"},
+    "longContextMinimumTier": "standard",
+    "protectedActionRequiresApproval": true,
+    "unknownClassificationDecision": "hold",
+    "downgradeRequiresAcceptedComparisonReceipt": true
+  },
+  "cachePolicy": {
+    "minimumReusableInputTokens": 2000,
+    "requiresStablePrefixHash": true,
+    "decision": ["reuse-eligible", "not-eligible"],
+    "neverCache": ["secrets", "credentials", "untrusted instructions", "volatile authorization state"]
+  },
+  "batchPolicy": {
+    "minimumItems": 2,
+    "maximumItems": 8,
+    "requiresIndependence": true,
+    "requiresSharedAuthorityScope": true,
+    "sideEffectsAllowed": false,
+    "decision": ["eligible", "separate"]
+  },
+  "earlyStopPolicy": {
+    "allowedAfter": "all-required-criteria-and-verification-pass",
+    "stopImmediatelyOn": ["safety violation", "protected-action approval missing", "hard budget breach", "corrupt evidence"],
+    "mustNotSkip": ["required verification", "security boundary", "approval", "receipt sealing"]
+  },
+  "comparisonPolicy": {
+    "decisions": ["adopt-candidate", "keep-baseline", "hold"],
+    "minimumRunsPerVariant": 5,
+    "minimumCompletionRate": 0.95,
+    "minimumQualityPassRate": 0.9,
+    "minimumCostPerSuccessfulOutcomeReduction": 0.15,
+    "maximumDurationIncreaseRatio": 1.25,
+    "maximumToolCallIncreaseRatio": 1.25,
+    "maximumRetryIncreasePerRun": 0,
+    "maximumHumanInterventionIncrease": 0,
+    "safetyViolationsMustBeZero": true,
+    "metricOfRecord": "billedUsdPerSuccessfulOutcome",
+    "diagnosticMetrics": ["input tokens", "output tokens", "cache read tokens", "cache write tokens", "tool calls", "retries", "duration"]
+  },
+  "budgetSource": {
+    "manifest": "config/agent-harness.json",
+    "jsonPath": "shared.budgets.defaults",
+    "dimensions": ["max_seconds", "max_tool_calls", "max_tokens", "max_usd"],
+    "retryLimitSource": "shared.retryPolicy.maxRetries"
+  },
+  "failureManifest": "config/economics-scenarios.json",
+  "receipt": {
+    "kinds": ["economics-route", "economics-comparison"],
+    "algorithm": "sha256-canonical-json",
+    "sourceFiles": [
+      "config/economics-harness.json",
+      "config/economics-scenarios.json",
+      "config/agent-harness.json",
+      "config/orchestration-contract.md",
+      "scripts/economics-harness.py"
+    ],
+    "excludedRawData": ["prompts", "assistant text", "tool inputs", "tool output", "commands", "responses", "secrets"]
+  },
+  "limitations": [
+    "Tier names are project selectors, not guarantees about a provider model's price, context size, intelligence, or availability.",
+    "Recorded billed USD is authoritative only for the captured account, provider, cache behavior, and workload distribution.",
+    "Cache and batch eligibility does not prove provider support or safe runtime execution; the caller must enforce the emitted boundary.",
+    "Source hashes detect drift but cannot defeat a same-account attacker who can rewrite implementation and evidence together.",
+    "The harness does not buy credits, invoke models, change provider configuration, or approve protected actions."
+  ]
+}

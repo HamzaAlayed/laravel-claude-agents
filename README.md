@@ -133,6 +133,7 @@ scripts/
 ├── security-harness.py           # Validate security policy and seal posture receipts
 ├── reliability-harness.py        # Evaluate SLOs, canaries, circuits, and rollback evidence
 ├── coordination-harness.py       # Plan agent waves and prove coordination value
+├── economics-harness.py          # Route tiers and prove cost per successful outcome
 ├── guild-kernel/                 # Durable orchestration state machine and CLI
 ├── outcome-benchmark.py          # Compare read-only performance captures and verify receipts
 ├── enforce-sail.sh               # Redirect bare php/composer through ./vendor/bin/sail on Sail projects
@@ -307,9 +308,18 @@ quality, avoid coordination failures, and show material value within cost,
 tool-call, and intervention ceilings. See
 [multi-agent architecture and coordination](docs/multi-agent-coordination.md).
 
+**Cheaper agents must preserve successful outcomes.** A deterministic
+economics router applies complexity, risk, context, approval, and hard-budget
+floors before dispatch, then separately decides when stable-prefix caching and
+side-effect-free batching are eligible. A source-bound comparison adopts a
+candidate only when at least five representative runs prove materially lower
+actual billed cost per successful outcome without regressing completion,
+quality, safety, latency, tools, retries, or human intervention. See
+[agent economics and cost optimization](docs/agent-economics.md).
+
 **Every guarantee names its enforcement boundary.** The versioned enforcement
 map separates runtime rejection, installed pre-tool hooks, required hosted CI,
-authoritative human decisions, and prompt-only guidance for 22 controls. Each
+authoritative human decisions, and prompt-only guidance for 23 controls. Each
 entry links to its implementation, executable evidence, safe failure mode,
 operator action, and known limitation. CI rejects missing or unsafe evidence,
 unknown release gates, prompt-only guarantees, and stale generated prose. See

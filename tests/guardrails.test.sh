@@ -719,7 +719,7 @@ expect "kernel exposes the observability command group" "1" \
   "$(grep -c 'observe = sub.add_parser("observe")' "$SCRIPT_DIR/scripts/guild-kernel/guild.py")"
 expect "shared observability excludes raw payloads" "1" \
   "$(grep -c '"rawPayloads": false' "$SCRIPT_DIR/config/agent-harness.json")"
-expect "one versioned enforcement map is committed" "22" \
+expect "one versioned enforcement map is committed" "23" \
   "$(python3 - "$SCRIPT_DIR/config/enforcement-map.json" <<'PY'
 import json, pathlib, sys
 payload = json.loads(pathlib.Path(sys.argv[1]).read_text())
@@ -781,6 +781,27 @@ expect "all orchestration carriers include multi-agent coordination" "10" \
   "$(grep -l '^> \*\*Multi-agent coordination:\*\*' "$SCRIPT_DIR"/commands/*.md "$SCRIPT_DIR"/agents/delivery-coordinator.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "README links multi-agent architecture and coordination" "1" \
   "$(grep -c 'multi-agent architecture and coordination' "$SCRIPT_DIR/README.md")"
+expect "one versioned agent economics policy is committed" "1" \
+  "$(python3 - "$SCRIPT_DIR/config/economics-harness.json" <<'PY'
+import json, pathlib, sys
+payload = json.loads(pathlib.Path(sys.argv[1]).read_text())
+valid = payload.get("schemaVersion") == 1 and payload.get("receiptSchemaVersion") == 1
+valid = valid and payload.get("routingPolicy", {}).get("decisions") == ["route", "hold"]
+valid = valid and payload.get("comparisonPolicy", {}).get("decisions") == ["adopt-candidate", "keep-baseline", "hold"]
+valid = valid and payload.get("comparisonPolicy", {}).get("metricOfRecord") == "billedUsdPerSuccessfulOutcome"
+print(1 if valid else 0)
+PY
+)"
+expect "CI has a separate agent economics gate" "1" \
+  "$(grep -c '^    name: agent economics$' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "CI runs agent economics tests" "1" \
+  "$(grep -c 'unittest discover -s tests/economics' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "release publication requires the agent economics gate" "1" \
+  "$(grep -c '"agent economics"' "$SCRIPT_DIR/config/release-harness.json")"
+expect "all orchestration carriers include agent economics" "10" \
+  "$(grep -l '^> \*\*Agent economics:\*\*' "$SCRIPT_DIR"/commands/*.md "$SCRIPT_DIR"/agents/delivery-coordinator.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "README links agent economics and cost optimization" "1" \
+  "$(grep -c 'agent economics and cost optimization' "$SCRIPT_DIR/README.md")"
 expect "Interface block binds the final answer to VERIFIED + NOT-CHECKED" "9" \
   "$(grep -l 'Your own final answer closes the same way' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # Tranche item 2 lived only in agents/delivery-coordinator.md, and eval run 6's
@@ -2012,6 +2033,8 @@ expect "install dest contains reliability policy, scenarios, and runtime" "3" \
   "$([ -f "$INSTALL_DEST/config/reliability-harness.json" ] && [ -f "$INSTALL_DEST/config/reliability-scenarios.json" ] && [ -f "$INSTALL_DEST/scripts/reliability-harness.py" ] && echo 3 || echo 0)"
 expect "install dest contains coordination policy, scenarios, and runtime" "3" \
   "$([ -f "$INSTALL_DEST/config/coordination-harness.json" ] && [ -f "$INSTALL_DEST/config/coordination-scenarios.json" ] && [ -f "$INSTALL_DEST/scripts/coordination-harness.py" ] && echo 3 || echo 0)"
+expect "install dest contains economics policy, scenarios, and runtime" "3" \
+  "$([ -f "$INSTALL_DEST/config/economics-harness.json" ] && [ -f "$INSTALL_DEST/config/economics-scenarios.json" ] && [ -f "$INSTALL_DEST/scripts/economics-harness.py" ] && echo 3 || echo 0)"
 expect "install dest contains the sensitive-access hook and engine" "2" \
   "$(find "$INSTALL_DEST/scripts" -maxdepth 1 -type f \( -name 'enforce-sensitive-access.sh' -o -name 'enforce-sensitive-access.py' \) | wc -l | tr -d ' ')"
 expect "installer wires sensitive access across declared tools" "1" \

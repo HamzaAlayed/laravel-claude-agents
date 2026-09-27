@@ -37,6 +37,7 @@ REQUIRED_CONTROL_IDS = {
     "agent-security-governance",
     "agent-reliability-operations",
     "multi-agent-coordination",
+    "agent-economics",
     "immutable-releases",
 }
 CONTROL_FIELDS = {
