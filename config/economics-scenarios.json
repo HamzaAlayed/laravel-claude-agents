@@ -1,0 +1,106 @@
+{
+  "schemaVersion": 1,
+  "policyId": "laravel-guild-agent-economics-v1",
+  "scenarios": [
+    {
+      "id": "ECON-001",
+      "name": "routine low-risk work uses the economy tier",
+      "workload": {"schemaVersion": 1, "workloadId": "routine-doc-check", "complexity": "routine", "risk": "low", "requiredCapabilities": ["read", "verify"], "estimatedSeconds": 120, "estimatedInputTokens": 1000, "estimatedOutputTokens": 300, "estimatedToolCalls": 4, "estimatedRetries": 0, "estimatedUsd": 0.10, "longContext": false, "stablePrefixHash": null, "reusableInputTokens": 0, "independentItems": 1, "itemsIndependent": true, "sharedAuthorityScope": true, "hasSideEffects": false, "protectedAction": false, "approvalGranted": false, "requiredCriteria": ["answer-correct", "evidence-present"], "budget": {"maxSeconds": 300, "maxTokens": 100000, "maxToolCalls": 20, "maxRetries": 1, "maxUsd": 1.0}},
+      "expectedDecision": "route",
+      "expectedTier": "economy",
+      "expectedCache": "not-eligible",
+      "expectedBatch": "separate",
+      "expectedReasons": ["routine-economy-route"]
+    },
+    {
+      "id": "ECON-002",
+      "name": "bounded implementation uses the standard tier",
+      "workload": {"schemaVersion": 1, "workloadId": "bounded-implementation", "complexity": "bounded", "risk": "low", "requiredCapabilities": ["edit", "test"], "estimatedSeconds": 600, "estimatedInputTokens": 20000, "estimatedOutputTokens": 4000, "estimatedToolCalls": 30, "estimatedRetries": 0, "estimatedUsd": 1.50, "longContext": false, "stablePrefixHash": null, "reusableInputTokens": 0, "independentItems": 1, "itemsIndependent": true, "sharedAuthorityScope": true, "hasSideEffects": false, "protectedAction": false, "approvalGranted": false, "requiredCriteria": ["behavior-preserved", "tests-pass"], "budget": {"maxSeconds": 900, "maxTokens": 500000, "maxToolCalls": 80, "maxRetries": 1, "maxUsd": 4.0}},
+      "expectedDecision": "route",
+      "expectedTier": "standard",
+      "expectedCache": "not-eligible",
+      "expectedBatch": "separate",
+      "expectedReasons": ["standard-complexity-or-context-floor"]
+    },
+    {
+      "id": "ECON-003",
+      "name": "complex architecture uses the premium tier",
+      "workload": {"schemaVersion": 1, "workloadId": "complex-architecture", "complexity": "complex", "risk": "medium", "requiredCapabilities": ["architecture", "tradeoff-analysis"], "estimatedSeconds": 900, "estimatedInputTokens": 40000, "estimatedOutputTokens": 6000, "estimatedToolCalls": 20, "estimatedRetries": 0, "estimatedUsd": 3.00, "longContext": false, "stablePrefixHash": null, "reusableInputTokens": 0, "independentItems": 1, "itemsIndependent": true, "sharedAuthorityScope": true, "hasSideEffects": false, "protectedAction": false, "approvalGranted": false, "requiredCriteria": ["constraints-covered", "decision-recorded"], "budget": {"maxSeconds": 1200, "maxTokens": 750000, "maxToolCalls": 60, "maxRetries": 1, "maxUsd": 6.0}},
+      "expectedDecision": "route",
+      "expectedTier": "premium",
+      "expectedCache": "not-eligible",
+      "expectedBatch": "separate",
+      "expectedReasons": ["premium-risk-or-complexity-floor"]
+    },
+    {
+      "id": "ECON-004",
+      "name": "high-risk routine work stays premium",
+      "workload": {"schemaVersion": 1, "workloadId": "high-risk-review", "complexity": "routine", "risk": "high", "requiredCapabilities": ["security-review"], "estimatedSeconds": 480, "estimatedInputTokens": 18000, "estimatedOutputTokens": 3000, "estimatedToolCalls": 15, "estimatedRetries": 0, "estimatedUsd": 2.00, "longContext": false, "stablePrefixHash": null, "reusableInputTokens": 0, "independentItems": 1, "itemsIndependent": true, "sharedAuthorityScope": true, "hasSideEffects": false, "protectedAction": false, "approvalGranted": false, "requiredCriteria": ["threats-covered", "evidence-present"], "budget": {"maxSeconds": 900, "maxTokens": 500000, "maxToolCalls": 50, "maxRetries": 1, "maxUsd": 5.0}},
+      "expectedDecision": "route",
+      "expectedTier": "premium",
+      "expectedCache": "not-eligible",
+      "expectedBatch": "separate",
+      "expectedReasons": ["premium-risk-or-complexity-floor"]
+    },
+    {
+      "id": "ECON-005",
+      "name": "unapproved protected action holds",
+      "workload": {"schemaVersion": 1, "workloadId": "protected-release", "complexity": "bounded", "risk": "protected", "requiredCapabilities": ["release"], "estimatedSeconds": 300, "estimatedInputTokens": 8000, "estimatedOutputTokens": 1000, "estimatedToolCalls": 10, "estimatedRetries": 0, "estimatedUsd": 1.00, "longContext": false, "stablePrefixHash": null, "reusableInputTokens": 0, "independentItems": 1, "itemsIndependent": true, "sharedAuthorityScope": true, "hasSideEffects": true, "protectedAction": true, "approvalGranted": false, "requiredCriteria": ["release-authorized", "receipt-valid"], "budget": {"maxSeconds": 600, "maxTokens": 250000, "maxToolCalls": 30, "maxRetries": 1, "maxUsd": 3.0}},
+      "expectedDecision": "hold",
+      "expectedTier": null,
+      "expectedCache": "not-eligible",
+      "expectedBatch": "separate",
+      "expectedReasons": ["protected-action-approval-missing"]
+    },
+    {
+      "id": "ECON-006",
+      "name": "approved protected action uses premium",
+      "workload": {"schemaVersion": 1, "workloadId": "approved-protected-release", "complexity": "bounded", "risk": "protected", "requiredCapabilities": ["release"], "estimatedSeconds": 300, "estimatedInputTokens": 8000, "estimatedOutputTokens": 1000, "estimatedToolCalls": 10, "estimatedRetries": 0, "estimatedUsd": 1.00, "longContext": false, "stablePrefixHash": null, "reusableInputTokens": 0, "independentItems": 1, "itemsIndependent": true, "sharedAuthorityScope": true, "hasSideEffects": true, "protectedAction": true, "approvalGranted": true, "requiredCriteria": ["release-authorized", "receipt-valid"], "budget": {"maxSeconds": 600, "maxTokens": 250000, "maxToolCalls": 30, "maxRetries": 1, "maxUsd": 3.0}},
+      "expectedDecision": "route",
+      "expectedTier": "premium",
+      "expectedCache": "not-eligible",
+      "expectedBatch": "separate",
+      "expectedReasons": ["premium-risk-or-complexity-floor"]
+    },
+    {
+      "id": "ECON-007",
+      "name": "long context raises routine work to standard",
+      "workload": {"schemaVersion": 1, "workloadId": "long-context-review", "complexity": "routine", "risk": "low", "requiredCapabilities": ["read", "synthesize"], "estimatedSeconds": 420, "estimatedInputTokens": 60000, "estimatedOutputTokens": 3000, "estimatedToolCalls": 8, "estimatedRetries": 0, "estimatedUsd": 1.20, "longContext": true, "stablePrefixHash": null, "reusableInputTokens": 0, "independentItems": 1, "itemsIndependent": true, "sharedAuthorityScope": true, "hasSideEffects": false, "protectedAction": false, "approvalGranted": false, "requiredCriteria": ["sources-covered", "summary-correct"], "budget": {"maxSeconds": 900, "maxTokens": 500000, "maxToolCalls": 40, "maxRetries": 1, "maxUsd": 4.0}},
+      "expectedDecision": "route",
+      "expectedTier": "standard",
+      "expectedCache": "not-eligible",
+      "expectedBatch": "separate",
+      "expectedReasons": ["standard-complexity-or-context-floor"]
+    },
+    {
+      "id": "ECON-008",
+      "name": "estimated token budget breach holds",
+      "workload": {"schemaVersion": 1, "workloadId": "oversized-context", "complexity": "bounded", "risk": "low", "requiredCapabilities": ["read"], "estimatedSeconds": 420, "estimatedInputTokens": 500000, "estimatedOutputTokens": 50000, "estimatedToolCalls": 8, "estimatedRetries": 0, "estimatedUsd": 1.20, "longContext": true, "stablePrefixHash": null, "reusableInputTokens": 0, "independentItems": 1, "itemsIndependent": true, "sharedAuthorityScope": true, "hasSideEffects": false, "protectedAction": false, "approvalGranted": false, "requiredCriteria": ["sources-covered"], "budget": {"maxSeconds": 900, "maxTokens": 500000, "maxToolCalls": 40, "maxRetries": 1, "maxUsd": 4.0}},
+      "expectedDecision": "hold",
+      "expectedTier": null,
+      "expectedCache": "not-eligible",
+      "expectedBatch": "separate",
+      "expectedReasons": ["estimated-tokens-budget-exceeded"]
+    },
+    {
+      "id": "ECON-009",
+      "name": "stable reusable context is cache eligible",
+      "workload": {"schemaVersion": 1, "workloadId": "cached-policy-review", "complexity": "routine", "risk": "low", "requiredCapabilities": ["read", "verify"], "estimatedSeconds": 180, "estimatedInputTokens": 6000, "estimatedOutputTokens": 500, "estimatedToolCalls": 4, "estimatedRetries": 0, "estimatedUsd": 0.30, "longContext": false, "stablePrefixHash": "0000000000000000000000000000000000000000000000000000000000000009", "reusableInputTokens": 5000, "independentItems": 1, "itemsIndependent": true, "sharedAuthorityScope": true, "hasSideEffects": false, "protectedAction": false, "approvalGranted": false, "requiredCriteria": ["policy-correct", "evidence-present"], "budget": {"maxSeconds": 300, "maxTokens": 100000, "maxToolCalls": 20, "maxRetries": 1, "maxUsd": 1.0}},
+      "expectedDecision": "route",
+      "expectedTier": "economy",
+      "expectedCache": "reuse-eligible",
+      "expectedBatch": "separate",
+      "expectedReasons": ["routine-economy-route"]
+    },
+    {
+      "id": "ECON-010",
+      "name": "independent read-only items are batch eligible",
+      "workload": {"schemaVersion": 1, "workloadId": "batch-read-checks", "complexity": "routine", "risk": "low", "requiredCapabilities": ["read", "classify"], "estimatedSeconds": 240, "estimatedInputTokens": 8000, "estimatedOutputTokens": 1000, "estimatedToolCalls": 8, "estimatedRetries": 0, "estimatedUsd": 0.40, "longContext": false, "stablePrefixHash": null, "reusableInputTokens": 0, "independentItems": 4, "itemsIndependent": true, "sharedAuthorityScope": true, "hasSideEffects": false, "protectedAction": false, "approvalGranted": false, "requiredCriteria": ["all-items-classified", "evidence-present"], "budget": {"maxSeconds": 600, "maxTokens": 200000, "maxToolCalls": 30, "maxRetries": 1, "maxUsd": 2.0}},
+      "expectedDecision": "route",
+      "expectedTier": "economy",
+      "expectedCache": "not-eligible",
+      "expectedBatch": "eligible",
+      "expectedReasons": ["routine-economy-route"]
+    }
+  ]
+}

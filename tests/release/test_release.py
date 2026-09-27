@@ -31,6 +31,7 @@ JOBS = [
     "security governance",
     "agent reliability operations",
     "multi-agent coordination",
+    "agent economics",
     "enforcement map",
     "evaluation harness",
     "eval cost parser units",

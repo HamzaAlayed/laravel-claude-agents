@@ -268,6 +268,18 @@
       "limitation": "The harness evaluates declarations and recorded aggregates but does not spawn agents, discover hidden dependencies, enforce OS isolation, prove evidence representativeness, or replace human approval quality."
     },
     {
+      "id": "agent-economics",
+      "title": "Quality-gated agent cost optimization",
+      "guarantee": "Work is routed through explicit complexity, risk, context, approval, and budget floors; a cheaper configuration is adopted only when representative recorded runs materially reduce billed cost per successful outcome without regressing completion, quality, safety, latency, tool calls, retries, or human intervention.",
+      "enforcement": ["runtime", "ci", "operator", "prompt"],
+      "implementation": ["config/economics-harness.json", "config/economics-scenarios.json", "scripts/economics-harness.py", "config/agent-harness.json", "config/orchestration-contract.md"],
+      "evidence": ["tests/economics/test_economics_harness.py"],
+      "ciJobs": ["agent economics"],
+      "failureMode": "Hold unknown, unapproved, or over-budget routing; keep the baseline when candidate evidence is insufficient, unchanged, unsafe, lower-quality, operationally worse, or saves less than the material threshold; reject malformed, tampered, or source-drifted receipts.",
+      "operatorAction": "Classify the workload before dispatch, collect actual billed totals from representative repeated runs, review every hold or keep-baseline reason, and adopt only a verified source-bound receipt decision.",
+      "limitation": "Tier names are project selectors rather than provider guarantees; the harness evaluates recorded evidence but does not invoke models, prove workload representativeness, validate provider billing, or make protected-action approvals."
+    },
+    {
       "id": "immutable-releases",
       "title": "Exact-commit release publication",
       "guarantee": "A stable release requires synchronized artifacts, a clean main commit, every named CI job green, an annotated immutable tag, and a retained receipt.",

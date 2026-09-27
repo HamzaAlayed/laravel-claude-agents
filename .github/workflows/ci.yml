@@ -49,6 +49,7 @@ jobs:
             config/security-harness.json config/security-attacks.json \
             config/reliability-harness.json config/reliability-scenarios.json \
             config/coordination-harness.json config/coordination-scenarios.json \
+            config/economics-harness.json config/economics-scenarios.json \
             config/enforcement-map.json \
             config/release-harness.json; do
             echo "validating $f"
@@ -264,6 +265,17 @@ jobs:
           python3 scripts/coordination-harness.py validate --root .
           python3 scripts/coordination-harness.py exercise --root . > "$RUNNER_TEMP/coordination-scenarios.json"
           python3 -m unittest discover -s tests/coordination -t tests/coordination -v
+
+  agent-economics:
+    name: agent economics
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate routing, batching, caching, budgets, and cost-per-success receipts
+        run: |
+          python3 scripts/economics-harness.py validate --root .
+          python3 scripts/economics-harness.py exercise --root . > "$RUNNER_TEMP/economics-scenarios.json"
+          python3 -m unittest discover -s tests/economics -t tests/economics -v
 
   enforcement-map:
     name: enforcement map
