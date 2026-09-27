@@ -47,6 +47,7 @@ jobs:
             config/memory-harness.json docs/team/memory.json composer.json \
             config/evaluation-harness.json config/evaluation-cases.json \
             config/security-harness.json config/security-attacks.json \
+            config/reliability-harness.json config/reliability-scenarios.json \
             config/enforcement-map.json \
             config/release-harness.json; do
             echo "validating $f"
@@ -240,6 +241,17 @@ jobs:
           python3 -m unittest discover -s tests/security -t tests/security -v
           python3 scripts/security-harness.py audit --root . --output "$RUNNER_TEMP/security-posture-receipt.json"
           python3 scripts/security-harness.py verify --root . --receipt "$RUNNER_TEMP/security-posture-receipt.json"
+
+  reliability-operations:
+    name: agent reliability operations
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Validate SLOs, failure injection, canary decisions, and receipts
+        run: |
+          python3 scripts/reliability-harness.py validate --root .
+          python3 scripts/reliability-harness.py exercise --root .
+          python3 -m unittest discover -s tests/reliability -t tests/reliability -v
 
   enforcement-map:
     name: enforcement map

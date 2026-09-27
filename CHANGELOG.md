@@ -7,6 +7,42 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.7.0] - 2026-09-27
+
+### Added
+
+- A schema-versioned Agent Reliability & Operations policy with SLOs for
+  completion, p95 latency, p95 cost, human intervention, recovery, safety, and
+  duplicate side effects.
+- Deterministic baseline/canary comparison with `promote`, `hold`, or
+  `rollback` decisions, circuit-breaker evidence, material-regression checks,
+  and source-bound operational health receipts.
+- Nine degraded-condition scenarios, eighteen focused tests, an operator
+  runbook, and a dedicated release-required CI job.
+
+### Changed
+
+- The shared harness and canonical orchestration contract now require bounded
+  retries, stable idempotency keys after possible side effects, and exact-unit
+  rollback of instructions, model, tools, policies, and harness version.
+- The enforcement map now covers 21 controls and immutable publication
+  requires 22 named hosted-CI jobs.
+
+### Fixed
+
+- A healthy-looking demonstration can no longer justify promotion when the
+  canary lacks enough evidence, breaches an SLO, opens its circuit, or
+  materially regresses from the accepted baseline.
+- Interrupted work can now prove that a committed side effect was deduplicated
+  rather than applied again.
+
+### Security
+
+- Safety violations and duplicate side effects open the recorded circuit and
+  force a rollback decision; attempts observed after opening remain visible.
+- Reliability receipts reject tampering, source drift, traversal, symlinks,
+  malformed retry sequences, and policies that automate database rollback.
+
 ## [9.6.0] - 2026-09-27
 
 ### Added

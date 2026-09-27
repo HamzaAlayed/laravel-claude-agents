@@ -137,6 +137,15 @@
       "incidentPolicy": "stop-and-escalate",
       "receipt": "security-posture"
     },
+    "reliabilityPolicy": {
+      "manifest": "config/reliability-harness.json",
+      "failureManifest": "config/reliability-scenarios.json",
+      "canaryDecisions": ["promote", "hold", "rollback"],
+      "circuitBreaker": "fail-closed",
+      "rollbackAuthority": "operator",
+      "databaseAction": "never-automatic",
+      "receipt": "agent-operational-health"
+    },
     "checkpointPolicy": {
       "recordField": "checkpoints",
       "stageField": "checkpoint_id",

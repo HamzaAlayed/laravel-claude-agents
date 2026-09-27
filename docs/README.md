@@ -4,7 +4,7 @@ This page maps the `docs/` corpus so the next review — human or agent — star
 
 Adopting the pack on a Laravel app? [Run your first delivery](onboarding.md). Seeing it work in five minutes? The [README quickstart](../README.md#five-minute-quickstart).
 
-Last verified 2026-09-27 against pack v9.6.0.
+Last verified 2026-09-27 against pack v9.7.0.
 
 ## What lives where
 
@@ -31,6 +31,7 @@ Last verified 2026-09-27 against pack v9.6.0.
 | [`docs/memory-engineering.md`](memory-engineering.md) | Approval-gated durable memory, scoped retrieval, evidence freshness, supersession, tombstone deletion, and recovery. |
 | [`docs/evaluation-engineering.md`](evaluation-engineering.md) | Machine-readable agent cases, authoritative checks, source-bound receipts, operational metrics, regression comparison, and failure recovery. |
 | [`docs/agent-security-governance.md`](agent-security-governance.md) | STRIDE threat model, trust boundaries, least privilege, secret/exfiltration guard, attack registry, posture receipts, and incident runbook. |
+| [`docs/agent-reliability-operations.md`](agent-reliability-operations.md) | Agent SLOs, degraded-condition replay, canary decisions, circuit breaking, idempotent interruption recovery, health receipts, and rollback operations. |
 | [`docs/enforcement-map.md`](enforcement-map.md) | Generated map of runtime, hook, CI, operator, and prompt enforcement with evidence, limits, and recovery actions. |
 | [`docs/feedback-routing.md`](feedback-routing.md) | How CI failures and review comments route to stage owners, pause when unresolved, and close with repair evidence. |
 | [`docs/recovery-policy.md`](recovery-policy.md) | How to inspect, freeze, continue, or stop a stranded stage claim without guessing work. |

@@ -287,9 +287,18 @@ submitted input. Thirteen registered zero-side-effect attacks and a
 source-bound posture receipt gate release. See
 [agent security and governance](docs/agent-security-governance.md).
 
+**Agent releases are operated against SLO evidence.** A deterministic
+reliability harness replays nine degraded-condition scenarios, aggregates
+baseline and canary operations, detects safety violations and duplicate side
+effects, opens a recorded circuit after repeated dependency failures, and
+issues a source-bound `promote`, `hold`, or `rollback` receipt. Rollback binds
+agent instructions, model, tools, policies, and harness version while leaving
+traffic routing and every database action under operator control. See
+[agent reliability and operations](docs/agent-reliability-operations.md).
+
 **Every guarantee names its enforcement boundary.** The versioned enforcement
 map separates runtime rejection, installed pre-tool hooks, required hosted CI,
-authoritative human decisions, and prompt-only guidance for 20 controls. Each
+authoritative human decisions, and prompt-only guidance for 21 controls. Each
 entry links to its implementation, executable evidence, safe failure mode,
 operator action, and known limitation. CI rejects missing or unsafe evidence,
 unknown release gates, prompt-only guarantees, and stale generated prose. See

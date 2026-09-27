@@ -25,6 +25,7 @@ A prompt instruction is never presented as a hard control on its own.
 | --- | --- | --- |
 | [`adversarial-gate`](#adversarial-gate) — Versioned attack matrix | `ci` | Fail hosted CI and prevent immutable release publication for the exact commit. |
 | [`agent-policy-profiles`](#agent-policy-profiles) — Shared and role-specific harness policy | `runtime`, `pre-tool-hook`, `ci`, `prompt` | Reject an unknown, incomplete, or contradictory profile before release or planned execution. |
+| [`agent-reliability-operations`](#agent-reliability-operations) — SLO-gated canary and rollback decisions | `runtime`, `ci`, `operator`, `prompt` | Hold insufficient or unhealthy baseline evidence; roll back an unhealthy or materially regressed canary; open the circuit on safety violations, duplicate side effects, or repeated dependency failures; and reject tampered or stale receipts. |
 | [`agent-security-governance`](#agent-security-governance) — Agent security and governance boundary | `runtime`, `pre-tool-hook`, `ci`, `operator`, `prompt` | Deny the covered tool call or reject stale evidence before execution, omit sensitive input from diagnostics, stop the affected lane, and require explicit user resolution. |
 | [`bounded-retries`](#bounded-retries) — One auditable retry | `runtime`, `ci`, `operator`, `prompt` | Requeue once with stale evidence invalidated, then fail the stage and stop delivery on exhaustion. |
 | [`context-packets`](#context-packets) — Bounded source-bound context packets | `runtime`, `ci`, `prompt` | Refuse construction or verification and stop dispatch when mandatory context does not fit, an input is unsafe, integrity fails, or authoritative state is stale. |
@@ -69,6 +70,18 @@ A prompt instruction is never presented as a hard control on its own.
 - Failure mode: Reject an unknown, incomplete, or contradictory profile before release or planned execution.
 - Operator action: Choose the registered specialist whose authority matches the requested work; do not widen a profile inside a task.
 - Limitation: Direct shell access outside installed hooks is not converted into an operating-system sandbox by this profile.
+
+### agent-reliability-operations
+
+**SLO-gated canary and rollback decisions.** Recorded baseline and canary cohorts are evaluated against declared success, latency, cost, intervention, recovery, safety, and idempotency SLOs; degraded conditions are replayed; and the only decision is promote, hold, or rollback.
+
+- Enforced by: `runtime`, `ci`, `operator`, `prompt`
+- Implementation: [`config/reliability-harness.json`](../config/reliability-harness.json), [`config/reliability-scenarios.json`](../config/reliability-scenarios.json), [`scripts/reliability-harness.py`](../scripts/reliability-harness.py), [`config/agent-harness.json`](../config/agent-harness.json)
+- Evidence: [`tests/reliability/test_reliability_harness.py`](../tests/reliability/test_reliability_harness.py)
+- Required CI: `agent reliability operations`
+- Failure mode: Hold insufficient or unhealthy baseline evidence; roll back an unhealthy or materially regressed canary; open the circuit on safety violations, duplicate side effects, or repeated dependency failures; and reject tampered or stale receipts.
+- Operator action: Use representative traffic and complete aggregate telemetry, obey the receipt decision, route canary traffic outside this repository, and explicitly restore or reset the exact accepted release unit without automating database rollback.
+- Limitation: The harness evaluates recorded evidence but does not route traffic, stop arbitrary host processes, prove telemetry completeness, or perform platform and database rollback.
 
 ### agent-security-governance
 
@@ -299,7 +312,7 @@ A prompt instruction is never presented as a hard control on its own.
 python3 scripts/check-enforcement-map.py
 ```
 
-A healthy checkout reports `20 controls` and exits `0`. The checker validates
+A healthy checkout reports `21 controls` and exits `0`. The checker validates
 the exact control inventory, safe repository-local evidence paths, release-gated CI
 job names, enforcement-level ordering, and byte-for-byte agreement with this page.
 It does not execute commands stored in data files.

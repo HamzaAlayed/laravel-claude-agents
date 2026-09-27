@@ -244,6 +244,18 @@
       "limitation": "Installed hooks are not an OS sandbox, pattern matching cannot cover every covert channel or encoding, source hashes are not signatures against same-account rewriting, and human approval quality remains external."
     },
     {
+      "id": "agent-reliability-operations",
+      "title": "SLO-gated canary and rollback decisions",
+      "guarantee": "Recorded baseline and canary cohorts are evaluated against declared success, latency, cost, intervention, recovery, safety, and idempotency SLOs; degraded conditions are replayed; and the only decision is promote, hold, or rollback.",
+      "enforcement": ["runtime", "ci", "operator", "prompt"],
+      "implementation": ["config/reliability-harness.json", "config/reliability-scenarios.json", "scripts/reliability-harness.py", "config/agent-harness.json"],
+      "evidence": ["tests/reliability/test_reliability_harness.py"],
+      "ciJobs": ["agent reliability operations"],
+      "failureMode": "Hold insufficient or unhealthy baseline evidence; roll back an unhealthy or materially regressed canary; open the circuit on safety violations, duplicate side effects, or repeated dependency failures; and reject tampered or stale receipts.",
+      "operatorAction": "Use representative traffic and complete aggregate telemetry, obey the receipt decision, route canary traffic outside this repository, and explicitly restore or reset the exact accepted release unit without automating database rollback.",
+      "limitation": "The harness evaluates recorded evidence but does not route traffic, stop arbitrary host processes, prove telemetry completeness, or perform platform and database rollback."
+    },
+    {
       "id": "immutable-releases",
       "title": "Exact-commit release publication",
       "guarantee": "A stable release requires synchronized artifacts, a clean main commit, every named CI job green, an annotated immutable tag, and a retained receipt.",
