@@ -719,7 +719,7 @@ expect "kernel exposes the observability command group" "1" \
   "$(grep -c 'observe = sub.add_parser("observe")' "$SCRIPT_DIR/scripts/guild-kernel/guild.py")"
 expect "shared observability excludes raw payloads" "1" \
   "$(grep -c '"rawPayloads": false' "$SCRIPT_DIR/config/agent-harness.json")"
-expect "one versioned enforcement map is committed" "20" \
+expect "one versioned enforcement map is committed" "21" \
   "$(python3 - "$SCRIPT_DIR/config/enforcement-map.json" <<'PY'
 import json, pathlib, sys
 payload = json.loads(pathlib.Path(sys.argv[1]).read_text())
@@ -742,6 +742,24 @@ expect "release publication requires the security governance gate" "1" \
   "$(grep -c '"security governance"' "$SCRIPT_DIR/config/release-harness.json")"
 expect "all orchestration carriers include the security boundary" "10" \
   "$(grep -l '^> \*\*Security boundary:\*\*' "$SCRIPT_DIR"/commands/*.md "$SCRIPT_DIR"/agents/delivery-coordinator.md 2>/dev/null | wc -l | tr -d ' ')"
+expect "one versioned reliability operations policy is committed" "1" \
+  "$(python3 - "$SCRIPT_DIR/config/reliability-harness.json" <<'PY'
+import json, pathlib, sys
+payload = json.loads(pathlib.Path(sys.argv[1]).read_text())
+valid = payload.get("schemaVersion") == 1 and payload.get("receiptSchemaVersion") == 1
+valid = valid and payload.get("rollbackUnit", {}).get("databaseAction") == "never-automatic"
+valid = valid and payload.get("canaryPolicy", {}).get("decisions") == ["promote", "hold", "rollback"]
+print(1 if valid else 0)
+PY
+)"
+expect "CI has a separate reliability operations gate" "1" \
+  "$(grep -c '^    name: agent reliability operations$' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "CI runs reliability operations tests" "1" \
+  "$(grep -c 'unittest discover -s tests/reliability' "$SCRIPT_DIR/.github/workflows/ci.yml")"
+expect "release publication requires the reliability operations gate" "1" \
+  "$(grep -c '"agent reliability operations"' "$SCRIPT_DIR/config/release-harness.json")"
+expect "all orchestration carriers include reliability operations" "10" \
+  "$(grep -l '^> \*\*Reliability operations:\*\*' "$SCRIPT_DIR"/commands/*.md "$SCRIPT_DIR"/agents/delivery-coordinator.md 2>/dev/null | wc -l | tr -d ' ')"
 expect "Interface block binds the final answer to VERIFIED + NOT-CHECKED" "9" \
   "$(grep -l 'Your own final answer closes the same way' "$SCRIPT_DIR"/commands/*.md 2>/dev/null | wc -l | tr -d ' ')"
 # Tranche item 2 lived only in agents/delivery-coordinator.md, and eval run 6's
@@ -1969,6 +1987,8 @@ expect "install dest contains the shared agent harness" "1" \
   "$([ -f "$INSTALL_DEST/config/agent-harness.json" ] && echo 1 || echo 0)"
 expect "install dest contains the security policy and attacks" "2" \
   "$(find "$INSTALL_DEST/config" -maxdepth 1 -type f \( -name 'security-harness.json' -o -name 'security-attacks.json' \) | wc -l | tr -d ' ')"
+expect "install dest contains reliability policy, scenarios, and runtime" "3" \
+  "$([ -f "$INSTALL_DEST/config/reliability-harness.json" ] && [ -f "$INSTALL_DEST/config/reliability-scenarios.json" ] && [ -f "$INSTALL_DEST/scripts/reliability-harness.py" ] && echo 3 || echo 0)"
 expect "install dest contains the sensitive-access hook and engine" "2" \
   "$(find "$INSTALL_DEST/scripts" -maxdepth 1 -type f \( -name 'enforce-sensitive-access.sh' -o -name 'enforce-sensitive-access.py' \) | wc -l | tr -d ' ')"
 expect "installer wires sensitive access across declared tools" "1" \

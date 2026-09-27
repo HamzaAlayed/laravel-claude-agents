@@ -232,6 +232,19 @@ def main() -> int:
             "shared.securityPolicy must deny secret access and preserve user authority",
             errors,
         )
+    if shared.get("reliabilityPolicy") != {
+        "manifest": "config/reliability-harness.json",
+        "failureManifest": "config/reliability-scenarios.json",
+        "canaryDecisions": ["promote", "hold", "rollback"],
+        "circuitBreaker": "fail-closed",
+        "rollbackAuthority": "operator",
+        "databaseAction": "never-automatic",
+        "receipt": "agent-operational-health",
+    }:
+        fail(
+            "shared.reliabilityPolicy must bind fail-closed canary and operator rollback evidence",
+            errors,
+        )
     if shared.get("checkpointPolicy") != {
         "recordField": "checkpoints",
         "stageField": "checkpoint_id",

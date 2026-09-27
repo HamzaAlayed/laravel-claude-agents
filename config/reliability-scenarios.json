@@ -1,0 +1,113 @@
+{
+  "schemaVersion": 1,
+  "policyId": "laravel-guild-agent-reliability-v1",
+  "scenarios": [
+    {
+      "id": "REL-001",
+      "name": "tool unavailable then recovers",
+      "fault": "tool-unavailable",
+      "attempts": [
+        {"outcome": "tool-unavailable", "sideEffect": "none", "idempotencyKey": null},
+        {"outcome": "success", "sideEffect": "applied", "idempotencyKey": "rel-001"}
+      ],
+      "expectedFinalDecision": "complete",
+      "expectedCircuitState": "closed",
+      "expectedAppliedSideEffects": 1
+    },
+    {
+      "id": "REL-002",
+      "name": "timeout then recovers",
+      "fault": "timeout",
+      "attempts": [
+        {"outcome": "timeout", "sideEffect": "none", "idempotencyKey": null},
+        {"outcome": "success", "sideEffect": "applied", "idempotencyKey": "rel-002"}
+      ],
+      "expectedFinalDecision": "complete",
+      "expectedCircuitState": "closed",
+      "expectedAppliedSideEffects": 1
+    },
+    {
+      "id": "REL-003",
+      "name": "rate limit then recovers",
+      "fault": "rate-limited",
+      "attempts": [
+        {"outcome": "rate-limited", "sideEffect": "none", "idempotencyKey": null},
+        {"outcome": "success", "sideEffect": "none", "idempotencyKey": null}
+      ],
+      "expectedFinalDecision": "complete",
+      "expectedCircuitState": "closed",
+      "expectedAppliedSideEffects": 0
+    },
+    {
+      "id": "REL-004",
+      "name": "partial outage then recovers",
+      "fault": "partial-outage",
+      "attempts": [
+        {"outcome": "partial-outage", "sideEffect": "none", "idempotencyKey": null},
+        {"outcome": "success", "sideEffect": "applied", "idempotencyKey": "rel-004"}
+      ],
+      "expectedFinalDecision": "complete",
+      "expectedCircuitState": "closed",
+      "expectedAppliedSideEffects": 1
+    },
+    {
+      "id": "REL-005",
+      "name": "corrupt durable state",
+      "fault": "corrupt-state",
+      "attempts": [
+        {"outcome": "corrupt-state", "sideEffect": "none", "idempotencyKey": null}
+      ],
+      "expectedFinalDecision": "stop",
+      "expectedCircuitState": "closed",
+      "expectedAppliedSideEffects": 0
+    },
+    {
+      "id": "REL-006",
+      "name": "bounded retry exhaustion",
+      "fault": "timeout",
+      "attempts": [
+        {"outcome": "timeout", "sideEffect": "none", "idempotencyKey": null},
+        {"outcome": "timeout", "sideEffect": "none", "idempotencyKey": null},
+        {"outcome": "timeout", "sideEffect": "none", "idempotencyKey": null}
+      ],
+      "expectedFinalDecision": "stop",
+      "expectedCircuitState": "open",
+      "expectedAppliedSideEffects": 0
+    },
+    {
+      "id": "REL-007",
+      "name": "interruption after committed side effect",
+      "fault": "timeout",
+      "attempts": [
+        {"outcome": "timeout", "sideEffect": "applied", "idempotencyKey": "rel-007"},
+        {"outcome": "success", "sideEffect": "deduplicated", "idempotencyKey": "rel-007"}
+      ],
+      "expectedFinalDecision": "complete",
+      "expectedCircuitState": "closed",
+      "expectedAppliedSideEffects": 1
+    },
+    {
+      "id": "REL-008",
+      "name": "duplicate side effect",
+      "fault": "duplicate-side-effect",
+      "attempts": [
+        {"outcome": "timeout", "sideEffect": "applied", "idempotencyKey": "rel-008"},
+        {"outcome": "success", "sideEffect": "applied", "idempotencyKey": "rel-008"}
+      ],
+      "expectedFinalDecision": "rollback",
+      "expectedCircuitState": "open",
+      "expectedAppliedSideEffects": 2
+    },
+    {
+      "id": "REL-009",
+      "name": "safety boundary violation",
+      "fault": "safety-violation",
+      "attempts": [
+        {"outcome": "safety-violation", "sideEffect": "none", "idempotencyKey": null}
+      ],
+      "expectedFinalDecision": "rollback",
+      "expectedCircuitState": "open",
+      "expectedAppliedSideEffects": 0
+    }
+  ]
+}

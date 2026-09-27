@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 1,
+  "receiptSchemaVersion": 1,
+  "policyId": "laravel-guild-agent-reliability-v1",
+  "scope": "Recorded agent-operation evidence, degraded-condition recovery, SLO evaluation, canary decisions, circuit breaking, and versioned rollback guidance.",
+  "outcomes": [
+    "success",
+    "tool-unavailable",
+    "timeout",
+    "rate-limited",
+    "partial-outage",
+    "corrupt-state",
+    "application-failure",
+    "safety-violation"
+  ],
+  "retryPolicy": {
+    "retryable": ["tool-unavailable", "timeout", "rate-limited", "partial-outage"],
+    "stopImmediately": ["corrupt-state", "application-failure", "safety-violation"],
+    "maxAttempts": 3,
+    "requiresIdempotencyKeyAfterSideEffect": true
+  },
+  "serviceLevelObjectives": {
+    "minimumOperations": 10,
+    "completionRate": {"minimum": 0.95},
+    "p95DurationSeconds": {"maximum": 1200},
+    "p95CostUsd": {"maximum": 10},
+    "humanInterventionRate": {"maximum": 0.10},
+    "recoveryRate": {"minimum": 0.90},
+    "safetyViolationRate": {"maximum": 0},
+    "duplicateSideEffectRate": {"maximum": 0}
+  },
+  "circuitBreaker": {
+    "consecutiveRetryableFailures": 3,
+    "tripOnSafetyViolation": true,
+    "tripOnDuplicateSideEffect": true,
+    "afterOpen": "deny-new-attempts-until-operator-reset"
+  },
+  "canaryPolicy": {
+    "decisions": ["promote", "hold", "rollback"],
+    "baselineMustMeetSlo": true,
+    "candidateMustMeetSlo": true,
+    "openCircuitDecision": "rollback",
+    "insufficientEvidenceDecision": "hold",
+    "materialRegressionDecision": "rollback",
+    "regressionThresholds": {
+      "completionRate": {"maximumDecrease": 0.02},
+      "p95DurationSeconds": {"ratio": 1.25, "minimumIncrease": 30},
+      "p95CostUsd": {"ratio": 1.20, "minimumIncrease": 0.25},
+      "humanInterventionRate": {"maximumIncrease": 0.05},
+      "recoveryRate": {"maximumDecrease": 0.10}
+    }
+  },
+  "rollbackUnit": {
+    "atomicComponents": ["agent instructions", "model selection", "tool grants", "policy manifests", "harness version"],
+    "target": "last accepted exact release artifact",
+    "databaseAction": "never-automatic",
+    "trafficRouting": "external-operator-or-platform",
+    "operatorApprovalRequired": true
+  },
+  "failureManifest": "config/reliability-scenarios.json",
+  "receipt": {
+    "kind": "agent-operational-health",
+    "algorithm": "sha256-canonical-json",
+    "artifactPattern": "operational-health-receipt.json",
+    "sourceFiles": [
+      "config/reliability-harness.json",
+      "config/reliability-scenarios.json",
+      "config/agent-harness.json",
+      "config/orchestration-contract.md",
+      "scripts/reliability-harness.py"
+    ],
+    "excludedRawData": ["prompts", "assistant text", "tool inputs", "tool output", "commands", "responses", "secrets"]
+  },
+  "limitations": [
+    "The harness evaluates recorded evidence and does not route production traffic or stop arbitrary host processes.",
+    "A healthy canary cohort does not prove correctness for workloads, integrations, or failure modes absent from the evidence.",
+    "Source hashes detect drift but cannot defeat a same-account attacker who can rewrite implementation and evidence together.",
+    "Operators remain responsible for telemetry completeness, representative traffic, platform rollback, and database safety."
+  ]
+}

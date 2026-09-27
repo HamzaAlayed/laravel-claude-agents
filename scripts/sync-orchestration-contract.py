@@ -30,6 +30,7 @@ LABELS = (
     "> **Context packets:**",
     "> **Durable memory:**",
     "> **Security boundary:**",
+    "> **Reliability operations:**",
     "> **Outcome benchmarks:**",
 )
 LEGACY_LABELS = LABELS[:6]

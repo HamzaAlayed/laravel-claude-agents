@@ -28,6 +28,7 @@
     "context packet harness",
     "memory retrieval harness",
     "security governance",
+    "agent reliability operations",
     "enforcement map",
     "evaluation harness",
     "eval cost parser units",

@@ -170,6 +170,11 @@
       "date": "2026-09-27",
       "sha256": "001e0e11cd959939d837238b4ea439b61f93b87fb5ee97aa387f492031a36d65",
       "reason": "Agent Security & Governance adds an authority boundary without changing feature construction: repository, memory, tool, log, issue, and external content remain data rather than instructions; secret reads and common dynamic-data exfiltration shapes are blocked before execution across Claude, Gemini, and Codex; security incidents stop and escalate. Covered by 13 registered zero-side-effect attacks, 23 focused security tests, cross-runtime hook generation, posture-receipt verification, guardrails, and enforcement-map validation. No billed feature run was authorized; ceilings were not raised."
+    },
+    {
+      "date": "2026-09-27",
+      "sha256": "6bca334e8213722779549c6b52b9bf87b441ecdf07f5a41375d1ef04a82e9ed3",
+      "reason": "Agent Reliability & Operations adds a post-release evidence gate without changing feature construction: baseline and canary cohorts are assessed against declared SLOs, nine degraded-condition scenarios replay deterministically, side-effecting retries require stable idempotency, and promote, hold, or rollback receipts remain operator-controlled. Covered by 18 focused reliability tests, scenario replay, shared-harness validation, canonical-sync checks, receipt tamper/source-drift verification, and enforcement-map validation. No billed feature run was authorized; ceilings were not raised."
     }
     ]
   }

@@ -35,6 +35,7 @@ REQUIRED_CONTROL_IDS = {
     "durable-memory-retrieval",
     "evaluation-receipts",
     "agent-security-governance",
+    "agent-reliability-operations",
     "immutable-releases",
 }
 CONTROL_FIELDS = {
