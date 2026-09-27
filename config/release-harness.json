@@ -27,6 +27,7 @@
     "laravel benchmark capture",
     "context packet harness",
     "memory retrieval harness",
+    "security governance",
     "enforcement map",
     "evaluation harness",
     "eval cost parser units",

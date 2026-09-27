@@ -232,6 +232,18 @@
       "limitation": "CI validates the evaluator and recorded fixtures without spending model credits; live-agent outcomes remain stochastic and billed, source hashes are not signatures against same-account rewriting, and case selection remains an operator judgment."
     },
     {
+      "id": "agent-security-governance",
+      "title": "Agent security and governance boundary",
+      "guarantee": "Untrusted content cannot grant authority, registered agents remain least-privilege, covered secret reads and exfiltration shapes are denied before execution, and security posture evidence is source-bound.",
+      "enforcement": ["runtime", "pre-tool-hook", "ci", "operator", "prompt"],
+      "implementation": ["config/security-harness.json", "config/security-attacks.json", "scripts/security-harness.py", "scripts/enforce-sensitive-access.py", "scripts/enforce-sensitive-access.sh"],
+      "evidence": ["tests/security/test_security_governance.py", "tests/security/test_security_harness.py", "tests/guardrails.test.sh"],
+      "ciJobs": ["security governance", "guardrail tests"],
+      "failureMode": "Deny the covered tool call or reject stale evidence before execution, omit sensitive input from diagnostics, stop the affected lane, and require explicit user resolution.",
+      "operatorAction": "Investigate with non-sensitive metadata, rotate exposed credentials outside the repository, repair the control or install, and authorize any protected recovery action explicitly.",
+      "limitation": "Installed hooks are not an OS sandbox, pattern matching cannot cover every covert channel or encoding, source hashes are not signatures against same-account rewriting, and human approval quality remains external."
+    },
+    {
       "id": "immutable-releases",
       "title": "Exact-commit release publication",
       "guarantee": "A stable release requires synchronized artifacts, a clean main commit, every named CI job green, an annotated immutable tag, and a retained receipt.",

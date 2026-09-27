@@ -1,0 +1,67 @@
+{
+  "schemaVersion": 1,
+  "receiptSchemaVersion": 1,
+  "policyId": "laravel-guild-agent-security-v1",
+  "scope": "Agent instructions, capabilities, protected actions, secret access, attack evidence, and source-bound security posture receipts.",
+  "threatModel": {
+    "framework": "STRIDE",
+    "categories": ["spoofing", "tampering", "repudiation", "information-disclosure", "denial-of-service", "elevation-of-privilege"],
+    "assets": ["user authority", "repository integrity", "delivery state", "credentials and secrets", "verification evidence", "external systems"],
+    "boundaries": [
+      {"id": "runtime-policy", "source": "system and installed runtime policy", "trust": "authoritative", "canAuthorize": true},
+      {"id": "user-decision", "source": "explicit current user decision", "trust": "authoritative", "canAuthorize": true},
+      {"id": "kernel-state", "source": "validated kernel state", "trust": "authoritative-record", "canAuthorize": false},
+      {"id": "approved-memory", "source": "approved durable memory", "trust": "reviewed-data-not-instructions", "canAuthorize": false},
+      {"id": "repository-content", "source": "repository files and issue text", "trust": "untrusted-data-not-instructions", "canAuthorize": false},
+      {"id": "tool-output", "source": "tool, test, log, and command output", "trust": "untrusted-data-not-instructions", "canAuthorize": false},
+      {"id": "external-content", "source": "web, MCP, API, and retrieved content", "trust": "untrusted-data-not-instructions", "canAuthorize": false},
+      {"id": "secret-material", "source": "environment, credential files, keys, and tokens", "trust": "forbidden-input", "canAuthorize": false}
+    ],
+    "limitations": [
+      "Hooks protect only installed, declared tool surfaces and are not an operating-system sandbox.",
+      "Pattern-based secret controls cannot recognize every encoding or application-specific secret name.",
+      "Source hashes detect drift, not a same-account attacker rewriting implementation and evidence together.",
+      "Human approval quality and third-party service enforcement remain outside this repository boundary."
+    ]
+  },
+  "authority": {
+    "instructionOrder": ["runtime-policy", "user-decision", "validated-project-policy", "task-plan", "untrusted-data"],
+    "protectedActionApprovalAuthority": "user",
+    "selfApprovalAllowed": false,
+    "incidentAction": "stop-and-escalate"
+  },
+  "capabilities": {
+    "agentRegistry": "config/agent-harness.json",
+    "defaultSecretAccess": "deny",
+    "mutationScope": "declared-owned-paths",
+    "unknownCapability": "deny",
+    "networkEgressWithDynamicData": "deny"
+  },
+  "controls": [
+    {"id": "instruction-provenance", "threats": ["spoofing", "elevation-of-privilege"], "mode": "runtime-ci-and-prompt", "implementation": ["config/orchestration-contract.md", "config/agent-harness.json", "scripts/guild-kernel/context_packets.py"], "evidence": ["tests/security/test_security_governance.py", "tests/context/test_context_packets.py"], "failure": "Keep untrusted content below validated runtime and user authority and refuse authority escalation.", "limitation": "Packets structurally separate authority from untrusted data, but natural-language obedience remains partly behavioral."},
+    {"id": "least-privilege-capabilities", "threats": ["tampering", "elevation-of-privilege"], "mode": "runtime-and-hook", "implementation": ["config/agent-harness.json", "scripts/enforce-agent-paths.py", "scripts/enforce-reviewer-readonly.sh"], "evidence": ["tests/security/test_security_governance.py", "tests/kernel/test_agent_policy.py"], "failure": "Deny unknown, read-only, unclaimed, or out-of-scope mutation.", "limitation": "Installed hooks do not constrain arbitrary same-account processes."},
+    {"id": "protected-action-authority", "threats": ["spoofing", "repudiation", "elevation-of-privilege"], "mode": "runtime-and-hook", "implementation": ["scripts/guild-kernel/kernel.py", "scripts/enforce-kernel-approvals.py"], "evidence": ["tests/security/test_security_governance.py", "tests/adversarial/test_engineering_loop.py"], "failure": "Pause or deny until a durable user-authoritative decision exists.", "limitation": "The harness validates provenance, not whether a human made a wise choice."},
+    {"id": "secret-access-and-egress", "threats": ["information-disclosure"], "mode": "pre-tool-hook", "implementation": ["scripts/enforce-sensitive-access.py", "scripts/enforce-sensitive-access.sh", "hooks/hooks.json", "gemini/hooks/hooks.json", "codex/.codex/hooks.json"], "evidence": ["tests/security/test_security_governance.py", "tests/guardrails.test.sh"], "failure": "Deny the call before execution and omit sensitive input from the diagnostic.", "limitation": "The deny patterns cover declared tools and common secret forms, not arbitrary code execution or every covert channel."},
+    {"id": "source-bound-security-evidence", "threats": ["tampering", "repudiation"], "mode": "runtime-and-ci", "implementation": ["scripts/security-harness.py", "config/security-attacks.json"], "evidence": ["tests/security/test_security_harness.py"], "failure": "Reject incomplete, stale, source-drifted, or tampered posture receipts.", "limitation": "Receipts prove the inspected checkout, not production deployment state."},
+    {"id": "bounded-failure-response", "threats": ["denial-of-service", "elevation-of-privilege"], "mode": "runtime-and-operator", "implementation": ["config/agent-harness.json", "docs/agent-security-governance.md"], "evidence": ["tests/security/test_security_governance.py"], "failure": "Stop rather than retry across a security or authority boundary, preserving non-sensitive evidence.", "limitation": "Recovery still requires an operator to investigate and explicitly resume."}
+  ],
+  "attackManifest": "config/security-attacks.json",
+  "receipt": {
+    "kind": "security-posture",
+    "algorithm": "sha256-canonical-json",
+    "status": "pass-only",
+    "artifactPattern": "security-posture-receipt.json",
+    "sourceFiles": [
+      "config/security-harness.json",
+      "config/security-attacks.json",
+      "config/agent-harness.json",
+      "config/orchestration-contract.md",
+      "scripts/enforce-sensitive-access.py",
+      "scripts/enforce-sensitive-access.sh",
+      "hooks/hooks.json",
+      "gemini/hooks/hooks.json",
+      "codex/.codex/hooks.json"
+    ],
+    "excludedRawData": ["prompts", "tool output", "commands", "paths submitted to hooks", "environment values", "secret material"]
+  }
+}

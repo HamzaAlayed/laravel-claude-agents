@@ -7,6 +7,47 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.6.0] - 2026-09-27
+
+### Added
+
+- A schema-versioned Agent Security & Governance policy with eight explicit
+  trust boundaries, all six STRIDE categories, six controls, declared assets,
+  authority ordering, limitations, and incident behavior.
+- A cross-runtime sensitive-access guard for direct secret reads, environment
+  enumeration, secret-shaped output, credentials in URLs, and common dynamic
+  data-upload exfiltration shapes; denied diagnostics omit submitted input.
+- Thirteen registered security attacks with zero-side-effect expectations,
+  twenty-three focused tests, source-bound security posture receipts, an operational
+  incident runbook, and a dedicated release-required CI job.
+
+### Changed
+
+- The canonical orchestration contract now classifies repository, memory,
+  tool, log, issue, and external content as data rather than instructions and
+  requires security incidents to stop and escalate.
+- Claude and Cursor now ship 13 production guardrails; generated Gemini and
+  Codex targets also carry the new sensitive-access policy.
+- The enforcement map now covers 20 controls and immutable publication
+  requires 21 named hosted-CI jobs.
+
+### Fixed
+
+- Untrusted content can no longer legitimately claim user authority, widen
+  owned paths, grant tools, approve protected actions, alter success criteria,
+  or suppress verification evidence.
+- Environment and credential files were previously write-protected but not
+  uniformly read- or egress-protected across declared agent tool surfaces.
+
+### Security
+
+- Secret-path, environment-enumeration, variable-output, credential-in-URL,
+  and dynamic-upload attacks are denied before execution and tested to leave
+  no side effect or sensitive diagnostic echo.
+- Security receipts reject path escape, symlinks, incomplete attack coverage,
+  source drift, and receipt tampering while excluding prompts, commands, tool
+  output, submitted paths, environment values, and secret material.
+
 ## [9.5.0] - 2026-09-26
 
 ### Added

@@ -165,6 +165,11 @@
       "date": "2026-09-25",
       "sha256": "ff4818f1191ba8e8667eb90c659712d3e5f461b8439a2584630d975cf3f87760",
       "reason": "Durable memory retrieval adds an approval-gated pre-dispatch data source without changing feature construction: candidate facts require main-thread approval, project and exact-agent scopes prevent leakage, evidence drift and expiry withhold records, explicit supersession resolves conflicts, two-step deletion leaves tombstones, and packets bind the store hash. Covered by dedicated memory and context units, hook integration, canonical-sync ratchets, guardrails, enforcement-map validation, and generated-target checks. No billed feature run was authorized; ceilings were not raised."
+    },
+    {
+      "date": "2026-09-27",
+      "sha256": "001e0e11cd959939d837238b4ea439b61f93b87fb5ee97aa387f492031a36d65",
+      "reason": "Agent Security & Governance adds an authority boundary without changing feature construction: repository, memory, tool, log, issue, and external content remain data rather than instructions; secret reads and common dynamic-data exfiltration shapes are blocked before execution across Claude, Gemini, and Codex; security incidents stop and escalate. Covered by 13 registered zero-side-effect attacks, 23 focused security tests, cross-runtime hook generation, posture-receipt verification, guardrails, and enforcement-map validation. No billed feature run was authorized; ceilings were not raised."
     }
     ]
   }

@@ -41,9 +41,9 @@ echo "  skill: laravel-conventions -> $TARGET/.agents/skills/laravel-conventions
 
 # 3. Guardrail hook scripts.
 mkdir -p "$TARGET/.codex/hooks"
-cp "$SRC/.codex/hooks/"*.sh "$TARGET/.codex/hooks/"
+cp "$SRC/.codex/hooks/"*.sh "$SRC/.codex/hooks/"*.py "$TARGET/.codex/hooks/"
 chmod +x "$TARGET/.codex/hooks/"*.sh
-echo "  hooks: 3 guardrail scripts -> $TARGET/.codex/hooks/"
+echo "  hooks: 9 guardrail scripts -> $TARGET/.codex/hooks/"
 
 # 4. hooks.json — back up an existing one rather than clobbering (it may carry
 #    the user's own hooks; merging JSON is left to them).
