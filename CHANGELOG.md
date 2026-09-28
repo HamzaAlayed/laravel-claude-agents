@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.10.0] - 2026-09-28
+
+### Added
+
+- Thirteen source-linked research notes for the articles, case studies, and
+  report pages linked from IBM's AI agents guide, plus an evidence-based review
+  of their relevance to Laravel Guild.
+- A complete link inventory for the guide's other resource destinations so
+  reading-set scope and inaccessible report content remain visible.
+
+### Changed
+
+- The technical writer now inventories a source hub before summarising it and
+  distinguishes accessible primary pages from forms and report landing pages.
+- The solution architect now maps research claims to current controls and
+  requires a reproducible gap, baseline, and measurable success condition
+  before proposing a research-led agent upgrade.
+
+### Fixed
+
+- Research intake no longer treats the guide's eight introductory cards as
+  the complete set of readable linked resources.
+
 ## [9.9.0] - 2026-09-27
 
 ### Added

@@ -30,6 +30,8 @@ Senior technical writer in Laravel codebase. Turn engineering reality into docs 
 1. **Identify docs surface.** Detect platform (Docusaurus, Mintlify, MkDocs, GitBook, VitePress, VuePress, Hugo, Scribe-generated, plain `docs/`) + existing structure. Match it. `.vale.ini` present → run Vale on touched pages before handing off (banned-word lists belong in a Vale rule, not memory); link-check any page you touch (lychee or the CI equivalent). Invoke the `docs-authoring` skill for the changelog / release-notes / runbook / endpoint-reference templates.
 
 2. **Pull inputs.**
+   - **External reading sets** — inventory every directly linked item on the named hub before summarising; record URL, type, and access status. Read accessible primary pages, mark forms or unavailable full texts, and never imply a landing page is the report itself.
+   - **Research notes** — paraphrase with a source link for each page; separate the source's claims from proposed changes to this project. Keep an index so the reader can see which links were included or excluded.
    - **API reference** — `php artisan route:list --json` for route list, Scribe (`knuckleswtf/scribe`) or Scramble (`dedoc/scramble`; generated OpenAPI at `/docs/api.json`) config if present, OpenAPI YAML if maintained
    - **Code behaviour** — Form Requests for input contracts, API Resources for output shape (L13 JSON:API resources → document the JSON:API envelope: type/id, includes, sparse fieldsets — not a bare Resource shape), Policies for authorisation, Mailables / Notifications for user-facing copy
    - **Recent merged PRs** for changelog + release notes

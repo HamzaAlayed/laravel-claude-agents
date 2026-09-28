@@ -4,7 +4,7 @@ This page maps the `docs/` corpus so the next review — human or agent — star
 
 Adopting the pack on a Laravel app? [Run your first delivery](onboarding.md). Seeing it work in five minutes? The [README quickstart](../README.md#five-minute-quickstart).
 
-Last verified 2026-09-27 against pack v9.9.0.
+Last verified 2026-09-28 against pack v9.10.0.
 
 ## What lives where
 
@@ -16,6 +16,7 @@ Last verified 2026-09-27 against pack v9.9.0.
 | [`docs/evals/`](evals/) | Eval scorecards and audits. One file per billed run or instrument change. |
 | [`docs/requirements/`](requirements/) | Discovery / current-state reviews. Input to a spec, not a spec. |
 | [`docs/research/`](research/) | Literature and comparative audits. |
+| [`docs/research/ibm-ai-agents/`](research/ibm-ai-agents/) | Thirteen source-linked notes from IBM's AI agents guide and resources, with checks for this pack. |
 | [`docs/design/`](design/) | Visual artifacts (actor study HTML). Not product screenshots. |
 | [`docs/examples/`](examples/) | Captured instances from real runs. Dated. Not living docs. |
 | [`docs/authoring-agents.md`](authoring-agents.md) | How to write an agent in this pack's voice. |
