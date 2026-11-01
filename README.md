@@ -98,6 +98,7 @@ Fixture-driven capture of the Guild console company floor (Adam + Dina, parked c
 │   ├── tech-lead.md              # "Tariq" — code review w/ Laravel checklist (Opus 4.8, project memory, no Edit/Write)
 │   ├── performance-engineer.md   # "Omar" — profiling, N+1, caching, Octane, CWV (Opus 4.8, project memory, no Edit/Write)
 │   ├── mobile-developer.md       # "Pablo" — iOS/Android consuming Laravel APIs (Sonnet)
+│   ├── peer-router.md            # Adaptive packet validator (Sonnet, read-only)
 │   └── delivery-coordinator.md   # "Emre" — orchestrator main-thread agent (Sonnet, project memory)
 │
 └── commands/
@@ -167,7 +168,7 @@ tests/guardrails.test.sh          # Zero-dependency test harness for the guardra
 
 ## Meet the Guild
 
-Every agent answers to a human name. Address them either way: `@backend-developer` or "have **Adam** add an idempotency key". The names show up on the `/board` live dashboard and in every agent's report. Each name keeps the initial of the Laravel-ecosystem guild name it replaced, so old habits still land.
+The 17 delivery roles answer to human names; `peer-router` is the additional read-only validator for opt-in adaptive handoffs. Address them either way: `@backend-developer` or "have **Adam** add an idempotency key". The names show up on the `/board` live dashboard and in every agent's report. Each human name keeps the initial of the Laravel-ecosystem guild name it replaced, so old habits still land.
 
 | Name      | Agent                  | Role                                          | Formerly  |
 | --------- | ---------------------- | --------------------------------------------- | --------- |
@@ -188,6 +189,8 @@ Every agent answers to a human name. Address them either way: `@backend-develope
 | **Bruno** | `ui-ux-designer`       | Wireframes, design systems, accessibility     | Breeze    |
 | **Pablo** | `mobile-developer`     | iOS / Android consuming Laravel APIs          | Passport  |
 | **Clara** | `package-developer`    | Composer package authoring & releases         | Composer  |
+
+The eighteenth agent, [`peer-router`](agents/peer-router.md), validates handoff packets only when `--adaptive` is enabled. It returns findings to the coordinator, which owns peer dispatch.
 
 ---
 
@@ -339,11 +342,12 @@ allowed handoffs. The machine-readable registry is checked against agent
 frontmatter in CI; see the [complete harness table](docs/agent-harness.md).
 
 **Model selection is opinionated, not uniform.**
-- **Opus** for `solution-architect` and `tech-lead` — these reason deeply about long-lived consequences and review work end-to-end.
+
+- **Opus** for `solution-architect`, `security-engineer`, `tech-lead`, and `performance-engineer` — these reason deeply about long-lived consequences and review work end-to-end.
 - **Haiku** for `scrum-master` — aggregation and status work. Faster and cheaper without quality loss.
 - **Sonnet** for everyone else — the right default for builders and reviewers.
 
-**Reviewers cannot edit code.** `tech-lead`, `security-engineer`, and `performance-engineer` are read-only (`disallowedTools: Edit, Write`). They return findings; the `delivery-coordinator` persists the reports and builders apply the changes. This keeps reviews trustworthy and prevents reviewer drift. (On the residual `Bash` write-vector and how to fully sandbox a reviewer, see [docs/read-only-by-design.md](docs/read-only-by-design.md).)
+**Reviewers cannot edit code.** `tech-lead`, `security-engineer`, `performance-engineer`, and `peer-router` are read-only (`disallowedTools: Edit, Write`). They return findings; the `delivery-coordinator` persists the reports and builders apply the changes. This keeps reviews trustworthy and prevents reviewer drift. (On the residual `Bash` write-vector and how to fully sandbox a reviewer, see [docs/read-only-by-design.md](docs/read-only-by-design.md).)
 
 **Guardrails fail closed.** The thirteen guardrail hooks are deny-rules. Shell guards use a tested parser-fallback chain (jq → python3 → conservative bare-string matching), while the Python-backed kernel and security policies fail closed if their runtime or state is invalid. CI runs the full shell harness with and without jq. The one fail-open script is the board observer, deliberately: a dashboard must never block delivery.
 
@@ -433,16 +437,9 @@ an explicit ownership boundary.
 
 ---
 
-## What's actually new vs. the original spec
+## Latest release: 9.10.0
 
-If you're coming from the generic 15-agent version, here's what changed:
-
-1. **Every agent is rewritten with Laravel-specific guidance.** Concrete patterns to follow, concrete antipatterns to refuse. No more "use the framework's conventions" hand-waving.
-2. **New `package-developer` agent.** Composer.json hygiene, service providers, Testbench, semver, Packagist release flow. Real gap for anyone shipping packages.
-3. **Five slash commands** in `commands/` for the most common Laravel workflows. They delegate to the right specialists rather than doing work themselves.
-4. **Two new guardrail scripts** alongside the existing SQL guard. Production artisan commands and env files are now actively protected.
-5. **`CLAUDE.md.template` rewritten for Laravel.** Captures stack (PHP/Laravel/frontend paradigm/queue/runtime/auth/search/hosting), conventions, hard constraints, and useful commands.
-6. **`install.sh` hardened.** Argparse, Laravel detection, idempotent overwrites with timestamped `.bak` backups, optional `--global` install.
+The technical writer now inventories linked research sources and records access limits before summarising. The solution architect maps research claims to existing controls and requires a reproducible gap, a baseline, and a measurable success condition before proposing an upgrade. See the [IBM research collection](docs/research/ibm-ai-agents/README.md), the [agent-pack review](docs/research/2026-09-28-ibm-agent-pack-review.md), and the [changelog](CHANGELOG.md).
 
 ---
 
@@ -463,6 +460,7 @@ Each is a thin orchestrator that hands work to the right specialist agent.
 | `/optimize-query <route, query, method>`  | Captures the query + timing, diagnoses (index/N+1/`SELECT *`/unbounded), routes index fixes to `database-developer`, shape fixes to `backend-developer`. |
 | `/upgrade-laravel <target-version>`       | Inventories breaking changes + first-party package compat, produces a staged upgrade plan with a verify checkpoint per stage.                  |
 | `/teach <rule>`                           | Records a rule/preference in `docs/team/conventions.md` — every agent reads it before starting and applies it as an override. No args → harvests this session's corrections. Facts (commands, paths) carry a **Verify** command so they can't go silently stale. |
+| `/team-hygiene`                         | Reviews `docs/team/` for duplicate, conflicting, or stale knowledge and proposes cleanup for approval. |
 | `/board [port]`                           | Opens the live agents dashboard — serves `.claude/board.html` over localhost; running agents pulse with a live timer, finished ones show duration + tokens. Fed by the `emit-agent-events` hook. |
 | `/sprint`                                 | Starts, inspects, or closes an optional sprint (Goal, WIP, attached stories). The kernel renders `docs/sprints/<id>/sprint.md`. Solo `/make-feature` does not require a sprint. |
 | `/pair`                                   | Holds one delivery stage until a named reviewer reports a command that exited 0. Does not run unless you ask. |
@@ -492,81 +490,36 @@ They exit `2` to block and print a clear reason.
 | `enforce-sail.sh`               | Bare `php artisan` / `composer` / `vendor/bin/{pint,pest,phpunit,phpstan}` on a **Sail** project — the block message carries the exact `./vendor/bin/sail …` rewrite, so the agent self-corrects in one turn. Active only when both `vendor/bin/sail` and a compose file exist (the sail *dependency* alone — the Herd/Valet shape — stays untouched). Opt out with `LARAVEL_AGENTS_SAIL=0`. |
 | `emit-agent-events.sh`          | Nothing — an **observer**, not a guard: wired as `PreToolUse` **and** `PostToolUse` on the subagent tool (`Agent\|Task`), it streams every subagent start / finish (agent, task, duration, tokens) to `.claude/agents-board.jsonl` for the `/board` live dashboard. Always exits 0. Claude Code only. |
 
-Example hook config (`.claude/settings.json`) — this is the shape `install.sh` auto-merges:
+Example hook config (`.claude/settings.json`) — these are the registrations `install.sh` auto-merges:
 ```json
 {
   "hooks": {
     "PreToolUse": [
-      {
-        "matcher": "Read|Grep|Bash|WebFetch",
-        "hooks": [
-          { "type": "command", "command": "./scripts/enforce-sensitive-access.sh" }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          { "type": "command", "command": "./scripts/block-prod-destructive-sql.sh" }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          { "type": "command", "command": "./scripts/block-prod-artisan.sh" }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          { "type": "command", "command": "./scripts/enforce-reviewer-readonly.sh" }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          { "type": "command", "command": "./scripts/enforce-sail.sh" }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          { "type": "command", "command": "./scripts/enforce-close-file.sh" }
-        ]
-      },
-      {
-        "matcher": "Bash",
-        "hooks": [
-          { "type": "command", "command": "./scripts/enforce-stage-return.sh" }
-        ]
-      },
-      {
-        "matcher": "Write|Edit|NotebookEdit",
-        "hooks": [
-          { "type": "command", "command": "./scripts/enforce-agent-paths.sh" }
-        ]
-      },
-      {
-        "matcher": "Write|Edit",
-        "hooks": [
-          { "type": "command", "command": "./scripts/protect-env-files.sh" },
-          { "type": "command", "command": "./scripts/enforce-close-file.sh" },
-          { "type": "command", "command": "./scripts/enforce-stage-return.sh" }
-        ]
-      },
-      {
-        "matcher": "Agent|Task",
-        "hooks": [
-          { "type": "command", "command": "./scripts/emit-agent-events.sh" }
-        ]
-      }
+      {"matcher": "Read|Grep|Bash|WebFetch", "hooks": [{"type": "command", "command": "./scripts/enforce-sensitive-access.sh"}]},
+      {"matcher": "Bash", "hooks": [{"type": "command", "command": "./scripts/block-prod-destructive-sql.sh"}]},
+      {"matcher": "Bash", "hooks": [{"type": "command", "command": "./scripts/block-prod-artisan.sh"}]},
+      {"matcher": "Bash", "hooks": [{"type": "command", "command": "./scripts/enforce-reviewer-readonly.sh"}]},
+      {"matcher": "Bash", "hooks": [{"type": "command", "command": "./scripts/enforce-sail.sh"}]},
+      {"matcher": "Bash", "hooks": [{"type": "command", "command": "./scripts/enforce-close-file.sh"}]},
+      {"matcher": "Bash", "hooks": [{"type": "command", "command": "./scripts/enforce-stage-return.sh"}]},
+      {"matcher": "Bash", "hooks": [{"type": "command", "command": "./scripts/enforce-sprint-file.sh"}]},
+      {"matcher": "Bash", "hooks": [{"type": "command", "command": "./scripts/enforce-lessons-file.sh"}]},
+      {"matcher": "Write|Edit|NotebookEdit", "hooks": [{"type": "command", "command": "./scripts/enforce-agent-paths.sh"}]},
+      {"matcher": "Bash|Write|Edit|NotebookEdit", "hooks": [{"type": "command", "command": "./scripts/enforce-kernel-approvals.sh"}]},
+      {"matcher": "", "hooks": [{"type": "command", "command": "./scripts/enforce-kernel-budgets.sh"}]},
+      {"matcher": "Write|Edit", "hooks": [{"type": "command", "command": "./scripts/protect-env-files.sh"}]},
+      {"matcher": "Write|Edit", "hooks": [{"type": "command", "command": "./scripts/enforce-close-file.sh"}]},
+      {"matcher": "Write|Edit", "hooks": [{"type": "command", "command": "./scripts/enforce-stage-return.sh"}]},
+      {"matcher": "Write|Edit", "hooks": [{"type": "command", "command": "./scripts/enforce-sprint-file.sh"}]},
+      {"matcher": "Write|Edit", "hooks": [{"type": "command", "command": "./scripts/enforce-lessons-file.sh"}]},
+      {"matcher": "Agent|Task", "hooks": [{"type": "command", "command": "./scripts/emit-agent-events.sh"}]}
     ],
     "PostToolUse": [
-      {
-        "matcher": "Agent|Task",
-        "hooks": [
-          { "type": "command", "command": "./scripts/emit-agent-events.sh" }
-        ]
-      }
+      {"matcher": "Agent|Task", "hooks": [{"type": "command", "command": "./scripts/emit-agent-events.sh"}]},
+      {"matcher": "Agent|Task", "hooks": [{"type": "command", "command": "./scripts/enforce-kernel-budgets.sh"}]}
+    ],
+    "SubagentStop": [
+      {"matcher": "", "hooks": [{"type": "command", "command": "./scripts/emit-agent-events.sh"}]}
     ]
   }
 }
@@ -606,13 +559,12 @@ git clone https://github.com/HamzaAlayed/laravel-claude-agents
 gemini extensions install ./laravel-claude-agents/gemini
 ```
 
-It registers the 17 subagents (auto-delegated, or call `@backend-developer` etc.), the 14 commands as slash commands, the `laravel-conventions` skill, and the guardrail hooks (wired as `BeforeTool` via `${extensionPath}`). The Claude-specific frontmatter is translated automatically: tool names mapped (`Bash`→`run_shell_command`, …), read-only reviewers expressed as a tools allowlist (Gemini has no `disallowedTools`), commands rewritten to TOML (`{{args}}` is already Gemini's token), and `model`/`isolation`/`memory` dropped (no Gemini equivalent).
+It registers the 18 subagents (auto-delegated, or call `@backend-developer` etc.), the 14 commands as slash commands, the `laravel-conventions` skill, and the guardrail hooks (wired as `BeforeTool` via `${extensionPath}`). The Claude-specific frontmatter is translated automatically: tool names mapped (`Bash`→`run_shell_command`, …), read-only reviewers expressed as a tools allowlist, commands rewritten to TOML (`{{args}}` is already Gemini's token), and `model`/`isolation`/`memory` dropped (no Gemini equivalent).
 
-> **Sunset notice:** Google sunsets Gemini CLI for consumer (Individual / AI Pro / AI Ultra) accounts on **June 18, 2026** in favor of [Antigravity](https://antigravity.google); Standard/Enterprise tiers are unaffected. Installed extensions **auto-migrate to Antigravity plugins** — Agent Skills, Hooks, Subagents, and `GEMINI.md` carry over. This pack is pure bash + markdown (no Node-only APIs), so it migrates cleanly.
 
 #### Codex CLI
 
-Codex has no one-command install, so the pack ships a **Codex Core** target under [`codex/`](codex/) — `AGENTS.md` (Codex's native context file), the `laravel-conventions` skill, and the 9 guardrail hooks as `PreToolUse`. Install it into your project:
+This repository ships a **Codex Core** target under [`codex/`](codex/) — `AGENTS.md` (Codex's native context file), the `laravel-conventions` skill, and the 9 guardrail hooks as `PreToolUse`. Install it into your project:
 
 ```bash
 git clone https://github.com/HamzaAlayed/laravel-claude-agents
@@ -621,7 +573,7 @@ git clone https://github.com/HamzaAlayed/laravel-claude-agents
 
 It drops `AGENTS.md` (only if absent), `.agents/skills/laravel-conventions/`, and `.codex/hooks.json` + `.codex/hooks/*` (hook paths resolve from the git root). On the next `codex` run you're asked to review and trust the hooks. The guard scripts use the same `.tool_input.command` / `exit 2` contract as Claude, with an `apply_patch`-aware `.env` guard and the shared Python sensitive-access policy.
 
-> **Scope:** the full 18-agent team is **not** ported to Codex — its subagent model is a different `config.toml` schema. Codex Core ships the conventions skill + guardrails; use Claude Code or Gemini CLI for the full team.
+> **Scope:** this repository does **not** port the full 18-agent team to its Codex target. Codex Core ships the conventions skill + guardrails; use Claude Code or Gemini CLI for the full team.
 
 ### Just the skills, on any agent (skills.sh)
 
@@ -658,9 +610,9 @@ From the root of your Laravel project:
 curl -fsSL https://raw.githubusercontent.com/HamzaAlayed/laravel-claude-agents/main/install.sh | bash
 ```
 
-That's it. The installer self-clones to a temp dir, copies everything into place, drops a `CLAUDE.md`, wires up the guardrail hooks in `.claude/settings.json`, and cleans up after itself.
+The installer self-clones to a temp dir, copies agents, commands, scripts, and harness config, drops a `CLAUDE.md`, wires up the guardrail hooks in `.claude/settings.json`, and cleans up after itself. Install the skills separately with `npx skills add HamzaAlayed/laravel-claude-agents`.
 
-Global install (available in every project):
+Global install (agents and commands available in every project; scripts, config, hooks, and `CLAUDE.md` are installed only in project mode):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/HamzaAlayed/laravel-claude-agents/main/install.sh | bash -s -- -g
@@ -692,13 +644,16 @@ Or pass the target explicitly from anywhere:
 
 ### What the installer does
 
+In project mode (the default):
+
 1. Bootstraps itself by cloning the repo when run via `curl | bash`.
 2. Copies agents to `<target>/.claude/agents/`.
 3. Copies slash commands to `<target>/.claude/commands/`.
 4. Copies guardrail scripts to `<target>/scripts/` and `chmod +x` them.
-5. Drops `CLAUDE.md` from the template if one doesn't exist yet (never overwrites an existing one).
-6. Idempotently merges the guardrail `PreToolUse`, `PostToolUse`, and `SubagentStop` hooks into `<target>/.claude/settings.json` (the file is only rewritten when something actually changes).
-7. Backup behavior: byte-identical files are skipped without backup. When a copied file differs from the destination, a timestamped `.bak` copy is created before overwriting. If `settings.json` exists but contains invalid JSON, the original is preserved as a timestamped `.bak` before the new file is written.
+5. Copies the harness configuration to `<target>/config/` and the kernel CLI tree to `<target>/scripts/guild-kernel/`. Copies the console tree when its frontend bundle is built; from a source checkout, build it with `cd console-ui && npm ci && npm run build` before installing.
+6. Drops `CLAUDE.md` from the template if one doesn't exist yet (never overwrites an existing one).
+7. Idempotently merges the guardrail `PreToolUse`, `PostToolUse`, and `SubagentStop` hooks into `<target>/.claude/settings.json` (the file is only rewritten when something actually changes).
+8. Backup behavior: byte-identical files are skipped without backup. When a copied file differs from the destination, a timestamped `.bak` copy is created before overwriting. If `settings.json` exists but contains invalid JSON, the original is preserved as a timestamped `.bak` before the new file is written.
 
 ---
 
@@ -739,7 +694,7 @@ The pack ships **8 skills** — deep procedural cookbooks the agents invoke **on
 | `accessibility-design` | WCAG 2.2 AA thresholds, Livewire/Inertia focus management, mobile a11y | ui-ux-designer, frontend, mobile |
 | `docs-authoring` | changelog / release-notes / runbook / endpoint-reference templates | technical-writer |
 
-Design note: agents deliberately do **not** use the `skills:` preload field — preloading injects the full skill into context on *every* invocation. On-demand invocation via the `Skill` tool keeps the per-call cost at zero until the task actually needs the cookbook. Installed as a plugin, skills are namespaced (`laravel-team:laravel-testing`); via `install.sh` they're bare names — agents reference them by bare name and Claude Code resolves either.
+Design note: agents deliberately do **not** use the `skills:` preload field — preloading injects the full skill into context on *every* invocation. On-demand invocation via the `Skill` tool keeps the per-call cost at zero until the task actually needs the cookbook. Installed as a plugin, skills are namespaced (`laravel-team:laravel-testing`); standalone skill installs use bare names. `install.sh` copies agents and commands but does not copy the skills; install the cookbooks separately with `npx skills add HamzaAlayed/laravel-claude-agents` when using that path.
 
 Pairs well with (install alongside, no overlap):
 
@@ -772,7 +727,7 @@ For point work, call a specialist directly:
 
 ## Usage in Gemini CLI
 
-After `gemini extensions install ./laravel-claude-agents/gemini`, the 18 specialists load as Gemini subagents, the 14 commands as slash commands, the `laravel-conventions` skill, and the guardrail hooks.
+After `gemini extensions install ./laravel-claude-agents/gemini`, the 18 agents load as Gemini subagents, the 14 commands as slash commands, the `laravel-conventions` skill, and the guardrail hooks.
 
 **Invoke a specialist** — either let Gemini auto-delegate from your description, or target one explicitly with `@`:
 
@@ -821,7 +776,9 @@ A starter `CLAUDE.md` tailored for Laravel. Fill in the stack block (PHP version
 The guardrail scripts are covered by a zero-dependency test harness — no `bats`, no install:
 
 ```bash
-./tests/guardrails.test.sh        # Full hook, fallback, installer, and policy harness
+python3 scripts/check_inventory_sync.py # Documentation and manifest counts
+python3 scripts/check-hook-sync.py      # Hook registrations match installer and README
+./tests/guardrails.test.sh              # Full hook, fallback, installer, and policy harness
 ```
 
 CI (`.github/workflows/ci.yml`) runs `shellcheck`, the harness (with and without
