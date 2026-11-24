@@ -168,6 +168,12 @@ expect "stage return stub Write allows" "$ALLOW" \
   "$(run_hook enforce-stage-return.sh '{"tool_input":{"path":"docs/delivery/tag/stages/database-developer.md","contents":"STATUS: done\nDID: x\nVERIFIED: y\nNOT-CHECKED: z\nFLAGS: none\nNEXT: none\n"}}')"
 expect "stage return journal Write blocks" "$BLOCK" \
   "$(run_hook enforce-stage-return.sh '{"tool_input":{"path":"docs/delivery/tag/stages/database-developer.md","contents":"# Stage return\n\nI did some work\n"}}')"
+expect "stage return Claude Code content Write allows" "$ALLOW" \
+  "$(run_hook enforce-stage-return.sh '{"tool_name":"Write","tool_input":{"file_path":"/workspace/docs/delivery/tag/stages/database-developer.md","content":"STATUS: done\nDID: x\nVERIFIED: y\nNOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"}}')"
+expect "stage return Claude Code content journal blocks" "$BLOCK" \
+  "$(run_hook enforce-stage-return.sh '{"tool_name":"Write","tool_input":{"file_path":"/workspace/docs/delivery/tag/stages/database-developer.md","content":"# Stage return\n\nI did some work\n"}}')"
+expect "stage return empty content blocks even with legacy contents present" "$BLOCK" \
+  "$(run_hook enforce-stage-return.sh '{"tool_name":"Write","tool_input":{"file_path":"/workspace/docs/delivery/tag/stages/database-developer.md","content":"","contents":"STATUS: done\nDID: x\nVERIFIED: y\nNOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"}}')"
 expect "non-stage-return Write allows" "$ALLOW" \
   "$(run_hook enforce-stage-return.sh '{"tool_input":{"path":"app/Models/Tag.php","contents":"class Tag {}\n"}}')"
 expect "stage return stub Edit allows" "$ALLOW" \
