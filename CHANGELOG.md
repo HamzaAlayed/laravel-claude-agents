@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.11.1] - 2026-11-24
+
+### Fixed
+
+- Validate stage-return Writes sent as `file_path` + `content` or as
+  `path` + `contents`. Both parsers reject empty or invalid primary bodies
+  even when an alternate field is present.
+
 ## [9.11.0] - 2026-11-24
 
 ### Changed

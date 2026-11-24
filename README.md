@@ -442,9 +442,9 @@ an explicit ownership boundary.
 
 ---
 
-## Latest release: 9.11.0
+## Latest release: 9.11.1
 
-Four specialist agents now use Claude Opus 5.5. The performance agent preserves the requested order when optimizing related-row queries, and the QA agent checks login routing before asserting a guest redirect. Both revised agents scored 6/6 on their live fixture reruns. [Release notes and eval results](docs/releases/9.11.0.md)
+The stage-return hook validates Claude Code's current `file_path` + `content` Write payload and the legacy `path` + `contents` format. [Release notes](docs/releases/9.11.1.md)
 
 ---
 
