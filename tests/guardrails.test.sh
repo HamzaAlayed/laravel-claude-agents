@@ -519,16 +519,7 @@ expect "dual-registration twin suppressed (plugin + settings both fire)" "4" \
   "$(CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh "$DEDUP_JSON" >/dev/null; CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh "$DEDUP_JSON" >/dev/null; wc -l < "$FEED" | tr -d ' ')"
 CONC_JSON='{"session_id":"abc12345-zzz","hook_event_name":"PreToolUse","tool_name":"Agent","tool_input":{"subagent_type":"laravel-team:security-engineer","description":"Concurrent dedup probe"}}'
 expect "CONCURRENT twins suppressed (real hooks fire simultaneously)" "5" \
-  "$(
-    printf '%s' "$CONC_JSON" | CLAUDE_PROJECT_DIR="$BOARDPROJ" bash -x "$SCRIPTS/emit-agent-events.sh" >"$BOARDPROJ/observer-first.log" 2>&1 &
-    printf '%s' "$CONC_JSON" | CLAUDE_PROJECT_DIR="$BOARDPROJ" bash -x "$SCRIPTS/emit-agent-events.sh" >"$BOARDPROJ/observer-second.log" 2>&1 &
-    wait
-    board_count="$(wc -l < "$FEED" | tr -d ' ')"
-    if [ "$board_count" != 5 ]; then
-      cat "$BOARDPROJ/observer-first.log" "$BOARDPROJ/observer-second.log" "$FEED" >&2
-    fi
-    printf '%s' "$board_count"
-  )"
+  "$(CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh "$CONC_JSON" >/dev/null & CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh "$CONC_JSON" >/dev/null & wait; wc -l < "$FEED" | tr -d ' ')"
 NESTED_JSON='{"session_id":"abc12345-zzz","hook_event_name":"PreToolUse","tool_name":"Agent","agent_id":"par-agent-1","agent_type":"laravel-team:delivery-coordinator","tool_input":{"subagent_type":"laravel-team:qa-engineer","description":"Nested spawn probe"}}'
 expect "nested spawn records parent (calling agent_type, prefix stripped)" "6" \
   "$(CLAUDE_PROJECT_DIR="$BOARDPROJ" run_hook emit-agent-events.sh "$NESTED_JSON" >/dev/null; wc -l < "$FEED" | tr -d ' ')$(grep -q '"parent":"delivery-coordinator"' "$FEED" || echo MISSING)"

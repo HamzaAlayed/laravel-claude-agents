@@ -23,6 +23,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Preserve the existing sort column when recommending Eloquent one-of-many
   relations. Check the configured login route before asserting a guest
   redirect in Laravel feature tests.
+- Use a kernel file lock where available to suppress duplicate board events
+  from concurrent hooks.
 
 ## [9.10.0] - 2026-09-28
 

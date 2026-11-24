@@ -102,16 +102,23 @@ mkdir -p "$DIR" 2>/dev/null || exit 0
 #
 # The twin invocations run CONCURRENTLY — without a lock both read the feed
 # before either appends and the compare never fires (eval run 3 evidence).
-# mkdir is the atomic primitive; a stale lock (killed hook) is stolen after
-# ~2s of spinning so the dashboard never blocks delivery.
-LOCKDIR="$OUT.lock"
-tries=0
-until mkdir "$LOCKDIR" 2>/dev/null; do
-  tries=$((tries + 1))
-  [ "$tries" -gt 40 ] && break
-  sleep 0.05
-done
-trap 'rmdir "$LOCKDIR" 2>/dev/null' EXIT
+# Use a kernel file lock where available so parallel observers cannot read
+# the same last event before either appends. The descriptor closes on exit.
+if command -v flock >/dev/null 2>&1; then
+  { exec 9>>"$OUT.flock"; } 2>/dev/null || exit 0
+  flock -w 2 9 2>/dev/null || exit 0
+else
+  # Retain the directory lock on systems without flock. The bounded wait
+  # recovers a stale directory left behind by a killed observer.
+  LOCKDIR="$OUT.lock"
+  tries=0
+  until mkdir "$LOCKDIR" 2>/dev/null; do
+    tries=$((tries + 1))
+    [ "$tries" -gt 40 ] && break
+    sleep 0.05
+  done
+  trap 'rmdir "$LOCKDIR" 2>/dev/null' EXIT
+fi
 
 # `SubagentStop`'s documented `duration` field does not arrive in practice —
 # every stop event across all five eval-run-4 feeds had ms null, so the feed
