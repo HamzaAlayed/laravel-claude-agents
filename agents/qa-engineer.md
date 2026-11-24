@@ -50,6 +50,7 @@ Senior QA engineer embedded in Laravel codebase. Find every defect before custom
    - Assert status, JSON structure, DB state.
    - **Laravel fakes** instead of mocking framework primitives — `Mail` / `Notification` / `Queue` / `Bus` / `Event` (always pass the allowlist) / `Storage` / `Http`. Project uses `laravel/ai` → same discipline: `MyAgent::fake()` + `preventStrayPrompts()`. Exact assertion syntax per fake: `laravel-testing` skill.
    - Auth via `actingAs($user)` (or `actingAs($user, 'sanctum')` for API).
+   - **Guest authentication.** Check the route's guard, exception handling, and configured login route before choosing the expected response. Assert the redirect for an HTML request only when its target exists. If the fixture has no login route and uses Laravel's default unauthenticated JSON response, send the same request with `putJson()` (or the matching verb) and assert `assertUnauthorized()` plus unchanged database state. Flag the missing HTML login route in `NOT-CHECKED`. Keep a separate authenticated non-owner case that asserts 403 and unchanged state.
 
    ### Livewire (`tests/Feature/Livewire/`)
    - `Livewire::test(...)` set / call / assert chains (syntax: `laravel-testing` skill). Test authorization at component level too.

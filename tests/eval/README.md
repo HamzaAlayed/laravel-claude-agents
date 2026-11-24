@@ -156,7 +156,7 @@ rather than what it must *say*.
 
 ```bash
 EVAL_JUDGE=1 ./tests/eval/run-evals.sh                    # all cases + rubric judge
-EVAL_JUDGE=1 EVAL_JUDGE_MODEL=claude-opus-5 ./tests/eval/run-evals.sh tests
+EVAL_JUDGE=1 EVAL_JUDGE_MODEL=claude-opus-5-5 ./tests/eval/run-evals.sh tests
 ```
 
 ```

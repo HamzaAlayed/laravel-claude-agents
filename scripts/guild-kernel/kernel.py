@@ -1456,13 +1456,14 @@ def usage_cost(usage, model):
         raise PlanError("budget pricing policy is invalid")
     model_name = str(model or "")
     rates = None
-    for alias, candidate in rates_by_model.items():
+    # Prefer the longest match when one model ID prefixes another.
+    for alias in sorted(rates_by_model, key=len, reverse=True):
         if (
             model_name == alias
             or model_name.startswith(alias + "-")
             or model_name.startswith(alias + "[")
         ):
-            rates = candidate
+            rates = rates_by_model[alias]
             break
     rates = rates or fallback
     try:

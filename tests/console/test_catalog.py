@@ -30,7 +30,9 @@ class TestCatalog(unittest.TestCase):
         self.assertEqual(self.agents["security-engineer"]["name"], "Felix")
 
     def test_pinned_model_ids_survive(self):
-        self.assertEqual(self.agents["solution-architect"]["model"], "claude-opus-5")
+        for slug in ("solution-architect", "security-engineer", "tech-lead", "performance-engineer"):
+            with self.subTest(agent=slug):
+                self.assertEqual(self.agents[slug]["model"], "claude-opus-5-5")
 
     def test_coordinator_is_not_a_column(self):
         self.assertIsNone(self.agents[catalog.COORDINATOR]["stage"])

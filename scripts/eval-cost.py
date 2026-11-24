@@ -230,13 +230,20 @@ def subagent_text(lines):
 def _price(counts, rate, multipliers):
     """Cost of one bundle of token counts at one model's rates."""
     per_input = rate["input"] / PER_MILLION
+    cache_read_multiplier = rate.get("cache_read_multiplier", multipliers["cache_read"])
     return (
         counts["input_tokens"] * per_input
         + counts["cache_write_1h_tokens"] * multipliers["cache_write_1h"] * per_input
         + counts["cache_write_5m_tokens"] * multipliers["cache_write_5m"] * per_input
-        + counts["cache_read_tokens"] * multipliers["cache_read"] * per_input
+        + counts["cache_read_tokens"] * cache_read_multiplier * per_input
         + counts["output_tokens"] * rate["output"] / PER_MILLION
     )
+
+
+def _long_context_rate(counts, rate):
+    tier = rate.get("long_context")
+    prompt_tokens = sum(counts.values()) - counts["output_tokens"]
+    return tier if tier and prompt_tokens > tier["threshold"] else rate
 
 
 def _resolve_rate(model, table, default_model):
@@ -303,10 +310,10 @@ def _billed(lines, rates):
     `costUSD` sums to `total_cost_usd` exactly. It does NOT carry the cache-TTL
     breakdown, so the check brackets rather than pins: reprice its counts once
     with every cache write at the 5m tier (cheapest possible) and once at the 1h
-    tier (dearest). The billed figure must land inside that bracket, and the
-    cache-write multiplier it implies must be a real one. If Anthropic changes a
-    price and model-rates.json is not updated, the bracket misses and `agrees`
-    goes false instead of the summary quietly reporting a wrong number.
+    tier (dearest). A model billed by prompt length can also span pricing tiers
+    because the ledger aggregates requests. Use both prompt rates as bounds
+    when the aggregate could include long prompts. A reliable implied cache
+    multiplier requires a single prompt rate for each model.
     """
     table = rates.get("rates", {})
     multipliers = rates["multipliers"]
@@ -330,6 +337,7 @@ def _billed(lines, rates):
     low = high = 0.0
     read_and_flat = 0.0
     write_tokens_at_input_rate = 0.0
+    has_variable_rates = False
     for model, entry in sorted(model_usage.items()):
         counts = {
             "input_tokens": _int(entry.get("inputTokens")),
@@ -339,24 +347,28 @@ def _billed(lines, rates):
             "cache_write_5m_tokens": _int(entry.get("cacheCreationInputTokens")),
         }
         models[model] = dict(counts, usd=entry.get("costUSD"))
+        rate, priced = _resolve_rate(model, table, rates.get("_default", ""))
+        upper_rate = _long_context_rate(counts, rate)
+        has_variable_rates |= upper_rate is not rate
+        if not priced:
+            unpriced_in_ledger.add(model)
+
         models[model]["cache_write_tokens_ttl_unsplit"] = counts.pop("cache_write_5m_tokens")
         writes = models[model]["cache_write_tokens_ttl_unsplit"]
         for key in totals:
             totals[key] += counts.get(key, 0)
         totals["cache_write_5m_tokens"] += 0  # kept explicit: TTL unknown here
 
-        rate, priced = _resolve_rate(model, table, rates.get("_default", ""))
-        if not priced:
-            unpriced_in_ledger.add(model)
         per_input = rate["input"] / PER_MILLION
-        flat = _price(dict(counts, cache_write_5m_tokens=0, cache_write_1h_tokens=0), rate, multipliers)
+        flat = _price(dict(counts, cache_write_5m_tokens=0), rate, multipliers)
         read_and_flat += flat
         write_tokens_at_input_rate += writes * per_input
         low += flat + writes * multipliers["cache_write_5m"] * per_input
-        high += flat + writes * multipliers["cache_write_1h"] * per_input
+        high += _price(dict(counts, cache_write_5m_tokens=0, cache_write_1h_tokens=writes),
+                       upper_rate, multipliers)
 
     implied = None
-    if billed_usd is not None and write_tokens_at_input_rate > 0:
+    if billed_usd is not None and write_tokens_at_input_rate > 0 and not has_variable_rates:
         implied = round((billed_usd - read_and_flat) / write_tokens_at_input_rate, 4)
 
     agrees = None
@@ -393,6 +405,7 @@ def summarize(lines, rates):
     per_agent_models = collections.defaultdict(collections.Counter)
     per_agent_tools = collections.defaultdict(collections.Counter)
     per_agent_turns = collections.Counter()
+    per_agent_usd = collections.defaultdict(float)
     # Seed every agent the run launched, so one that produced no turns in this
     # transcript still appears at zero rather than vanishing. A background
     # (async) subagent is the case that matters: runs 3 and 5 both saw `policy`
@@ -403,7 +416,6 @@ def summarize(lines, rates):
         _ = per_agent[agent_name]
     tools = collections.Counter()
     unpriced = set()
-    attributed_usd = 0.0
     parse_errors = 0
 
     for obj, ok in _iter_objects(lines):
@@ -423,7 +435,7 @@ def summarize(lines, rates):
                 per_agent[agent][key] += value
             per_agent_models[agent][model] += 1
             per_agent_turns[agent] += 1
-            attributed_usd += _price(usage, rate, multipliers)
+            per_agent_usd[agent] += _price(usage, _long_context_rate(usage, rate), multipliers)
 
         for name in _tools_of(obj):
             tools[name] += 1
@@ -433,11 +445,10 @@ def summarize(lines, rates):
     for agent in sorted(set(per_agent) | set(per_agent_tools)):
         counts = per_agent.get(agent, _empty_counts())
         models = per_agent_models.get(agent, collections.Counter())
-        rate_for, _ = _resolve_rate(next(iter(models), default_model), table, default_model)
         agents[agent] = dict(
             counts,
             tokens=sum(counts.values()),
-            usd=round(_price(counts, rate_for, multipliers), 6),
+            usd=round(per_agent_usd.get(agent, 0.0), 6),
             models=sorted(models),
             tools=dict(sorted(per_agent_tools.get(agent, {}).items())),
             turns=per_agent_turns.get(agent, 0),
@@ -452,6 +463,7 @@ def summarize(lines, rates):
     )
 
     billed = _billed(lines, rates)
+    attributed_usd = sum(per_agent_usd.values())
     coverage = None
     if billed["usd"]:
         coverage = round(attributed_usd / billed["usd"], 4)

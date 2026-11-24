@@ -43,6 +43,11 @@ class BudgetPolicyTest(unittest.TestCase):
     def claim(self):
         return kernel.claim_stage(self.root, "tag", "backend")
 
+    def test_opus_55_uses_its_own_budget_rate(self):
+        for model in ("claude-opus-5-5", "claude-opus-5-5[1m]", "claude-opus-5-5-20260922"):
+            with self.subTest(model=model):
+                self.assertEqual(kernel.usage_cost({"input_tokens": 1_000_000}, model), 4.0)
+
     def test_defaults_are_snapshotted_and_overrides_respect_hard_ceilings(self):
         delivery = self.plan({"max_seconds": 60, "max_tool_calls": 3})
         stage = delivery.stages[0]

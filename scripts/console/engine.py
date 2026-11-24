@@ -95,9 +95,12 @@ _MODEL_RATES = {
     "claude-opus-5": (5.0, 25.0),
     "claude-opus-4-8": (5.0, 25.0),
     "claude-opus-4-7": (5.0, 25.0),
+    "claude-opus-5-5": (4.0, 20.0),
     "claude-sonnet-5": (3.0, 15.0),
+    "claude-sonnet-5-5": (2.0, 10.0),
     "sonnet": (3.0, 15.0),
     "claude-haiku-4-5": (1.0, 5.0),
+    "claude-haiku-5-5": (0.5, 2.5),  # Use the higher prompt tier for budget estimates.
     "haiku": (1.0, 5.0),
 }
 
@@ -151,9 +154,9 @@ def _number(value) -> float:
 
 def _rates_for(model) -> tuple[float, float]:
     name = str(model or "")
-    for alias, rates in _MODEL_RATES.items():
+    for alias in sorted(_MODEL_RATES, key=len, reverse=True):
         if name == alias or name.startswith(alias + "-") or name.startswith(alias + "["):
-            return rates
+            return _MODEL_RATES[alias]
     # Unknown models use the most expensive known rate so the runtime never
     # silently understates spend.
     return (10.0, 50.0)

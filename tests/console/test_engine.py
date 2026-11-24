@@ -709,6 +709,13 @@ class TestRunJsonlSize(EngineTestCase):
         self.assertEqual(with_raw[0]["raw"]["type"], "assistant")
 
 
+class TestModelRates(unittest.TestCase):
+    def test_opus_55_uses_its_own_budget_rate(self):
+        for model in ("claude-opus-5-5", "claude-opus-5-5[1m]", "claude-opus-5-5-20260922"):
+            with self.subTest(model=model):
+                self.assertEqual(engine._usage_cost({"input_tokens": 1_000_000}, model), 4.0)
+
+
 class TestRuntimeBudgetsAndTraces(EngineTestCase):
     def test_tool_call_limit_denies_and_interrupts(self):
         run_id = self.mgr.start(

@@ -14,11 +14,9 @@ name: backend-developer          # kebab-case, matches the filename
 description: Expert Laravel backend. HTTP, Eloquent, queues, events...
                                  # dense, specific, says when to use it PROACTIVELY
 tools: Read, Write, Edit, Bash, Grep, Glob   # only what the role needs
-model: sonnet                    # alias (opus | sonnet | haiku) or pinned ID —
-                                 # claude-opus-5 for highest-failure-cost reasoning
-                                 # (solution-architect, security-engineer),
-                                 # claude-opus-4-8 for deep review/diagnosis
-                                 # (tech-lead, performance-engineer)
+model: sonnet                    # provider alias, or a pinned model ID
+                                 # claude-opus-5-5 for architecture, security,
+                                 # code review, and performance diagnosis
 color: green                     # display color
 # effort: xhigh                  # OPTIONAL, and absent on purpose for most roles —
 #                                # see "Reasoning effort per agent" below
@@ -113,7 +111,7 @@ Because it overrides the session, this pack declares `effort` **only where it ha
 
 Two roles are deliberately excluded even though they look like candidates:
 
-- **`scrum-master`** — the pack's only `haiku` agent, and effort is unsupported on Haiku 4.5, so declaring it would break the agent rather than tune it. It is already on the cheapest tier; there is nothing left to save. A guardrails test fails the build if any `haiku` agent declares `effort`.
+- **`scrum-master`** uses the `haiku` alias, which still resolves to Haiku 4.5 on some providers. Leaving `effort` unset keeps the agent compatible with those providers. The guardrail test checks this for all agents using the alias. [Claude Code model configuration](https://code.claude.com/docs/en/model-config)
 - **`technical-writer`** — v1.23.0 promoted it `haiku` → `sonnet` on an explicit human call of docs quality over cost. Lowering its effort would quietly re-litigate that decision.
 
 **Do not treat an accepted key as a working one.** An unrecognised frontmatter key is ignored, not rejected, so a misspelled field or an out-of-range level leaves the pack looking tuned while changing nothing. A guardrails test pins every declared level to the documented set. The `effort` key is Claude-only: `scripts/build-gemini-extension.py` whitelists `name`/`description`/`tools` when it writes mirror frontmatter, so nothing leaks to Gemini.

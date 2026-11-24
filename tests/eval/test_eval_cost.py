@@ -361,6 +361,38 @@ class TestPricing(unittest.TestCase):
         out = eval_cost.summarize([assistant_line(cache_read=1_000_000), result_line("x")], RATES)
         self.assertAlmostEqual(out["attributed"]["total"]["usd"], 0.5, places=4)
 
+    def test_prices_opus_and_sonnet_55_cache_hits(self):
+        for model, cost in (("claude-opus-5-5", 0.20), ("claude-sonnet-5-5", 0.10)):
+            with self.subTest(model=model):
+                lines = [assistant_line(cache_read=1_000_000, model=model)]
+                out = eval_cost.summarize(lines, RATES)
+                self.assertEqual(out["attributed"]["total"]["usd"], cost)
+                self.assertEqual(out["unpriced_models"], [])
+
+    def test_haiku_55_prices_each_request_by_full_prompt_length(self):
+        model = "claude-haiku-5-5"
+        lines = [
+            assistant_line(input_tokens=1, cache_5m=20_000, cache_read=79_999,
+                           output_tokens=10_000, model=model),
+            assistant_line(input_tokens=2, cache_5m=20_000, cache_read=79_999,
+                           output_tokens=10_000, model=model),
+        ]
+        # The first prompt is exactly 100k tokens, the second is one token over.
+        out = eval_cost.summarize(lines, RATES)["attributed"]
+        self.assertEqual(out["total"]["usd"], 0.049801)
+        self.assertEqual(out["agents"]["main"]["usd"], out["total"]["usd"])
+
+    def test_haiku_55_billed_cost_can_include_both_prompt_tiers(self):
+        lines = [json.dumps({
+            "type": "result",
+            "total_cost_usd": 0.060004,
+            "modelUsage": {"claude-haiku-5-5": {"inputTokens": 200_000, "costUSD": 0.060004}},
+        })]
+        check = eval_cost.summarize(lines, RATES)["billed"]["rate_table_check"]
+        self.assertEqual(check["repriced_usd_min"], 0.02)
+        self.assertEqual(check["repriced_usd_max"], 0.10)
+        self.assertTrue(check["agrees"])
+
     def test_prices_each_turn_at_the_model_that_billed_it(self):
         # message.model, not the agents/*.md frontmatter -- a re-tiered or
         # mis-tiered agent must show up as a cost anomaly, not be priced at

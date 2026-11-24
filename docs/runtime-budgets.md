@@ -67,14 +67,12 @@ When the runtime supplies an exact total cost, that value wins. Otherwise the
 hook prices the runtime's input, output, cache-read, and cache-write counters
 using the registry's release-owned table. Unknown models use the most expensive
 fallback rate. Cache creation uses the conservative two-times input multiplier.
-The table was checked on 2026-09-25 against Anthropic's current
-[Sonnet 5](https://www.anthropic.com/news/claude-sonnet-5),
-[Opus 5](https://www.anthropic.com/news/claude-opus-5), and
-[Haiku 4.5](https://www.anthropic.com/news/claude-haiku-4-5) prices. The Sonnet
-entry deliberately retains the prior $3/$15 rate as an upper bound over the
-current $2/$10 list price.
-The persisted number is a budget guard, not an invoice; provider billing is the
-authority for financial reconciliation.
+The registry includes Opus 5.5 and Sonnet 5.5 base rates and uses Haiku 5.5's
+higher prompt tier for budget estimates. Cache reads use a conservative
+10% of the input rate. The unresolved `sonnet` and `haiku` aliases retain their
+existing budget rates to cover older provider defaults. Provider billing is
+the authority for financial reconciliation.
+[Anthropic API pricing](https://platform.claude.com/docs/en/about-claude/pricing)
 
 ## Trust and recovery boundaries
 
@@ -94,4 +92,4 @@ authority for financial reconciliation.
   stage starts a new active timer but does not erase prior calls, turns, tokens,
   or cost.
 
-Last verified: 2026-09-25.
+Pricing last checked on 2026-11-23.

@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.11.0] - 2026-11-24
+
+### Changed
+
+- Pin the solution architect, security engineer, tech lead, and performance
+  engineer to Claude Opus 5.5.
+- Price Claude Opus, Sonnet, and Haiku 5.5 in live budget estimates and eval
+  reports. Eval attribution accounts for Haiku 5.5's prompt-length tiers.
+- Record the cost, wall time, and quality of four live model comparisons and
+  two prompt reruns in the release notes.
+
+### Fixed
+
+- Preserve the existing sort column when recommending Eloquent one-of-many
+  relations. Check the configured login route before asserting a guest
+  redirect in Laravel feature tests.
+
 ## [9.10.0] - 2026-09-28
 
 ### Added

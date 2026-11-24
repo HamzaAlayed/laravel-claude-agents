@@ -95,8 +95,8 @@ Fixture-driven capture of the Guild console company floor (Adam + Dina, parked c
 │   ├── solution-architect.md     # "Bilal" — system design & ADRs (Opus, project memory)
 │   ├── security-engineer.md      # "Felix" — STRIDE + Laravel hardening (Opus, project memory, no Edit/Write)
 │   ├── technical-writer.md       # "Sofia" — Scribe, route:list-driven docs (Sonnet)
-│   ├── tech-lead.md              # "Tariq" — code review w/ Laravel checklist (Opus 4.8, project memory, no Edit/Write)
-│   ├── performance-engineer.md   # "Omar" — profiling, N+1, caching, Octane, CWV (Opus 4.8, project memory, no Edit/Write)
+│   ├── tech-lead.md              # "Tariq" — code review w/ Laravel checklist (Opus, project memory, no Edit/Write)
+│   ├── performance-engineer.md   # "Omar" — profiling, N+1, caching, Octane, CWV (Opus, project memory, no Edit/Write)
 │   ├── mobile-developer.md       # "Pablo" — iOS/Android consuming Laravel APIs (Sonnet)
 │   ├── peer-router.md            # Adaptive packet validator (Sonnet, read-only)
 │   └── delivery-coordinator.md   # "Emre" — orchestrator main-thread agent (Sonnet, project memory)
@@ -341,11 +341,16 @@ mechanics. Each agent adds only its mutation scope, approval categories, and
 allowed handoffs. The machine-readable registry is checked against agent
 frontmatter in CI; see the [complete harness table](docs/agent-harness.md).
 
-**Model selection is opinionated, not uniform.**
+**Claude Code model selection follows the role.**
 
-- **Opus** for `solution-architect`, `security-engineer`, `tech-lead`, and `performance-engineer` — these reason deeply about long-lived consequences and review work end-to-end.
-- **Haiku** for `scrum-master` — aggregation and status work. Faster and cheaper without quality loss.
-- **Sonnet** for everyone else — the right default for builders and reviewers.
+- **Opus 5.5** is pinned for `solution-architect`, `security-engineer`, `tech-lead`, and `performance-engineer`.
+- **Haiku** handles aggregation and status work for `scrum-master`.
+- **Sonnet** handles implementation, planning, and other specialist work.
+
+The Anthropic API resolves the `haiku` and `sonnet` aliases to Haiku 5.5 and
+Sonnet 5.5 by default. Alias resolution varies by provider and session settings.
+Use Claude Code v2.1.293 or later for support across all three 5.5 models.
+[Claude Code model configuration](https://code.claude.com/docs/en/model-config)
 
 **Reviewers cannot edit code.** `tech-lead`, `security-engineer`, `performance-engineer`, and `peer-router` are read-only (`disallowedTools: Edit, Write`). They return findings; the `delivery-coordinator` persists the reports and builders apply the changes. This keeps reviews trustworthy and prevents reviewer drift. (On the residual `Bash` write-vector and how to fully sandbox a reviewer, see [docs/read-only-by-design.md](docs/read-only-by-design.md).)
 
@@ -437,9 +442,9 @@ an explicit ownership boundary.
 
 ---
 
-## Latest release: 9.10.0
+## Latest release: 9.11.0
 
-The technical writer now inventories linked research sources and records access limits before summarising. The solution architect maps research claims to existing controls and requires a reproducible gap, a baseline, and a measurable success condition before proposing an upgrade. See the [IBM research collection](docs/research/ibm-ai-agents/README.md), the [agent-pack review](docs/research/2026-09-28-ibm-agent-pack-review.md), and the [changelog](CHANGELOG.md).
+Four specialist agents now use Claude Opus 5.5. The performance agent preserves the requested order when optimizing related-row queries, and the QA agent checks login routing before asserting a guest redirect. Both revised agents scored 6/6 on their live fixture reruns. [Release notes and eval results](docs/releases/9.11.0.md)
 
 ---
 
