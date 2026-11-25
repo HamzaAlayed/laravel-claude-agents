@@ -442,9 +442,9 @@ an explicit ownership boundary.
 
 ---
 
-## Latest release: 9.11.1
+## Latest release: 9.11.2
 
-The stage-return hook validates Claude Code's current `file_path` + `content` Write payload and the legacy `path` + `contents` format. [Release notes](docs/releases/9.11.1.md)
+The close, sprint, and lessons hooks now validate Claude Code's current `file_path` + `content` Write payload and the legacy `path` + `contents` format. [Release notes and test results](docs/releases/9.11.2.md)
 
 ---
 

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.11.2] - 2026-11-25
+
+### Fixed
+
+- Validate close, sprint, and lessons Writes using either `file_path` +
+  `content` or `path` + `contents`. The `jq` and Python parsers both
+  validate `content` when both body fields are supplied.
+
 ## [9.11.1] - 2026-11-24
 
 ### Fixed
