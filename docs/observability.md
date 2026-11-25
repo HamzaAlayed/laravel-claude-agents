@@ -17,8 +17,8 @@ independent conformance suite is
 atomically derives two human- and tool-facing artifacts from that state:
 
 - `events.jsonl` contains one compact schema-versioned JSON object per event.
-- `observability.md` summarizes the trace, status, usage, event counts, and
-  current stage statuses.
+- `observability.md` summarizes the trace, status, usage, event counts,
+  current stage statuses, and timing.
 
 Both files are views. Do not hand-edit them or use them to override
 `kernel.json`.
@@ -40,6 +40,31 @@ The hash chain detects missing, reordered, or modified records and drift
 between the current state and derived files. It is not a digital signature and
 does not defend against arbitrary code running as the same operating-system
 account and deliberately rewriting every hash.
+
+## Where did a stage spend its time?
+
+```sh
+python3 scripts/guild-kernel/guild.py observe timing \
+  --root . --name <delivery>
+```
+
+The JSON output lists observed stage attempts, with UTC timestamps and elapsed
+milliseconds. The Markdown view shows the same elapsed intervals.
+
+| Interval | Boundaries |
+| --- | --- |
+| Eligible to claim | A queued stage clears prerequisites and approvals, then waits for a claim. This includes waiting for a slot, specialist, or owned path. |
+| Claim to start | The kernel claims the stage and the worker begins. |
+| Worker execution | The worker starts and finishes. Claude Code supplies both boundaries through its subagent lifecycle hooks. A programmatic runner can supply the same events. |
+| Return to verified | The worker finishes and the final report passes verification. This includes delivery handling and any required paired review. |
+| Resolved checkpoint wait | Time between opening and resolving the stage's checkpoints. A paused stage starts a new eligibility window when it becomes eligible again. |
+
+The event list retains each eligibility window. The timing view uses the window
+that led to the claim and gives each retry a separate row. Missing timestamps,
+including worker boundaries on older deliveries or hosts without lifecycle
+events, produce `null` intervals. Worker events contain a hash of the worker
+identity. Checkpoint questions, responses, and worker transcripts stay out of
+the ledger.
 
 ## Verify a delivery
 

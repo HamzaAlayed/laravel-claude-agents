@@ -22,6 +22,7 @@
     "previousEventHash",
     "eventHash"
   ],
+  "workerEventFields": ["workerHash"],
   "eventTypes": [
     "delivery.planned",
     "approval.granted",
@@ -37,7 +38,11 @@
     "usage.recorded",
     "pr.recorded",
     "feedback.recorded",
+    "stage.eligible",
+    "stage.ineligible",
     "stage.claimed",
+    "stage.worker_started",
+    "stage.worker_finished",
     "delivery.stopped",
     "pair.assigned",
     "stage.reported",

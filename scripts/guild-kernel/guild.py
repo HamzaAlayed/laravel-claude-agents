@@ -153,6 +153,7 @@ def build_parser():
     observe = sub.add_parser("observe")
     observe_cmds = observe.add_subparsers(dest="observe_cmd", required=True)
     observe_cmds.add_parser("list", parents=[common])
+    observe_cmds.add_parser("timing", parents=[common])
     observe_cmds.add_parser("verify", parents=[common])
     observe_cmds.add_parser("repair", parents=[common])
     context = sub.add_parser("context")
@@ -539,6 +540,9 @@ def main(argv=None):
                 print(json.dumps(kernel.transition_rows(args.root, args.name)))
                 return 0
         if args.cmd == "observe":
+            if args.observe_cmd == "timing":
+                print(json.dumps(kernel.timing_rows(args.root, args.name)))
+                return 0
             if args.observe_cmd == "list":
                 print(json.dumps(kernel.observability_rows(args.root, args.name)))
                 return 0

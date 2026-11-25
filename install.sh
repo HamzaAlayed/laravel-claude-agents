@@ -268,6 +268,8 @@ desired = [
     ("PostToolUse", "Agent|Task", "./scripts/emit-agent-events.sh"),
     ("PostToolUse", "Agent|Task", "./scripts/enforce-kernel-budgets.sh"),
     ("SubagentStop", "",          "./scripts/emit-agent-events.sh"),
+    ("SubagentStart", "",         "./scripts/enforce-kernel-budgets.sh"),
+    ("SubagentStop", "",          "./scripts/enforce-kernel-budgets.sh"),
 ]
 
 def has_command(entry, matcher, command):

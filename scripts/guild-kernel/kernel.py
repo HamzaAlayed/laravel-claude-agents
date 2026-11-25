@@ -85,12 +85,17 @@ OBSERVABILITY_EVENT_TYPES = (
     "usage.recorded",
     "pr.recorded",
     "feedback.recorded",
+    "stage.eligible",
+    "stage.ineligible",
     "stage.claimed",
+    "stage.worker_started",
+    "stage.worker_finished",
     "delivery.stopped",
     "pair.assigned",
     "stage.reported",
     "state.synchronized",
 )
+_WORKER_EVENTS = {"start": "stage.worker_started", "finish": "stage.worker_finished"}
 _OBSERVABILITY_POLICY = {
     "schemaVersion": OBSERVABILITY_SCHEMA,
     "eventField": "observability_events",
@@ -463,7 +468,12 @@ def _event_chain_errors(events, delivery_name=""):
         if not isinstance(event, dict):
             errors.append(f"event {index} is not an object")
             continue
-        if set(event) != set(OBSERVABILITY_FIELDS):
+        fields = set(OBSERVABILITY_FIELDS)
+        if event.get("type") in _WORKER_EVENTS.values():
+            fields.add("workerHash")
+            if not re.fullmatch(r"[0-9a-f]{64}", str(event.get("workerHash", ""))):
+                errors.append(f"event {index} worker hash is invalid")
+        if set(event) != fields:
             errors.append(f"event {index} fields do not match schema")
         if event.get("schemaVersion") != OBSERVABILITY_SCHEMA:
             errors.append(f"event {index} schema version is invalid")
@@ -512,12 +522,11 @@ def _event_chain_errors(events, delivery_name=""):
     return errors
 
 
-def _append_observability_event(delivery, event_type, *, stage_id="", actor="kernel"):
+def _append_observability_event(
+    delivery, event_type, *, stage_id="", actor="kernel", at=None, worker_hash=""
+):
     if event_type not in OBSERVABILITY_EVENT_TYPES:
         raise PlanError(f"unknown observability event type: {event_type}")
-    errors = _event_chain_errors(delivery.observability_events, delivery.name)
-    if errors:
-        raise PlanError(f"observability ledger is invalid: {errors[0]}")
     stage = next((item for item in delivery.stages if item.id == stage_id), None)
     if stage_id and stage is None:
         raise PlanError(f"observability stage {stage_id} is missing")
@@ -527,7 +536,7 @@ def _append_observability_event(delivery, event_type, *, stage_id="", actor="ker
         "seq": seq,
         "eventId": f"{delivery.name}:{seq}",
         "type": event_type,
-        "at": _now_utc().isoformat(timespec="seconds"),
+        "at": (at or _now_utc()).isoformat(timespec="microseconds"),
         "traceId": f"delivery:{delivery.name}",
         "spanId": f"{delivery.name}:{seq:06d}",
         "parentSpanId": f"stage:{stage_id}" if stage_id else "",
@@ -545,9 +554,82 @@ def _append_observability_event(delivery, event_type, *, stage_id="", actor="ker
         ),
         "eventHash": "",
     }
+    if worker_hash:
+        event["workerHash"] = worker_hash
     event["eventHash"] = _event_digest(event)
     delivery.observability_events.append(event)
     return event
+
+
+def _record_eligibility_changes(delivery, at):
+    eligible_ids = (
+        {stage.id for stage in _eligible_stages(delivery)}
+        if _dispatch_allowed(delivery) else set()
+    )
+    previous = {}
+    for event in delivery.observability_events:
+        if event["type"] in {"stage.eligible", "stage.ineligible", "stage.claimed"}:
+            previous[event["stage"]] = event["type"] == "stage.eligible"
+    for stage in delivery.stages:
+        eligible = stage.id in eligible_ids
+        if eligible != previous.get(stage.id, False):
+            kind = "stage.eligible" if eligible else "stage.ineligible"
+            _append_observability_event(delivery, kind, stage_id=stage.id, at=at)
+
+
+def _duration_ms(start, end):
+    if start is None or end is None:
+        return None
+    elapsed = (datetime.fromisoformat(end) - datetime.fromisoformat(start)).total_seconds()
+    return round(elapsed * 1000, 3) if elapsed >= 0 else None
+
+
+def _stage_timings(delivery):
+    rows = []
+    pending = {}
+    active = {}
+    checkpoints = {}
+    attempts = {}
+    for event in delivery.observability_events:
+        stage, kind, at = event["stage"], event["type"], event["at"]
+        if kind in {"stage.eligible", "stage.ineligible", "checkpoint.opened",
+                    "checkpoint.resolved", "stage.claimed"}:
+            row = pending.setdefault(stage, {
+                "stage": stage, "attempt": attempts.get(stage, 0) + 1,
+                "eligibleAt": None, "claimedAt": None, "startedAt": None,
+                "finishedAt": None, "verifiedAt": None, "checkpointWaitMs": 0,
+            })
+            if kind == "stage.eligible":
+                row["eligibleAt"] = at
+            elif kind == "stage.ineligible":
+                row["eligibleAt"] = None
+            elif kind == "checkpoint.opened":
+                checkpoints[stage] = at
+            elif kind == "checkpoint.resolved":
+                wait = _duration_ms(checkpoints.pop(stage, None), at)
+                if wait is not None:
+                    row["checkpointWaitMs"] += wait
+            else:
+                row["claimedAt"] = at
+                attempts[stage] = row["attempt"]
+                active[stage] = pending.pop(stage)
+                rows.append(row)
+        elif stage in active:
+            row = active[stage]
+            if kind == "stage.worker_started":
+                row["startedAt"] = at
+            elif kind == "stage.worker_finished":
+                row["finishedAt"] = at
+            elif kind == "stage.reported" and event["stageStatus"] == "done":
+                row["verifiedAt"] = at
+    rows.extend(row for stage, row in pending.items()
+                if row["eligibleAt"] or row["checkpointWaitMs"] or stage in checkpoints)
+    for row in rows:
+        row["eligibleToClaimMs"] = _duration_ms(row["eligibleAt"], row["claimedAt"])
+        row["claimToStartMs"] = _duration_ms(row["claimedAt"], row["startedAt"])
+        row["executionMs"] = _duration_ms(row["startedAt"], row["finishedAt"])
+        row["returnToVerifiedMs"] = _duration_ms(row["finishedAt"], row["verifiedAt"])
+    return rows
 
 
 def _render_observability_events(events):
@@ -586,6 +668,17 @@ def render_observability(delivery):
     lines.extend(["", "## Stage status", ""])
     for stage in delivery.stages:
         lines.append(f"- `{stage.id}` ({stage.agent}): `{stage.status}`")
+    if any(kind in counts for kind in ("stage.eligible", *_WORKER_EVENTS.values())):
+        lines.extend([
+            "", "## Stage timing (ms)", "",
+            "| Stage | Attempt | Eligible to claim | Claim to start | Worker execution | Return to verified | Resolved checkpoint wait |",
+            "| --- | ---: | ---: | ---: | ---: | ---: | ---: |",
+        ])
+        columns = ("stage", "attempt", "eligibleToClaimMs", "claimToStartMs",
+                   "executionMs", "returnToVerifiedMs", "checkpointWaitMs")
+        for row in _stage_timings(delivery):
+            cells = [str(row[key]) if row[key] is not None else "—" for key in columns]
+            lines.append("| " + " | ".join(cells) + " |")
     lines.append("")
     return "\n".join(lines)
 
@@ -608,20 +701,25 @@ def save(
     event_type="state.synchronized",
     stage_id="",
     actor="kernel",
+    worker_hash="",
 ):
     append_event = True
+    errors = _event_chain_errors(delivery.observability_events, delivery.name)
+    if errors:
+        raise PlanError(f"observability ledger is invalid: {errors[0]}")
     if event_type == "state.synchronized" and delivery.observability_events:
-        errors = _event_chain_errors(delivery.observability_events, delivery.name)
-        if errors:
-            raise PlanError(f"observability ledger is invalid: {errors[0]}")
         append_event = (
             delivery.observability_events[-1].get("stateHash")
             != _observable_state_hash(delivery)
         )
     if append_event:
+        at = _now_utc()
         _append_observability_event(
-            delivery, event_type, stage_id=stage_id, actor=actor
+            delivery, event_type, stage_id=stage_id, actor=actor,
+            at=at, worker_hash=worker_hash,
         )
+        if event_type not in (*_WORKER_EVENTS.values(), "tool.metered", "usage.recorded"):
+            _record_eligibility_changes(delivery, at)
     path = _state_path(root, delivery.name)
     _write_text_atomic(path, json.dumps(asdict(delivery), indent=2) + "\n")
     _write_observability_views(root, delivery)
@@ -691,6 +789,14 @@ def observability_rows(root, name):
     return list(load(root, name).observability_events)
 
 
+def timing_rows(root, name):
+    delivery = load(root, name)
+    errors = _event_chain_errors(delivery.observability_events, delivery.name)
+    if errors:
+        raise PlanError(f"observability ledger is invalid: {errors[0]}")
+    return _stage_timings(delivery)
+
+
 def observability_status(root, name):
     delivery = load(root, name)
     events = delivery.observability_events
@@ -742,7 +848,7 @@ def observability_status(root, name):
         else:
             try:
                 expected_view = render_observability(delivery)
-            except (KeyError, TypeError, PlanError):
+            except (KeyError, TypeError, ValueError, PlanError):
                 errors.append("derived observability view cannot be rendered from invalid state")
             else:
                 if rendered != expected_view:
@@ -2403,6 +2509,39 @@ def _budget_target(root, agent):
     return targets[0] if targets else None
 
 
+def record_worker_event(root, agent, worker_id, phase, *, expected_target=None):
+    """Attach a worker lifecycle event to the current claim without changing its status."""
+    kind = _WORKER_EVENTS[phase]
+    worker_hash = hashlib.sha256(worker_id.encode("utf-8")).hexdigest()
+    target = _budget_target(root, agent)
+    if target is None or (expected_target is not None and target != expected_target):
+        return
+    name, stage_id = target
+    with _file_lock(_state_lock_path(root, name)):
+        delivery = load(root, name)
+        stage = next(item for item in delivery.stages if item.id == stage_id)
+        if delivery.status != "running" or stage.status != "running" or stage.agent != agent:
+            return
+        events = delivery.observability_events
+        # Reject duplicate delivery of a hook and late stops from earlier attempts.
+        if any(event.get("workerHash") == worker_hash and event["type"] == kind
+               for event in events):
+            return
+        claim = next((event["seq"] for event in reversed(events)
+                      if event["stage"] == stage_id and event["type"] == "stage.claimed"), 0)
+        if not claim:
+            return
+        started = next((event for event in events[claim:]
+                        if event["stage"] == stage_id and event["type"] == _WORKER_EVENTS["start"]), None)
+        if phase == "start":
+            if started is not None or not stage.claimed_at:
+                return
+        elif started is None or started["workerHash"] != worker_hash:
+            return
+        save(root, delivery, event_type=kind, stage_id=stage_id, actor=agent,
+             worker_hash=worker_hash)
+
+
 def _budget_event_seen(stage, event_id):
     return bool(event_id) and event_id in stage.budget_events
 
@@ -3428,14 +3567,28 @@ def stage_report_path(name, stage):
     return f"docs/delivery/{name}/stages/{stage.agent}--{stage.id}.md"
 
 
-def _ready_for_delivery(delivery):
-    if (
+def _dispatch_allowed(delivery):
+    return not (
         _dod_met(delivery)
         or delivery.status in ("stopped", "done", "budget_exceeded", "interrupted")
         or any(stage.status == "interrupted" for stage in delivery.stages)
         or _pending_feedback_route(delivery) is not None
         or _cap_hit(delivery)
-    ):
+    )
+
+
+def _eligible_stages(delivery):
+    by_id = {stage.id: stage for stage in delivery.stages}
+    return [
+        stage for stage in delivery.stages
+        if stage.status == "queued" and not _pending_approvals(stage)
+        and all(dep in by_id and by_id[dep].status in ("done", "skipped")
+                for dep in stage.depends_on)
+    ]
+
+
+def _ready_for_delivery(delivery):
+    if not _dispatch_allowed(delivery):
         return []
     active = [stage for stage in delivery.stages if stage.status == "running"]
     occupied_agents = {stage.agent for stage in active}
@@ -3443,17 +3596,9 @@ def _ready_for_delivery(delivery):
     free = max(0, delivery.max_parallel - len(active))
     if not free:
         return []
-    by_id = {stage.id: stage for stage in delivery.stages}
     selected = []
-    for stage in delivery.stages:
-        if stage.status != "queued" or stage.agent in occupied_agents:
-            continue
-        if _pending_approvals(stage):
-            continue
-        if not all(
-            dep in by_id and by_id[dep].status in ("done", "skipped")
-            for dep in stage.depends_on
-        ):
+    for stage in _eligible_stages(delivery):
+        if stage.agent in occupied_agents:
             continue
         if _ownership_collision(stage, [*active, *selected]):
             continue

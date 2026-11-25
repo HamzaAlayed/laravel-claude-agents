@@ -144,6 +144,21 @@ def main() -> int:
 
     root = _root(payload)
     event_name = payload.get("hook_event_name")
+    if event_name in ("SubagentStart", "SubagentStop"):
+        # Timing is observational. The existing budget boundaries enforce delivery.
+        agent = _agent_name(payload.get("agent_type"))
+        worker_id = payload.get("agent_id")
+        session_id = payload.get("session_id")
+        if agent in kernel.AGENTS and all(isinstance(value, str) and value
+                                         for value in (session_id, worker_id)):
+            try:
+                kernel.record_worker_event(
+                    root, agent, json.dumps([session_id, worker_id]),
+                    "start" if event_name == "SubagentStart" else "finish",
+                )
+            except (OSError, ValueError, kernel.PlanError):
+                pass
+        return 0
     tool_name = payload.get("tool_name")
     tool_input = payload.get("tool_input")
     tool_input = tool_input if isinstance(tool_input, dict) else {}

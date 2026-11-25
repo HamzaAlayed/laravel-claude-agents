@@ -2044,6 +2044,10 @@ expect "runtime budget plugin hook meters every subagent tool" "1" \
   "$(hook_command_count "$SCRIPT_DIR/hooks/hooks.json" PreToolUse "" /scripts/enforce-kernel-budgets.sh)"
 expect "runtime budget plugin hook records Agent completion" "1" \
   "$(hook_command_count "$SCRIPT_DIR/hooks/hooks.json" PostToolUse 'Agent|Task' /scripts/enforce-kernel-budgets.sh)"
+expect "plugin records actual subagent start" "1" \
+  "$(hook_command_count "$SCRIPT_DIR/hooks/hooks.json" SubagentStart "" /scripts/enforce-kernel-budgets.sh)"
+expect "plugin records actual subagent finish" "1" \
+  "$(hook_command_count "$SCRIPT_DIR/hooks/hooks.json" SubagentStop "" /scripts/enforce-kernel-budgets.sh)"
 
 # install_dir copies files only, so scripts/guild-kernel/ needs a dedicated
 # installer — same shape as install_console. Eval workdirs go through
@@ -2100,12 +2104,16 @@ expect "install dest contains the runtime-budget policy hook" "1" \
   "$([ -x "$INSTALL_DEST/scripts/enforce-kernel-budgets.sh" ] && echo 1 || echo 0)"
 expect "install dest contains the runtime-budget policy engine" "1" \
   "$([ -f "$INSTALL_DEST/scripts/enforce-kernel-budgets.py" ] && echo 1 || echo 0)"
-expect "installer wires runtime budgets at pre-tool and completion boundaries" "2" \
+expect "installer wires runtime budgets and worker timing" "4" \
   "$(grep -c 'enforce-kernel-budgets.sh' "$INSTALL_DEST/.claude/settings.json")"
 expect "installed runtime budget hook meters every subagent tool" "1" \
   "$(hook_command_count "$INSTALL_DEST/.claude/settings.json" PreToolUse "" ./scripts/enforce-kernel-budgets.sh)"
 expect "installed runtime budget hook records Agent completion" "1" \
   "$(hook_command_count "$INSTALL_DEST/.claude/settings.json" PostToolUse 'Agent|Task' ./scripts/enforce-kernel-budgets.sh)"
+expect "installer records actual subagent start" "1" \
+  "$(hook_command_count "$INSTALL_DEST/.claude/settings.json" SubagentStart "" ./scripts/enforce-kernel-budgets.sh)"
+expect "installer records actual subagent finish" "1" \
+  "$(hook_command_count "$INSTALL_DEST/.claude/settings.json" SubagentStop "" ./scripts/enforce-kernel-budgets.sh)"
 rm -rf "$INSTALL_DEST"
 
 echo

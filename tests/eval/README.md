@@ -181,6 +181,30 @@ Verdicts land in `<case>.judge.json`, and a `judge` column joins `summary.md`.
 Env: `EVAL_JUDGE_MODEL` pins the judge model, `EVAL_JUDGE_TIMEOUT` (default
 300s) bounds it.
 
+## Stage timing and scheduling comparison
+
+`run-stage-timing.py` compares an all-in-one Claude Code worker, the exact
+wave planner from v9.11.2, and rolling dispatch. Each uses the current Guild
+kernel and the same deterministic Laravel artifact checks. It exercises a
+narrow fix, a dependency chain, independent artifacts, and a mixed workload
+with a synthetic checkpoint.
+
+```sh
+python3 tests/eval/run-stage-timing.py --dry-run --repetitions 1 \
+  --output tests/eval/results/stage-timing-dry
+python3 tests/eval/run-stage-timing.py \
+  --output tests/eval/results/stage-timing-live
+```
+
+The dry run uses synthetic model responses. The live run uses the signed-in
+Claude Code account, a pinned model, PHP for rule verification, and an existing
+Git object for the v9.11.2 planner. It runs three matched repetitions by
+default and rotates variant order. Each JSON file records the source hashes,
+stage timings, acceptance results, and cost reported by Claude Code.
+Reusing the output folder continues a run when the source hashes match.
+See the [36-trial scheduler comparison](../../docs/evals/2026-11-25-stage-timing.md)
+for the measured results.
+
 ## Extending
 
 Add a planted flaw to the fixture (no hints in the fixture!), then register a
