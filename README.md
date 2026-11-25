@@ -442,9 +442,9 @@ an explicit ownership boundary.
 
 ---
 
-## Latest release: 9.11.2
+## Latest release: 9.12.0
 
-The close, sprint, and lessons hooks now validate Claude Code's current `file_path` + `content` Write payload and the legacy `path` + `contents` format. [Release notes and test results](docs/releases/9.11.2.md)
+Rolling scheduling starts verified dependency-ready tasks while independent work continues. Stage-specific reports let a specialist take several tasks in sequence. [Release notes and live eval results](docs/releases/9.12.0.md)
 
 ---
 

@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.12.0] - 2026-11-25
+
+### Added
+
+- Estimate rolling dispatch from individual task completion times and
+  prioritize tasks that unlock longer dependency chains.
+- Use stage-specific reports when one specialist takes several tasks.
+- Record live scheduler comparisons and checkpoint verification in the
+  release notes.
+
+### Changed
+
+- `/make-feature` plans smaller, verifiable tasks with exact ownership and
+  checks for newly eligible work after each verified return.
+
+### Fixed
+
+- Detect unordered parent and child path overlaps in coordination plans.
+
 ## [9.11.2] - 2026-11-25
 
 ### Fixed
