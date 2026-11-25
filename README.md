@@ -442,9 +442,9 @@ an explicit ownership boundary.
 
 ---
 
-## Latest release: 9.12.0
+## Latest release: 9.13.0
 
-Rolling scheduling starts verified dependency-ready tasks while independent work continues. Stage-specific reports let a specialist take several tasks in sequence. [Release notes and live eval results](docs/releases/9.12.0.md)
+Stage timing shows where each delivery spent time, from eligibility through verification. The live evaluation compares one agent, wave scheduling, and rolling dispatch across four Laravel workloads. [Release notes and live eval results](docs/releases/9.13.0.md)
 
 ---
 

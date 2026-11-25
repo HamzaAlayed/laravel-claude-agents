@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.13.0] - 2026-11-25
+
+### Added
+
+- Report stage eligibility, claim delay, worker execution, verification delay,
+  and checkpoint wait in `guild observe timing` and the delivery summary.
+- Record Claude Code worker lifecycle events with separate timing for each
+  claim attempt.
+- Compare one agent, wave scheduling, and rolling dispatch across 36 live
+  trials. Publish the report and machine-readable trial results.
+
 ## [9.12.0] - 2026-11-25
 
 ### Added
