@@ -390,7 +390,7 @@ def _core_packet(delivery, stage, spec, spec_integrity, manifest, max_tokens, me
         "sources": [],
         "currentState": state,
         "outputContract": {
-            "artifact": f"docs/delivery/{delivery.name}/stages/{stage.id}.md",
+            "artifact": kernel.stage_report_path(delivery.name, stage),
             "labels": ["STATUS", "DID", "VERIFIED", "NOT-CHECKED", "FLAGS", "NEXT"],
         },
         "integrity": {

@@ -7,9 +7,11 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import math
 import pathlib
 import re
 import statistics
+from graphlib import CycleError, TopologicalSorter
 import sys
 import tempfile
 from typing import Any
@@ -65,7 +67,12 @@ def text(value: Any, label: str) -> str:
 
 
 def number(value: Any, label: str, *, minimum: float = 0) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)) or value < minimum:
+    if (
+        isinstance(value, bool)
+        or not isinstance(value, (int, float))
+        or not math.isfinite(value)
+        or value < minimum
+    ):
         raise CoordinationError(f"{label} must be a number >= {minimum}")
     return float(value)
 
@@ -287,6 +294,60 @@ def _ordered(left: str, right: str, dependencies: dict[str, set[str]]) -> bool:
     return False
 
 
+def _paths_overlap(left: str, right: str) -> bool:
+    a, b = pathlib.PurePosixPath(left), pathlib.PurePosixPath(right)
+    return a == b or a in b.parents or b in a.parents
+
+
+def _schedule_tasks(by_id, dependencies, agent_by_task, max_parallel):
+    """Simulate dispatch at individual completions, prioritizing the critical path."""
+    order = list(TopologicalSorter(dependencies).static_order())
+    tail = {task_id: by_id[task_id]["estimatedSeconds"] for task_id in order}
+    for task_id in reversed(order):
+        for dependency in dependencies[task_id]:
+            tail[dependency] = max(
+                tail[dependency], by_id[dependency]["estimatedSeconds"] + tail[task_id]
+            )
+
+    priority = sorted(order, key=lambda task_id: (-tail[task_id], task_id))
+    remaining = set(order)
+    completed = set()
+    running = {}
+    waves = []
+    schedule = []
+    elapsed = 0.0
+    peak = 0
+    while remaining or running:
+        occupied_agents = {agent_by_task[task_id] for task_id in running}
+        launched = []
+        for task_id in priority:
+            if len(running) == max_parallel:
+                break
+            if task_id not in remaining or not dependencies[task_id] <= completed:
+                continue
+            agent = agent_by_task[task_id]
+            if agent in occupied_agents:
+                continue
+            finish = elapsed + by_id[task_id]["estimatedSeconds"]
+            schedule.append({
+                "taskId": task_id,
+                "startSeconds": round(elapsed, 6),
+                "finishSeconds": round(finish, 6),
+            })
+            running[task_id] = finish
+            occupied_agents.add(agent)
+            remaining.remove(task_id)
+            launched.append(task_id)
+        if launched:
+            waves.append(launched)
+            peak = max(peak, len(running))
+        elapsed = min(running.values())
+        for task_id in [task_id for task_id, end in running.items() if end == elapsed]:
+            completed.add(task_id)
+            del running[task_id]
+    return waves, schedule, elapsed, peak
+
+
 def plan_workload(policy: dict[str, Any], agents: dict[str, Any], raw: Any) -> dict[str, Any]:
     if not isinstance(raw, dict) or set(raw) != {"schemaVersion", "workloadId", "coordinator", "tasks"} or raw.get("schemaVersion") != 1:
         raise CoordinationError("workload fields or schemaVersion are invalid")
@@ -318,37 +379,26 @@ def plan_workload(policy: dict[str, Any], agents: dict[str, Any], raw: Any) -> d
         and routes[task["capability"]] not in allowed_handoffs
     })
 
-    remaining = set(by_id)
-    completed: set[str] = set()
-    waves: list[list[str]] = []
-    while remaining:
-        ready = sorted(task_id for task_id in remaining if dependencies[task_id] <= completed)
-        if not ready:
-            reasons.append("dependency-cycle")
-            break
-        unscheduled = list(ready)
-        while unscheduled:
-            wave: list[str] = []
-            occupied_agents: set[str] = set()
-            for task_id in list(unscheduled):
-                capability = by_id[task_id]["capability"]
-                agent = routes.get(capability, f"unrouted:{capability}")
-                if agent in occupied_agents:
-                    continue
-                wave.append(task_id)
-                occupied_agents.add(agent)
-                unscheduled.remove(task_id)
-                if len(wave) == policy["schedulingPolicy"]["maximumParallelAgents"]:
-                    break
-            waves.append(wave)
-        completed.update(ready)
-        remaining.difference_update(ready)
+    agent_by_task = {
+        task["id"]: routes.get(task["capability"], "unrouted:" + task["capability"])
+        for task in tasks
+    }
+    waves, schedule, scheduled_seconds, peak = [], [], 0.0, 0
+    try:
+        waves, schedule, scheduled_seconds, peak = _schedule_tasks(
+            by_id, dependencies, agent_by_task, policy["schedulingPolicy"]["maximumParallelAgents"]
+        )
+    except CycleError:
+        reasons.append("dependency-cycle")
 
     conflict = False
     mutable = [task for task in tasks if task["mutates"]]
     for index, left in enumerate(mutable):
         for right in mutable[index + 1:]:
-            if set(left["ownedPaths"]) & set(right["ownedPaths"]) and not _ordered(left["id"], right["id"], dependencies) and not _ordered(right["id"], left["id"], dependencies):
+            overlap = any(
+                _paths_overlap(a, b) for a in left["ownedPaths"] for b in right["ownedPaths"]
+            )
+            if overlap and not _ordered(left["id"], right["id"], dependencies) and not _ordered(right["id"], left["id"], dependencies):
                 conflict = True
     keys = [task["sideEffectKey"] for task in tasks if task["sideEffectKey"] is not None]
     if len(keys) != len(set(keys)):
@@ -370,7 +420,7 @@ def plan_workload(policy: dict[str, Any], agents: dict[str, Any], raw: Any) -> d
     single_cost = sum(task["estimatedCostUsd"] for task in tasks)
     overhead_seconds = max(0, len(tasks) - 1) * 10
     overhead_cost = max(0, len(tasks) - 1) * 0.02
-    multi_duration = sum(max(by_id[item]["estimatedSeconds"] for item in wave) for wave in waves) + overhead_seconds if waves else single_duration
+    multi_duration = scheduled_seconds + overhead_seconds if schedule else single_duration
     multi_cost = single_cost + overhead_cost
     speedup = single_duration / multi_duration if multi_duration else 0
     cost_ratio = multi_cost / single_cost if single_cost else (1 if multi_cost == 0 else float("inf"))
@@ -390,7 +440,7 @@ def plan_workload(policy: dict[str, Any], agents: dict[str, Any], raw: Any) -> d
             decision = "delegate"
             if len(waves) == 1:
                 topology = "parallel"
-            elif all(len(wave) == 1 for wave in waves):
+            elif peak == 1:
                 topology = "pipeline"
             else:
                 topology = "hybrid"
@@ -417,6 +467,7 @@ def plan_workload(policy: dict[str, Any], agents: dict[str, Any], raw: Any) -> d
         "topology": topology,
         "reasons": reasons,
         "waves": waves if decision == "delegate" else [],
+        "schedule": schedule if decision == "delegate" else [],
         "assignments": assignments if decision == "delegate" else [],
         "handoffs": handoffs,
         "prediction": {

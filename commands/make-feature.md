@@ -50,7 +50,9 @@ Scaffold the feature described by `{{args}}` end-to-end, using the right special
 
 2. **Brief `business-analyst`** *only if* the feature ask is vague. Otherwise skip — this is a scaffold, not discovery.
 
-3. **Delegate in dependency order — not one long chain.** Stage a first (everything reads its schema). Stages b and c run **in parallel** — they touch disjoint paths (backend owns `app/` + `routes/`, frontend owns `resources/`), and the migration's field list + planned route names are contract enough for the frontend to build against. Carry the paradigm detected in step 1 and the stack snapshot in **every** brief so no specialist re-reads `composer.json`/configs.
+3. **Break the feature into verifiable tasks.** Give each task one output, exact owned paths, stable acceptance criteria, and only the dependencies needed to verify that output. Use the agreed field list, route names, and request/response shapes as inputs so frontend work can begin before a schema or endpoint lands when the contract is sufficient. Give shared route or provider files one owner. Keep short edits together when they share an owner, paths, and verification.
+
+   List the kernel stages in the coordination plan's launch order. After each verified return, call `ready` and fill free slots within the approved limit of up to four distinct specialists when the runtime exposes individual completions. Continue independent work from the approved plan during a stage approval or checkpoint. For each writer, reserve `docs/delivery/<name>/stages/<agent>--<stage-id>.md` in `owned_paths` and brief the exact `report_path` from `ready`. Include the paradigm and stack snapshot in every brief.
 
    ### a. `database-developer`
    - Design and write the migration (reversible, indexed, constraints explicit)
@@ -65,12 +67,12 @@ Scaffold the feature described by `{{args}}` end-to-end, using the right special
    - Route registration in `routes/web.php`, `routes/api.php`, or both
    - Wire the Policy in `AuthServiceProvider` if the project doesn't auto-discover
 
-   ### c. `frontend-developer` (skipped for `--api`; runs in parallel with b — brief it with the field list + route names as its contract)
+   ### c. `frontend-developer` (skipped for `--api`; starts when the fields and route contract are available)
    - **Inertia:** page components in `resources/js/Pages/<Feature>/{Index,Show,Create,Edit}.{vue,jsx,tsx}` with `useForm`, server-driven validation errors, and shared layout
    - **Livewire:** components under `app/Livewire/<Feature>/` with computed properties, `#[Rule]` attributes, loading/error states
    - **Blade:** views under `resources/views/<feature>/` using existing component library
 
-   ### d. `qa-engineer` (starts once b + c land)
+   ### d. `qa-engineer` (test the surfaces that are ready)
    - Feature test covering happy path, validation failure, authorization denial, and DB state
    - Factory state used; `RefreshDatabase` per the project pattern
    - Livewire/Inertia assertion helpers as appropriate

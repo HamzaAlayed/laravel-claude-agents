@@ -86,10 +86,10 @@ entry per rejection; ADR-worthy decisions go to `docs/adr/` instead, linked from
 
 Per stage: specialist engaged · brief given (one line) · artifact path returned · verification run + result · human checkpoints flagged/cleared. This is the paper trail — append, never rewrite history.
 
-## Stage return — `docs/delivery/<feature>/stages/<agent>.md` (specialist writes; coordinator Reads)
+## Stage return (specialist writes; coordinator reads)
 
-One file per registered agent type. Latest return wins (overwrite). History lives in `log.md`.
-Coordinator copies `stage-return.md` in this skill directory and fills after the colons.
+Copy `stage-return.md` and fill in the fields. Use the `report_path` from the brief (`docs/delivery/<feature>/stages/<agent>--<stage-id>.md`).
+A specialist with one stage can also use `docs/delivery/<feature>/stages/<agent>.md`.
 
 ```markdown
 STATUS: done | blocked | needs-decision

@@ -335,6 +335,7 @@ def main(argv=None):
                     "id": stage.id,
                     "agent": stage.agent,
                     "role": stage.role,
+                    "report_path": kernel.stage_report_path(args.name, stage),
                     "owned_paths": stage.owned_paths,
                     "feedback_checks": stage.feedback_checks,
                     "budget": stage.budget,

@@ -16,7 +16,7 @@ The planner emits exactly one decision:
 | Decision | Meaning | Next action |
 | --- | --- | --- |
 | `single-agent` | Delegation overhead is not justified. | Keep the workload together. |
-| `delegate` | The graph is safe and has predicted speed or required-specialist value inside the declared cost ceiling. | Dispatch only the emitted waves and handoffs. |
+| `delegate` | The graph is safe and has predicted speed or required-specialist value inside the declared cost ceiling. | Use the launch order and typed handoffs with the kernel's `ready` and `claim` commands. |
 | `hold` | The graph is cyclic, unroutable, unapproved, conflicting, or reuses one logical side effect. | Resolve every named reason and build a new receipt. |
 
 The planner chooses one topology for a delegated workload:
@@ -24,12 +24,30 @@ The planner chooses one topology for a delegated workload:
 | Topology | Shape |
 | --- | --- |
 | `parallel` | One dependency-ready wave with independent specialists. |
-| `pipeline` | One task per wave in dependency order. |
-| `hybrid` | Sequential stages with at least one parallel fan-out or fan-in. |
+| `pipeline` | At most one task active at a time. |
+| `hybrid` | Several launch groups with overlapping active tasks. |
 
-It caps a wave at four agents and never schedules two tasks assigned to the
-same agent in one wave. Those controls are declared in
-`config/coordination-harness.json` under `schedulingPolicy`.
+The planner estimates remaining dependency-chain time for each task and
+prioritizes longer chains. `waves` group tasks by estimated launch time.
+`schedule` records each task's estimated start and finish in seconds. A task
+can start as soon as its predecessors finish and a slot opens, while unrelated
+tasks from earlier groups are still running. The estimate allows up to four
+active agents and one active task per specialist.
+
+Split a feature by independently verifiable outputs and use precise file
+ownership. Put shared files under one owner or express the real ordering
+edge. Treat a settled interface as an input so an implementation stage waits
+only for artifacts it needs. Group tiny edits that share a specialist, paths,
+and verification.
+
+At runtime, run `ready` after each verified return and claim newly eligible
+stages within the approved `--max-parallel` limit. Actual completions and
+approvals determine when to launch. An unresolved stage checkpoint leaves
+independent eligible work available. Reserve
+`docs/delivery/<name>/stages/<agent>--<stage-id>.md` in each writer's owned paths
+when using qualified reports. The `report_path` in each `ready` row gives the
+exact path to brief. A report whose filename omits the stage ID is accepted
+when it identifies exactly one stage.
 
 ## What must a workload declare?
 
@@ -62,9 +80,9 @@ python3 scripts/coordination-harness.py verify \
 
 The receipt seals the workload, policy, scenario registry, shared agent
 registry, orchestration contract, and harness implementation with SHA-256. It
-contains the decision, waves, assignments, typed handoffs, predictions, and
-source hashes. It does not copy prompts, responses, commands, tool payloads, or
-secrets.
+contains the decision, launch groups, schedule, assignments, typed handoffs,
+predictions, and source hashes. It does not copy prompts, responses, commands,
+tool payloads, or secrets.
 
 ## What is in a typed handoff?
 

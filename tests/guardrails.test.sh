@@ -1609,6 +1609,25 @@ expect "stage return files reject unregistered basenames" "1" \
     echo "$CHECK_FAIL"
   ')"
 rm -rf "$STAGE_REJECT_DIR"
+STAGE_SPLIT_DIR="$(mktemp -d)"
+stage_fixture="$STAGE_SPLIT_DIR/docs/delivery/tag/stages"
+mkdir -p "$stage_fixture"
+for stage in requests policies; do
+  printf '%s\n' \
+    'STATUS: ok' 'DID: x' 'VERIFIED: y' 'NOT-CHECKED: z' 'FLAGS: none' 'NEXT: done' \
+    >"$stage_fixture/backend-developer--$stage.md"
+done
+expect "stage return files accept distinct tasks from one registered agent" "1:0" \
+  "$(ROOT="$SCRIPT_DIR" WORK="$STAGE_SPLIT_DIR" bash -c '
+    CHECK_PASS=0 CHECK_FAIL=0
+    record() {
+      if [ "$1" -eq 0 ]; then CHECK_PASS=$((CHECK_PASS + 1)); else CHECK_FAIL=$((CHECK_FAIL + 1)); fi
+    }
+    '"$(sed -n '/^check_stage_return_files()/,/^}/p' "$SCRIPT_DIR/tests/eval/run-evals.sh")"'
+    check_stage_return_files
+    echo "$CHECK_PASS:$CHECK_FAIL"
+  ')"
+rm -rf "$STAGE_SPLIT_DIR"
 TPL="$SCRIPT_DIR/skills/delivery-templates/SKILL.md"
 CLOSE_TPL="$(sed -n '/^## Close file/,/^## Hygiene proposal/p' "$TPL")"
 expect "delivery-templates close skeleton prefixes VERIFIED:" "1" \

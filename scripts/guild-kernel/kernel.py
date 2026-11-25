@@ -3424,6 +3424,10 @@ def ready_stages(root, name):
     return _ready_for_delivery(delivery)
 
 
+def stage_report_path(name, stage):
+    return f"docs/delivery/{name}/stages/{stage.agent}--{stage.id}.md"
+
+
 def _ready_for_delivery(delivery):
     if (
         _dod_met(delivery)
@@ -3434,13 +3438,15 @@ def _ready_for_delivery(delivery):
     ):
         return []
     active = [stage for stage in delivery.stages if stage.status == "running"]
+    occupied_agents = {stage.agent for stage in active}
+    occupied_agents.update(stage.pair for stage in active if stage.awaiting_pair)
     free = max(0, delivery.max_parallel - len(active))
     if not free:
         return []
     by_id = {stage.id: stage for stage in delivery.stages}
     selected = []
     for stage in delivery.stages:
-        if stage.status != "queued":
+        if stage.status != "queued" or stage.agent in occupied_agents:
             continue
         if _pending_approvals(stage):
             continue
@@ -3452,6 +3458,7 @@ def _ready_for_delivery(delivery):
         if _ownership_collision(stage, [*active, *selected]):
             continue
         selected.append(stage)
+        occupied_agents.add(stage.agent)
         if len(selected) >= free:
             break
     return selected
@@ -3757,6 +3764,30 @@ def _trusted_report_path(root, name, path):
     return candidate
 
 
+def _report_stage(delivery, path):
+    agent, separator, stage_id = path.stem.partition("--")
+    matching = [
+        stage
+        for stage in delivery.stages
+        if (not separator or stage.id == stage_id)
+        and (stage.agent == agent or (stage.awaiting_pair and stage.pair == agent))
+    ]
+    if not matching:
+        raise ReportError(f"no stage matched report agent {agent}")
+    if len(matching) != 1:
+        raise ReportError(f"report for {agent} is ambiguous; use {agent}--<stage-id>.md")
+    stage = matching[0]
+    if stage.status == "paused" or _pending_checkpoint(delivery, stage.id):
+        raise ReportError(f"stage {stage.id} is paused at checkpoint {stage.checkpoint_id}")
+    if stage.status == "budget_exceeded":
+        raise ReportError(f"stage {stage.id} exceeded budget {stage.budget_exceeded_reason}")
+    if stage.status != "running":
+        raise ReportError(
+            f"stage {stage.id} is {stage.status}; report requires a claimed running stage"
+        )
+    return agent, stage
+
+
 def report(root, name, path, runner):
     path = _trusted_report_path(root, name, path)
     try:
@@ -3771,31 +3802,15 @@ def report(root, name, path, runner):
         raise ReportError("VERIFIED must contain a structured verification record")
 
     delivery = load(root, name)
-    agent = pathlib.Path(path).stem
-    matching = [
-        stage
-        for stage in delivery.stages
-        if stage.agent == agent or (stage.awaiting_pair and stage.pair == agent)
-    ]
-    if not matching:
-        raise ReportError(f"no stage matched report agent {agent}")
-    for stage in matching:
-        if stage.status == "paused" or _pending_checkpoint(delivery, stage.id):
-            raise ReportError(
-                f"stage {stage.id} is paused at checkpoint {stage.checkpoint_id}"
-            )
-        if stage.status != "running":
-            raise ReportError(
-                f"stage {stage.id} is {stage.status}; report requires a claimed running stage"
-            )
-        _validate_verification_criteria(stage, verifications)
+    _, stage = _report_stage(delivery, path)
+    _validate_verification_criteria(stage, verifications)
 
     for spec in verifications:
         if _run_verification(root, spec, runner) != 0:
             raise ReportError(f"verification failed: {_verification_text(spec)}")
 
     with _file_lock(_state_lock_path(root, name)):
-        return _commit_report(root, name, path, fields, verifications)
+        return _commit_report(root, name, path, fields, verifications, stage)
 
 
 def _resolve_stage_feedback(delivery, stage, *, resolved_by):
@@ -3821,9 +3836,13 @@ def _resolve_stage_feedback(delivery, stage, *, resolved_by):
     ]
 
 
-def _commit_report(root, name, path, fields, verifications):
+def _commit_report(root, name, path, fields, verifications, verified_stage):
     delivery = load(root, name)
-    agent = pathlib.Path(path).stem
+    agent, stage = _report_stage(delivery, path)
+    if (stage.id, stage.attempts, stage.awaiting_pair) != (
+        verified_stage.id, verified_stage.attempts, verified_stage.awaiting_pair
+    ):
+        raise ReportError("stage changed during report verification")
     not_checked = " ".join(fields["NOT-CHECKED"])
     did_paths = [item for item in fields["DID"] if item and item != "none"]
     flag_texts = [
@@ -3831,84 +3850,39 @@ def _commit_report(root, name, path, fields, verifications):
         for raw in fields["FLAGS"]
         if _norm_flag(raw) and _norm_flag(raw) != "none"
     ]
-    matched = False
-    reported_stage_id = ""
-    for stage in delivery.stages:
-        if (stage.agent == agent or stage.pair == agent) and (
-            stage.status == "paused" or _pending_checkpoint(delivery, stage.id)
-        ):
-            raise ReportError(
-                f"stage {stage.id} is paused at checkpoint {stage.checkpoint_id}"
-            )
-        if stage.status == "budget_exceeded" and (
-            stage.agent == agent or stage.pair == agent
-        ):
-            raise ReportError(
-                f"stage {stage.id} exceeded budget {stage.budget_exceeded_reason}"
-            )
-        if stage.awaiting_pair and stage.pair == agent:
-            matched = True
-            reported_stage_id = reported_stage_id or stage.id
-            _validate_not_checked(stage, not_checked)
-            _validate_criterion_coverage(stage, verifications)
-            stage.verified = list(stage.verified) + [
-                {**spec, "exit": 0} for spec in verifications
-            ]
-            stage.awaiting_pair = False
-            _transition_stage(
-                delivery,
-                stage,
-                "done",
-                source="report",
-                reason="paired review verified all stage criteria",
-                by=agent,
-            )
-            stage.retry_reason = ""
-            stage.retry_source = ""
-            stage.recovery_event_id = ""
-            stage.recovery_reason = ""
-            stage.recovery_source = ""
-            _resolve_stage_feedback(delivery, stage, resolved_by=agent)
-            for flag_text in flag_texts:
-                _record_lesson(root, name, agent, flag_text)
-            continue
-        if stage.agent != agent:
-            continue
-        if stage.awaiting_pair:
-            raise ReportError(f"stage {stage.id} is awaiting pair {stage.pair}")
-        matched = True
-        reported_stage_id = reported_stage_id or stage.id
-        if stage.claimed_at:
-            raise ReportError(
-                f"stage {stage.id} requires budget telemetry before report"
-            )
-        _validate_not_checked(stage, not_checked)
-        _validate_criterion_coverage(stage, verifications)
+    reviewing_pair = stage.awaiting_pair and stage.pair == agent
+    if stage.awaiting_pair and not reviewing_pair:
+        raise ReportError(f"stage {stage.id} is awaiting pair {stage.pair}")
+    if not reviewing_pair and stage.claimed_at:
+        raise ReportError(f"stage {stage.id} requires budget telemetry before report")
+    _validate_not_checked(stage, not_checked)
+    _validate_criterion_coverage(stage, verifications)
+    records = [{**spec, "exit": 0} for spec in verifications]
+    if reviewing_pair:
+        stage.verified = list(stage.verified) + records
+    else:
         _validate_reported_paths(stage, did_paths)
         stage.did = did_paths
-        stage.verified = [{**spec, "exit": 0} for spec in verifications]
+        stage.verified = records
         stage.flags = list(flag_texts)
-        if stage.pair:
-            stage.awaiting_pair = True
-        else:
-            _transition_stage(
-                delivery,
-                stage,
-                "done",
-                source="report",
-                reason="stage report verified all criteria",
-                by=agent,
-            )
-            stage.retry_reason = ""
-            stage.retry_source = ""
-            stage.recovery_event_id = ""
-            stage.recovery_reason = ""
-            stage.recovery_source = ""
-            _resolve_stage_feedback(delivery, stage, resolved_by=agent)
-        for flag_text in flag_texts:
-            _record_lesson(root, name, agent, flag_text)
-    if not matched:
-        raise ReportError(f"no stage matched report agent {agent}")
+    stage.awaiting_pair = bool(stage.pair and not reviewing_pair)
+    if not stage.awaiting_pair:
+        _transition_stage(
+            delivery,
+            stage,
+            "done",
+            source="report",
+            reason=("paired review" if reviewing_pair else "stage report") + " verified all criteria",
+            by=agent,
+        )
+        stage.retry_reason = ""
+        stage.retry_source = ""
+        stage.recovery_event_id = ""
+        stage.recovery_reason = ""
+        stage.recovery_source = ""
+        _resolve_stage_feedback(delivery, stage, resolved_by=agent)
+    for flag_text in flag_texts:
+        _record_lesson(root, name, agent, flag_text)
     delivery.spawns += 1
     if all(stage.status in ("done", "skipped") for stage in delivery.stages):
         if not _dod_met(delivery):
@@ -3921,7 +3895,7 @@ def _commit_report(root, name, path, fields, verifications):
         root,
         delivery,
         event_type="stage.reported",
-        stage_id=reported_stage_id,
+        stage_id=stage.id,
         actor=agent,
     )
     write_views(

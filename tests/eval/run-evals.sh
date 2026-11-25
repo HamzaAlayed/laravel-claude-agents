@@ -430,13 +430,21 @@ check_file_under() { # check_file_under <dir> <name-glob> <description> — any 
   record $? "file:   $3"
 }
 
-check_stage_return_files() { # ≥2 docs/delivery/*/stages/*.md, each with six labels; basenames = registered agent types
+check_stage_return_files() { # ≥2 stage reports, each with six labels and a registered agent name
   local n=0
-  local f label base
+  local f label base agent stage
   while IFS= read -r f; do
     [ -z "$f" ] && continue
     base="$(basename "$f" .md)"
-    if [ ! -f "$ROOT/agents/${base}.md" ]; then
+    agent="${base%%--*}"
+    if [ "$agent" != "$base" ]; then
+      stage="${base#*--}"
+      if ! [[ "$stage" =~ ^[A-Za-z0-9][A-Za-z0-9._-]*$ ]]; then
+        record 1 "file:   invalid stage ID in report basename ($base)"
+        return
+      fi
+    fi
+    if [ ! -f "$ROOT/agents/${agent}.md" ]; then
       record 1 "file:   stage file basename is not a registered agent type ($base)"
       return
     fi

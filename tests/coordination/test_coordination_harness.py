@@ -214,6 +214,28 @@ class CoordinationHarnessTest(unittest.TestCase):
         self.assertEqual([len(wave) for wave in plan["waves"]], [4, 1])
         self.assertEqual(plan["topology"], "hybrid")
 
+    def test_short_dependency_releases_its_successor_while_other_work_runs(self):
+        payload = workload(
+            task("contract", "database", seconds=60, specialist=True),
+            task("independent", "documentation", seconds=300, specialist=True),
+            task("implementation", "backend", seconds=240, dependencies=["contract"]),
+        )
+        plan = coordination.plan_workload(self.policy, self.agents, payload)
+        schedule = {row["taskId"]: row for row in plan["schedule"]}
+        self.assertEqual(plan["decision"], "delegate")
+        self.assertEqual(plan["waves"], [["contract", "independent"], ["implementation"]])
+        self.assertEqual(schedule["implementation"]["startSeconds"], 60)
+        self.assertEqual(schedule["independent"]["finishSeconds"], 300)
+        self.assertEqual(plan["prediction"]["multiAgentDurationSeconds"], 320)
+
+    def test_parent_and_child_paths_conflict_without_an_ordering_edge(self):
+        payload = workload(
+            task("model-layer", paths=["app/Models"], specialist=True),
+            task("post", "testing", paths=["app/Models/Post.php"], specialist=True),
+        )
+        plan = coordination.plan_workload(self.policy, self.agents, payload)
+        self.assertEqual(plan["reasons"], ["unordered-write-conflict"])
+
     def test_one_agent_is_not_double_booked_inside_a_wave(self):
         payload = workload(
             task("a", seconds=300),

@@ -179,6 +179,58 @@ class ParallelDispatchTest(unittest.TestCase):
         with self.assertRaisesRegex(kernel.PlanError, "collides with running stage a"):
             kernel.claim_stage(self.root, "tag", "b")
 
+    def test_repeated_specialist_reports_each_stage_and_releases_its_dependents(self):
+        kernel.plan(
+            root=self.root,
+            name="tag",
+            done_when="x",
+            stages=[
+                self._stage("first", "backend-developer", owns=["first.txt"]),
+                self._stage("second", "backend-developer", owns=["second.txt"]),
+                self._stage("independent", "database-developer"),
+                self._stage("check", "frontend-developer", depends=["first"]),
+            ],
+            max_parallel=3,
+        )
+        self.assertEqual(
+            [stage.id for stage in kernel.ready_stages(self.root, "tag")],
+            ["first", "independent"],
+        )
+        kernel.claim_stage(self.root, "tag", "independent")
+        claim_and_measure(self.root, "tag", "first")
+        with self.assertRaisesRegex(kernel.PlanError, "not ready|already"):
+            kernel.claim_stage(self.root, "tag", "second")
+
+        reports = self.root / "docs/delivery/tag/stages"
+        reports.mkdir(parents=True)
+        (self.root / "first.txt").write_text("done")
+        path = reports / "backend-developer--first.md"
+        path.write_text(
+            "STATUS: done\nDID: first.txt\n"
+            'VERIFIED: {"criterion":"criterion-1","runner":"file-exists","args":["first.txt"]}\n'
+            "NOT-CHECKED: none\nFLAGS: none\nNEXT: none\n"
+        )
+        result = kernel.report(self.root, "tag", path, runner=FakeRunner({}))
+        self.assertEqual(
+            [stage.status for stage in result.stages], ["done", "queued", "running", "queued"]
+        )
+        self.assertEqual(
+            [stage.id for stage in kernel.ready_stages(self.root, "tag")],
+            ["second", "check"],
+        )
+        kernel.claim_stage(self.root, "tag", "check")
+        claim_and_measure(self.root, "tag", "second")
+        second_file = self.root / "second.txt"
+        second_file.write_text("done")
+        second_report = path.with_name("backend-developer--second.md")
+        second_report.write_text(path.read_text().replace("first.txt", "second.txt"))
+        result = kernel.report(self.root, "tag", second_report, runner=FakeRunner({}))
+        self.assertEqual(result.stages[0].did, ["first.txt"])
+        self.assertEqual(result.stages[1].did, ["second.txt"])
+        self.assertEqual(
+            [stage.status for stage in result.stages], ["done", "done", "running", "running"]
+        )
+
     def test_concurrent_reports_preserve_both_stage_results(self):
         kernel.plan(
             root=self.root,
@@ -875,6 +927,10 @@ class ViewsCliTest(unittest.TestCase):
         )
         self.assertEqual(
             json.loads(ready.stdout)[0]["owned_paths"], ["database/migrations"]
+        )
+        self.assertEqual(
+            json.loads(ready.stdout)[0]["report_path"],
+            "docs/delivery/tag/stages/database-developer--a.md",
         )
         claimed = subprocess.run(
             [
