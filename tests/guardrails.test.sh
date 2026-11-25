@@ -146,6 +146,12 @@ expect "close.md stub Write allows" "$ALLOW" \
   "$(run_hook enforce-close-file.sh '{"tool_input":{"path":"docs/delivery/tag/close.md","contents":"VERIFIED: x\nNOT-CHECKED: y\nSTATUS: running\nBOARD: z\n"}}')"
 expect "close.md journal Write blocks" "$BLOCK" \
   "$(run_hook enforce-close-file.sh '{"tool_input":{"path":"docs/delivery/tag/close.md","contents":"# Close file\n\nVERIFIED (coordinator):\nx\nSTATUS: planning complete\n"}}')"
+expect "close.md Claude Code content Write allows" "$ALLOW" \
+  "$(run_hook enforce-close-file.sh '{"tool_name":"Write","tool_input":{"file_path":"/workspace/docs/delivery/tag/close.md","content":"VERIFIED: x\nNOT-CHECKED: none\nSTATUS: done\nBOARD: done\n"}}')"
+expect "close.md Claude Code content journal blocks" "$BLOCK" \
+  "$(run_hook enforce-close-file.sh '{"tool_name":"Write","tool_input":{"file_path":"/workspace/docs/delivery/tag/close.md","content":"STATUS: done\n"}}')"
+expect "close.md empty content blocks even with legacy contents present" "$BLOCK" \
+  "$(run_hook enforce-close-file.sh '{"tool_name":"Write","tool_input":{"file_path":"/workspace/docs/delivery/tag/close.md","content":"","contents":"VERIFIED: x\nNOT-CHECKED: none\nSTATUS: done\nBOARD: done\n"}}')"
 expect "non-close.md Write allows" "$ALLOW" \
   "$(run_hook enforce-close-file.sh '{"tool_input":{"path":"app/Models/Tag.php","contents":"class Tag {}\n"}}')"
 expect "close.md stub Edit allows" "$ALLOW" \
@@ -196,6 +202,14 @@ expect "sprint.md stub Write allows" "$ALLOW" \
   "$(run_hook enforce-sprint-file.sh '{"tool_input":{"path":"docs/sprints/3.1/sprint.md","contents":"GOAL: x\nWIP: 0/2\nBOARD: none\nSTATUS: running\n"}}')"
 expect "sprint.md journal Write blocks" "$BLOCK" \
   "$(run_hook enforce-sprint-file.sh '{"tool_input":{"path":"docs/sprints/3.1/sprint.md","contents":"# Sprint\n\nI started the sprint\n"}}')"
+expect "sprint.md Claude Code content Write allows" "$ALLOW" \
+  "$(run_hook enforce-sprint-file.sh '{"tool_name":"Write","tool_input":{"file_path":"/workspace/docs/sprints/3.1/sprint.md","content":"GOAL: x\nWIP: 0/2\nBOARD: none\nSTATUS: running\n"}}')"
+expect "sprint.md Claude Code content journal blocks" "$BLOCK" \
+  "$(run_hook enforce-sprint-file.sh '{"tool_name":"Write","tool_input":{"file_path":"/workspace/docs/sprints/3.1/sprint.md","content":"STATUS: running\n"}}')"
+expect "sprint.md empty content blocks even with legacy contents present" "$BLOCK" \
+  "$(run_hook enforce-sprint-file.sh '{"tool_name":"Write","tool_input":{"file_path":"/workspace/docs/sprints/3.1/sprint.md","content":"","contents":"GOAL: x\nWIP: 0/2\nBOARD: none\nSTATUS: running\n"}}')"
+expect "sprint.md stub Edit allows" "$ALLOW" \
+  "$(run_hook enforce-sprint-file.sh '{"tool_name":"Edit","tool_input":{"file_path":"docs/sprints/3.1/sprint.md","new_string":"GOAL: x\nWIP: 0/2\nBOARD: none\nSTATUS: running\n"}}')"
 expect "non-sprint.md Write allows" "$ALLOW" \
   "$(run_hook enforce-sprint-file.sh '{"tool_input":{"path":"docs/sprints/3.1/retro.md","contents":"# Retro\n"}}')"
 expect "sprint.md Bash cat-redirect blocks" "$BLOCK" \
@@ -214,6 +228,14 @@ expect "lessons.md legacy taught status blocks" "$BLOCK" \
   "$(run_hook enforce-lessons-file.sh '{"tool_input":{"path":"docs/team/lessons.md","contents":"LESSONS:\nID: abc\nRULE: x\nSCOPE: database-developer\nSTATUS: taught\nPROVENANCE: stage_flag (2 observations)\n"}}')"
 expect "lessons.md journal Write blocks" "$BLOCK" \
   "$(run_hook enforce-lessons-file.sh '{"tool_input":{"path":"docs/team/lessons.md","contents":"# Lessons\n\nI learned something\n"}}')"
+expect "lessons.md Claude Code content Write allows" "$ALLOW" \
+  "$(run_hook enforce-lessons-file.sh '{"tool_name":"Write","tool_input":{"file_path":"/workspace/docs/team/lessons.md","content":"LESSONS:\nID: abc\nRULE: x\nSCOPE: backend-developer\nSTATUS: approved\nPROVENANCE: stage_flag (2 observations)\nAPPROVED-BY: user at 2026-09-22T00:00:00+00:00\n"}}')"
+expect "lessons.md Claude Code content without approval blocks" "$BLOCK" \
+  "$(run_hook enforce-lessons-file.sh '{"tool_name":"Write","tool_input":{"file_path":"/workspace/docs/team/lessons.md","content":"LESSONS:\nID: abc\nRULE: x\nSCOPE: backend-developer\nSTATUS: approved\nPROVENANCE: stage_flag (2 observations)\n"}}')"
+expect "lessons.md empty content blocks even with legacy contents present" "$BLOCK" \
+  "$(run_hook enforce-lessons-file.sh '{"tool_name":"Write","tool_input":{"file_path":"/workspace/docs/team/lessons.md","content":"","contents":"LESSONS: none\n"}}')"
+expect "lessons.md stub Edit allows" "$ALLOW" \
+  "$(run_hook enforce-lessons-file.sh '{"tool_name":"Edit","tool_input":{"file_path":"docs/team/lessons.md","new_string":"LESSONS: none\n"}}')"
 expect "conventions.md Write allows" "$ALLOW" \
   "$(run_hook enforce-lessons-file.sh '{"tool_input":{"path":"docs/team/conventions.md","contents":"# Conventions\n"}}')"
 expect "lessons.md Bash cat-redirect blocks" "$BLOCK" \

@@ -9,9 +9,8 @@ set -euo pipefail
 
 INPUT="$(cat)"
 
-# Both Write and Edit pass the target via tool_input.path (Write) or
-# tool_input.file_path (Edit-like). Degrade jq -> python3 -> raw payload so a
-# missing JSON parser can't silently disable the guard.
+# Claude Code supplies file_path for Write and Edit. The compatibility
+# formats use path or absolute_path. Fall back from jq to Python to stdin.
 extract_path() {
   if command -v jq >/dev/null 2>&1; then
     printf '%s' "$INPUT" | jq -r '.tool_input.path // .tool_input.file_path // .tool_input.absolute_path // empty'
@@ -27,17 +26,24 @@ except Exception:
   fi
 }
 
-# Write sends the new file via tool_input.contents; Edit sends the replacement
-# via tool_input.new_string. Parse failure returns empty so a matching path
-# fails closed instead of scanning raw JSON for labels.
+# Write supplies content or the legacy contents field. Edit supplies
+# new_string. Validate the first present field so a valid alternate body
+# cannot replace an empty or malformed primary body.
 extract_body() {
   if command -v jq >/dev/null 2>&1; then
-    printf '%s' "$INPUT" | jq -r '.tool_input.contents // .tool_input.new_string // empty'
+    printf '%s' "$INPUT" | jq -r '
+      .tool_input |
+      if has("content") then .content
+      elif has("contents") then .contents
+      else .new_string
+      end | strings'
   elif command -v python3 >/dev/null 2>&1; then
     printf '%s' "$INPUT" | python3 -c 'import sys,json
 try:
     ti=json.load(sys.stdin).get("tool_input",{})
-    print(ti.get("contents") or ti.get("new_string") or "")
+    body = next((ti[key] for key in ("content", "contents", "new_string") if key in ti), None)
+    if isinstance(body, str):
+        print(body)
 except Exception:
     sys.exit(3)' 2>/dev/null || true
   else
