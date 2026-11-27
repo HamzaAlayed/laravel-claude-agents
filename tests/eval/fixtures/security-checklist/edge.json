@@ -1,0 +1,47 @@
+{
+  "staging_browser_observations": [
+    {
+      "route": "/login",
+      "scheme": "https",
+      "status": 302,
+      "set_cookie": "editor_session=[redacted]; Path=/; HttpOnly; SameSite=Lax"
+    },
+    {
+      "route": "/editor/session",
+      "method": "GET",
+      "request_origin": "https://admin.newsroom.example",
+      "allow_origin": "https://admin.newsroom.example",
+      "allow_credentials": true,
+      "response": "signed-in synthetic editor data"
+    },
+    {
+      "route": "/editor/session",
+      "method": "GET",
+      "request_origin": "https://publisher-preview.newsroom.example",
+      "allow_origin": "https://publisher-preview.newsroom.example",
+      "allow_credentials": true,
+      "response": "signed-in synthetic editor data"
+    },
+    {
+      "route": "/editor/attachments/synthetic-01",
+      "actor": "authorized editor",
+      "status": 200,
+      "edge_cache": "MISS",
+      "headers": {"cache-control": "public, max-age=900"},
+      "response_marker": "fixture-private-attachment"
+    },
+    {
+      "route": "/editor/attachments/synthetic-01",
+      "actor": "anonymous receiver",
+      "status": 200,
+      "edge_cache": "HIT",
+      "response_marker": "fixture-private-attachment"
+    }
+  ],
+  "public_tls": {
+    "minimum": "1.2",
+    "preferred": "1.3",
+    "browser_certificate": "matches expected host and trusted CA",
+    "origin": "TLS with origin certificate validation"
+  }
+}

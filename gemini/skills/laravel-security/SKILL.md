@@ -1,11 +1,13 @@
 ---
 name: laravel-security
-description: "The Laravel security-review cookbook — STRIDE applied to Laravel primitives, the authn / authz / mass-assignment / upload / injection checklist, advisory lookup procedure, and the finding format. Use when threat-modeling a feature, reviewing a PR that touches auth / PII / billing / uploads / middleware, or triaging a suspected vulnerability. Findings only — fixes land with the owning builder after human awareness."
+description: "The Laravel security-review cookbook — STRIDE, application security checks, advisory lookup, finding format, and production readiness. Use for threat modeling, sensitive PR review, production security audits, or vulnerability triage. Findings only — fixes land with the owning builder after human awareness."
 ---
 
 # Laravel Security Review
 
 Verify before asserting. Trace the exploit path (route → middleware, incl. `#[Middleware]`/`#[Authorize]` controller attributes on L13 → FormRequest → Policy → query) before reporting — a grep over routes/middleware alone misses attribute-based coverage. Unverifiable → mark **Suspected** + the evidence needed. Never invent CVE IDs or CVSS scores — cite only advisories actually fetched.
+
+For release readiness, open the [production security checklist](references/production-security-checklist.md). Record applicable check IDs, verified evidence, and blocker owners.
 
 ## STRIDE on Laravel primitives
 
@@ -26,9 +28,9 @@ Document trust boundaries crossed + data sensitivity at each.
 - **XSS**: `{!! !!}` only with a written safety argument; user HTML → sanitize (mews/purifier or equivalent); JSON in Blade via `@js` / `Js::from`.
 - **Uploads**: validate `mimetypes:` (server-side, not extension), size; store on non-public disk; never trust client filename (`hashName()`); images → strip EXIF where PII-relevant.
 - **CSRF**: web routes covered; deliberate exceptions (`preventRequestForgery(except:)` in `bootstrap/app.php` on L13 — `validateCsrfTokens` is the deprecated L11/12 alias, middleware class renamed `VerifyCsrfToken` → `PreventRequestForgery`) each justified. L13 verifies origin via `Sec-Fetch-Site` first, token fallback second — HTTPS-only, so check reverse proxies/CDNs don't strip the header, and test exclusions reference `PreventRequestForgery::class`.
-- **Secrets**: never in repo, `.env.*` committed, or logs. `config()` only — `env()` outside `config/*.php` breaks under cache and hints at drift. Scan diffs: `gitleaks detect`. Suspected `APP_KEY` exposure → rotate via `APP_PREVIOUS_KEYS` (graceful re-encryption), never an ad-hoc key swap that bricks encrypted data and sessions.
+- **Secrets**: keep secrets out of the repo and logs. Read effective settings via `config()`. Use the installed secret scanner with redaction. Rehearse `APP_PREVIOUS_KEYS` for planned rotation. Suspected `APP_KEY` compromise calls for the incident procedure, including containment and retirement of the compromised key from serving systems.
 - **Jobs / queues**: PII-bearing jobs `ShouldBeEncrypted`; failed-job payloads (`failed_jobs.payload`) hold serialized PII — retention policy exists.
-- **Headers / CORS**: `config/cors.php` origins explicit (no `*` with credentials) — file absent means unpublished defaults apply; `php artisan config:publish cors` before asserting origins. Cookies `Secure`, `HttpOnly`, `SameSite`.
+- **Headers / CORS**: inspect effective CORS settings and delivered responses. Credentialed requests need explicit origins. Check `Secure`, `HttpOnly`, and `SameSite` on session cookies.
 
 ## Advisory lookup
 

@@ -85,12 +85,20 @@ Senior frontend engineer fluent in Laravel front-of-house: Blade (server-rendere
 
 ## Performance hygiene
 
+- For production frontend audits, load `laravel-deploy` and use its production performance checklist for route baselines, browser and asset checks, and CI budgets.
 - Eager-load every list page backing Inertia component. Prevent N+1 in response cycle.
-- Deferred (`Inertia::defer()`) props for above-the-fold-only data.
+- Render first-view content in the initial HTML where practical. Keep markup lean and use native HTML/CSS for simple interactions.
+- Load critical CSS early. Split secondary styles by route, remove unused rules, use simple selectors, and resolve CSS `@import` at build time. Try `content-visibility: auto` on large offscreen sections when traces show rendering cost, and check scrolling and keyboard access.
 - `wire:navigate` (Livewire) + `<Link prefetch>` (Inertia) where they help; plain Blade MPA → `speculationrules` prefetch/prerender on likely next navigations (Chromium-only enhancement — keep GET routes side-effect-free before prerendering). Measure before turning on everywhere.
 - CWV budgets: LCP ≤ 2.5s, INP ≤ 200ms, CLS ≤ 0.1 (CrUX p75). INP fix = break >50ms tasks with `await scheduler.yield()`. CLS fix = reserve space: `width`/`height` or `aspect-ratio` on images/embeds, no late-injected banners.
+- Serve resized, compressed AVIF or WebP with `srcset` and `sizes`. Reuse the image pipeline for variants and strip unused SVG metadata. Lazy-load offscreen images and iframes. Give the LCP image eager loading and high priority, and preload it when the waterfall shows late discovery.
+- Compress video, omit unused audio, and defer offscreen players. For optional playback use `preload="none"` or `"metadata"`. Consider adaptive streaming for long videos.
+- Limit downloaded font families and weights. Prefer WOFF2, use `font-display: swap` or `optional`, and match fallback metrics. Consider system or variable fonts to reduce requests.
 - New platform feature → check its Baseline badge. Newly/Widely available → ship. Not Baseline → progressive enhancement with a working fallback, never load-bearing. View transitions: same-document is Baseline (fine for `wire:navigate` / Inertia visits); cross-document is enhancement-only; gate all of it behind `prefers-reduced-motion`.
-- Watch Vite bundle size. Tree-shake unused Filament / Inertia pages. Lazy-import heavy chart / editor libraries.
+- Watch Vite bundle size. Tree-shake unused Filament / Inertia pages. Lazy-import heavy chart / editor libraries. Minify production CSS and JS, remove dead code and unnecessary third-party tags, and defer optional scripts. Use `async` for independent classic scripts. Re-run build and tests after dependency upgrades.
+- On measured interaction hot paths, group DOM reads before writes, use passive scroll/touch listeners where cancellation is unnecessary, and move CPU-heavy work that needs no DOM into Web Workers.
+- On list pages, trace the data source to the template loop or DOM insertion. When the whole collection mounts in one pass, report **Initial list rendering** with the render site, row count, and a fix that limits mounted rows. Render one page first. Virtualize if rendering remains the bottleneck and verify keyboard navigation and focus.
+- Give unused fields their own **API payload** finding. Keep the initial rendering finding when the mount is visible in source and mark its timing impact as unmeasured until you have a browser trace.
 - Tailwind v3: tight `content` globs. v4: auto-detects sources — exclude noise with `@source not`, set base with `source()` in monorepos. Tokens: v4 `@theme`, v3 config `theme.extend`. Token layering: primitives (`--color-blue-500`) → semantic roles (`--color-primary`); components consume roles only — match ui-ux-designer's `tokens.md` naming.
 
 ## Anti-patterns (refuse to ship)

@@ -1,0 +1,40 @@
+{
+  "web": {"document_root": "/var/www/current/public", "directory_index_listing": false},
+  "editor_auth": {
+    "role_admin": {"enforced_factors": ["password"], "recovery": "existing support procedure"},
+    "role_editor": {"enforced_factors": ["password", "device factor"]}
+  },
+  "database": {
+    "private_endpoint": true,
+    "ipv4_ingress": "app security group only",
+    "ipv6_ingress": "none",
+    "client": "libpq",
+    "effective_sslmode": "require",
+    "tls_negotiated": true,
+    "configured_root_ca": null
+  },
+  "object_storage": {
+    "editor_attachments": "private",
+    "block_public_access": true,
+    "allowed_readers": ["app role", "approved origin identity"]
+  },
+  "compute": {
+    "metadata_endpoint": "enabled",
+    "metadata_http_tokens": "optional",
+    "instance_profile_permissions": ["publish isolated application metrics"],
+    "public_admin_ingress": "none"
+  },
+  "key_change": {
+    "ticket": "synthetic incident scenario",
+    "trigger": "suspected APP_KEY compromise",
+    "new_serving_key_id": "fixture-key-v2",
+    "accepted_previous_key_ids": ["fixture-key-v1"],
+    "session_invalidation": "deferred"
+  },
+  "operations": {
+    "backup_policy": "daily snapshot with retained point-in-time recovery",
+    "restore_reports_for_candidate": [],
+    "alert_rule_exists": true,
+    "alert_delivery_or_acknowledgement_reports_for_candidate": []
+  }
+}

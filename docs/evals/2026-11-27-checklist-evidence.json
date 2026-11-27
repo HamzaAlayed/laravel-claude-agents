@@ -1,0 +1,992 @@
+{
+  "frontend-checklist": {
+    "profile_digests": {
+      "frontend-developer-before": "d13290071905a895eb61be5c602cae49b7ddc0ffa922ea8e3ec22f29d1532e09",
+      "frontend-developer-after": "ef55c91b547d66c4a9c430d7dd52575c17ae620e568a216e59add326bc3cbaf5",
+      "performance-engineer-before": "d5982c467bf6f91721a43840b620c1ba9880e0e955aac12057b532f8308d54a0",
+      "performance-engineer-after": "9d3114c04bdceb82a2f6b3b4309bc8a246afaa455bb9d8714ac839a74ae76aeb"
+    },
+    "prompt": "Audit frontend performance for the Laravel app's /catalog page. Use the fixture's\nsource, configuration, and any recorded runtime evidence. Stay within the catalog\nworkload and work read-only. Report each distinct issue you can substantiate with its\nfile and line, the mechanism, and a targeted fix. Label checks requiring further\nmeasurement separately. Distinguish source findings from measured effects.\n",
+    "http_capture": [
+      {
+        "request_path": "/catalog",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 1534,
+        "response_headers": {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-cache, private"
+        }
+      },
+      {
+        "request_path": "/catalog/viewer",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip",
+          "X-Catalog-Viewer": "new"
+        },
+        "status": 200,
+        "body_bytes": 22,
+        "response_headers": {
+          "Cache-Control": "public, s-maxage=300",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "greeting": "Welcome"
+        }
+      },
+      {
+        "request_path": "/catalog/viewer",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip",
+          "X-Catalog-Viewer": "returning"
+        },
+        "status": 200,
+        "body_bytes": 27,
+        "response_headers": {
+          "Cache-Control": "public, s-maxage=300",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "greeting": "Welcome back"
+        }
+      },
+      {
+        "request_path": "/catalog/items",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 90469,
+        "response_headers": {
+          "Cache-Control": "no-cache, private",
+          "Content-Type": "application/json"
+        },
+        "first_item": {
+          "id": 1,
+          "name": "Trail pack 1",
+          "listing_history": [
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive."
+          ]
+        }
+      },
+      {
+        "request_path": "/catalog-assets/catalog.8c4e21af.js",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 1160,
+        "response_headers": {
+          "Content-Type": "application/javascript",
+          "Cache-Control": "max-age=0, must-revalidate, public",
+          "Last-Modified": "Fri, 27 Nov 2026 12:36:09 GMT",
+          "Content-Length": "1160"
+        }
+      },
+      {
+        "request_path": "/catalog-assets/catalog.css",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 322,
+        "response_headers": {
+          "Content-Type": "text/css; charset=UTF-8",
+          "Content-Length": "322"
+        }
+      },
+      {
+        "request_path": "/catalog-assets/surface.css",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 127,
+        "response_headers": {
+          "Content-Type": "text/css; charset=UTF-8",
+          "Content-Length": "127"
+        }
+      },
+      {
+        "request_path": "/catalog-assets/catalog.woff2",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 28740,
+        "response_headers": {
+          "Content-Type": "font/woff2",
+          "Content-Length": "28740"
+        }
+      },
+      {
+        "request_path": "/catalog-assets/trail.jpg",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 1143919,
+        "response_headers": {
+          "Content-Type": "image/jpeg",
+          "Content-Length": "1143919"
+        }
+      },
+      {
+        "request_path": "/catalog-assets/fitting.mp4",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 245302,
+        "response_headers": {
+          "Content-Type": "video/mp4",
+          "Content-Length": "245302"
+        }
+      }
+    ]
+  },
+  "initial-dom": {
+    "profile_digests": {
+      "frontend-developer-before": "ef55c91b547d66c4a9c430d7dd52575c17ae620e568a216e59add326bc3cbaf5",
+      "frontend-developer-after": "58e41feccc822eee0ef4ecaccdb6d40a816d9e931c480d71e2eaafd395ef95ba",
+      "performance-engineer-before": "9d3114c04bdceb82a2f6b3b4309bc8a246afaa455bb9d8714ac839a74ae76aeb",
+      "performance-engineer-after": "4a756132ac943bea693bc39eab2b2de86cb47c81c44bfa470a4911d7908fc983"
+    },
+    "prompt": "Audit frontend performance for the Laravel app's /catalog page. Use the fixture's\nsource, configuration, and any recorded runtime evidence. Stay within the catalog\nworkload and work read-only. Report each distinct issue you can substantiate with its\nfile and line, the mechanism, and a targeted fix. Label checks requiring further\nmeasurement separately. Distinguish source findings from measured effects.\n",
+    "http_capture": [
+      {
+        "request_path": "/catalog",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 1534,
+        "response_headers": {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-cache, private"
+        }
+      },
+      {
+        "request_path": "/catalog/viewer",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip",
+          "X-Catalog-Viewer": "new"
+        },
+        "status": 200,
+        "body_bytes": 22,
+        "response_headers": {
+          "Cache-Control": "public, s-maxage=300",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "greeting": "Welcome"
+        }
+      },
+      {
+        "request_path": "/catalog/viewer",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip",
+          "X-Catalog-Viewer": "returning"
+        },
+        "status": 200,
+        "body_bytes": 27,
+        "response_headers": {
+          "Cache-Control": "public, s-maxage=300",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "greeting": "Welcome back"
+        }
+      },
+      {
+        "request_path": "/catalog/items",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 90469,
+        "response_headers": {
+          "Cache-Control": "no-cache, private",
+          "Content-Type": "application/json"
+        },
+        "first_item": {
+          "id": 1,
+          "name": "Trail pack 1",
+          "listing_history": [
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive."
+          ]
+        }
+      },
+      {
+        "request_path": "/catalog-assets/catalog.8c4e21af.js",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 1160,
+        "response_headers": {
+          "Content-Type": "application/javascript",
+          "Cache-Control": "max-age=0, must-revalidate, public",
+          "Last-Modified": "Fri, 27 Nov 2026 12:45:36 GMT",
+          "Content-Length": "1160"
+        }
+      },
+      {
+        "request_path": "/catalog-assets/catalog.css",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 322,
+        "response_headers": {
+          "Content-Type": "text/css; charset=UTF-8",
+          "Content-Length": "322"
+        }
+      },
+      {
+        "request_path": "/catalog-assets/surface.css",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 127,
+        "response_headers": {
+          "Content-Type": "text/css; charset=UTF-8",
+          "Content-Length": "127"
+        }
+      },
+      {
+        "request_path": "/catalog-assets/catalog.woff2",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 28740,
+        "response_headers": {
+          "Content-Type": "font/woff2",
+          "Content-Length": "28740"
+        }
+      },
+      {
+        "request_path": "/catalog-assets/trail.jpg",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 1143919,
+        "response_headers": {
+          "Content-Type": "image/jpeg",
+          "Content-Length": "1143919"
+        }
+      },
+      {
+        "request_path": "/catalog-assets/fitting.mp4",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 245302,
+        "response_headers": {
+          "Content-Type": "video/mp4",
+          "Content-Length": "245302"
+        }
+      }
+    ]
+  },
+  "initial-dom-confirmation": {
+    "profile_digests": {
+      "frontend-developer-before": "ef55c91b547d66c4a9c430d7dd52575c17ae620e568a216e59add326bc3cbaf5",
+      "frontend-developer-after": "072b4d487c9a4d18849d103d883dd8915cd76ee9feec0afc356b6ac626a5c4c3",
+      "performance-engineer-before": "9d3114c04bdceb82a2f6b3b4309bc8a246afaa455bb9d8714ac839a74ae76aeb",
+      "performance-engineer-after": "4a756132ac943bea693bc39eab2b2de86cb47c81c44bfa470a4911d7908fc983"
+    },
+    "prompt": "Audit frontend performance for the Laravel app's /catalog page. Use the fixture's\nsource, configuration, and any recorded runtime evidence. Stay within the catalog\nworkload and work read-only. Report each distinct issue you can substantiate with its\nfile and line, the mechanism, and a targeted fix. Label checks requiring further\nmeasurement separately. Distinguish source findings from measured effects.\n",
+    "http_capture": [
+      {
+        "request_path": "/catalog",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 1534,
+        "response_headers": {
+          "Content-Type": "text/html; charset=utf-8",
+          "Cache-Control": "no-cache, private"
+        }
+      },
+      {
+        "request_path": "/catalog/viewer",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip",
+          "X-Catalog-Viewer": "new"
+        },
+        "status": 200,
+        "body_bytes": 22,
+        "response_headers": {
+          "Cache-Control": "public, s-maxage=300",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "greeting": "Welcome"
+        }
+      },
+      {
+        "request_path": "/catalog/viewer",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip",
+          "X-Catalog-Viewer": "returning"
+        },
+        "status": 200,
+        "body_bytes": 27,
+        "response_headers": {
+          "Cache-Control": "public, s-maxage=300",
+          "Content-Type": "application/json"
+        },
+        "body": {
+          "greeting": "Welcome back"
+        }
+      },
+      {
+        "request_path": "/catalog/items",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 90469,
+        "response_headers": {
+          "Cache-Control": "no-cache, private",
+          "Content-Type": "application/json"
+        },
+        "first_item": {
+          "id": 1,
+          "name": "Trail pack 1",
+          "listing_history": [
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive.",
+            "Catalog listing 1 change archive."
+          ]
+        }
+      },
+      {
+        "request_path": "/catalog-assets/catalog.8c4e21af.js",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 1160,
+        "response_headers": {
+          "Content-Type": "application/javascript",
+          "Cache-Control": "max-age=0, must-revalidate, public",
+          "Last-Modified": "Fri, 27 Nov 2026 12:52:41 GMT",
+          "Content-Length": "1160"
+        }
+      },
+      {
+        "request_path": "/catalog-assets/catalog.css",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 322,
+        "response_headers": {
+          "Content-Type": "text/css; charset=UTF-8",
+          "Content-Length": "322"
+        }
+      },
+      {
+        "request_path": "/catalog-assets/surface.css",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 127,
+        "response_headers": {
+          "Content-Type": "text/css; charset=UTF-8",
+          "Content-Length": "127"
+        }
+      },
+      {
+        "request_path": "/catalog-assets/catalog.woff2",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 28740,
+        "response_headers": {
+          "Content-Type": "font/woff2",
+          "Content-Length": "28740"
+        }
+      },
+      {
+        "request_path": "/catalog-assets/trail.jpg",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 1143919,
+        "response_headers": {
+          "Content-Type": "image/jpeg",
+          "Content-Length": "1143919"
+        }
+      },
+      {
+        "request_path": "/catalog-assets/fitting.mp4",
+        "request_headers": {
+          "Accept-Encoding": "br, gzip"
+        },
+        "status": 200,
+        "body_bytes": 245302,
+        "response_headers": {
+          "Content-Type": "video/mp4",
+          "Content-Length": "245302"
+        }
+      }
+    ]
+  },
+  "security-checklist": {
+    "profile_digests": {
+      "before": {
+        "agents/security-engineer.md": "5f8d90135dab81e877822f8a9ecdfeaad766bf898db05b2dac8aee6d61014dcd",
+        "skills/laravel-security/SKILL.md": "a3365eda2cdb6ad00f1fe9a31460f061afdabc7365afa857b46726af82385977"
+      },
+      "after": {
+        "agents/security-engineer.md": "f1fea9ada3e9c655cc5be9d63fd855cc64dbae65c2a58bf49482db517295bef6",
+        "skills/laravel-security/SKILL.md": "95bd5341c2918ceb7ca66c2f0ea335ec11db6a8028e1d70a82a5330586e37619",
+        "skills/laravel-security/references/production-security-checklist.md": "e43708642c52e86a47cce7acf715fea72e08d90b8b0d135a36ec6dbe91d325b1"
+      }
+    },
+    "prompt": "Give a production security and go-live review for the Laravel release described\nin release-scope.md. Review the app source and the records in evidence/. Use the\nGuild security skill supplied at audit-guide/SKILL.md and any reference it links.\nWork read-only, within this fixture. Report distinct findings with the file and\nfield or code location, what the evidence establishes, and a defensive fix or\nadditional check. Give a release decision and list each reason to hold release\nwith the evidence required and responsible role. Map findings to Guild checklist\nIDs when the guide provides them. Distinguish confirmed issues, missing evidence,\nand controls that are verified or out of scope. Do not probe services, produce\nattack steps or payloads, or recount any secret values.\n",
+    "release_scope": "# Newsroom production release candidate\n\nThe staged release serves internal editors over a browser session and publishes\npublic articles. A post belongs to one editor. Editors may edit their own posts,\nand only administrators may edit every editor's posts. Uploaded editorial\nattachments can contain private records. The React admin runs on a different\nfirst-party origin from the Laravel app, with credentialed browser requests.\nThe same site also hosts separately managed editorial previews. A preview\norigin is outside the editor application's trust boundary.\nHorizon, Passport, and Telescope are outside this release.\n\nLaravel's source and local runtime capture come from the disposable fixture.\nThe edge, identity, infrastructure, backup, and CI exports model the proposed\ndeployment and are synthetic. Treat them as supplied release records, with no\nlive AWS or production system behind them. No raw credentials are included.\n\nThe PostgreSQL database has a 30-minute RPO and a two-hour RTO. The operations\npolicy requires restore evidence and an acknowledged security alert drill\nbefore initial traffic. Auxiliary host hardening and response header gaps\nshould be reported and triaged according to the supplied scope and exposure.\n",
+    "release_records": {
+      "ci.json": {
+        "required_checks": {
+          "build": {
+            "conclusion": "success",
+            "blocks_merge_on_failure": true
+          },
+          "secret_scan": {
+            "conclusion": "success",
+            "confirmed_findings": 0,
+            "blocks_merge_on_failure": true
+          },
+          "dependency_audit": {
+            "conclusion": "failure",
+            "continue_on_error": true,
+            "blocks_merge_on_failure": false
+          }
+        },
+        "approved_release_policy": {
+          "confirmed_reachable_high_runtime_findings": "block unless a scoped approved exception exists"
+        },
+        "dependency_triage": [
+          {
+            "reference": "synthetic finding SEC-FIXTURE-01",
+            "severity": "high",
+            "confirmed": true,
+            "reachable_in_runtime": true,
+            "approved_exception": null
+          }
+        ]
+      },
+      "edge.json": {
+        "staging_browser_observations": [
+          {
+            "route": "/login",
+            "scheme": "https",
+            "status": 302,
+            "set_cookie": "editor_session=[redacted]; Path=/; HttpOnly; SameSite=Lax"
+          },
+          {
+            "route": "/editor/session",
+            "method": "GET",
+            "request_origin": "https://admin.newsroom.example",
+            "allow_origin": "https://admin.newsroom.example",
+            "allow_credentials": true,
+            "response": "signed-in synthetic editor data"
+          },
+          {
+            "route": "/editor/session",
+            "method": "GET",
+            "request_origin": "https://publisher-preview.newsroom.example",
+            "allow_origin": "https://publisher-preview.newsroom.example",
+            "allow_credentials": true,
+            "response": "signed-in synthetic editor data"
+          },
+          {
+            "route": "/editor/attachments/synthetic-01",
+            "actor": "authorized editor",
+            "status": 200,
+            "edge_cache": "MISS",
+            "headers": {
+              "cache-control": "public, max-age=900"
+            },
+            "response_marker": "fixture-private-attachment"
+          },
+          {
+            "route": "/editor/attachments/synthetic-01",
+            "actor": "anonymous receiver",
+            "status": 200,
+            "edge_cache": "HIT",
+            "response_marker": "fixture-private-attachment"
+          },
+          {
+            "route": "/build/editor.js",
+            "status": 200,
+            "headers": {
+              "content-type": "application/javascript"
+            }
+          }
+        ],
+        "public_tls": {
+          "minimum": "1.2",
+          "preferred": "1.3",
+          "browser_certificate": "matches expected host and trusted CA",
+          "origin": "TLS with origin certificate validation"
+        }
+      },
+      "platform.json": {
+        "web": {
+          "document_root": "/var/www/current/public",
+          "directory_index_listing": false
+        },
+        "editor_auth": {
+          "role_admin": {
+            "enforced_factors": [
+              "password"
+            ],
+            "recovery": "existing support procedure"
+          },
+          "role_editor": {
+            "enforced_factors": [
+              "password",
+              "device factor"
+            ]
+          }
+        },
+        "database": {
+          "private_endpoint": true,
+          "ipv4_ingress": "app security group only",
+          "ipv6_ingress": "none",
+          "client": "libpq",
+          "effective_sslmode": "require",
+          "tls_negotiated": true,
+          "configured_root_ca": null
+        },
+        "object_storage": {
+          "editor_attachments": "private",
+          "block_public_access": true,
+          "allowed_readers": [
+            "app role",
+            "approved origin identity"
+          ]
+        },
+        "compute": {
+          "metadata_endpoint": "enabled",
+          "metadata_http_tokens": "optional",
+          "instance_profile_permissions": [
+            "publish isolated application metrics"
+          ],
+          "public_admin_ingress": "none"
+        },
+        "key_change": {
+          "ticket": "synthetic incident scenario",
+          "trigger": "suspected APP_KEY compromise",
+          "new_serving_key_id": "fixture-key-v2",
+          "accepted_previous_key_ids": [
+            "fixture-key-v1"
+          ],
+          "session_invalidation": "deferred"
+        },
+        "operations": {
+          "backup_policy": "daily snapshot with retained point-in-time recovery",
+          "restore_reports_for_candidate": [],
+          "alert_rule_exists": true,
+          "alert_delivery_or_acknowledgement_reports_for_candidate": []
+        }
+      },
+      "route-inventory.json": [
+        {
+          "domain": null,
+          "method": "GET|HEAD",
+          "uri": "/",
+          "name": null,
+          "action": "Closure",
+          "middleware": [
+            "web"
+          ],
+          "path": "routes/web.php:6"
+        },
+        {
+          "domain": null,
+          "method": "GET|HEAD",
+          "uri": "posts",
+          "name": "posts.index",
+          "action": "App\\Http\\Controllers\\PostController@index",
+          "middleware": [
+            "web"
+          ],
+          "path": null
+        },
+        {
+          "domain": null,
+          "method": "POST",
+          "uri": "posts",
+          "name": "posts.store",
+          "action": "App\\Http\\Controllers\\PostController@store",
+          "middleware": [
+            "web",
+            "auth"
+          ],
+          "path": null
+        },
+        {
+          "domain": null,
+          "method": "PUT",
+          "uri": "posts/{post}",
+          "name": "posts.update",
+          "action": "App\\Http\\Controllers\\PostController@update",
+          "middleware": [
+            "web",
+            "auth"
+          ],
+          "path": null
+        },
+        {
+          "domain": null,
+          "method": "GET|HEAD",
+          "uri": "storage/{path}",
+          "name": "storage.local",
+          "action": "Closure",
+          "middleware": [],
+          "path": "private/tmp/guild-laravel-code-seed/tests/fixture-app/vendor/laravel/framework/src/Illuminate/Filesystem/FilesystemServiceProvider.php:111"
+        },
+        {
+          "domain": null,
+          "method": "PUT",
+          "uri": "storage/{path}",
+          "name": "storage.local.upload",
+          "action": "Closure",
+          "middleware": [],
+          "path": "private/tmp/guild-laravel-code-seed/tests/fixture-app/vendor/laravel/framework/src/Illuminate/Filesystem/FilesystemServiceProvider.php:119"
+        },
+        {
+          "domain": null,
+          "method": "GET|HEAD",
+          "uri": "up",
+          "name": null,
+          "action": "Illuminate\\Foundation\\Http\\HealthCheck",
+          "middleware": [],
+          "path": null
+        }
+      ],
+      "runtime.json": {
+        "capture": "local Laravel fixture after config:cache",
+        "laravel_version": "13.43.0",
+        "app_env": "production",
+        "app_debug": true
+      }
+    }
+  },
+  "security-clearance": {
+    "profile_digests": {
+      "before": {
+        "agents/security-engineer.md": "f1fea9ada3e9c655cc5be9d63fd855cc64dbae65c2a58bf49482db517295bef6",
+        "skills/laravel-security/SKILL.md": "95bd5341c2918ceb7ca66c2f0ea335ec11db6a8028e1d70a82a5330586e37619",
+        "skills/laravel-security/references/production-security-checklist.md": "e43708642c52e86a47cce7acf715fea72e08d90b8b0d135a36ec6dbe91d325b1"
+      },
+      "after": {
+        "agents/security-engineer.md": "f8b882a0ba27b511928836eb7d84dbee68537423bb608afc3aab87be09443d8f",
+        "skills/laravel-security/SKILL.md": "95bd5341c2918ceb7ca66c2f0ea335ec11db6a8028e1d70a82a5330586e37619",
+        "skills/laravel-security/references/production-security-checklist.md": "26365a73124e4b60fb0f33990f79b1b373b7baac7dcdfd928ce9f9cc391e0f17"
+      }
+    },
+    "prompt": "Give a production security and go-live review for the Laravel release described\nin release-scope.md. Review the app source and the records in evidence/. Use the\nGuild security skill supplied at audit-guide/SKILL.md and any reference it links.\nWork read-only, within this fixture. Report distinct findings with the file and\nfield or code location, what the evidence establishes, and a defensive fix or\nadditional check. Give a release decision and list each reason to hold release\nwith the evidence required and responsible role. Map findings to Guild checklist\nIDs when the guide provides them. Distinguish confirmed issues, missing evidence,\nand controls that are verified or out of scope. Do not probe services, produce\nattack steps or payloads, or recount any secret values.\n",
+    "release_scope": "# Newsroom production release candidate\n\nThe staged release serves internal editors over a browser session and publishes\npublic articles. A post belongs to one editor. Editors may edit their own posts,\nand only administrators may edit every editor's posts. Uploaded editorial\nattachments can contain private records. The React admin runs on a different\nfirst-party origin from the Laravel app, with credentialed browser requests.\nThe same site also hosts separately managed editorial previews. A preview\norigin is outside the editor application's trust boundary.\nHorizon, Passport, and Telescope are outside this release.\n\nLaravel's source and local runtime capture come from the disposable fixture.\nThe edge, identity, infrastructure, backup, and CI exports model the proposed\ndeployment and are synthetic. Treat them as supplied release records, with no\nlive AWS or production system behind them. The asset response receipt has the\ncomplete headers observed for the fixture's editor JavaScript file on an\nisolated local static server. CDN delivery requires its own verification.\nNo raw credentials are included.\n\nThe PostgreSQL database has a 30-minute RPO and a two-hour RTO. The operations\npolicy requires restore evidence and an acknowledged security alert drill\nbefore initial traffic. Auxiliary host hardening and response header gaps\nshould be reported and triaged according to the supplied scope and exposure.\n",
+    "release_records": {
+      "asset-response.json": {
+        "source": "observed loopback static server response for the fixture asset",
+        "request": {
+          "method": "GET",
+          "path": "/build/editor.js"
+        },
+        "status": 200,
+        "response_headers_complete": true,
+        "response_headers": [
+          {
+            "name": "Server",
+            "value": "SimpleHTTP Python/3.15.2"
+          },
+          {
+            "name": "Date",
+            "value": "Fri, 27 Nov 2026 14:11:19 GMT"
+          },
+          {
+            "name": "Content-type",
+            "value": "text/javascript"
+          },
+          {
+            "name": "Content-Length",
+            "value": "47"
+          },
+          {
+            "name": "Last-Modified",
+            "value": "Fri, 27 Nov 2026 14:11:04 GMT"
+          }
+        ]
+      },
+      "ci.json": {
+        "required_checks": {
+          "build": {
+            "conclusion": "success",
+            "blocks_merge_on_failure": true
+          },
+          "secret_scan": {
+            "conclusion": "success",
+            "confirmed_findings": 0,
+            "blocks_merge_on_failure": true
+          },
+          "dependency_audit": {
+            "conclusion": "failure",
+            "continue_on_error": true,
+            "blocks_merge_on_failure": false
+          }
+        },
+        "approved_release_policy": {
+          "confirmed_reachable_high_runtime_findings": "block unless a scoped approved exception exists"
+        },
+        "dependency_triage": [
+          {
+            "reference": "synthetic finding SEC-FIXTURE-01",
+            "severity": "high",
+            "confirmed": true,
+            "reachable_in_runtime": true,
+            "approved_exception": null
+          }
+        ]
+      },
+      "edge.json": {
+        "staging_browser_observations": [
+          {
+            "route": "/login",
+            "scheme": "https",
+            "status": 302,
+            "set_cookie": "editor_session=[redacted]; Path=/; HttpOnly; SameSite=Lax"
+          },
+          {
+            "route": "/editor/session",
+            "method": "GET",
+            "request_origin": "https://admin.newsroom.example",
+            "allow_origin": "https://admin.newsroom.example",
+            "allow_credentials": true,
+            "response": "signed-in synthetic editor data"
+          },
+          {
+            "route": "/editor/session",
+            "method": "GET",
+            "request_origin": "https://publisher-preview.newsroom.example",
+            "allow_origin": "https://publisher-preview.newsroom.example",
+            "allow_credentials": true,
+            "response": "signed-in synthetic editor data"
+          },
+          {
+            "route": "/editor/attachments/synthetic-01",
+            "actor": "authorized editor",
+            "status": 200,
+            "edge_cache": "MISS",
+            "headers": {
+              "cache-control": "public, max-age=900"
+            },
+            "response_marker": "fixture-private-attachment"
+          },
+          {
+            "route": "/editor/attachments/synthetic-01",
+            "actor": "anonymous receiver",
+            "status": 200,
+            "edge_cache": "HIT",
+            "response_marker": "fixture-private-attachment"
+          }
+        ],
+        "public_tls": {
+          "minimum": "1.2",
+          "preferred": "1.3",
+          "browser_certificate": "matches expected host and trusted CA",
+          "origin": "TLS with origin certificate validation"
+        }
+      },
+      "platform.json": {
+        "web": {
+          "document_root": "/var/www/current/public",
+          "directory_index_listing": false
+        },
+        "editor_auth": {
+          "role_admin": {
+            "enforced_factors": [
+              "password"
+            ],
+            "recovery": "existing support procedure"
+          },
+          "role_editor": {
+            "enforced_factors": [
+              "password",
+              "device factor"
+            ]
+          }
+        },
+        "database": {
+          "private_endpoint": true,
+          "ipv4_ingress": "app security group only",
+          "ipv6_ingress": "none",
+          "client": "libpq",
+          "effective_sslmode": "require",
+          "tls_negotiated": true,
+          "configured_root_ca": null
+        },
+        "object_storage": {
+          "editor_attachments": "private",
+          "block_public_access": true,
+          "allowed_readers": [
+            "app role",
+            "approved origin identity"
+          ]
+        },
+        "compute": {
+          "metadata_endpoint": "enabled",
+          "metadata_http_tokens": "optional",
+          "instance_profile_permissions": [
+            "publish isolated application metrics"
+          ],
+          "public_admin_ingress": "none"
+        },
+        "key_change": {
+          "ticket": "synthetic incident scenario",
+          "trigger": "suspected APP_KEY compromise",
+          "new_serving_key_id": "fixture-key-v2",
+          "accepted_previous_key_ids": [
+            "fixture-key-v1"
+          ],
+          "session_invalidation": "deferred"
+        },
+        "operations": {
+          "backup_policy": "daily snapshot with retained point-in-time recovery",
+          "restore_reports_for_candidate": [],
+          "alert_rule_exists": true,
+          "alert_delivery_or_acknowledgement_reports_for_candidate": []
+        }
+      },
+      "route-inventory.json": [
+        {
+          "domain": null,
+          "method": "GET|HEAD",
+          "uri": "/",
+          "name": null,
+          "action": "Closure",
+          "middleware": [
+            "web"
+          ],
+          "path": "routes/web.php:6"
+        },
+        {
+          "domain": null,
+          "method": "GET|HEAD",
+          "uri": "posts",
+          "name": "posts.index",
+          "action": "App\\Http\\Controllers\\PostController@index",
+          "middleware": [
+            "web"
+          ],
+          "path": null
+        },
+        {
+          "domain": null,
+          "method": "POST",
+          "uri": "posts",
+          "name": "posts.store",
+          "action": "App\\Http\\Controllers\\PostController@store",
+          "middleware": [
+            "web",
+            "auth"
+          ],
+          "path": null
+        },
+        {
+          "domain": null,
+          "method": "PUT",
+          "uri": "posts/{post}",
+          "name": "posts.update",
+          "action": "App\\Http\\Controllers\\PostController@update",
+          "middleware": [
+            "web",
+            "auth"
+          ],
+          "path": null
+        },
+        {
+          "domain": null,
+          "method": "GET|HEAD",
+          "uri": "storage/{path}",
+          "name": "storage.local",
+          "action": "Closure",
+          "middleware": [],
+          "path": "private/tmp/guild-laravel-code-seed/tests/fixture-app/vendor/laravel/framework/src/Illuminate/Filesystem/FilesystemServiceProvider.php:111"
+        },
+        {
+          "domain": null,
+          "method": "PUT",
+          "uri": "storage/{path}",
+          "name": "storage.local.upload",
+          "action": "Closure",
+          "middleware": [],
+          "path": "private/tmp/guild-laravel-code-seed/tests/fixture-app/vendor/laravel/framework/src/Illuminate/Filesystem/FilesystemServiceProvider.php:119"
+        },
+        {
+          "domain": null,
+          "method": "GET|HEAD",
+          "uri": "up",
+          "name": null,
+          "action": "Illuminate\\Foundation\\Http\\HealthCheck",
+          "middleware": [],
+          "path": null
+        }
+      ],
+      "runtime.json": {
+        "capture": "local Laravel fixture after config:cache",
+        "laravel_version": "13.43.0",
+        "app_env": "production",
+        "app_debug": true
+      }
+    }
+  }
+}

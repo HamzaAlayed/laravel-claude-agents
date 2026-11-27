@@ -1,11 +1,13 @@
 ---
 name: laravel-deploy
-description: "The Laravel deployment cookbook — platform detection, zero-downtime release checklist, queue-worker + scheduler topology, rollback drill, post-deploy smoke. Use when building or reviewing a deploy pipeline, changing worker / scheduler topology, preparing a release, or writing an incident runbook's technical steps."
+description: "The Laravel deployment cookbook — platform detection, zero-downtime release checklist, queue-worker + scheduler topology, rollback drill, post-deploy smoke, and production performance audit. Use for deployments, worker changes, release readiness, incident runbooks, and production performance baselines."
 ---
 
 # Laravel Deployment
 
 Every deployment rollbackable, or it isn't ready. Build once, deploy many — one artifact promoted across environments.
+
+For a production performance audit, open the [production performance checklist](references/production-performance-checklist.md) and use the baseline plan and checks for the audited layers.
 
 ## Platform detection
 

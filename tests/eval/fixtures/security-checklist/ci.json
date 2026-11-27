@@ -1,0 +1,19 @@
+{
+  "required_checks": {
+    "build": {"conclusion": "success", "blocks_merge_on_failure": true},
+    "secret_scan": {"conclusion": "success", "confirmed_findings": 0, "blocks_merge_on_failure": true},
+    "dependency_audit": {"conclusion": "failure", "continue_on_error": true, "blocks_merge_on_failure": false}
+  },
+  "approved_release_policy": {
+    "confirmed_reachable_high_runtime_findings": "block unless a scoped approved exception exists"
+  },
+  "dependency_triage": [
+    {
+      "reference": "synthetic finding SEC-FIXTURE-01",
+      "severity": "high",
+      "confirmed": true,
+      "reachable_in_runtime": true,
+      "approved_exception": null
+    }
+  ]
+}

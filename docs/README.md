@@ -28,6 +28,8 @@ Last verified 2026-09-28 against pack v9.10.0.
 | [`docs/observability.md`](observability.md) | Delivery event schema, hash-chain verification, derived trace artifacts, and integrity-recovery runbook. |
 | [`docs/outcome-benchmark.md`](outcome-benchmark.md) | Read-only baseline/candidate capture contract, query and latency thresholds, durable receipts, and failure recovery. |
 | [`docs/benchmark-capture.md`](benchmark-capture.md) | Laravel package installation, typed scenarios, guarded capture command, safety boundary, and failure recovery. |
+| [Production performance checklist](../skills/laravel-deploy/references/production-performance-checklist.md) | Runbook for baselining production Laravel applications, diagnosing bottlenecks, and verifying changes against route and service budgets. |
+| [Production security checklist](../skills/laravel-security/references/production-security-checklist.md) | Control verification, OWASP mappings, and evidence required to release a Laravel application. |
 | [`docs/context-engineering.md`](context-engineering.md) | Bounded stage packets, authority separation, source selection, token budgets, staleness checks, and interruption recovery. |
 | [`docs/memory-engineering.md`](memory-engineering.md) | Approval-gated durable memory, scoped retrieval, evidence freshness, supersession, tombstone deletion, and recovery. |
 | [`docs/evaluation-engineering.md`](evaluation-engineering.md) | Machine-readable agent cases, authoritative checks, source-bound receipts, operational metrics, regression comparison, and failure recovery. |

@@ -1,0 +1,17 @@
+@import url('/catalog-assets/surface.css');
+
+@font-face {
+    font-family: 'Catalog Sans';
+    src: url('/catalog-assets/catalog.woff2') format('woff2');
+    font-display: block;
+}
+
+body {
+    font-family: 'Catalog Sans', sans-serif;
+}
+
+#catalog-hero {
+    display: block;
+    width: min(100%, 700px);
+    height: auto;
+}
