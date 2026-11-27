@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [9.14.0] - 2026-11-27
+
+### Added
+
+- Ship production performance and security checklists with versioned
+  references, verification steps, and ranked quick wins.
+- Archive 39 live Claude Code audit scores, fixture evidence, and
+  source digests for the frontend and security comparisons.
+
+### Changed
+
+- Route production audits through the checklists in the frontend,
+  performance, and security profiles.
+- Report initial list rendering independently of API payload size.
+- Require a successful authorized request and a denied anonymous request
+  on the same private attachment URL before clearing the release hold.
+
 ## [9.13.0] - 2026-11-25
 
 ### Added

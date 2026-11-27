@@ -442,9 +442,9 @@ an explicit ownership boundary.
 
 ---
 
-## Latest release: 9.13.0
+## Latest release: 9.14.0
 
-Stage timing shows where each delivery spent time, from eligibility through verification. The live evaluation compares one agent, wave scheduling, and rolling dispatch across four Laravel workloads. [Release notes and live eval results](docs/releases/9.13.0.md)
+The production performance and security checklists give teams concrete verification steps, and the specialist agents use them in production audits. [Release notes and live eval results](docs/releases/9.14.0.md)
 
 ---
 
